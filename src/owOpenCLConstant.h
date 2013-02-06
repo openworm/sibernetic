@@ -12,4 +12,6 @@
 #define NO_CELL_ID -1
 #define NO_DISTANCE -1.0f
 
+#define QUEUE_EACH_KERNEL 1
+
 #endif // #ifndef OW_OPENCL_CONSTANT_H

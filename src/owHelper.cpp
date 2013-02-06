@@ -2,7 +2,9 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdexcept>
 using namespace std;
 
 owHelper::owHelper(void)
@@ -163,7 +165,6 @@ void owHelper::watch_report( const char * str )
 	elapsedTime = (t2.QuadPart - t0.QuadPart) * 1000.0 / frequency.QuadPart;
 #elif defined(__linux__)
 	clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
-	double us;
 	time_t sec = t2.tv_sec - t1.tv_sec;
 	long nsec;
 	if (t2.tv_nsec >= t1.tv_nsec) {

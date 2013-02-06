@@ -1,5 +1,5 @@
 #include "owWorldSimulation.h"
-
+#include <stdio.h>
 bool rotate = false;
 int old_x=0, old_y=0;	// Used for mouse event
 float rotX = 0.0f;		// Rotate screen on x axis 
