@@ -1,0 +1,15 @@
+#ifndef OW_OPENCL_CONSTANT_H
+#define OW_OPENCL_CONSTANT_H
+
+#define PARTICLE_COUNT ( 1024*42 )
+#define NEIGHBOR_COUNT 32
+
+#define LIQUID_PARTICLE 1
+#define ELASTIC_PARTICLE 2
+#define BOUNDARY_PARTICLE 3
+
+#define NO_PARTICLE_ID -1
+#define NO_CELL_ID -1
+#define NO_DISTANCE -1.0f
+
+#endif // #ifndef OW_OPENCL_CONSTANT_H
