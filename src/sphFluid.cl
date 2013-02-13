@@ -1289,9 +1289,6 @@ __kernel void pcisph_integrate(
 	//float nV_length;
 	//float vel_limit = 100.f;
 	float4 newVelocity_ = velocity_ + timeStep * acceleration_  ; //newVelocity_.w = 0.f;
-	if(id_source_particle == 32835){
-		//printf("velocity:%f\n",sqrt(DOT(newVelocity_,newVelocity_)));	
-	}
 		
 	//newVelocity_[3] = 0;
 	//nV_length = SQRT(DOT(newVelocity_,newVelocity_));

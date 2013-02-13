@@ -11,6 +11,9 @@
 #endif
 #include "owPhysicsConstant.h"
 
+#if INTEL_OPENCL_DEBUG
+	#define  OPENCL_DEBUG_PORGRAMM_PATH "-g -s \"C:\\Users\\Serg\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl programm
+#endif
 #define OPENCL_PORGRAMM_PATH "src/sphFluid.cl"
 
 class owOpenCLSolver
@@ -49,20 +52,20 @@ private:
 	cl::CommandQueue		  queue;
 	cl::Program				  program;
 	// Buffers
-	cl::Buffer acceleration;				// forceAcceleration and pressureForceAcceleration
-	cl::Buffer gridCellIndex;
-	cl::Buffer gridCellIndexFixedUp;
-	cl::Buffer neighborMap;
-	cl::Buffer particleIndex;				// list of pairs [CellIndex, particleIndex]
-	cl::Buffer particleIndexBack;			// list of indexes of particles before sort 
-	cl::Buffer position;
-	cl::Buffer pressure;
-	cl::Buffer rho;							// size * 2
-	cl::Buffer rhoInv;						// for basic SPH only
-	cl::Buffer sortedPosition;				// size * 2
-	cl::Buffer sortedVelocity;
-	cl::Buffer velocity;
-	cl::Buffer elasticConnectionsData;		//list of particle pairs connected with springs and rest distance between them
+	cl::Buffer 	acceleration;				// forceAcceleration and pressureForceAcceleration
+	cl::Buffer 	gridCellIndex;
+	cl::Buffer 	gridCellIndexFixedUp;
+	cl::Buffer 	neighborMap;
+	cl::Buffer 	particleIndex;				// list of pairs [CellIndex, particleIndex]
+	cl::Buffer 	particleIndexBack;			// list of indexes of particles before sort 
+	cl::Buffer 	position;
+	cl::Buffer 	pressure;
+	cl::Buffer 	rho;							// size * 2
+	cl::Buffer 	rhoInv;						// for basic SPH only
+	cl::Buffer 	sortedPosition;				// size * 2
+	cl::Buffer 	sortedVelocity;
+	cl::Buffer 	velocity;
+	cl::Buffer 	elasticConnectionsData;		//list of particle pairs connected with springs and rest distance between them
 	// Kernels
 	cl::Kernel clearBuffers;
 	cl::Kernel computeAcceleration;

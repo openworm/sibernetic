@@ -94,7 +94,7 @@ void owOpenCLSolver::initializeOpenCL()
 		}
 	}
 	//0-CPU, 1-GPU// depends on order appropriet drivers was instaled
-	int plList=0;//selected platform index in platformList array
+	int plList=1;//selected platform index in platformList array
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
@@ -127,7 +127,11 @@ void owOpenCLSolver::initializeOpenCL()
 	std::string programSource( std::istreambuf_iterator<char>( file ), ( std::istreambuf_iterator<char>() ));
 	cl::Program::Sources source( 1, std::make_pair( programSource.c_str(), programSource.length()+1 ));
 	program = cl::Program( context, source );
+#if INTEL_OPENCL_DEBUG
+	err = program.build( devices, OPENCL_DEBUG_PORGRAMM_PATH );
+#else
 	err = program.build( devices, "" );
+#endif
 	if( err != CL_SUCCESS ){
 		std::string compilationErrors;
 		compilationErrors = program.getBuildInfo< CL_PROGRAM_BUILD_LOG >( devices[ 0 ] );
@@ -140,15 +144,14 @@ void owOpenCLSolver::initializeOpenCL()
 unsigned int owOpenCLSolver::_runClearBuffers()
 {
 	// Stage ClearBuffers
-	int err;
 	clearBuffers.setArg( 0, neighborMap );
-	err = queue.enqueueNDRangeKernel(clearBuffers, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT ) ),
+	int err = queue.enqueueNDRangeKernel(clearBuffers, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -172,7 +175,7 @@ unsigned int owOpenCLSolver::_runHashParticles()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -188,21 +191,20 @@ unsigned int owOpenCLSolver::_runSort()
 unsigned int owOpenCLSolver::_runSortPostPass()
 {
 	// Stage SortPostPass
-	int err;
 	sortPostPass.setArg( 0, particleIndex );
 	sortPostPass.setArg( 1, particleIndexBack );
 	sortPostPass.setArg( 2, position );
 	sortPostPass.setArg( 3, velocity );
 	sortPostPass.setArg( 4, sortedPosition );
 	sortPostPass.setArg( 5, sortedVelocity );
-	err = queue.enqueueNDRangeKernel(
+	int err = queue.enqueueNDRangeKernel(
 		sortPostPass, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -222,7 +224,7 @@ unsigned int owOpenCLSolver::_runIndexx()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -267,7 +269,7 @@ unsigned int owOpenCLSolver::_runFindNeighbors()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -296,7 +298,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeDensity()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -326,7 +328,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -343,7 +345,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 5, h );
 	pcisph_computeElasticForces.setArg( 6, mass );
 	pcisph_computeElasticForces.setArg( 7, simulationScale );
-	pcisph_computeElasticForces.setArg( 8, numOfElasticConnections);
+	pcisph_computeElasticForces.setArg( 8, numOfElasticConnections );
 	pcisph_computeElasticForces.setArg( 9, elasticConnectionsData );
 	int elasticConnectionsCountRoundedUp = ((( numOfElasticConnections - 1 ) / 256 ) + 1 ) * 256;
 	int err = queue.enqueueNDRangeKernel(
@@ -353,7 +355,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -388,7 +390,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -417,7 +419,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -448,7 +450,7 @@ unsigned int owOpenCLSolver::_run_pcisph_correctPressure()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -481,7 +483,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;
@@ -518,7 +520,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate()
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif
-#ifdef QUEUE_EACH_KERNEL
+#if QUEUE_EACH_KERNEL
 	queue.finish();
 #endif
 	return err;

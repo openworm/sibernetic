@@ -1,7 +1,7 @@
 #ifndef OW_OPENCL_CONSTANT_H
 #define OW_OPENCL_CONSTANT_H
 
-#define PARTICLE_COUNT ( 1024*42 )
+#define PARTICLE_COUNT ( 1024 * 60 )
 #define NEIGHBOR_COUNT 32
 
 #define LIQUID_PARTICLE 1
@@ -13,5 +13,7 @@
 #define NO_DISTANCE -1.0f
 
 #define QUEUE_EACH_KERNEL 1
+
+#define INTEL_OPENCL_DEBUG 0
 
 #endif // #ifndef OW_OPENCL_CONSTANT_H

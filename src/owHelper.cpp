@@ -120,7 +120,7 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 		else 
 			throw std::runtime_error("Could not open file velocity.txt");
 		if(numOfElasticP != 0){
-			ifstream elasticConectionsFile ("./configuration/elasticConnections.txt");
+			ifstream elasticConectionsFile ("./configuration/elasticconnections.txt");
 			i = 0;
 			float id, jd, rij0, val;// Ellastic connection info id - i partical jd - jparticle rij0 - distance between i and j, val - doesn't have any useful information we use it only for vectorization
 			if( elasticConectionsFile.is_open() )
@@ -130,8 +130,8 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 				{
 					if(firstString){
 						elasticConectionsFile >> numOfElasticConnections;
-						elasticConnections = new float[ 4 * numOfElasticConnections];
-						firstString = false;
+						elasticConnections = new float[ 4 * numOfElasticConnections ];
+						firstString = false;//on fist string we save cout of all ellastic connection
 					}else if (i < numOfElasticConnections){
 						elasticConectionsFile >> id >> jd >> rij0 >> val;
 						elasticConnections[ 4 * i + 0 ] = id;
