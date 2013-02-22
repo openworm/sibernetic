@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdexcept>
+#include <sstream>
+#include <string>
 using namespace std;
 
 owHelper::owHelper(void)
@@ -155,7 +157,99 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 		exit( -1 );
 	}
 }
-
+void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, float *&elasticConnections, int &numOfLiquedP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
+{
+	try
+	{
+		ifstream configurationFile ("./configuration/configuration.txt");
+		int i = 0;
+		float x, y, z, p_type = -1.f;
+		std::string line;
+		const int isPositionBlock = 1;
+		const int isVelocityBlock = 2;
+		const int isElasticConnectionsBlock = 3;
+		int block = 0;
+		bool isNotString = true;
+		if( configurationFile.is_open() )
+		{
+			bool firstString = true;
+			while( configurationFile.good() && i < PARTICLE_COUNT )
+			{
+				std::getline(configurationFile, line);
+				std::istringstream iss(line);
+				isNotString = true;
+				//iss >> numOfElasticConnections;
+				if (!(iss >> x >> y >> z >> p_type)) { 
+					if(line == "Position"){
+						block = isPositionBlock;
+						i = 0;
+						isNotString = false;
+					}
+					if( line == "Velocity"){
+						block = isVelocityBlock;
+						i = 0;
+						isNotString = false;
+					}
+					if( line =="ElasticConnection"){
+						block = isElasticConnectionsBlock;
+						i = 0;
+						isNotString = false;
+					}
+				} if(isNotString){
+					switch(block){
+						case isPositionBlock: {
+							position[ 4 * i + 0 ] = x;
+							position[ 4 * i + 1 ] = y;
+							position[ 4 * i + 2 ] = z;
+							position[ 4 * i + 3 ] = p_type;
+							switch((int)p_type){
+								case LIQUID_PARTICLE:
+									numOfLiquedP++;
+									break;
+								case ELASTIC_PARTICLE:
+									numOfElasticP++;
+									break;
+								case BOUNDARY_PARTICLE:
+									numOfBoundaryP++;
+									break;
+							}
+							i++;
+							break;
+						}
+						case isVelocityBlock: {
+							velocity[ 4 * i + 0 ] = x;
+							velocity[ 4 * i + 1 ] = y;
+							velocity[ 4 * i + 2 ] = z;
+							velocity[ 4 * i + 3 ] = p_type;
+							i++;
+							break;
+						}
+						case isElasticConnectionsBlock: {
+							if(firstString){
+								numOfElasticConnections = (int)x;//TODO write Comments here
+								elasticConnections = new float[ 4 * numOfElasticConnections ];
+								firstString = false;//on fist string we save cout of all ellastic connection
+							}else if (i < numOfElasticConnections){
+								elasticConnections[ 4 * i + 0 ] = x;//id;
+								elasticConnections[ 4 * i + 1 ] = y;//jd;
+								elasticConnections[ 4 * i + 2 ] = z;//rij0;
+								elasticConnections[ 4 * i + 3 ] = p_type;//val;
+								i++;
+							}
+							break;
+						}
+					}
+				}
+			}
+			configurationFile.close();
+		}
+		else 
+			throw std::runtime_error("Could not open file configuration.txt");
+	}catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
 void owHelper::watch_report( const char * str )
 {
 #if defined(_WIN32) || defined(_WIN64)
