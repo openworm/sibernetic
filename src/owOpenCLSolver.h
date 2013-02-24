@@ -12,9 +12,9 @@
 #include "owPhysicsConstant.h"
 
 #if INTEL_OPENCL_DEBUG
-	#define  OPENCL_DEBUG_PORGRAMM_PATH "-g -s \"C:\\Users\\Serg\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl programm
+	#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\Users\\Serg\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl programm
 #endif
-#define OPENCL_PORGRAMM_PATH "src/sphFluid.cl"
+#define OPENCL_PROGRAM_PATH "src/sphFluid.cl"
 
 class owOpenCLSolver
 {
@@ -22,7 +22,9 @@ public:
 	owOpenCLSolver(const float * positionBuffer, const float * velocityBuffer, const float * elasticConnections = NULL);
 	owOpenCLSolver(void);
 	~owOpenCLSolver(void);
-	void initializeOpenCL();// Initialize OPENCL device, context, queue, program...
+	// Initialize OPENCL device, context, queue, program...
+	void initializeOpenCL();
+	//PCISPH kernels for data structures support and management
 	unsigned int _runClearBuffers();
 	unsigned int _runHashParticles();
 	unsigned int _runSort();
@@ -30,7 +32,7 @@ public:
 	unsigned int _runIndexx();
 	unsigned int _runIndexPostPass();
 	unsigned int _runFindNeighbors();
-	//PCISPH addition kernels
+	//PCISPH kernels for physics-related calculations
 	unsigned int _run_pcisph_computeDensity();
 	unsigned int _run_pcisph_computeForcesAndInitPressure();
 	unsigned int _run_pcisph_computeElasticForces();
@@ -39,9 +41,11 @@ public:
 	unsigned int _run_pcisph_correctPressure();
 	unsigned int _run_pcisph_computePressureForceAcceleration();
 	unsigned int _run_pcisph_integrate();
+
 	void read_position_b( float * positionBuffer ) { copy_buffer_from_device( positionBuffer, position, PARTICLE_COUNT * sizeof( float ) * 4 ); };
 	void read_density_b( float * densityBuffer ) { copy_buffer_from_device( densityBuffer, rho, PARTICLE_COUNT * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
 	void read_particleIndex_b( unsigned int * particeleIndexBuffer ) { copy_buffer_from_device( particeleIndexBuffer, particleIndex, PARTICLE_COUNT * sizeof( unsigned int ) * 2 ); }; // This need only for visualization current density of particle (graphic effect)
+
 private:
 	void create_ocl_kernel( const char *name, cl::Kernel &k );
 	void create_ocl_buffer(const char *name, cl::Buffer &b, const cl_mem_flags flags,const int size);
@@ -60,8 +64,7 @@ private:
 	cl::Buffer 	particleIndexBack;			// list of indexes of particles before sort 
 	cl::Buffer 	position;
 	cl::Buffer 	pressure;
-	cl::Buffer 	rho;							// size * 2
-	cl::Buffer 	rhoInv;						// for basic SPH only
+	cl::Buffer 	rho;						// size * 2
 	cl::Buffer 	sortedPosition;				// size * 2
 	cl::Buffer 	sortedVelocity;
 	cl::Buffer 	velocity;

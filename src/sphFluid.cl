@@ -661,7 +661,6 @@ __kernel void pcisph_computeDensity(
 									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
-									 __global float * rhoInv,
 									 __global uint * particleIndexBack,
 									 float delta									 )
 {
@@ -694,7 +693,6 @@ __kernel void pcisph_computeDensity(
 
 	density *= mass*Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 	rho[ id ] = density; 		
-	rhoInv[ id ] = real_nc; 		
 }
 /*
 float4 calcBoundaryForceAcceleration(float4 position,
@@ -1068,7 +1066,6 @@ __kernel void pcisph_predictDensity(
 									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
-									 __global float * rhoInv,
 									 float delta
 									 )
 {
@@ -1112,7 +1109,6 @@ __kernel void pcisph_predictDensity(
 
 	density *= mass*Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 	rho[ PARTICLE_COUNT+id ] = density; 
-	rhoInv[ id ] = real_nc; 	
 }
 
 
@@ -1129,7 +1125,6 @@ __kernel void pcisph_correctPressure(
 									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
-									 __global float * rhoInv,
 									 float delta,
 									 __global float4 * position,
 									 __global uint2 * particleIndex
@@ -1162,7 +1157,6 @@ __kernel void pcisph_computePressureForceAcceleration(
 								  __global float2 * neighborMap,
 								  __global float * pressure,
 								  __global float * rho,
-								  __global float * rhoInv,
 								  __global float4 * sortedPosition,
 								  __global float4 * sortedVelocity,
 								  __global uint * particleIndexBack,

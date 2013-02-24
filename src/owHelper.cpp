@@ -29,18 +29,18 @@ void owHelper::refreshTime()
 #endif
 }
 //For output float buffer
-void owHelper::log_bufferf(const float * buffer, const int ellement_size, const int global_size, const char * fileName)
+void owHelper::log_bufferf(const float * buffer, const int element_size, const int global_size, const char * fileName)
 {
 	try{
 		ofstream outFile (fileName);
 		for(int i = 0; i < global_size; i++)
 		{
-			for(int j = 0; j < ellement_size; j++)
+			for(int j = 0; j < element_size; j++)
 			{
-				if(j < ellement_size - 1 )
-					outFile << buffer[ i * ellement_size + j ] << "\t";
+				if(j < element_size - 1 )
+					outFile << buffer[ i * element_size + j ] << "\t";
 				else
-					outFile << buffer[ i * ellement_size + j ] << "\n";
+					outFile << buffer[ i * element_size + j ] << "\n";
 			}
 		}
 		outFile.close();
@@ -50,18 +50,18 @@ void owHelper::log_bufferf(const float * buffer, const int ellement_size, const 
 	}
 }
 //For output int buffer
-void owHelper::log_bufferi(const int * buffer, const int ellement_size, const int global_size, const char * fileName)
+void owHelper::log_bufferi(const int * buffer, const int element_size, const int global_size, const char * fileName)
 {
 	try{
 		ofstream outFile (fileName);
 		for(int i = 0; i < global_size; i++)
 		{
-			for(int j = 0; j < ellement_size; j++)
+			for(int j = 0; j < element_size; j++)
 			{
-				if(j < ellement_size + 1 )
-					outFile << buffer[ i * ellement_size + j ] << "\t";
+				if(j < element_size + 1 )
+					outFile << buffer[ i * element_size + j ] << "\t";
 				else
-					outFile << buffer[ i * ellement_size + j ] << "\n";
+					outFile << buffer[ i * element_size + j ] << "\n";
 			}
 		}
 		outFile.close();

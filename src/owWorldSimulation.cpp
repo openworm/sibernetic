@@ -146,7 +146,7 @@ void display(void)
 	glEnd();
 	glutSwapBuffers();
 	helper->watch_report("graphics: \t\t%9.3f ms\n====================================\n");
-	renderTime = helper->get_elepasedTime();
+	renderTime = helper->get_elapsedTime();
 	totalTime += calculationTime + renderTime;
 	calculateFPS();
 }
@@ -226,7 +226,7 @@ void drawStringBig (char *s)
 { 
   unsigned int i; 
   for (i = 0; i < strlen (s); i++) 
-    glutBitmapCharacter (GLUT_BITMAP_HELVETICA_12, s[i]); 
+	  glutBitmapCharacter (GLUT_BITMAP_HELVETICA_18, s[i]); 
 }; 
 static char label[100];                            /* Storage for current string   */
 void subMenuDisplay() 
@@ -237,7 +237,7 @@ void subMenuDisplay()
   glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
   /* Write State Variables */ 
   glColor3f (1.0F, 1.0F, 1.0F); 
-  sprintf (label, "Number Of Particle LIQUID_PARTICLE + ELASTIC_PARTICLE + BOUNDARY_PARTICLE = %d + %d + %d", fluid_simulation->get_numOfLiquidP(),fluid_simulation->get_numOfElasticP(),fluid_simulation->get_numOfBoundaryP()); 
+  sprintf (label, "Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", fluid_simulation->get_numOfLiquidP(),fluid_simulation->get_numOfElasticP(),fluid_simulation->get_numOfBoundaryP(),PARTICLE_COUNT); 
   glRasterPos2f (0.01F, 0.65F); 
   drawStringBig (label); 
   glColor3f (1.0F, 1.0F, 1.0F); 
@@ -318,7 +318,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 		glutInitWindowSize(800, 600);
 		glutInitWindowPosition(100, 100);
-		winIdMain = glutCreateWindow("                                		                          Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid demo [2012]");
+		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter demo [2013]");
 		glutIdleFunc (idle); 
 		glEnable(GL_LIGHTING);
 		glEnable(GL_LIGHT0);
@@ -334,7 +334,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutMouseFunc(respond_mouse);
 		glutMotionFunc(mouse_motion);	// The former handles movement while the mouse is clicked, 
 		//Create sub window which contains information about simulation: FPS, and particles count
-		winIdSub = glutCreateSubWindow (winIdMain, 5, 5, 800 - 10, 600 / 10); 
+		winIdSub = glutCreateSubWindow (winIdMain, 5, 5, 1000 - 10, 600 / 10); 
 		glutDisplayFunc (subMenuDisplay); 
 		glutReshapeFunc (subMenuReshape); 
 		glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);

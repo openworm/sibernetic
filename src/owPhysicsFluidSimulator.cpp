@@ -60,10 +60,10 @@ double owPhysicsFluidSimulator::simulationStep()
 		ocl_solver->read_position_b(positionBuffer);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n"); 
 		//END PCISPH algorithm
 		printf("------------------------------------\n");
-		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elepasedTime());
+		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
 		printf("------------------------------------\n");
 		iterationCount++;
-		return helper->get_elepasedTime();
+		return helper->get_elapsedTime();
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
