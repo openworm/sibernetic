@@ -29,6 +29,8 @@ void owHelper::refreshTime()
 #endif
 }
 //For output float buffer
+//Create File in which line element_size elements forn buffer
+//global_size - size of buffer / element_size
 void owHelper::log_bufferf(const float * buffer, const int element_size, const int global_size, const char * fileName)
 {
 	try{
@@ -157,6 +159,7 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 		exit( -1 );
 	}
 }
+
 void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, float *&elasticConnections, int &numOfLiquedP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
 {
 	try
@@ -228,7 +231,7 @@ void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, fl
 							if(firstString){
 								numOfElasticConnections = (int)x;//TODO write Comments here
 								elasticConnections = new float[ 4 * numOfElasticConnections ];
-								firstString = false;//on fist string we save cout of all ellastic connection
+								firstString = false;//on fist string we save count of all elastic connection
 							}else if (i < numOfElasticConnections){
 								elasticConnections[ 4 * i + 0 ] = x;//id;
 								elasticConnections[ 4 * i + 1 ] = y;//jd;

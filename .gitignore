@@ -10,3 +10,16 @@
 *.lai
 *.la
 *.a
+#MY OTHER FILTERS
+*.ncb
+*.suo
+*.user
+*.dep
+*.exe
+*.htm
+*.idb
+*.ilk
+*.manifest
+*.obj
+*.pdb
+*.res

@@ -12,9 +12,10 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 	try{
 		positionBuffer = new float[ 8 * PARTICLE_COUNT ];
 		velocityBuffer = new float[ 4 * PARTICLE_COUNT ];
-		//Helper Buffer this does not contain any sence. Only for usabiloty and debug
+		//Helper Buffer this does not contain any sence. Only for usability and debug
 		densityBuffer = new float[ 1 * PARTICLE_COUNT ];
 		particleIndexBuffer = new unsigned int[PARTICLE_COUNT * 2];
+		accelerationBuffer = new float[PARTICLE_COUNT * 4];//TODO REMOVE IT AFTER FIXING
 		//
 		numOfLiquidP = 0;
 		numOfElasticP = 0;
@@ -58,6 +59,12 @@ double owPhysicsFluidSimulator::simulationStep()
 		}while( iter < maxIteration );
 		ocl_solver->_run_pcisph_integrate();						helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
 		ocl_solver->read_position_b(positionBuffer);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n"); 
+		//TODO REMOVE THIS AFTER FIXING
+		if(iterationCount == 0){
+			owHelper::log_bufferf(positionBuffer, 4, PARTICLE_COUNT, "./logs/positionLog_intel2.txt");
+			ocl_solver->read_acceleration_b(accelerationBuffer);
+			owHelper::log_bufferf(accelerationBuffer,4,PARTICLE_COUNT, "./logs/accelerationLog_intel2.txt");
+		}
 		//END PCISPH algorithm
 		printf("------------------------------------\n");
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());

@@ -3,6 +3,7 @@
 // Equations referenced here are from:
 // "Particle-based fluid simulation for interactive applications", Muller, Charypar & Gross,
 // Eurographics/SIGGRAPH Symposium on Computer Animation (2003).
+//TODO: write all papers and dissertation what we use in work
 
 #include "src//owOpenCLConstant.h"
 //#define PARTICLE_COUNT ( 32 * 1024 )//( 32 * 1024 )
@@ -780,14 +781,24 @@ __kernel void pcisph_computeForcesAndInitPressure(
 								  float simulationScale,
 								  float gravity_x,
 								  float gravity_y,
-								  float gravity_z
+								  float gravity_z,
+								  __global float4 * position,
+								  __global uint2 * particleIndex
 								  //int ELASTIC_CONNECTIONS_COUNT,
 								  //__global float4 * elasticConnectionsData
 								  )
 {
 	int id = get_global_id( 0 );
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
-	
+	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
+	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE){
+		//FOR BOUNDARY OARTICLE WE SHOULDN'T COMPUDE ACCELERATION BECAUSE THEY DON'T MOVE SOMEWHERE
+		acceleration[ id ] = (float4)(0.0f, 0.0f, 0.0f, 0.0f );
+		acceleration[ PARTICLE_COUNT+id ] = (float4)(0.0f, 0.0f, 0.0f, 0.0f );
+		pressure[id] = 0.f;//initialize pressure with 0
+		return;
+	}
+		
 	int idx = id * NEIGHBOR_COUNT;
 	float hScaled = h * simulationScale;
 	float hScaled2 = hScaled*hScaled;//29aug_A.Palyanov
@@ -848,7 +859,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 		{
 			accel_surfTensForce = -(normalVector/nV_length)*25;
 		}
-	}*/
+		}*///TODO REMOVE THIS BLOCK
 
 	float viscosity = 0.3;//0.5f;//0.1f
 
@@ -889,9 +900,10 @@ __kernel void pcisph_computeElasticForces(
 								  )
 {
 	int index = get_global_id( 0 );
-
-	if(index>=ELASTIC_CONNECTIONS_COUNT) return;
-
+	//return;
+	if(index>=ELASTIC_CONNECTIONS_COUNT) {
+		return;
+	}
 	int id = (int)elasticConnectionsData[index].x;
 	int jd = (int)elasticConnectionsData[index].y;
 
@@ -904,12 +916,18 @@ __kernel void pcisph_computeElasticForces(
 	vect_r_ij.w = 0;
 	float r_ij = SQRT(vect_r_ij.x*vect_r_ij.x+vect_r_ij.y*vect_r_ij.y+vect_r_ij.z*vect_r_ij.z);
 	float delta_r_ij = r_ij - r_ij_equilibrium;
-	//if(r_ij!=0.f) vect_r_ij /= r_ij;//normalize
+	//if(r_ij!=0.f) vect_r_ij /= r_ij;//normalize TODO: delete this
 
 	float k = 90000.f;// k - coefficient of elasticity
-
-	if(r_ij!=0.f) acceleration[ id ] += -(vect_r_ij/r_ij)*delta_r_ij*k;
-
+	if(r_ij!=0.f){
+		//In this Place can be simultaneously writing to one place in memory
+		//Because id can appear more that one time
+		//elasticConnectionsData can have more that one cells with 
+		//id jd1 rij0 0
+		//id jd2 rij1 0
+		acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * k;
+	}
+		
 	float4 centerOfMassVelocity = (sortedVelocity[id]+sortedVelocity[jd])/2.f;
 	float4 velocity_i_cm = sortedVelocity[id] - centerOfMassVelocity;
 	//float4 velocity_j_cm = sortedVelocity[jd] - centerOfMassVelocity;// always will be equal to (-velocity_i_cm)
@@ -918,11 +936,15 @@ __kernel void pcisph_computeElasticForces(
 	if((v_i_cm_length!=0)&&(r_ij!=0))
 	{
 		float damping_coeff = 0.5f;
-		velocity_i_cm.w = 0;
+		velocity_i_cm.w = 0.f;
 		//vect_r_ij.w = 0;
 		float4 proj_v_i_cm_on_r_ij = vect_r_ij * DOT(velocity_i_cm,vect_r_ij)/(v_i_cm_length*r_ij);
-		float check = DOT(velocity_i_cm,vect_r_ij)/(v_i_cm_length*r_ij);
+		float check = DOT(velocity_i_cm,vect_r_ij)/(v_i_cm_length*r_ij);//TODO remove it 
 
+		//In this Place can be simultaneously writing to one place in memory
+		//Because id and jd can appear more that one time
+		//id jd1 rij0 0
+		//id1 jd1 rij1 0
 		sortedVelocity[id] -= proj_v_i_cm_on_r_ij * damping_coeff;
 		sortedVelocity[jd] += proj_v_i_cm_on_r_ij * damping_coeff;
 	}
@@ -1044,7 +1066,7 @@ __kernel void pcisph_predictPositions(
 
 
 	//handleBoundaryConditions( position_, &newVelocity_, posTimeStep, &newPosition_,
-	//	xmin, xmax, ymin, ymax, zmin, zmax, damping );
+	//	xmin, xmax, ymin, ymax, zmin, zmax, damping ); //TODO: remove this
 
 	//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
 	calculateBoundaryParticleAffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_);
@@ -1176,7 +1198,7 @@ __kernel void pcisph_computePressureForceAcceleration(
 	int id = get_global_id( 0 );
 	id = particleIndexBack[id];//track selected particle (indices are not mixed anymore)
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
-	if((int)(position[ id_source_particle ].w) == 3){
+	if((int)(position[ id_source_particle ].w) == 3){//TODO change all number const to symbol
 		acceleration[ PARTICLE_COUNT+id ] = 0.f;
 		return;
 	}
@@ -1268,6 +1290,7 @@ __kernel void pcisph_integrate(
 	id = particleIndexBack[id]; if(id>=PARTICLE_COUNT) return;
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	float4 position_ = sortedPosition[ id ];
+
 	if((int)(position[ id_source_particle ].w) == 3){
 		return;
 	}

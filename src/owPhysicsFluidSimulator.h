@@ -31,6 +31,7 @@ private:
 	//Helper buffers
 	float * densityBuffer;
 	unsigned int * particleIndexBuffer;
+	float * accelerationBuffer;//TODO REMOVE after fixing
 	owHelper * helper;
 };
 

@@ -93,7 +93,7 @@ void owOpenCLSolver::initializeOpenCL()
 		}
 	}
 	//0-CPU, 1-GPU // depends on the time order of system OpenCL drivers installation on your local machine
-	int plList = 0;//selected platform index in platformList array [choose CPU by default]
+	int plList = 1;//selected platform index in platformList array [choose CPU by default]
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
@@ -319,6 +319,8 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure()
 	pcisph_computeForcesAndInitPressure.setArg(13, gravity_x );
 	pcisph_computeForcesAndInitPressure.setArg(14, gravity_y );
 	pcisph_computeForcesAndInitPressure.setArg(15, gravity_z );
+	pcisph_computeForcesAndInitPressure.setArg(16, position );
+	pcisph_computeForcesAndInitPressure.setArg(17, particleIndex );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeForcesAndInitPressure, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT ) ),
 #if defined( __APPLE__ )
