@@ -93,7 +93,7 @@ void owOpenCLSolver::initializeOpenCL()
 		}
 	}
 	//0-CPU, 1-GPU // depends on the time order of system OpenCL drivers installation on your local machine
-	int plList = 1;//selected platform index in platformList array [choose CPU by default]
+	int plList = 0;//selected platform index in platformList array [choose CPU by default]
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
@@ -139,7 +139,7 @@ void owOpenCLSolver::initializeOpenCL()
 	}
 	return;
 }
-//Kernes function definition
+//Kernels functions definition
 unsigned int owOpenCLSolver::_runClearBuffers()
 {
 	// Stage ClearBuffers
@@ -264,7 +264,13 @@ unsigned int owOpenCLSolver::_runFindNeighbors()
 	int err = queue.enqueueNDRangeKernel(
 		findNeighbors, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT ) ),
 #if defined( __APPLE__ )
-		cl::NullRange, NULL, NULL );
+		cl::NullRange, NULL, NULL );/* 
+		local_work_size can also be a NULL
+		value in which case the OpenCL implementation will
+		determine how to be break the global work-items 
+		into appropriate work-group instances.
+		http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109 
+		*/
 #else
 		cl::NDRange( (int)( 256 ) ), NULL, NULL );
 #endif

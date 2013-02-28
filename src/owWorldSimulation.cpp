@@ -229,6 +229,7 @@ void drawStringBig (char *s)
 	  glutBitmapCharacter (GLUT_BITMAP_HELVETICA_18, s[i]); 
 }; 
 static char label[100];                            /* Storage for current string   */
+extern int iterationCount;
 void subMenuDisplay() 
 { 
  /* Clear subwindow */ 
@@ -241,7 +242,7 @@ void subMenuDisplay()
   glRasterPos2f (0.01F, 0.65F); 
   drawStringBig (label); 
   glColor3f (1.0F, 1.0F, 1.0F); 
-  sprintf (label, "FPS = %.2f ", fps); 
+  sprintf (label, "FPS = %.2f, time step: %d", fps, iterationCount); 
   glRasterPos2f (0.01F, 0.20F); 
   drawStringBig (label); 
  
