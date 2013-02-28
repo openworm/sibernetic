@@ -18,6 +18,7 @@ double renderTime;
 double totalTime = 0;
 int frames_counter = 0;
 double fps;
+char device_full_name [1000];
 double prevTime;
 int frameCount = 0;
 void calculateFPS();
@@ -242,7 +243,7 @@ void subMenuDisplay()
   glRasterPos2f (0.01F, 0.65F); 
   drawStringBig (label); 
   glColor3f (1.0F, 1.0F, 1.0F); 
-  sprintf (label, "FPS = %.2f, time step: %d", fps, iterationCount); 
+  sprintf (label, "Selected device: %s     FPS = %.2f, time step: %d", device_full_name, fps, iterationCount); 
   glRasterPos2f (0.01F, 0.20F); 
   drawStringBig (label); 
  

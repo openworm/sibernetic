@@ -64,6 +64,8 @@ owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * veloc
 		exit( -1 );
 	}
 }
+
+extern char device_full_name [1000];
 void owOpenCLSolver::initializeOpenCL()
 {
 	cl_int err;
@@ -93,17 +95,41 @@ void owOpenCLSolver::initializeOpenCL()
 		}
 	}
 	//0-CPU, 1-GPU // depends on the time order of system OpenCL drivers installation on your local machine
-	int plList = 0;//selected platform index in platformList array [choose CPU by default]
+	const char* device_type [] = {"CPU","GPU"};
+	int preferable_device_type = 0;// 0-CPU, 1-GPU 
+	int preferable_device_found = 0;
+
+	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
+	cl_int result;
 	if( devices.size() < 1 ){
 		throw std::runtime_error( "No OpenCL devices found" );
 	}
+	else
+	{
+		//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
+		for(plList = 0; plList<devices.size(); plList++)
+		{
+			result = devices[0].getInfo(CL_DEVICE_NAME,&cBuffer);		
+			if(result == CL_SUCCESS) 
+			{
+				if(strstr(cBuffer,device_type[preferable_device_type]))
+				{
+					preferable_device_found = 1;
+					break;
+				}
+			}
+		}
+
+		if(!preferable_device_found) plList = 0;
+	}
 	//Print some information about chosen platform
 	int value;
-	cl_int result = devices[0].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;		
+	result = devices[0].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;		
 	if(result == CL_SUCCESS) printf("CL_PLATFORM_VERSION [%d]: CL_DEVICE_NAME [%d]: \t%s\n",plList, 0, cBuffer);
+	if(strlen(cBuffer)<1000) strcpy(device_full_name,cBuffer);
 	result = devices[0].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&value);
 	if(result == CL_SUCCESS) printf("CL_PLATFORM_VERSION [%d]: CL_DEVICE_MAX_WORK_GROUP_SIZE [%d]: \t%d\n",plList, 0, value);
 	result = devices[0].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&value);
