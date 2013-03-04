@@ -17,7 +17,10 @@ int gridCellsZ = (int)( ( ZMAX - ZMIN ) / h ) + 1;
 int gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
 int * _particleIndex = new int[ PARTICLE_COUNT * 2 ];
 unsigned int * gridNextNonEmptyCellBuffer = new unsigned int[gridCellCount+1];
-extern int numOfElasticConnections;
+extern int numOfLiquidP;
+extern int numOfElasticP;
+extern int numOfBoundaryP;
+
 int myCompare( const void * v1, const void * v2 ); 
 
 owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * velocityBuffer, const float * elasticConnections)
@@ -34,7 +37,7 @@ owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * veloc
 		create_ocl_buffer( "pressure", pressure, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
 		create_ocl_buffer( "rho", rho, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 2 ) );
 		create_ocl_buffer( "sortedPosition", sortedPosition, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
-		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
+		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
 		create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
 		// Create kernels
 		create_ocl_kernel("clearBuffers", clearBuffers);
@@ -56,8 +59,8 @@ owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * veloc
 		copy_buffer_to_device( velocityBuffer, velocity, PARTICLE_COUNT * sizeof( float ) * 4 );
 		//elastic connections
 		if(elasticConnections != NULL){
-			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE,numOfElasticConnections * sizeof(float) * 4);
-			copy_buffer_to_device(elasticConnections,elasticConnectionsData,numOfElasticConnections * sizeof(float) * 4);
+			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
+			copy_buffer_to_device(elasticConnections, elasticConnectionsData, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
 		}
 	}catch( std::exception &e ){
 		std::cout << "ERROR: " << e.what() << std::endl;
@@ -95,35 +98,49 @@ void owOpenCLSolver::initializeOpenCL()
 		}
 	}
 	//0-CPU, 1-GPU // depends on the time order of system OpenCL drivers installation on your local machine
-	const char* device_type [] = {"CPU","GPU"};
+	// CL_DEVICE_TYPE
+    cl_device_type type;
+	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
 	int preferable_device_type = 0;// 0-CPU, 1-GPU 
-	int preferable_device_found = 0;
-
+	
 	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
-	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
-	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
-	devices = context.getInfo< CL_CONTEXT_DEVICES >();
+	//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
+	cl_uint ciDeviceCount;
+	cl_device_id * devices_t;
+	bool bPassed, findDevice = false;
 	cl_int result;
-	if( devices.size() < 1 ){
-		throw std::runtime_error( "No OpenCL devices found" );
-	}
-	else
-	{
-		//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
-		for(plList = 0; plList<devices.size(); plList++)
-		{
-			result = devices[0].getInfo(CL_DEVICE_NAME,&cBuffer);		
-			if(result == CL_SUCCESS) 
-			{
-				if(strstr(cBuffer,device_type[preferable_device_type]))
-				{
-					preferable_device_found = 1;
-					break;
+	for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
+		if(findDevice)
+			break;
+		clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], CL_DEVICE_TYPE_ALL, 0, NULL, &ciDeviceCount);
+		if ((devices_t = (cl_device_id*)malloc(sizeof(cl_device_id) * ciDeviceCount)) == NULL){
+		   bPassed = false;
+		}
+		if(bPassed){
+			result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], CL_DEVICE_TYPE_ALL, ciDeviceCount, devices_t, &ciDeviceCount);
+			if( result == CL_SUCCESS){
+				for( cl_uint i =0; i < ciDeviceCount; ++i ){
+					clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);		
+					if( type & device_type[preferable_device_type]){
+						plList = clSelectedPlatformID;
+						findDevice = true;
+						break;
+					}
+					if( type & device_type[preferable_device_type] ){
+						plList = clSelectedPlatformID;
+						findDevice = true;
+						break;
+					}
 				}
 			}
 		}
-
-		if(!preferable_device_found) plList = 0;
+	}
+	if(!findDevice) plList = 0;
+	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
+	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
+	devices = context.getInfo< CL_CONTEXT_DEVICES >();
+	if( devices.size() < 1 ){
+		throw std::runtime_error( "No OpenCL devices found" );
 	}
 	//Print some information about chosen platform
 	int value;
@@ -367,7 +384,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure()
 }
 unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 {
-	if(numOfElasticConnections == 0 )
+	if(numOfElasticP == 0 )
 		return 0;
 	pcisph_computeElasticForces.setArg( 0, neighborMap );
 	pcisph_computeElasticForces.setArg( 1, sortedPosition );
@@ -377,11 +394,12 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 5, h );
 	pcisph_computeElasticForces.setArg( 6, mass );
 	pcisph_computeElasticForces.setArg( 7, simulationScale );
-	pcisph_computeElasticForces.setArg( 8, numOfElasticConnections );
+	pcisph_computeElasticForces.setArg( 8, numOfElasticP );
 	pcisph_computeElasticForces.setArg( 9, elasticConnectionsData );
-	int elasticConnectionsCountRoundedUp = ((( numOfElasticConnections - 1 ) / 256 ) + 1 ) * 256;
+	pcisph_computeElasticForces.setArg( 10, numOfBoundaryP );
+	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / 256 ) + 1 ) * 256;
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( (int) ( elasticConnectionsCountRoundedUp ) ),
+		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( (int) ( numOfElasticPCountRoundedUp ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -392,6 +410,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 #endif
 	return err;
 }
+////
 unsigned int owOpenCLSolver::_run_pcisph_predictPositions()
 {
 	pcisph_predictPositions.setArg( 0, acceleration );

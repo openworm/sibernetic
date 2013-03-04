@@ -1,5 +1,11 @@
 #include "owWorldSimulation.h"
 #include <stdio.h>
+
+extern int numOfLiquidP;
+extern int numOfElasticP;
+extern int numOfBoundaryP;
+extern int iterationCount;
+
 bool rotate = false;
 int old_x=0, old_y=0;	// Used for mouse event
 float rotX = 0.0f;		// Rotate screen on x axis 
@@ -137,7 +143,7 @@ void display(void)
 		if( (dc=100*(rho-rho0*1.02f)/rho0) >0 )	glColor4f(  dc,   1,   0,1.0f);//yellow
 		if( (dc=100*(rho-rho0*1.03f)/rho0) >0 )	glColor4f(   1,1-dc,   0,1.0f);//red
 		if( (dc=100*(rho-rho0*1.04f)/rho0) >0 )	glColor4f(   1,   0,   0,1.0f);
-		if((int)p_b[i*4 + 3] != BOUNDARY_PARTICLE){
+		if((int)p_b[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_b[i*4 + 3] != ELASTIC_PARTICLE*/){
 			glBegin(GL_POINTS);
 			if((int)p_b[i*4+3]==2) glColor4f(   1,   1,   0,  1.0f);
 			glVertex3f( (p_b[i*4]-XMAX/2)*sc , (p_b[i*4+1]-YMAX/2)*sc, (p_b[i*4+2]-ZMAX/2)*sc );
@@ -230,24 +236,26 @@ void drawStringBig (char *s)
 	  glutBitmapCharacter (GLUT_BITMAP_HELVETICA_18, s[i]); 
 }; 
 static char label[100];                            /* Storage for current string   */
-extern int iterationCount;
+
 void subMenuDisplay() 
 { 
- /* Clear subwindow */ 
-  glutSetWindow (winIdSub); 
-  glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
-  glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-  /* Write State Variables */ 
-  glColor3f (1.0F, 1.0F, 1.0F); 
-  sprintf (label, "Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", fluid_simulation->get_numOfLiquidP(),fluid_simulation->get_numOfElasticP(),fluid_simulation->get_numOfBoundaryP(),PARTICLE_COUNT); 
-  glRasterPos2f (0.01F, 0.65F); 
-  drawStringBig (label); 
-  glColor3f (1.0F, 1.0F, 1.0F); 
-  sprintf (label, "Selected device: %s     FPS = %.2f, time step: %d", device_full_name, fps, iterationCount); 
-  glRasterPos2f (0.01F, 0.20F); 
-  drawStringBig (label); 
- 
-  glutSwapBuffers (); 
+	/* Clear subwindow */ 
+	glutSetWindow (winIdSub); 
+	glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
+	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+	/* Write State Variables */ 
+	glColor3f (1.0F, 1.0F, 1.0F);
+	sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
+																												 numOfElasticP,
+																												 numOfBoundaryP,PARTICLE_COUNT); 
+	glRasterPos2f (0.01F, 0.65F); 
+	drawStringBig (label); 
+	glColor3f (1.0F, 1.0F, 1.0F); 
+	sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d", device_full_name, fps, iterationCount); 
+	glRasterPos2f (0.01F, 0.20F); 
+	drawStringBig (label); 
+
+	glutSwapBuffers (); 
 }; 
 void subMenuReshape (int w, int h) 
 { 

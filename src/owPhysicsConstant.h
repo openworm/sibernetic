@@ -10,11 +10,11 @@
 //Sizes of the box containing simulated 'world'
 //Sizes choice is realized this way because it should be proportional to smoothing radius h
 #define XMIN 0
-#define XMAX 120.24f
+#define XMAX 120.24f//120//200//50//100
 #define YMIN 0
-#define YMAX 80.16f
+#define YMAX 80.16f//80//330//40//80
 #define ZMIN 0
-#define ZMAX 180.36f
+#define ZMAX 182.03f//180//10//30
 
 const float rho0 = 1000.0f;
 const float stiffness = 0.75f;

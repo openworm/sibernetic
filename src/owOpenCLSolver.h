@@ -41,12 +41,10 @@ public:
 	unsigned int _run_pcisph_correctPressure();
 	unsigned int _run_pcisph_computePressureForceAcceleration();
 	unsigned int _run_pcisph_integrate();
-
+	
 	void read_position_b( float * positionBuffer ) { copy_buffer_from_device( positionBuffer, position, PARTICLE_COUNT * sizeof( float ) * 4 ); };
 	void read_density_b( float * densityBuffer ) { copy_buffer_from_device( densityBuffer, rho, PARTICLE_COUNT * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
 	void read_particleIndex_b( unsigned int * particeleIndexBuffer ) { copy_buffer_from_device( particeleIndexBuffer, particleIndex, PARTICLE_COUNT * sizeof( unsigned int ) * 2 ); }; // This need only for visualization current density of particle (graphic effect)
-	//TODO REMOVE THIS AFTER FIXING
-	void read_acceleration_b( float * accelerationBuffer ) { copy_buffer_from_device( accelerationBuffer, acceleration, PARTICLE_COUNT * sizeof( float ) * 4 ); }; // This need only for visualization current density of particle (graphic effect)
 private:
 	void create_ocl_kernel( const char *name, cl::Kernel &k );
 	void create_ocl_buffer(const char *name, cl::Buffer &b, const cl_mem_flags flags,const int size);

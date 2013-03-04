@@ -15,15 +15,11 @@ public:
 	float * getVelocityBuffer() { return velocityBuffer; };
 	float * getDensityBuffer() { ocl_solver->read_density_b( densityBuffer ); return densityBuffer; };
 	unsigned int * getParticleIndexBuffer() { ocl_solver->read_particleIndex_b( particleIndexBuffer ); return particleIndexBuffer; };
+	//TODO helper functions delete after fix!!
+	float * getElasticConnections() { return elasticConnections; };
+	//
 	double simulationStep();
-	int get_numOfLiquidP() { return numOfLiquidP; };
-	int get_numOfElasticP() { return numOfElasticP; };
-	int get_numOfBoundaryP() { return numOfBoundaryP; };
-	
 private:
-	int numOfLiquidP;
-	int numOfElasticP;
-	int numOfBoundaryP;
 	owOpenCLSolver * ocl_solver;
 	float * positionBuffer;
 	float * velocityBuffer;

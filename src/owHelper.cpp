@@ -123,43 +123,31 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 		}
 		else 
 			throw std::runtime_error("Could not open file velocity.txt");
+		//TODO NEXT BLOCK WILL BE new load of elastic connections
 		if(numOfElasticP != 0){
 			ifstream elasticConectionsFile ("./configuration/elasticconnections.txt");
+			elasticConnections = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
 			i = 0;
-			float id, jd, rij0, val;// Ellastic connection info id - i partical jd - jparticle rij0 - distance between i and j, val - doesn't have any useful information we use it only for vectorization
+			float  jd, rij0, val1, val2;// Ellastic connection partical jd - jparticle rij0 - distance between i and j, val1, val2 - doesn't have any useful information yet
 			if( elasticConectionsFile.is_open() )
 			{
-				bool firstString = true;
 				while( elasticConectionsFile.good())
 				{
-					if(firstString){
-						elasticConectionsFile >> numOfElasticConnections;
-						elasticConnections = new float[ 4 * numOfElasticConnections ];
-						firstString = false;//on fist string we save cout of all ellastic connection
-					}else if (i < numOfElasticConnections){
-						elasticConectionsFile >> id >> jd >> rij0 >> val;
-						elasticConnections[ 4 * i + 0 ] = id;
-						elasticConnections[ 4 * i + 1 ] = jd;
-						elasticConnections[ 4 * i + 2 ] = rij0;
-						elasticConnections[ 4 * i + 3 ] = val;
-						i++;
-					}else{
-						break;
-					}
+					elasticConectionsFile >> jd >> rij0 >> val1 >> val2;
+					elasticConnections[ 4 * i + 0 ] = jd;
+					elasticConnections[ 4 * i + 1 ] = rij0;
+					elasticConnections[ 4 * i + 2 ] = val1;
+					elasticConnections[ 4 * i + 3 ] = val2;
+					i++;
 				}
-				elasticConectionsFile.close();
 			}
-		}
-		else {
-			numOfElasticConnections = 0;
-			//throw std::runtime_error("Could not open file elasticConnections.txt");
 		}
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
 	}
 }
-
+//This Function is testing
 void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, float *&elasticConnections, int &numOfLiquedP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
 {
 	try

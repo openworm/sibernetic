@@ -7,6 +7,9 @@ float calcDelta();
 extern const float delta = calcDelta();
 int iterationCount = 0;
 extern int numOfElasticConnections = 0;
+extern int numOfLiquidP = 0;
+extern int numOfElasticP = 0;
+extern int numOfBoundaryP = 0;
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
 	try{
@@ -17,11 +20,8 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		particleIndexBuffer = new unsigned int[PARTICLE_COUNT * 2];
 		accelerationBuffer = new float[PARTICLE_COUNT * 4];//TODO REMOVE IT AFTER FIXING
 		//
-		numOfLiquidP = 0;
-		numOfElasticP = 0;
-		numOfBoundaryP = 0;
 		owHelper::loadConfiguration( positionBuffer, velocityBuffer, elasticConnections, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections );		//Load configuration from file to buffer
-		if(numOfElasticConnections != 0){
+		if(numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(positionBuffer,velocityBuffer,elasticConnections);	//Create new openCLsolver instance
 		}else
 			ocl_solver = new owOpenCLSolver(positionBuffer,velocityBuffer);	//Create new openCLsolver instance
@@ -59,12 +59,6 @@ double owPhysicsFluidSimulator::simulationStep()
 		}while( iter < maxIteration );
 		ocl_solver->_run_pcisph_integrate();						helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
 		ocl_solver->read_position_b(positionBuffer);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n"); 
-		//TODO REMOVE THIS AFTER FIXING
-		if(iterationCount == 0){
-			owHelper::log_bufferf(positionBuffer, 4, PARTICLE_COUNT, "./logs/positionLog_intel2.txt");
-			ocl_solver->read_acceleration_b(accelerationBuffer);
-			owHelper::log_bufferf(accelerationBuffer,4,PARTICLE_COUNT, "./logs/accelerationLog_intel2.txt");
-		}
 		//END PCISPH algorithm
 		printf("------------------------------------\n");
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
