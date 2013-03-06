@@ -644,7 +644,6 @@ __kernel void sortPostPass(
 	float4 velocity_ = velocity[ serialId ];
 	sortedVelocity[ id ] = velocity_;//put velocity to sortedVelocity for right order according to particleIndex
 	sortedPosition[ id ] = position_;//put position to sortedVelocity for right order according to particleIndex
-	sortedVelocity[ id  + PARTICLE_COUNT ] = velocity_;
 	particleIndexBack[ serialId ] = id;
 }
 
@@ -896,6 +895,7 @@ __kernel void pcisph_computeElasticForces(
 								  __global float4 * sortedVelocity,
 								  __global float4 * acceleration,
 								  __global uint * particleIndexBack,
+								  __global float4 * velocity,
 								  float h,
 								  float mass,
 								  float simulationScale,
@@ -921,11 +921,14 @@ __kernel void pcisph_computeElasticForces(
 	float damping_coeff = 0.5f;
 	float check;
 	float4 proj_v_i_cm_on_r_ij;
+	float4 velocity_i = velocity[ index + offset ];
+	float4 velocity_j;
 	int jd;
 	do
 	{
 		if( (jd = (int)elasticConnectionsData[ idx + nc ].x) != NO_PARTICLE_ID )
 		{
+			velocity_j = velocity[ jd ];
 			jd = particleIndexBack[jd];
 			r_ij_equilibrium = elasticConnectionsData[ idx + nc ].y;//rij0
 			vect_r_ij = (sortedPosition[id] - sortedPosition[jd]) * simulationScale;
@@ -933,28 +936,16 @@ __kernel void pcisph_computeElasticForces(
 			r_ij = SQRT(vect_r_ij.x*vect_r_ij.x+vect_r_ij.y*vect_r_ij.y+vect_r_ij.z*vect_r_ij.z);
 			delta_r_ij = r_ij - r_ij_equilibrium;
 			if(r_ij!=0.f){
-				//In this Place can be simultaneously writing to one place in memory
-				//Because id can appear more that one time
-				//elasticConnectionsData can have more that one cells with 
-				//id jd1 rij0 0
-				//id jd2 rij1 0
 				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * k;
 			}
-			centerOfMassVelocity = (sortedVelocity[id]+sortedVelocity[jd])/2.f;
-			velocity_i_cm = sortedVelocity[id] - centerOfMassVelocity;
+			centerOfMassVelocity = (velocity_i + velocity_j)/2.f;
+			velocity_i_cm = velocity_i - centerOfMassVelocity;
 			v_i_cm_length = sqrt(velocity_i_cm.x*velocity_i_cm.x+velocity_i_cm.y*velocity_i_cm.y+velocity_i_cm.z*velocity_i_cm.z);
 			if((v_i_cm_length!=0)&&(r_ij!=0))
 			{
 				velocity_i_cm.w = 0.f;
-				//vect_r_ij.w = 0;
 				proj_v_i_cm_on_r_ij = vect_r_ij * DOT(velocity_i_cm,vect_r_ij)/(v_i_cm_length*r_ij);
-				
-				//In this Place can be simultaneously writing to one place in memory
-				//Because id and jd can appear more that one time
-				//id jd1 rij0 0
-				//id1 jd1 rij1 0
-				sortedVelocity[ id + PARTICLE_COUNT ] -= proj_v_i_cm_on_r_ij * damping_coeff;
-				//sortedVelocity[ jd + PARTICLE_COUNT] += proj_v_i_cm_on_r_ij * damping_coeff;
+				sortedVelocity[ id ] -= proj_v_i_cm_on_r_ij * damping_coeff;
 			}
 		}
 		else
@@ -1307,10 +1298,6 @@ __kernel void pcisph_integrate(
 	float4 position_ = sortedPosition[ id ];
 	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE){
 		return;
-	}
-	//We Calculate For elastic particle new velocity and save it in sortedVelocity[ id + PARTICLE_COUNT ]
-	if((int)(position[ id_source_particle ].w) == ELASTIC_PARTICLE){
-		sortedVelocity[ id ] = sortedVelocity[ id + PARTICLE_COUNT ];
 	}
 	float4  accelOld = acceleration[ id ];
 	float4  accelT = acceleration[ PARTICLE_COUNT+id ];

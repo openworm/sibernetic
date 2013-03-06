@@ -19,20 +19,20 @@ int winIdMain;
 int winIdSub;
 int PARTICLE_COUNT = 0;
 int PARTICLE_COUNT_RoundedUp = 0;
-owPhysicsFluidSimulator * fluid_simulation;
-owHelper * helper;
-double calculationTime;
-double renderTime;
 double totalTime = 0;
 int frames_counter = 0;
+int frameCount = 0;
+double calculationTime;
+double renderTime;
 double fps;
 char device_full_name [1000];
 double prevTime;
-int frameCount = 0;
-void calculateFPS();
 unsigned int * p_indexb;
 float * d_b;
 float * p_b;
+void calculateFPS();
+owPhysicsFluidSimulator * fluid_simulation;
+owHelper * helper;
 void display(void)
 {
 	helper->refreshTime();

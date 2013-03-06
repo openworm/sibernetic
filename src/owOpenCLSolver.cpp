@@ -37,7 +37,7 @@ owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * veloc
 		create_ocl_buffer( "pressure", pressure, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
 		create_ocl_buffer( "rho", rho, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 2 ) );
 		create_ocl_buffer( "sortedPosition", sortedPosition, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
-		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
+		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
 		create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
 		// Create kernels
 		create_ocl_kernel("clearBuffers", clearBuffers);
@@ -398,16 +398,17 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 2, sortedVelocity );
 	pcisph_computeElasticForces.setArg( 3, acceleration );
 	pcisph_computeElasticForces.setArg( 4, particleIndexBack );
-	pcisph_computeElasticForces.setArg( 5, h );
-	pcisph_computeElasticForces.setArg( 6, mass );
-	pcisph_computeElasticForces.setArg( 7, simulationScale );
-	pcisph_computeElasticForces.setArg( 8, numOfElasticP );
-	pcisph_computeElasticForces.setArg( 9, elasticConnectionsData );
-	pcisph_computeElasticForces.setArg( 10, numOfBoundaryP );
-	pcisph_computeElasticForces.setArg( 11, PARTICLE_COUNT );
+	pcisph_computeElasticForces.setArg( 5, velocity );
+	pcisph_computeElasticForces.setArg( 6, h );
+	pcisph_computeElasticForces.setArg( 7, mass );
+	pcisph_computeElasticForces.setArg( 8, simulationScale );
+	pcisph_computeElasticForces.setArg( 9, numOfElasticP );
+	pcisph_computeElasticForces.setArg( 10, elasticConnectionsData );
+	pcisph_computeElasticForces.setArg( 11, numOfBoundaryP );
+	pcisph_computeElasticForces.setArg( 12, PARTICLE_COUNT );
 	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / 256 ) + 1 ) * 256;
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( (int) ( /**/numOfElasticPCountRoundedUp/**/ ) ),
+		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( (int) ( numOfElasticPCountRoundedUp ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -418,7 +419,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 #endif
 	return err;
 }
-////
+
 unsigned int owOpenCLSolver::_run_pcisph_predictPositions()
 {
 	pcisph_predictPositions.setArg( 0, acceleration );
