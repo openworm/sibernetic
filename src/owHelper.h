@@ -13,8 +13,9 @@ class owHelper
 public:
 	owHelper(void);
 	~owHelper(void);
-	static void loadConfiguration( float * position, float  * velocity, float *&elasticConnections, int & numOfLiquedP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections );
-	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *&elasticConnections, int & numOfLiquedP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
+	static void preLoadConfiguration();
+	static void loadConfiguration( float * position, float  * velocity, float *&elasticConnections, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections );
+	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *&elasticConnections, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
 	static void log_bufferf( const float * buffer, const int element_size,const int global_size, const char * fileName);
 	static void log_bufferi( const int * buffer, const int element_size,const int global_size, const char * fileName);
 	void watch_report(const char *str);

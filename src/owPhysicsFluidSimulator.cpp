@@ -10,11 +10,18 @@ extern int numOfElasticConnections = 0;
 extern int numOfLiquidP = 0;
 extern int numOfElasticP = 0;
 extern int numOfBoundaryP = 0;
+int * _particleIndex;
+unsigned int * gridNextNonEmptyCellBuffer;
+extern int gridCellCount;
+
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
 	try{
+		owHelper::preLoadConfiguration();
 		positionBuffer = new float[ 8 * PARTICLE_COUNT ];
 		velocityBuffer = new float[ 4 * PARTICLE_COUNT ];
+		_particleIndex = new   int[ 2 * PARTICLE_COUNT ];
+		gridNextNonEmptyCellBuffer = new unsigned int[gridCellCount+1];
 		//Helper Buffer this does not contain any sence. Only for usability and debug
 		densityBuffer = new float[ 1 * PARTICLE_COUNT ];
 		particleIndexBuffer = new unsigned int[PARTICLE_COUNT * 2];

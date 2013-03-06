@@ -6,10 +6,6 @@
 //TODO: write all papers and dissertation what we use in work
 
 #include "src//owOpenCLConstant.h"
-//#define PARTICLE_COUNT ( 32 * 1024 )//( 32 * 1024 )
-//#define NEIGHBOR_COUNT 32
-
-
 
 #define POSITION_CELL_ID( i ) i.w
 
@@ -37,10 +33,12 @@
 #pragma OPENCL EXTENSION cl_intel_printf : enable
 
 __kernel void clearBuffers(
-						   __global float2 * neighborMap
+						   __global float2 * neighborMap,
+						   int PARTICLE_COUNT 
 						   )
 {
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT )return;
 	__global float4 * nm = (__global float4 *)neighborMap;
 	int outIdx = ( id * NEIGHBOR_COUNT ) >> 1;//int4 versus int2 addressing
 	float4 fdata = (float4)( -1, -1, -1, -1 );
@@ -211,12 +209,9 @@ int searchCell(
 	return newCellId;
 }
 
-
 #define FOUND_NO_NEIGHBOR 0
 #define FOUND_ONE_NEIGHBOR 1
-
 #define radius_segments 30
-
 
 int searchForNeighbors( 
 					   int searchCell_, 
@@ -321,12 +316,13 @@ __kernel void findNeighbors(
 							float xmin,
 							float ymin,
 							float zmin,
-							__global float2 * neighborMap
-							//int   nIter
+							__global float2 * neighborMap,
+							int	  PARTICLE_COUNT
 							)
 {
-	__global uint * gridCellIndex = gridCellIndexFixedUp;
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
+	__global uint * gridCellIndex = gridCellIndexFixedUp;
 	float4 position_ = sortedPosition[ id ];
 	int myCellId = (int)POSITION_CELL_ID( position_ ) & 0xffff;// truncate to low 16 bits
 	int searchCell_;
@@ -454,18 +450,21 @@ __kernel void hashParticles(
 							float xmin,
 							float ymin,
 							float zmin,
-							__global uint2 * particleIndex
+							__global uint2 * particleIndex,
+							int   PARTICLE_COUNT
 							)
 {
 	int id = get_global_id( 0 );
-	if( id >= PARTICLE_COUNT ){
+	if( id >= PARTICLE_COUNT ) return;
+	/*if( id >= PARTICLE_COUNT ){ //seems that this commented block was for some debug purposes
+		printf("...................................................[!].................................................");
 		uint2 result;
 		int gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
 		PI_CELL_ID( result ) = gridCellCount + 1;
 		PI_SERIAL_ID( result ) = id;
 		particleIndex[ id ] = result;
 		return;
-	}
+	}*/
 
 	//position[id].w = 0.f;
 	//position[PARTICLE_COUNT+id].w = 0.f;
@@ -485,7 +484,8 @@ __kernel void hashParticles(
 __kernel void indexx(
 					 __global uint2 * particleIndex,
 					 int gridCellCount,
-					 __global uint * gridCellIndex
+					 __global uint * gridCellIndex,
+					 int PARTICLE_COUNT
 					 )
 {
 	//fill up gridCellIndex
@@ -630,10 +630,12 @@ __kernel void sortPostPass(
 						   __global float4 * position,
 						   __global float4 * velocity,
 						   __global float4 * sortedPosition,
-						   __global float4 * sortedVelocity
+						   __global float4 * sortedVelocity,
+						   int PARTICLE_COUNT
 						   )
 {
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
 	uint2 spi = particleIndex[ id ];//contains id of cell and id of particle it has sorted 
 	int serialId = PI_SERIAL_ID( spi );//get a particle Index
 	int cellId = PI_CELL_ID( spi );//get a cell Index
@@ -663,9 +665,11 @@ __kernel void pcisph_computeDensity(
 									 __global float * pressure,
 									 __global float * rho,
 									 __global uint * particleIndexBack,
-									 float delta									 )
+									 float delta,
+									 int PARTICLE_COUNT )
 {
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int idx = id * NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
@@ -783,12 +787,14 @@ __kernel void pcisph_computeForcesAndInitPressure(
 								  float gravity_y,
 								  float gravity_z,
 								  __global float4 * position,
-								  __global uint2 * particleIndex
+								  __global uint2 * particleIndex,
+								  int PARTICLE_COUNT
 								  //int ELASTIC_CONNECTIONS_COUNT,
 								  //__global float4 * elasticConnectionsData
 								  )
 {
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE){
@@ -895,10 +901,12 @@ __kernel void pcisph_computeElasticForces(
 								  float simulationScale,
 								  int numOfElasticParticle,
 								  __global float4 * elasticConnectionsData,
-								  int offset
+								  int offset,
+								  int PARTICLE_COUNT
 								  )
 {
 	int index = get_global_id( 0 );//it's index of elastic particle among all elastic particles but this isn't real id of particel
+	//printf(".[%d]",index);
 	if(index>=numOfElasticParticle) {
 		return;
 	}
@@ -1047,10 +1055,12 @@ __kernel void pcisph_predictPositions(
 						__global float4 * position,
 						__global float4 * velocity,
 						float r0,
-						__global float2 * neighborMap
+						__global float2 * neighborMap,
+						int PARTICLE_COUNT
 						)
 {
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	float4 position_ = sortedPosition[ id ];
@@ -1085,10 +1095,12 @@ __kernel void pcisph_predictDensity(
 									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
-									 float delta
+									 float delta,
+									 int PARTICLE_COUNT
 									 )
 {
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int idx = id * NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
@@ -1146,11 +1158,13 @@ __kernel void pcisph_correctPressure(
 									 __global float * rho,
 									 float delta,
 									 __global float4 * position,
-									 __global uint2 * particleIndex
+									 __global uint2 * particleIndex,
+									 int PARTICLE_COUNT
 									 )
 {
 	
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	/*int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	if((int)(position[ id_source_particle ].w) == 3)
@@ -1189,10 +1203,12 @@ __kernel void pcisph_computePressureForceAcceleration(
 								  __global float4 * acceleration,
 								  float rho0,
 								  __global float4 * position,
-								  __global uint2 * particleIndex
+								  __global uint2 * particleIndex,
+								  int PARTICLE_COUNT
 								  )
 {
 	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not mixed anymore)
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE){
@@ -1280,11 +1296,13 @@ __kernel void pcisph_integrate(
 						__global float4 * velocity,
 						__global float * rho,
 						float r0,
-						__global float2 * neighborMap
+						__global float2 * neighborMap,
+						int PARTICLE_COUNT
 						)
 {
-	int id = get_global_id( 0 ); if(id>=PARTICLE_COUNT) return;
-	id = particleIndexBack[id]; if(id>=PARTICLE_COUNT) return;
+	int id = get_global_id( 0 ); 
+	if(id>=PARTICLE_COUNT) return;
+	id = particleIndexBack[id]; 
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	float4 position_ = sortedPosition[ id ];
 	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE){

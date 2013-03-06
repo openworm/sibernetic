@@ -17,7 +17,6 @@ public:
 	unsigned int * getParticleIndexBuffer() { ocl_solver->read_particleIndex_b( particleIndexBuffer ); return particleIndexBuffer; };
 	//TODO helper functions delete after fix!!
 	float * getElasticConnections() { return elasticConnections; };
-	//
 	double simulationStep();
 private:
 	owOpenCLSolver * ocl_solver;

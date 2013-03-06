@@ -9,6 +9,9 @@
 #include <string>
 using namespace std;
 
+extern int PARTICLE_COUNT;
+extern int PARTICLE_COUNT_RoundedUp;
+
 owHelper::owHelper(void)
 {
 	refreshTime();
@@ -73,8 +76,38 @@ void owHelper::log_bufferi(const int * buffer, const int element_size, const int
 	}
 }
 
+void owHelper::preLoadConfiguration()
+{
+	try
+	{
+		PARTICLE_COUNT = 0;
+		ifstream positionFile ("./configuration/position.txt");
+		int i = 0;
+		float x, y, z, p_type;
+		if( positionFile.is_open() )
+		{
+			while( positionFile.good() )
+			{
+				p_type = -1.1f;//reinitialize 
+				positionFile >> x >> y >> z >> p_type;
+				if(p_type>=0) PARTICLE_COUNT++;//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
+				else break;//end of file
+			}
+		}
+
+		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / 256 ) + 1 ) * 256;
+
+		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
+	}
+	catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
+
 void owHelper::loadConfiguration(float *position, float *velocity, float *& elasticConnections,int & numOfLiquedP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
 {
+
 	try
 	{
 		ifstream positionFile ("./configuration/position.txt");
@@ -127,18 +160,29 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 		if(numOfElasticP != 0){
 			ifstream elasticConectionsFile ("./configuration/elasticconnections.txt");
 			elasticConnections = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
+			/*int numElasticConnections = 0;
+			for(i=0;i<numOfElasticP * NEIGHBOR_COUNT;i++)
+			{
+				elasticConnections[ 4 * i + 0 ] = NO_PARTICLE_ID;
+			}*/
 			i = 0;
-			float  jd, rij0, val1, val2;// Ellastic connection partical jd - jparticle rij0 - distance between i and j, val1, val2 - doesn't have any useful information yet
+			float  jd, rij0, val1, val2;// Elastic connection particle jd - jparticle rij0 - distance between i and j, val1, val2 - doesn't have any useful information yet
 			if( elasticConectionsFile.is_open() )
 			{
+				//elasticConectionsFile >> numElasticConnections;
+
 				while( elasticConectionsFile.good())
 				{
+					jd = -10;
 					elasticConectionsFile >> jd >> rij0 >> val1 >> val2;
-					elasticConnections[ 4 * i + 0 ] = jd;
-					elasticConnections[ 4 * i + 1 ] = rij0;
-					elasticConnections[ 4 * i + 2 ] = val1;
-					elasticConnections[ 4 * i + 3 ] = val2;
-					i++;
+					if(jd>=-5)
+					{
+						elasticConnections[ 4 * i + 0 ] = jd;
+						elasticConnections[ 4 * i + 1 ] = rij0;
+						elasticConnections[ 4 * i + 2 ] = val1;
+						elasticConnections[ 4 * i + 3 ] = val2;
+						i++;
+					}
 				}
 			}
 		}

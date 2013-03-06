@@ -11,8 +11,12 @@
 #endif
 #include "owPhysicsConstant.h"
 
+extern int PARTICLE_COUNT;
+extern int PARTICLE_COUNT_RoundedUp;
+
 #if INTEL_OPENCL_DEBUG
-	#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\Users\\Serg\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl programm
+	//#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\Users\\Serg\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program
+#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program
 #endif
 #define OPENCL_PROGRAM_PATH "src/sphFluid.cl"
 

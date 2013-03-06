@@ -17,6 +17,8 @@ Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
 GLsizei Height, Width;
 int winIdMain;
 int winIdSub;
+int PARTICLE_COUNT = 0;
+int PARTICLE_COUNT_RoundedUp = 0;
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 double calculationTime;

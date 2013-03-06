@@ -27,7 +27,6 @@ const float simulationScaleInv = 1.0f / simulationScale;
 const float mu = 10.0f;//why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
 const float timeStep = 0.001f;//0.0005f;//0.0042f;// ATTENTION you should remember about time step: if it is larger 0.001 it can lead to 'explosion' of elastic matter objects
 const float CFLLimit = 100.0f;
-const int NK = NEIGHBOR_COUNT * PARTICLE_COUNT;
 const float damping = 0.75f;
 const float r0 = 0.5f * h; // distance between two boundary particle
 const float beta = timeStep*timeStep*mass*mass*2/(rho0*rho0);// B. Solenthaler's dissertation, formula 3.6 (end of page 30)
