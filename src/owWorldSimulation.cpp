@@ -21,7 +21,6 @@ int PARTICLE_COUNT = 0;
 int PARTICLE_COUNT_RoundedUp = 0;
 double totalTime = 0;
 int frames_counter = 0;
-int frameCount = 0;
 double calculationTime;
 double renderTime;
 double fps;
@@ -164,11 +163,11 @@ void calculateFPS()
     //  Increase frame count
 	frames_counter++;
     int timeInterval = totalTime - prevTime;
-    if(timeInterval > 1000)
+    if(timeInterval >= 1000)
     {
-		fps = frames_counter / (totalTime / 1000.0f);
+		fps = frames_counter / (timeInterval / 1000.0f);
         prevTime = totalTime;
-        frameCount = 0;
+        frames_counter = 0;
 		printf("FPS: \t\t%9.3f fps\n====================================\n",	fps );
     }
 }/**/

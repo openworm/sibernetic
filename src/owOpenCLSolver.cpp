@@ -101,7 +101,7 @@ void owOpenCLSolver::initializeOpenCL()
 	// CL_DEVICE_TYPE
     cl_device_type type;
 	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
-	int preferable_device_type = 1;// 0-CPU, 1-GPU 
+	int preferable_device_type = 0;// 0-CPU, 1-GPU 
 	
 	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
 	//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
@@ -126,16 +126,11 @@ void owOpenCLSolver::initializeOpenCL()
 						findDevice = true;
 						break;
 					}
-					if( type & device_type[preferable_device_type] ){
-						plList = clSelectedPlatformID;
-						findDevice = true;
-						break;
-					}
 				}
 			}
 		}
 	}
-	if(!findDevice) plList = 0;
+	if(!findDevice) plList = 1;
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
