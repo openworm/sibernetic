@@ -13,6 +13,7 @@ class owHelper
 public:
 	owHelper(void);
 	~owHelper(void);
+	static void generateConfiguration(int stage, float *position, float *velocity, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
 	static void preLoadConfiguration();
 	static void loadConfiguration( float * position, float  * velocity, float *&elasticConnections, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections );
 	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *&elasticConnections, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);

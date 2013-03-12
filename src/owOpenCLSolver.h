@@ -13,6 +13,7 @@
 
 extern int PARTICLE_COUNT;
 extern int PARTICLE_COUNT_RoundedUp;
+extern int local_NDRange_size;
 
 #if INTEL_OPENCL_DEBUG
 	//#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\Users\\Serg\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program

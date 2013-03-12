@@ -16,18 +16,34 @@ extern int gridCellCount;
 
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
+	int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
+
 	try{
-		owHelper::preLoadConfiguration();
+		if(generateInitialConfiguration)
+		// GENERATE THE SCENE
+		owHelper::generateConfiguration(0, positionBuffer, velocityBuffer, elasticConnections, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections);	
+		else								
+		// LOAD FROM FILE
+		owHelper::preLoadConfiguration();	
+											//=======================
+
 		positionBuffer = new float[ 8 * PARTICLE_COUNT ];
 		velocityBuffer = new float[ 4 * PARTICLE_COUNT ];
 		_particleIndex = new   int[ 2 * PARTICLE_COUNT ];
 		gridNextNonEmptyCellBuffer = new unsigned int[gridCellCount+1];
-		//Helper Buffer this does not contain any sence. Only for usability and debug
+
+		//The buffers listed below are only for usability and debug
 		densityBuffer = new float[ 1 * PARTICLE_COUNT ];
 		particleIndexBuffer = new unsigned int[PARTICLE_COUNT * 2];
 		accelerationBuffer = new float[PARTICLE_COUNT * 4];//TODO REMOVE IT AFTER FIXING
-		//
+		
+		if(generateInitialConfiguration)	
+		// GENERATE THE SCENE
+		owHelper::generateConfiguration(1,positionBuffer, velocityBuffer, elasticConnections, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections);	
+		else 
+		// LOAD FROM FILE	
 		owHelper::loadConfiguration( positionBuffer, velocityBuffer, elasticConnections, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections );		//Load configuration from file to buffer
+											
 		if(numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(positionBuffer,velocityBuffer,elasticConnections);	//Create new openCLsolver instance
 		}else

@@ -1,4 +1,5 @@
 #include "owHelper.h"
+#include "owPhysicsConstant.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -11,6 +12,7 @@ using namespace std;
 
 extern int PARTICLE_COUNT;
 extern int PARTICLE_COUNT_RoundedUp;
+extern int local_NDRange_size;
 
 owHelper::owHelper(void)
 {
@@ -76,6 +78,247 @@ void owHelper::log_bufferi(const int * buffer, const int element_size, const int
 	}
 }
 
+
+void owHelper::generateConfiguration(int stage, float *position, float *velocity, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
+{
+	// we need to know at least 
+	// 1) sizes of the box which contains the simulation within
+	// [0..MAX_X],[0..MAX_Y],[0..MAX_Z]
+	// 2) smoothing radius
+	// local vectors system and template data for each structure we are going to generate here
+
+	float x,y,z;
+	float p_type = LIQUID_PARTICLE;
+	int i = 0;// particle counter
+	int ix,iy,iz;
+
+	int nx = (int)( ( XMAX - XMIN ) / r0 ); //X
+	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
+	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
+
+	if(stage==0)
+	{
+		numOfLiquidP = 0;
+		numOfElasticP = 0;
+		numOfBoundaryP = 0;
+	}
+
+	// create volume of liquid
+	for(x = 15*r0/2;x<XMAX/5 +3*r0/2;x += r0)
+	for(y =  3*r0/2;y<YMAX   -3*r0/2;y += r0)
+	for(z =  3*r0/2;z<ZMAX   -3*r0/2;z += r0)
+	{
+						// stage==0 - preliminary run
+		if(stage==1)	// stage==1 - final run
+		{
+			if(i>=numOfLiquidP) 
+			{
+				printf("\nWarning! Final particle count >= preliminary particle count!\n");
+				exit(-3);
+			}
+			//write particle coordinates to corresponding arrays
+			position[ 4 * i + 0 ] = x;
+			position[ 4 * i + 1 ] = y;
+			position[ 4 * i + 2 ] = z;
+			position[ 4 * i + 3 ] = p_type;
+
+			velocity[ 4 * i + 0 ] = 0;
+			velocity[ 4 * i + 1 ] = 0;
+			velocity[ 4 * i + 2 ] = 0;
+			velocity[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
+		}
+
+		i++; // necessary for both stages
+	}
+	// end
+
+	if(stage==0) 
+	{
+		numOfLiquidP = i;
+		numOfBoundaryP = 2 * ( nx*ny + (nx+ny-2)*(nz-2) ); 
+	}
+	else 
+	if(stage==1)
+	{
+		// create boundary particles
+		p_type = BOUNDARY_PARTICLE;
+		
+		// 1 - top and bottom 
+		for(ix=0;ix<nx;ix++)
+		{
+			for(iy=0;iy<ny;iy++)
+			{
+				if( ((ix==0)||(ix==nx-1)) || ((iy==0)||(iy==ny-1)) )
+				{
+					if( ((ix==0)||(ix==nx-1)) && ((iy==0)||(iy==ny-1)) )//corners
+					{
+						position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+						position[ 4 * i + 1 ] = iy*r0 + r0/2;//y
+						position[ 4 * i + 2 ] =  0*r0 + r0/2;//z
+						position[ 4 * i + 3 ] = p_type;
+						velocity[ 4 * i + 0 ] = (1.f*(ix==0)-1*(ix==nx-1))/sqrt(3.f);//norm x
+						velocity[ 4 * i + 1 ] = (1.f*(iy==0)-1*(iy==ny-1))/sqrt(3.f);//norm y
+						velocity[ 4 * i + 2 ] =  1.f/sqrt(3.f);//norm z
+						velocity[ 4 * i + 3 ] = p_type;
+						i++;
+						position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+						position[ 4 * i + 1 ] = iy*r0 + r0/2;//y
+						position[ 4 * i + 2 ] = (nz-1)*r0 + r0/2;//z
+						position[ 4 * i + 3 ] = p_type;
+						velocity[ 4 * i + 0 ] = (1*(ix==0)-1*(ix==nx-1))/sqrt(3.f);//norm x
+						velocity[ 4 * i + 1 ] = (1*(iy==0)-1*(iy==ny-1))/sqrt(3.f);//norm y
+						velocity[ 4 * i + 2 ] = -1.f/sqrt(3.f);//norm z
+						velocity[ 4 * i + 3 ] = p_type;
+						i++;
+					}
+					else //edges
+					{
+						position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+						position[ 4 * i + 1 ] = iy*r0 + r0/2;//y
+						position[ 4 * i + 2 ] =  0*r0 + r0/2;//z
+						position[ 4 * i + 3 ] = p_type;
+						velocity[ 4 * i + 0 ] =  1.f*((ix==0)-(ix==nx-1))/sqrt(2.f);//norm x
+						velocity[ 4 * i + 1 ] =  1.f*((iy==0)-(iy==ny-1))/sqrt(2.f);//norm y
+						velocity[ 4 * i + 2 ] =  1.f/sqrt(2.f);//norm z
+						velocity[ 4 * i + 3 ] = p_type;
+						i++;
+						position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+						position[ 4 * i + 1 ] = iy*r0 + r0/2;//y
+						position[ 4 * i + 2 ] = (nz-1)*r0 + r0/2;//z
+						position[ 4 * i + 3 ] = p_type;
+						velocity[ 4 * i + 0 ] =  1.f*((ix==0)-(ix==nx-1))/sqrt(2.f);//norm x
+						velocity[ 4 * i + 1 ] =  1.f*((iy==0)-(iy==ny-1))/sqrt(2.f);//norm y
+						velocity[ 4 * i + 2 ] = -1.f/sqrt(2.f);//norm z
+						velocity[ 4 * i + 3 ] = p_type;
+						i++;
+					}
+				}
+				else //planes
+				{
+						position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+						position[ 4 * i + 1 ] = iy*r0 + r0/2;//y
+						position[ 4 * i + 2 ] =  0*r0 + r0/2;//z
+						position[ 4 * i + 3 ] = p_type;
+						velocity[ 4 * i + 0 ] =  0;//norm x
+						velocity[ 4 * i + 1 ] =  0;//norm y
+						velocity[ 4 * i + 2 ] =  1;//norm z
+						velocity[ 4 * i + 3 ] = p_type;
+						i++;
+						position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+						position[ 4 * i + 1 ] = iy*r0 + r0/2;//y
+						position[ 4 * i + 2 ] = (nz-1)*r0 + r0/2;//z
+						position[ 4 * i + 3 ] = p_type;
+						velocity[ 4 * i + 0 ] =  0;//norm x
+						velocity[ 4 * i + 1 ] =  0;//norm y
+						velocity[ 4 * i + 2 ] = -1;//norm z
+						velocity[ 4 * i + 3 ] = p_type;
+						i++;
+				}
+			}
+		}
+
+		// 2 - side walls OX-OZ and opposite
+		for(ix=0;ix<nx;ix++)
+		{
+			for(iz=1;iz<nz-1;iz++)
+			{
+				//edges
+				if((ix==0)||(ix==nx-1))
+				{
+					position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+					position[ 4 * i + 1 ] =  0*r0 + r0/2;//y
+					position[ 4 * i + 2 ] = iz*r0 + r0/2;//z
+					position[ 4 * i + 3 ] = p_type;
+					velocity[ 4 * i + 0 ] =  0;//norm x
+					velocity[ 4 * i + 1 ] =  1.f/sqrt(2.f);//norm y
+					velocity[ 4 * i + 2 ] =  1.f*((iz==0)-(iz==nz-1))/sqrt(2.f);//norm z
+					velocity[ 4 * i + 3 ] = p_type;
+					i++;
+					position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+					position[ 4 * i + 1 ] = (ny-1)*r0 + r0/2;//y
+					position[ 4 * i + 2 ] = iz*r0 + r0/2;//z
+					position[ 4 * i + 3 ] = p_type;
+					velocity[ 4 * i + 0 ] =  0;//norm x
+					velocity[ 4 * i + 1 ] = -1.f/sqrt(2.f);//norm y
+					velocity[ 4 * i + 2 ] =  1.f*((iz==0)-(iz==nz-1))/sqrt(2.f);//norm z
+					velocity[ 4 * i + 3 ] = p_type;
+					i++;
+				}
+				else //planes
+				{
+					position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+					position[ 4 * i + 1 ] =  0*r0 + r0/2;//y
+					position[ 4 * i + 2 ] = iz*r0 + r0/2;//z
+					position[ 4 * i + 3 ] = p_type;
+					velocity[ 4 * i + 0 ] =  0;//norm x
+					velocity[ 4 * i + 1 ] =  1;//norm y
+					velocity[ 4 * i + 2 ] =  0;//norm z
+					velocity[ 4 * i + 3 ] = p_type;
+					i++;
+					position[ 4 * i + 0 ] = ix*r0 + r0/2;//x
+					position[ 4 * i + 1 ] = (ny-1)*r0 + r0/2;//y
+					position[ 4 * i + 2 ] = iz*r0 + r0/2;//z
+					position[ 4 * i + 3 ] = p_type;
+					velocity[ 4 * i + 0 ] =  0;//norm x
+					velocity[ 4 * i + 1 ] = -1;//norm y
+					velocity[ 4 * i + 2 ] =  0;//norm z
+					velocity[ 4 * i + 3 ] = p_type;
+					i++;
+				}
+			}
+		}
+
+		// 3 - side walls OY-OZ and opposite
+		for(iy=1;iy<ny-1;iy++)
+		{
+			for(iz=1;iz<nz-1;iz++)
+			{
+				position[ 4 * i + 0 ] =  0*r0 + r0/2;//x
+				position[ 4 * i + 1 ] = iy*r0 + r0/2;//y
+				position[ 4 * i + 2 ] = iz*r0 + r0/2;//z
+				position[ 4 * i + 3 ] = p_type;
+				velocity[ 4 * i + 0 ] =  1;//norm x
+				velocity[ 4 * i + 1 ] =  0;//norm y
+				velocity[ 4 * i + 2 ] =  0;//norm z
+				velocity[ 4 * i + 3 ] = p_type;
+				i++;
+				position[ 4 * i + 0 ] = (nx-1)*r0 + r0/2;//x
+				position[ 4 * i + 1 ] = iy*r0 + r0/2;//y
+				position[ 4 * i + 2 ] = iz*r0 + r0/2;//z
+				position[ 4 * i + 3 ] = p_type;
+				velocity[ 4 * i + 0 ] = -1;//norm x
+				velocity[ 4 * i + 1 ] =  0;//norm y
+				velocity[ 4 * i + 2 ] =  0;//norm z
+				velocity[ 4 * i + 3 ] = p_type;
+				i++;
+			}
+		}
+	}
+
+	if(stage==0)
+	{
+		PARTICLE_COUNT = numOfLiquidP + numOfBoundaryP + numOfElasticP;
+		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+
+		if(PARTICLE_COUNT<=0) 
+		{
+			printf("\nWarning! Generated scene contains %d particles!\n",PARTICLE_COUNT);
+			exit(-2);
+		}
+	}
+	else
+	if(stage==1)
+	{
+		if(PARTICLE_COUNT!=i) 
+		{
+			printf("\nWarning! Preliminary [%d] and final [%d] particle count are different\n",PARTICLE_COUNT,i);
+			exit(-4);
+		}
+	}
+
+	return;
+}
+
 void owHelper::preLoadConfiguration()
 {
 	try
@@ -95,7 +338,7 @@ void owHelper::preLoadConfiguration()
 			}
 		}
 
-		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / 256 ) + 1 ) * 256;
+		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 
 		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
 	}
@@ -105,7 +348,7 @@ void owHelper::preLoadConfiguration()
 	}
 }
 
-void owHelper::loadConfiguration(float *position, float *velocity, float *& elasticConnections,int & numOfLiquedP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
+void owHelper::loadConfiguration(float *position, float *velocity, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
 {
 
 	try
@@ -124,7 +367,7 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 				position[ 4 * i + 3 ] = p_type;
 				switch((int)p_type){
 					case LIQUID_PARTICLE:
-						numOfLiquedP++;
+						numOfLiquidP++;
 						break;
 					case ELASTIC_PARTICLE:
 						numOfElasticP++;
@@ -191,8 +434,8 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 		exit( -1 );
 	}
 }
-//This Function is testing
-void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, float *&elasticConnections, int &numOfLiquedP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
+//This Function is currently on testing stage
+void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, float *&elasticConnections, int &numOfLiquidP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
 {
 	try
 	{
@@ -239,7 +482,7 @@ void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, fl
 							position[ 4 * i + 3 ] = p_type;
 							switch((int)p_type){
 								case LIQUID_PARTICLE:
-									numOfLiquedP++;
+									numOfLiquidP++;
 									break;
 								case ELASTIC_PARTICLE:
 									numOfElasticP++;

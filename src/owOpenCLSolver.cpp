@@ -130,7 +130,7 @@ void owOpenCLSolver::initializeOpenCL()
 			}
 		}
 	}
-	if(!findDevice) plList = 1;
+	if(!findDevice) plList = 0;
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
@@ -187,7 +187,7 @@ unsigned int owOpenCLSolver::_runClearBuffers()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -212,7 +212,7 @@ unsigned int owOpenCLSolver::_runHashParticles()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -242,7 +242,7 @@ unsigned int owOpenCLSolver::_runSortPostPass()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -257,13 +257,13 @@ unsigned int owOpenCLSolver::_runIndexx()
 	indexx.setArg( 1, gridCellCount );
 	indexx.setArg( 2, gridCellIndex );
 	indexx.setArg( 3, PARTICLE_COUNT );
-	int gridCellCountRoundedUp = ((( gridCellCount - 1 ) / 256 ) + 1 ) * 256;
+	int gridCellCountRoundedUp = ((( gridCellCount - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		indexx, cl::NullRange, cl::NDRange( (int) ( /**/gridCellCountRoundedUp/**/ ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -315,7 +315,7 @@ unsigned int owOpenCLSolver::_runFindNeighbors()
 		http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109 
 		*/
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -344,7 +344,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeDensity()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -377,7 +377,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -401,13 +401,13 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 10, elasticConnectionsData );
 	pcisph_computeElasticForces.setArg( 11, numOfBoundaryP );
 	pcisph_computeElasticForces.setArg( 12, PARTICLE_COUNT );
-	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / 256 ) + 1 ) * 256;
+	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( (int) ( numOfElasticPCountRoundedUp ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -444,7 +444,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -473,7 +473,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -504,7 +504,7 @@ unsigned int owOpenCLSolver::_run_pcisph_correctPressure()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -537,7 +537,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();
@@ -575,7 +575,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate()
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
-		cl::NDRange( (int)( 256 ) ), NULL, NULL );
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
 #endif
 #if QUEUE_EACH_KERNEL
 	queue.finish();

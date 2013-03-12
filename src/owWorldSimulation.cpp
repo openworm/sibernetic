@@ -32,6 +32,7 @@ float * p_b;
 void calculateFPS();
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
+int local_NDRange_size = 256;//256;
 void display(void)
 {
 	helper->refreshTime();
@@ -281,7 +282,7 @@ void SetModelviewMatrix(void){
      glMatrixMode(GL_MODELVIEW);                                   
      glLoadIdentity();                                             
      glTranslatef(0.0, 0.0, -8.0);                              
-     glRotatef(10.0, 1.0, 0.0, 0.0);
+     glRotatef(0*10.0, 1.0, 0.0, 0.0);
      glRotatef(rotX, 0.0, 1.0, 0.0);                              
 }
 GLvoid resize(GLsizei width, GLsizei height){
@@ -357,4 +358,17 @@ void run(int argc, char** argv, const bool with_graphics)
 			helper->refreshTime();
 		}
 	}
+/*	{
+		double step_time = 0, total_work_time = 0;
+		int steps_cnt = 0;
+		while(steps_cnt<100){
+			step_time = fluid_simulation->simulationStep();
+			total_work_time += step_time;
+			helper->refreshTime();
+			steps_cnt++;
+		}
+
+		printf("\ntotal calculation time (1000 steps) = %f ms\n",total_work_time);
+	}*/	
+	
 }
