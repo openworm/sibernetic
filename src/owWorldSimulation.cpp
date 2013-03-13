@@ -6,13 +6,16 @@ extern int numOfElasticP;
 extern int numOfBoundaryP;
 extern int iterationCount;
 
-bool rotate = false;
 int old_x=0, old_y=0;	// Used for mouse event
-float rotX = 0.0f;		// Rotate screen on x axis 
-float rotY = 0.0f;		// Rotate screen on y axis
-float rotZ = 0.0f;		// Rotate screen on z axis
-bool lbutton = false;
+float camera_trans[] = {0, 0, -8.0};
+float camera_rot[]   = {0, 0, 0};
+float camera_trans_lag[] = {0, 0, -8.0};
+float camera_rot_lag[] = {0, 0, 0};
+const float inertia = 0.1f;
+float modelView[16];
+int buttonState = 0;
 float sc = 0.025;		//0.0145;//0.045;//0.07
+
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
 GLsizei Height, Width;
 int winIdMain;
@@ -175,9 +178,17 @@ void calculateFPS()
 void respond_mouse(int button, int state, int x, int y)
 {
 	if (button == GLUT_LEFT_BUTTON)
-		lbutton = true;
-	else
-		lbutton = false;
+		buttonState = 1;
+	if (button == GLUT_RIGHT_BUTTON)
+		buttonState = 3;
+	int mods;
+	mods = glutGetModifiers();
+    if (mods & GLUT_ACTIVE_CTRL) 
+    {
+        buttonState = 2;
+    } 
+	if(state == GLUT_UP)
+		buttonState = 0;
 	old_x=x;
 	old_y=y;
 	if (button == 3)// mouse wheel up
@@ -193,26 +204,43 @@ void respond_mouse(int button, int state, int x, int y)
 
 // GLUT callback
 // called on mouse movement
+
 void mouse_motion (int x, int y) 
 {
-	if(lbutton)
+	float dx,dy;
+	dy = (float)(y - old_y);	
+	dx = (float)(x - old_x);
+	
+	if(buttonState == 1)
 	{
-		int rx,ry;
-		ry = (GLfloat)(y - old_y)/2;	
-		rx = (GLfloat)(x - old_x)/2;
-
-		old_x=x;
-		old_y=y;
-		
-		if(rx)
-		{
-			rotX += rx;
-			glRotatef(rx, 0.0, 1.0, 0.0);          
-		}
-		if(ry)
-		{
-		}
+		camera_rot[0] += dy / 5.0f;
+		camera_rot[1] += dx / 5.0f;
 	}
+	if(buttonState == 3){
+		// middle = translate
+		camera_trans[0] += dx / 100.0f;
+		camera_trans[1] -= dy / 100.0f;
+		//camera_trans[2] += (dy / 100.0f) * 0.5f * fabs(camera_trans[2]);
+	}
+	if(buttonState == 2){
+		// middle = translate
+		//camera_trans[0] += dx / 100.0f;
+		//camera_trans[1] -= dy / 100.0f;
+		camera_trans[2] += (dy / 100.0f) * 0.5f * fabs(camera_trans[2]);
+	}
+	old_x=x;
+	old_y=y;
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	for (int c = 0; c < 3; ++c)
+	{
+	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]) * inertia;
+		camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]) * inertia;
+	}
+    glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
+	glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
+	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 //Auxiliary function
 /* There can be only one idle() callback function. In an 
@@ -224,19 +252,19 @@ void idle (void)
   glutPostRedisplay (); 
   glutSetWindow (winIdSub); 
   glutPostRedisplay (); 
-}; 
+} 
 void drawString (char *s) 
 { 
   unsigned int i; 
   for (i = 0; i < strlen (s); i++) 
     glutBitmapCharacter (GLUT_BITMAP_HELVETICA_10, s[i]); 
-}; 
+} 
 void drawStringBig (char *s) 
 { 
   unsigned int i; 
   for (i = 0; i < strlen (s); i++) 
 	  glutBitmapCharacter (GLUT_BITMAP_HELVETICA_18, s[i]); 
-}; 
+}
 static char label[100];                            /* Storage for current string   */
 
 void subMenuDisplay() 
@@ -258,14 +286,14 @@ void subMenuDisplay()
 	drawStringBig (label); 
 
 	glutSwapBuffers (); 
-}; 
+} 
 void subMenuReshape (int w, int h) 
 { 
   glViewport (0, 0, w, h); 
   glMatrixMode (GL_PROJECTION); 
   glLoadIdentity (); 
   gluOrtho2D (0.0F, 1.0F, 0.0F, 1.0F); 
-}; 
+}
 void Timer(int value)
 {
 	calculationTime = fluid_simulation->simulationStep();
@@ -283,7 +311,7 @@ void SetModelviewMatrix(void){
      glLoadIdentity();                                             
      glTranslatef(0.0, 0.0, -8.0);                              
      glRotatef(0*10.0, 1.0, 0.0, 0.0);
-     glRotatef(rotX, 0.0, 1.0, 0.0);                              
+     glRotatef(0.0, 0.0, 1.0, 0.0);                              
 }
 GLvoid resize(GLsizei width, GLsizei height){
 	if(height == 0)
@@ -349,7 +377,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		winIdSub = glutCreateSubWindow (winIdMain, 5, 5, 1000 - 10, 600 / 10); 
 		glutDisplayFunc (subMenuDisplay); 
 		glutReshapeFunc (subMenuReshape); 
-		glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);
+		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		fluid_simulation->~owPhysicsFluidSimulator();
 	}else{
