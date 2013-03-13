@@ -99,19 +99,75 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 	if(stage==0)
 	{
 		numOfLiquidP = 0;
-		numOfElasticP = 0;
+		numOfElasticP = 2;
 		numOfBoundaryP = 0;
+
+		elasticConnections = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
 	}
 
-	// create volume of liquid
-	for(x = 15*r0/2;x<XMAX/5 +3*r0/2;x += r0)
-	for(y =  3*r0/2;y<YMAX   -3*r0/2;y += r0)
-	for(z =  3*r0/2;z<ZMAX   -3*r0/2;z += r0)
+	//=============== create elastic particles ==================================================
+	if(stage==1)
+	{
+		p_type = ELASTIC_PARTICLE;
+
+		//write particle coordinates to corresponding arrays
+		position[ 4 * i + 0 ] = XMAX/2;
+		position[ 4 * i + 1 ] = YMAX/2;
+		position[ 4 * i + 2 ] = ZMAX/2;
+		position[ 4 * i + 3 ] = p_type;
+
+		velocity[ 4 * i + 0 ] = 0;
+		velocity[ 4 * i + 1 ] = 0;
+		velocity[ 4 * i + 2 ] = 0;
+		velocity[ 4 * i + 3 ] = p_type;
+
+		i++;
+
+		//write particle coordinates to corresponding arrays
+		position[ 4 * i + 0 ] = XMAX/2+r0;
+		position[ 4 * i + 1 ] = YMAX/2;
+		position[ 4 * i + 2 ] = ZMAX/2;
+		position[ 4 * i + 3 ] = p_type;
+
+		velocity[ 4 * i + 0 ] = 0;
+		velocity[ 4 * i + 1 ] = 0;
+		velocity[ 4 * i + 2 ] = 0;
+		velocity[ 4 * i + 3 ] = p_type;
+
+		i++;
+
+		for(int i_ec = 0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
+		{
+			elasticConnections[ 4 * i_ec + 0 ] = NO_PARTICLE_ID;
+			elasticConnections[ 4 * i_ec + 1 ] = 0;
+			elasticConnections[ 4 * i_ec + 2 ] = 0;
+			elasticConnections[ 4 * i_ec + 3 ] = 0;
+		}
+
+		//and connections between them
+		elasticConnections[ 4 * 0 + 0 ] = 1.1f;//connect elastic particles 0 and 1
+		elasticConnections[ 4 * 0 + 1 ] = r0*simulationScale;
+		elasticConnections[ 4 * 0 + 2 ] = 0;
+		elasticConnections[ 4 * 0 + 3 ] = 0;
+
+		
+		elasticConnections[ 4 * NEIGHBOR_COUNT + 0 ] = 0.1f;//connect elastic particles 0 and 1
+		elasticConnections[ 4 * NEIGHBOR_COUNT + 1 ] = r0*simulationScale;
+		elasticConnections[ 4 * NEIGHBOR_COUNT + 2 ] = 0;
+		elasticConnections[ 4 * NEIGHBOR_COUNT + 3 ] = 0;
+	}
+
+	//============= create volume of liquid =========================================================================
+	p_type = LIQUID_PARTICLE;
+
+	for(x = 15*r0/2;x<(XMAX-XMIN)/5 +3*r0/2;x += r0)
+	for(y =  3*r0/2;y<(YMAX-YMIN)   -3*r0/2;y += r0)
+	for(z =  3*r0/2+(ZMAX-ZMIN)*2/5;z<(ZMAX-ZMIN)*3/5-3*r0/2;z += r0)
 	{
 						// stage==0 - preliminary run
 		if(stage==1)	// stage==1 - final run
 		{
-			if(i>=numOfLiquidP) 
+			if(i>=numOfLiquidP+numOfElasticP) 
 			{
 				printf("\nWarning! Final particle count >= preliminary particle count!\n");
 				exit(-3);
@@ -134,13 +190,13 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 
 	if(stage==0) 
 	{
-		numOfLiquidP = i;
+		numOfLiquidP = i;// - numOfElasticP;
 		numOfBoundaryP = 2 * ( nx*ny + (nx+ny-2)*(nz-2) ); 
 	}
-	else 
+	else
 	if(stage==1)
 	{
-		// create boundary particles
+		//===================== create boundary particles ==========================================================
 		p_type = BOUNDARY_PARTICLE;
 		
 		// 1 - top and bottom 
@@ -418,7 +474,7 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 				{
 					jd = -10;
 					elasticConectionsFile >> jd >> rij0 >> val1 >> val2;
-					if(jd>=-5)
+					if(jd>=-1)
 					{
 						elasticConnections[ 4 * i + 0 ] = jd;
 						elasticConnections[ 4 * i + 1 ] = rij0;

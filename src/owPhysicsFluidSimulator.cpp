@@ -16,7 +16,7 @@ extern int gridCellCount;
 
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
-	int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
+	//int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
 
 	try{
 		if(generateInitialConfiguration)

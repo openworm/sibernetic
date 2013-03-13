@@ -11,7 +11,7 @@ float camera_trans[] = {0, 0, -8.0};
 float camera_rot[]   = {0, 0, 0};
 float camera_trans_lag[] = {0, 0, -8.0};
 float camera_rot_lag[] = {0, 0, 0};
-const float inertia = 0.1f;
+const float inertia = 1.0f;
 float modelView[16];
 int buttonState = 0;
 float sc = 0.025;		//0.0145;//0.045;//0.07
@@ -32,6 +32,7 @@ double prevTime;
 unsigned int * p_indexb;
 float * d_b;
 float * p_b;
+float * e_c;
 void calculateFPS();
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
@@ -43,6 +44,7 @@ void display(void)
 	Vector3D vcenter(0,0,0);
 	Vector3D vbox[8];
 
+	int j;
 	//       [7]----[6]
 	//      / |     /| 
 	//    [3]----[2] | 
@@ -152,6 +154,22 @@ void display(void)
 			glBegin(GL_POINTS);
 			if((int)p_b[i*4+3]==2) glColor4f(   1,   1,   0,  1.0f);
 			glVertex3f( (p_b[i*4]-XMAX/2)*sc , (p_b[i*4+1]-YMAX/2)*sc, (p_b[i*4+2]-ZMAX/2)*sc );
+			glEnd();
+		}
+	}
+	e_c = fluid_simulation->getElasticConnections();
+	glColor3ub(255, 100, 0);
+	//if(generateInitialConfiguration)
+	for(int i, i_ec=0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
+	{
+		//offset = 0
+		if((j=e_c[ 4 * i_ec + 0 ])>=0)
+		{
+			i = (i_ec / NEIGHBOR_COUNT) + (generateInitialConfiguration!=1)*numOfBoundaryP;
+			
+			glBegin(GL_LINES);
+			glVertex3f( (p_b[i*4]-XMAX/2)*sc , (p_b[i*4+1]-YMAX/2)*sc, (p_b[i*4+2]-ZMAX/2)*sc );
+			glVertex3f( (p_b[j*4]-XMAX/2)*sc , (p_b[j*4+1]-YMAX/2)*sc, (p_b[j*4+2]-ZMAX/2)*sc );
 			glEnd();
 		}
 	}
