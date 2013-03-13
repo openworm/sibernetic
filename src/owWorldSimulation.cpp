@@ -158,7 +158,7 @@ void display(void)
 		}
 	}
 	e_c = fluid_simulation->getElasticConnections();
-	glColor3ub(255, 100, 0);
+	
 	//if(generateInitialConfiguration)
 	for(int i, i_ec=0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
 	{
@@ -166,6 +166,9 @@ void display(void)
 		if((j=e_c[ 4 * i_ec + 0 ])>=0)
 		{
 			i = (i_ec / NEIGHBOR_COUNT) + (generateInitialConfiguration!=1)*numOfBoundaryP;
+
+			glColor4b(255/2, 125/2, 0, 100/2/*alpha*/);
+			if(e_c[ 4 * i_ec + 2 ]>1.f) glColor4b(255/2, 0, 0, 255/2/*alpha*/);
 			
 			glBegin(GL_LINES);
 			glVertex3f( (p_b[i*4]-XMAX/2)*sc , (p_b[i*4+1]-YMAX/2)*sc, (p_b[i*4+2]-ZMAX/2)*sc );

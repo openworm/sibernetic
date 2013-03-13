@@ -91,15 +91,20 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 	float p_type = LIQUID_PARTICLE;
 	int i = 0;// particle counter
 	int ix,iy,iz;
+	int ecc = 0;//elastic connections counter
 
 	int nx = (int)( ( XMAX - XMIN ) / r0 ); //X
 	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
 	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
 
+	int nEx = 7;
+	int nEy = 3;
+	int nEz = 23;
+
 	if(stage==0)
 	{
 		numOfLiquidP = 0;
-		numOfElasticP = 2;
+		numOfElasticP = nEx*nEy*nEz;
 		numOfBoundaryP = 0;
 
 		elasticConnections = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
@@ -110,31 +115,24 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 	{
 		p_type = ELASTIC_PARTICLE;
 
-		//write particle coordinates to corresponding arrays
-		position[ 4 * i + 0 ] = XMAX/2;
-		position[ 4 * i + 1 ] = YMAX/2;
-		position[ 4 * i + 2 ] = ZMAX/2;
-		position[ 4 * i + 3 ] = p_type;
+		for(x=0;x<nEx;x+=1.f)
+		for(y=0;y<nEy;y+=1.f)
+		for(z=0;z<nEz;z+=1.f)
+		{
+			//write particle coordinates to corresponding arrays
+			position[ 4 * i + 0 ] = XMAX/2+x*r0-nEx*r0/2;
+			position[ 4 * i + 1 ] = YMAX/2+y*r0-nEy*r0/2 + YMAX*3/8;
+			position[ 4 * i + 2 ] = ZMAX/2+z*r0-nEz*r0/2;
+			position[ 4 * i + 3 ] = p_type;
 
-		velocity[ 4 * i + 0 ] = 0;
-		velocity[ 4 * i + 1 ] = 0;
-		velocity[ 4 * i + 2 ] = 0;
-		velocity[ 4 * i + 3 ] = p_type;
+			velocity[ 4 * i + 0 ] = 0;
+			velocity[ 4 * i + 1 ] = 0;
+			velocity[ 4 * i + 2 ] = 0;
+			velocity[ 4 * i + 3 ] = p_type;
 
-		i++;
+			i++;
+		}
 
-		//write particle coordinates to corresponding arrays
-		position[ 4 * i + 0 ] = XMAX/2+r0;
-		position[ 4 * i + 1 ] = YMAX/2;
-		position[ 4 * i + 2 ] = ZMAX/2;
-		position[ 4 * i + 3 ] = p_type;
-
-		velocity[ 4 * i + 0 ] = 0;
-		velocity[ 4 * i + 1 ] = 0;
-		velocity[ 4 * i + 2 ] = 0;
-		velocity[ 4 * i + 3 ] = p_type;
-
-		i++;
 
 		for(int i_ec = 0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
 		{
@@ -144,7 +142,42 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 			elasticConnections[ 4 * i_ec + 3 ] = 0;
 		}
 
+		float r2ij;
+		float dx2,dy2,dz2;
+
+		for(int i_ec = 0; i_ec < numOfElasticP; i_ec++)
+		{
+			ecc = 0;
+			float test;
+
+			for(int j_ec = 0; j_ec < numOfElasticP; j_ec++)
+			{
+				if(i_ec!=j_ec)
+				{
+					dx2 = (position[ 4 * i_ec + 0 ] - position[ 4 * j_ec + 0 ]);
+					dy2 = (position[ 4 * i_ec + 1 ] - position[ 4 * j_ec + 1 ]);
+					dz2 = (position[ 4 * i_ec + 2 ] - position[ 4 * j_ec + 2 ]);
+					dx2 *= dx2;
+					dy2 *= dy2;
+					dz2 *= dz2;
+					r2ij = dx2 + dy2 + dz2;
+
+					if(r2ij<=r0*r0*3.05f)
+					{
+						elasticConnections[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 0 ] = ((float)j_ec) + 0.1f;//connect elastic particles 0 and 1
+						elasticConnections[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 1 ] = (float)sqrt(r2ij)*simulationScale;
+						elasticConnections[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0 + 1.1*((dz2>100*dx2)&&(dz2>100*dy2));
+						elasticConnections[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 3 ] = 0;
+						ecc++;
+					}
+
+					if(ecc>=NEIGHBOR_COUNT) break;
+				}
+			}
+		}
+
 		//and connections between them
+		/*
 		elasticConnections[ 4 * 0 + 0 ] = 1.1f;//connect elastic particles 0 and 1
 		elasticConnections[ 4 * 0 + 1 ] = r0*simulationScale;
 		elasticConnections[ 4 * 0 + 2 ] = 0;
@@ -155,6 +188,7 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 		elasticConnections[ 4 * NEIGHBOR_COUNT + 1 ] = r0*simulationScale;
 		elasticConnections[ 4 * NEIGHBOR_COUNT + 2 ] = 0;
 		elasticConnections[ 4 * NEIGHBOR_COUNT + 3 ] = 0;
+		*/
 	}
 
 	//============= create volume of liquid =========================================================================
@@ -162,7 +196,7 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 
 	for(x = 15*r0/2;x<(XMAX-XMIN)/5 +3*r0/2;x += r0)
 	for(y =  3*r0/2;y<(YMAX-YMIN)   -3*r0/2;y += r0)
-	for(z =  3*r0/2+(ZMAX-ZMIN)*2/5;z<(ZMAX-ZMIN)*3/5-3*r0/2;z += r0)
+	for(z =  3*r0/2+(ZMAX-ZMIN)*1/5;z<(ZMAX-ZMIN)*4/5-3*r0/2;z += r0)
 	{
 						// stage==0 - preliminary run
 		if(stage==1)	// stage==1 - final run
