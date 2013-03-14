@@ -286,7 +286,7 @@ void drawStringBig (char *s)
   for (i = 0; i < strlen (s); i++) 
 	  glutBitmapCharacter (GLUT_BITMAP_HELVETICA_18, s[i]); 
 }
-static char label[100];                            /* Storage for current string   */
+static char label[1000];                            /* Storage for current string   */
 
 void subMenuDisplay() 
 { 
@@ -298,11 +298,11 @@ void subMenuDisplay()
 	glColor3f (1.0F, 1.0F, 1.0F);
 	sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
 																												 numOfElasticP,
-																												 numOfBoundaryP,PARTICLE_COUNT); 
+																												 numOfBoundaryP,PARTICLE_COUNT);
 	glRasterPos2f (0.01F, 0.65F); 
 	drawStringBig (label); 
 	glColor3f (1.0F, 1.0F, 1.0F); 
-	sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d", device_full_name, fps, iterationCount); 
+	sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d", device_full_name, fps, iterationCount);
 	glRasterPos2f (0.01F, 0.20F); 
 	drawStringBig (label); 
 
