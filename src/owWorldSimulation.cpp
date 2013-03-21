@@ -17,7 +17,7 @@ int buttonState = 0;
 float sc = 0.025;		//0.0145;//0.045;//0.07
 
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
-GLsizei Height, Width;
+GLsizei viewHeight, viewWidth;
 int winIdMain;
 int winIdSub;
 int PARTICLE_COUNT = 0;
@@ -37,6 +37,9 @@ void calculateFPS();
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 int local_NDRange_size = 256;//256;
+
+float muscle_activation_signal = 0.f;
+
 void display(void)
 {
 	helper->refreshTime();
@@ -263,6 +266,18 @@ void mouse_motion (int x, int y)
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
+
+void respond_key_pressed(unsigned char key, int x, int y)
+{
+	if(key=='a')
+	{
+		muscle_activation_signal += 0.1f;
+		if(muscle_activation_signal>1.f) muscle_activation_signal = 1.f;
+	}
+
+	return;
+}
+
 //Auxiliary function
 /* There can be only one idle() callback function. In an 
    animation, this idle() function must update not only the 
@@ -298,12 +313,16 @@ void subMenuDisplay()
 	glColor3f (1.0F, 1.0F, 1.0F);
 	sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
 																												 numOfElasticP,
-																												 numOfBoundaryP,PARTICLE_COUNT);
-	glRasterPos2f (0.01F, 0.65F); 
+																												 numOfBoundaryP,PARTICLE_COUNT); 
+	glRasterPos2f (0.01F, 0.75F); 
 	drawStringBig (label); 
 	glColor3f (1.0F, 1.0F, 1.0F); 
-	sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d", device_full_name, fps, iterationCount);
-	glRasterPos2f (0.01F, 0.20F); 
+	sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d", device_full_name, fps, iterationCount); 
+	glRasterPos2f (0.01F, 0.40F); 
+	drawStringBig (label); 
+
+	sprintf(label,"Muscle activation signal: %.3f (press 'a' to activate)", muscle_activation_signal); 
+	glRasterPos2f (0.01F, 0.05F); 
 	drawStringBig (label); 
 
 	glutSwapBuffers (); 
@@ -325,7 +344,7 @@ void Timer(int value)
 void SetProjectionMatrix(void){
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();									// Current projection matrix is dropped to identity matrix 
-	glFrustum(-1, 1, -1, 1, 3, 15);						// Set up perspective projection
+	glFrustum(-1, 1, -1, 1, 3, 15*3);						// Set up perspective projection
 }
 void SetModelviewMatrix(void){
      glMatrixMode(GL_MODELVIEW);                                   
@@ -342,11 +361,25 @@ GLvoid resize(GLsizei width, GLsizei height){
 
 	glViewport(0, 0, width, height);					// Sev view area
 
-	Height = height;
-	Width = width;
+	viewHeight = height;
+	viewWidth = width;
 
 	SetProjectionMatrix();
 	SetModelviewMatrix();
+
+//================= fixes a small bug -- scene's point of view is set to initial after window rezise ('forgotten' to update)
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	for (int c = 0; c < 3; ++c)
+	{
+	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]) * inertia;
+		camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]) * inertia;
+	}
+    glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
+	glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
+	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
+//==================
 }
 void init(void){
 	glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
@@ -394,6 +427,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
 		glutMotionFunc(mouse_motion);	// The former handles movement while the mouse is clicked, 
+		glutKeyboardFunc(respond_key_pressed);
 		//Create sub window which contains information about simulation: FPS, and particles count
 		winIdSub = glutCreateSubWindow (winIdMain, 5, 5, 1000 - 10, 600 / 10); 
 		glutDisplayFunc (subMenuDisplay); 

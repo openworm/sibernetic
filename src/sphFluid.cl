@@ -902,10 +902,11 @@ __kernel void pcisph_computeElasticForces(
 								  int numOfElasticParticle,
 								  __global float4 * elasticConnectionsData,
 								  int offset,
-								  int PARTICLE_COUNT
+								  int PARTICLE_COUNT,
+								  float muscle_activation_signal
 								  )
 {
-	int index = get_global_id( 0 );//it's index of elastic particle among all elastic particles but this isn't real id of particel
+	int index = get_global_id( 0 );//it is the index of the elastic particle among all elastic particles but this isn't real id of particel
 	//printf(".[%d]",index);
 	if(index>=numOfElasticParticle) {
 		return;
@@ -924,12 +925,20 @@ __kernel void pcisph_computeElasticForces(
 	float4 velocity_i = velocity[ index + offset ];
 	float4 velocity_j;
 	int jd;
+	//float4 centerOfMassPosition = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );;
+	//float4 iPos,jPos;
+
 	do
 	{
 		if( (jd = (int)elasticConnectionsData[ idx + nc ].x) != NO_PARTICLE_ID )
 		{
-			velocity_j = velocity[ jd ];
-			jd = particleIndexBack[jd];
+			//centerOfMassPosition += sortedPosition[jd];
+			jd = particleIndexBack[jd];// sequence of these two lines was reversed
+			velocity_j = velocity[ jd ];// which caused serious errors
+
+			//iPos = sortedPosition[id];
+			//jPos = sortedPosition[jd];
+
 			r_ij_equilibrium = elasticConnectionsData[ idx + nc ].y;//rij0
 			vect_r_ij = (sortedPosition[id] - sortedPosition[jd]) * simulationScale;
 			vect_r_ij.w = 0;
@@ -937,6 +946,11 @@ __kernel void pcisph_computeElasticForces(
 			delta_r_ij = r_ij - r_ij_equilibrium;
 			if(r_ij!=0.f){
 				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * k;
+				if(muscle_activation_signal>0.f)
+				if((int)(elasticConnectionsData[idx+nc].z)==1)//contractible spring, = muscle
+				{
+					acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal * 500.f;
+				}
 			}
 			centerOfMassVelocity = (velocity_i + velocity_j)/2.f;
 			velocity_i_cm = velocity_i - centerOfMassVelocity;
@@ -944,13 +958,27 @@ __kernel void pcisph_computeElasticForces(
 			if((v_i_cm_length!=0)&&(r_ij!=0))
 			{
 				velocity_i_cm.w = 0.f;
-				proj_v_i_cm_on_r_ij = vect_r_ij * DOT(velocity_i_cm,vect_r_ij)/(v_i_cm_length*r_ij);
-				sortedVelocity[ id ] -= proj_v_i_cm_on_r_ij * damping_coeff;
+				//proj_v_i_cm_on_r_ij = vect_r_ij * DOT(velocity_i_cm,vect_r_ij)/(v_i_cm_length*r_ij);
+				//Sergey, the line above contains serios error. I replace with the correct variant (below):
+				proj_v_i_cm_on_r_ij = vect_r_ij * DOT(velocity_i_cm,vect_r_ij)/(r_ij*r_ij);
+				//float4 sVi = sortedVelocity[ id ];
+				//sortedVelocity[ id ] -= proj_v_i_cm_on_r_ij * 0.1f/*damping_coeff*/;
+				acceleration[ id ] += -30*proj_v_i_cm_on_r_ij;
+				
 			}
 		}
 		else
-			break;//Litle Optimization
+			break;//once we meet NO_PARTICLE_ID in the list of neighbours, it means that all the rest till the end are also NO_PARTICLE_ID
 	}while( ++nc < NEIGHBOR_COUNT );
+
+	/*
+	if(nc>0) 
+	{
+		centerOfMassPosition /= (float)nc;
+		nc = nc;
+	}
+	*/
+
 	return;
 }
 //boundaryHandling

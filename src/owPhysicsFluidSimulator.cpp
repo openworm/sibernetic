@@ -13,6 +13,7 @@ extern int numOfBoundaryP = 0;
 int * _particleIndex;
 unsigned int * gridNextNonEmptyCellBuffer;
 extern int gridCellCount;
+extern float muscle_activation_signal;
 
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
@@ -87,6 +88,7 @@ double owPhysicsFluidSimulator::simulationStep()
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
 		printf("------------------------------------\n");
 		iterationCount++;
+		muscle_activation_signal *= 0.9f;
 		return helper->get_elapsedTime();
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;

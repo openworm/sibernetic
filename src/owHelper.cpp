@@ -97,9 +97,9 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
 	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
 
-	int nEx = 7;
-	int nEy = 3;
-	int nEz = 23;
+	int nEx = 9;//7
+	int nEy = 5;//3
+	int nEz = 35;//23
 
 	if(stage==0)
 	{
@@ -196,7 +196,7 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 
 	for(x = 15*r0/2;x<(XMAX-XMIN)/5 +3*r0/2;x += r0)
 	for(y =  3*r0/2;y<(YMAX-YMIN)   -3*r0/2;y += r0)
-	for(z =  3*r0/2+(ZMAX-ZMIN)*1/5;z<(ZMAX-ZMIN)*4/5-3*r0/2;z += r0)
+	for(z =  3*r0/2+(ZMAX-ZMIN)*3/10;z<(ZMAX-ZMIN)*7/10-3*r0/2;z += r0)
 	{
 						// stage==0 - preliminary run
 		if(stage==1)	// stage==1 - final run

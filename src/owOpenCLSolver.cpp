@@ -384,6 +384,9 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure()
 #endif
 	return err;
 }
+
+extern float muscle_activation_signal;
+
 unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 {
 	if(numOfElasticP == 0 )
@@ -401,6 +404,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 10, elasticConnectionsData );
 	pcisph_computeElasticForces.setArg( 11, numOfBoundaryP*(!generateInitialConfiguration) );
 	pcisph_computeElasticForces.setArg( 12, PARTICLE_COUNT );
+	pcisph_computeElasticForces.setArg( 13, muscle_activation_signal);
 	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( (int) ( numOfElasticPCountRoundedUp ) ),
