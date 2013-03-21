@@ -906,7 +906,7 @@ __kernel void pcisph_computeElasticForces(
 								  float muscle_activation_signal
 								  )
 {
-	int index = get_global_id( 0 );//it is the index of the elastic particle among all elastic particles but this isn't real id of particel
+	int index = get_global_id( 0 );//it is the index of the elastic particle among all elastic particles but this isn't real id of particle
 	//printf(".[%d]",index);
 	if(index>=numOfElasticParticle) {
 		return;
@@ -922,28 +922,35 @@ __kernel void pcisph_computeElasticForces(
 	float damping_coeff = 0.5f;
 	float check;
 	float4 proj_v_i_cm_on_r_ij;
-	float4 velocity_i = velocity[ index + offset ];
+	float4 velocity_i = velocity[id];//velocity[ index + offset ];
 	float4 velocity_j;
 	int jd;
 	//float4 centerOfMassPosition = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );;
-	//float4 iPos,jPos;
+	float4 iPos,jPos;
 
 	do
 	{
 		if( (jd = (int)elasticConnectionsData[ idx + nc ].x) != NO_PARTICLE_ID )
 		{
-			//centerOfMassPosition += sortedPosition[jd];
-			jd = particleIndexBack[jd];// sequence of these two lines was reversed
-			velocity_j = velocity[ jd ];// which caused serious errors
+			jPos = sortedPosition[jd];
 
-			//iPos = sortedPosition[id];
-			//jPos = sortedPosition[jd];
+			
+			jd = particleIndexBack[jd];
+			velocity_j = velocity[ jd ];
+
+			//velocity_i = velocity[id];
+			//velocity_j = velocity[jd];
+			
+			iPos = sortedPosition[id];
+			jPos = sortedPosition[jd];
 
 			r_ij_equilibrium = elasticConnectionsData[ idx + nc ].y;//rij0
 			vect_r_ij = (sortedPosition[id] - sortedPosition[jd]) * simulationScale;
 			vect_r_ij.w = 0;
-			r_ij = SQRT(vect_r_ij.x*vect_r_ij.x+vect_r_ij.y*vect_r_ij.y+vect_r_ij.z*vect_r_ij.z);
+
+			r_ij = sqrt(DOT(vect_r_ij,vect_r_ij));
 			delta_r_ij = r_ij - r_ij_equilibrium;
+
 			if(r_ij!=0.f){
 				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * k;
 				if(muscle_activation_signal>0.f)
@@ -952,18 +959,19 @@ __kernel void pcisph_computeElasticForces(
 					acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal * 500.f;
 				}
 			}
+
 			centerOfMassVelocity = (velocity_i + velocity_j)/2.f;
 			velocity_i_cm = velocity_i - centerOfMassVelocity;
-			v_i_cm_length = sqrt(velocity_i_cm.x*velocity_i_cm.x+velocity_i_cm.y*velocity_i_cm.y+velocity_i_cm.z*velocity_i_cm.z);
+			velocity_i_cm.w = 0.f;
+			v_i_cm_length = sqrt( DOT (velocity_i_cm,velocity_i_cm) );
+
 			if((v_i_cm_length!=0)&&(r_ij!=0))
 			{
-				velocity_i_cm.w = 0.f;
 				//proj_v_i_cm_on_r_ij = vect_r_ij * DOT(velocity_i_cm,vect_r_ij)/(v_i_cm_length*r_ij);
-				//Sergey, the line above contains serios error. I replace with the correct variant (below):
 				proj_v_i_cm_on_r_ij = vect_r_ij * DOT(velocity_i_cm,vect_r_ij)/(r_ij*r_ij);
 				//float4 sVi = sortedVelocity[ id ];
-				//sortedVelocity[ id ] -= proj_v_i_cm_on_r_ij * 0.1f/*damping_coeff*/;
-				acceleration[ id ] += -30*proj_v_i_cm_on_r_ij;
+				//sortedVelocity[ id ] -= proj_v_i_cm_on_r_ij * 0.1f;
+			//	acceleration[ id ] += -30*proj_v_i_cm_on_r_ij;
 				
 			}
 		}
