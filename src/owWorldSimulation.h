@@ -1,8 +1,8 @@
 #ifndef OW_WORLD_SIMULATION_H
 #define OW_WORLD_SIMULATION_H
 
-#include <GL/glew.h>
 #if defined(_WIN32) || defined (_WIN64)
+	#include <GL/glew.h>
 	#include <GL/wglew.h>
 #else
 	#include <string.h>
