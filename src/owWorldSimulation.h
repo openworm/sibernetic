@@ -1,14 +1,16 @@
 #ifndef OW_WORLD_SIMULATION_H
 #define OW_WORLD_SIMULATION_H
 
-
+#include <GL/glew.h>
 #if defined(_WIN32) || defined (_WIN64)
-	#pragma comment( lib, "gl//glut32.lib" )
-	#include <windows.h>
-	#include "../gl/glut.h"
+	#include <GL/wglew.h>
 #else
 	#include <string.h>
-	#include <GL/glut.h>
+#endif
+#if defined(__APPLE__) || defined(MACOSX)
+    #include <GLUT/glut.h>
+#else
+    #include <GL/freeglut.h>
 #endif
 
 #include "owPhysicsFluidSimulator.h"
