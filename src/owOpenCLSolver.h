@@ -14,6 +14,7 @@
 extern int PARTICLE_COUNT;
 extern int PARTICLE_COUNT_RoundedUp;
 extern int local_NDRange_size;
+extern int MUSCLE_COUNT;
 
 #define generateInitialConfiguration 1 //or load from file otherwise [0/1]
 
@@ -49,6 +50,8 @@ public:
 	unsigned int _run_pcisph_correctPressure();
 	unsigned int _run_pcisph_computePressureForceAcceleration();
 	unsigned int _run_pcisph_integrate();
+	//
+	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_buffer);
 	
 	void read_position_b( float * positionBuffer ) { copy_buffer_from_device( positionBuffer, position, PARTICLE_COUNT * sizeof( float ) * 4 ); };
 	void read_density_b( float * densityBuffer ) { copy_buffer_from_device( densityBuffer, rho, PARTICLE_COUNT * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
@@ -63,6 +66,9 @@ private:
 	cl::CommandQueue		  queue;
 	cl::Program				  program;
 	// Buffers
+	cl::Buffer  muscle_activation_signal;   // array storing data (activation signals) for an array of muscles. 
+											// now each can be affected by user independently
+
 	cl::Buffer 	acceleration;				// forceAcceleration and pressureForceAcceleration
 	cl::Buffer 	gridCellIndex;
 	cl::Buffer 	gridCellIndexFixedUp;

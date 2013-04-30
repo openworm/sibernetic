@@ -5,6 +5,7 @@ extern int numOfLiquidP;
 extern int numOfElasticP;
 extern int numOfBoundaryP;
 extern int iterationCount;
+extern 
 
 int old_x=0, old_y=0;	// Used for mouse event
 float camera_trans[] = {0, 0, -8.0};
@@ -14,7 +15,7 @@ float camera_rot_lag[] = {0, 0, 0};
 const float inertia = 1.0f;
 float modelView[16];
 int buttonState = 0;
-float sc = 0.025;		//0.0145;//0.045;//0.07
+float sc = 0.025f;		//0.0145;//0.045;//0.07
 
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
 GLsizei viewHeight, viewWidth;
@@ -22,6 +23,7 @@ int winIdMain;
 int winIdSub;
 int PARTICLE_COUNT = 0;
 int PARTICLE_COUNT_RoundedUp = 0;
+int MUSCLE_COUNT = 10;//increase this value and modify corresponding code if you plan to add more than 10 muscles
 double totalTime = 0;
 int frames_counter = 0;
 double calculationTime;
@@ -33,12 +35,13 @@ unsigned int * p_indexb;
 float * d_b;
 float * p_b;
 float * e_c;
+float * muscle_activation_signal_buffer;
 void calculateFPS();
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 int local_NDRange_size = 256;//256;
 
-float muscle_activation_signal = 0.f;
+//float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
 
 void display(void)
 {
@@ -144,7 +147,7 @@ void display(void)
 		rho = d_b[ p_indexb[ i * 2 + 0 ] ];
 		if( rho < 0 ) rho = 0;
 		if( rho > 2 * rho0) rho = 2 * rho0;
-		dc = 100.0 * ( rho - rho0 ) / rho0 ;
+		dc = 100.f * ( rho - rho0 ) / rho0 ;
 		if(dc>1.f) dc = 1.f;
 		//  R   G   B
 		glColor4f(  0,  0,  1, 1.0f);//blue
@@ -166,7 +169,7 @@ void display(void)
 	for(int i, i_ec=0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
 	{
 		//offset = 0
-		if((j=e_c[ 4 * i_ec + 0 ])>=0)
+		if((j=(int)e_c[ 4 * i_ec + 0 ])>=0)
 		{
 			i = (i_ec / NEIGHBOR_COUNT) + (generateInitialConfiguration!=1)*numOfBoundaryP;
 
@@ -190,7 +193,7 @@ void calculateFPS()
 {
     //  Increase frame count
 	frames_counter++;
-    int timeInterval = totalTime - prevTime;
+    int timeInterval = (int)(totalTime - prevTime);
     if(timeInterval >= 1000)
     {
 		fps = frames_counter / (timeInterval / 1000.0f);
@@ -217,12 +220,12 @@ void respond_mouse(int button, int state, int x, int y)
 	old_y=y;
 	if (button == 3)// mouse wheel up
     {
-        sc *= 1.1;// Zoom in
+        sc *= 1.1f;// Zoom in
     }
     else
 	if (button == 4)// mouse wheel down
     {
-        sc /= 1.1;// Zoom out
+        sc /= 1.1f;// Zoom out
     }
 }
 
@@ -267,13 +270,52 @@ void mouse_motion (int x, int y)
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 
+extern float *muscle_activation_signal_buffer;
+
 void respond_key_pressed(unsigned char key, int x, int y)
 {
-	if(key=='a')
+	
+	if(key=='1')
 	{
-		muscle_activation_signal += 0.1f;
-		if(muscle_activation_signal>1.f) muscle_activation_signal = 1.f;
+		if(muscle_activation_signal_buffer[0]<=0.5f)
+		muscle_activation_signal_buffer[0] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_buffer[0] = 0.f;
+		//if(muscle_activation_signal_buffer[0]>1.f) muscle_activation_signal_buffer[0] = 1.f;
+
 	}
+
+	if(key=='2')
+	{
+		if(muscle_activation_signal_buffer[1]<=0.5f)
+		muscle_activation_signal_buffer[1] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_buffer[1] = 0.f;
+		//if(muscle_activation_signal_buffer[1]>1.f) muscle_activation_signal_buffer[1] = 1.f;
+	}
+
+	if(key=='3')
+	{
+		if(muscle_activation_signal_buffer[2]<=0.5f)
+		muscle_activation_signal_buffer[2] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_buffer[2] = 0.f;
+		//if(muscle_activation_signal_buffer[2]>1.f) muscle_activation_signal_buffer[2] = 1.f;
+	}
+
+	if(key=='4')
+	{
+		if(muscle_activation_signal_buffer[3]<=0.5f)
+		muscle_activation_signal_buffer[3] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_buffer[3] = 0.f;
+		//if(muscle_activation_signal_buffer[3]>1.f) muscle_activation_signal_buffer[3] = 1.f;
+	}
+
+	if(key=='5')
+	{
+		if(muscle_activation_signal_buffer[4]<=0.5f)
+		muscle_activation_signal_buffer[4] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_buffer[4] = 0.f;
+		//if(muscle_activation_signal_buffer[4]>1.f) muscle_activation_signal_buffer[4] = 1.f;
+	}
+	
 
 	return;
 }
@@ -314,14 +356,19 @@ void subMenuDisplay()
 	sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
 																												 numOfElasticP,
 																												 numOfBoundaryP,PARTICLE_COUNT); 
-	glRasterPos2f (0.01F, 0.75F); 
+	glRasterPos2f (0.01F, 0.7F); 
 	drawStringBig (label); 
 	glColor3f (1.0F, 1.0F, 1.0F); 
 	sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d", device_full_name, fps, iterationCount); 
-	glRasterPos2f (0.01F, 0.40F); 
+	glRasterPos2f (0.01F, 0.38F); 
 	drawStringBig (label); 
 
-	sprintf(label,"Muscle activation signal: %.3f (press 'a' to activate)", muscle_activation_signal); 
+	sprintf(label,"Muscle activation signals: %.3f | %.3f | %.3f | %.3f | %.3f // use keys '1' to '5' to activate/deactivate", 
+		muscle_activation_signal_buffer[0],
+		muscle_activation_signal_buffer[1],
+		muscle_activation_signal_buffer[2],
+		muscle_activation_signal_buffer[3],
+		muscle_activation_signal_buffer[4]); 
 	glRasterPos2f (0.01F, 0.05F); 
 	drawStringBig (label); 
 

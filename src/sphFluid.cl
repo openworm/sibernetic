@@ -903,7 +903,8 @@ __kernel void pcisph_computeElasticForces(
 								  __global float4 * elasticConnectionsData,
 								  int offset,
 								  int PARTICLE_COUNT,
-								  float muscle_activation_signal
+								  int MUSCLE_COUNT,
+								  __global float * muscle_activation_signal
 								  )
 {
 	int index = get_global_id( 0 );//it is the index of the elastic particle among all elastic particles but this isn't real id of particle
@@ -925,6 +926,7 @@ __kernel void pcisph_computeElasticForces(
 	float4 velocity_i = velocity[id];//velocity[ index + offset ];
 	float4 velocity_j;
 	int jd;
+	int i;
 	//float4 centerOfMassPosition = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );;
 	float4 iPos,jPos;
 
@@ -951,12 +953,17 @@ __kernel void pcisph_computeElasticForces(
 			r_ij = sqrt(DOT(vect_r_ij,vect_r_ij));
 			delta_r_ij = r_ij - r_ij_equilibrium;
 
-			if(r_ij!=0.f){
+			if(r_ij!=0.f)
+			{
 				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * k;
-				if(muscle_activation_signal>0.f)
-				if((int)(elasticConnectionsData[idx+nc].z)==1)//contractible spring, = muscle
+
+				for(i=0;i<MUSCLE_COUNT;i++)//check all muscles
 				{
-					acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal * 500.f;
+					if((int)(elasticConnectionsData[idx+nc].z)==(i+1))//contractible spring, = muscle
+					{
+						if(muscle_activation_signal[i]>0.f)
+							acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal[i] * 300.f;
+					}
 				}
 			}
 
@@ -1092,7 +1099,7 @@ __kernel void pcisph_predictPositions(
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	float4 position_ = sortedPosition[ id ];
 	if((int)(position[ id_source_particle ].w) == 3){
-		sortedPosition[PARTICLE_COUNT+id] = position_;//this line was missing (absent) and caused serions errors int further program behavior
+		sortedPosition[PARTICLE_COUNT+id] = position_;//this line was missing (absent) and caused serions errors in program behavior
 		return;
 	}
 	float4 acceleration_ = acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ];

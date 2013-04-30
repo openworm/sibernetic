@@ -13,7 +13,7 @@ extern int numOfBoundaryP = 0;
 int * _particleIndex;
 unsigned int * gridNextNonEmptyCellBuffer;
 extern int gridCellCount;
-extern float muscle_activation_signal;
+extern float * muscle_activation_signal_buffer;
 
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
@@ -32,6 +32,12 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		velocityBuffer = new float[ 4 * PARTICLE_COUNT ];
 		_particleIndex = new   int[ 2 * PARTICLE_COUNT ];
 		gridNextNonEmptyCellBuffer = new unsigned int[gridCellCount+1];
+		muscle_activation_signal_buffer = new float [MUSCLE_COUNT];
+
+		for(int i=0;i<MUSCLE_COUNT;i++)
+		{
+			muscle_activation_signal_buffer[i] = 0.f;
+		}
 
 		//The buffers listed below are only for usability and debug
 		densityBuffer = new float[ 1 * PARTICLE_COUNT ];
@@ -55,6 +61,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		exit( -1 );
 	}
 }
+
 double owPhysicsFluidSimulator::simulationStep()
 {
 	//PCISPH algorithm
@@ -88,7 +95,8 @@ double owPhysicsFluidSimulator::simulationStep()
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
 		printf("------------------------------------\n");
 		iterationCount++;
-		muscle_activation_signal *= 0.9f;
+		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_buffer[i] *= 0.9f; }
+		ocl_solver->updateMuscleActivityData(muscle_activation_signal_buffer);
 		return helper->get_elapsedTime();
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
@@ -103,6 +111,7 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 	delete [] velocityBuffer;
 	delete [] densityBuffer;
 	delete [] particleIndexBuffer;
+	delete [] muscle_activation_signal_buffer;
 	ocl_solver->~owOpenCLSolver();
 }
 

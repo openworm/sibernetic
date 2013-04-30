@@ -39,6 +39,7 @@ owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * veloc
 		create_ocl_buffer( "sortedPosition", sortedPosition, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
 		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
 		create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
+		create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( MUSCLE_COUNT * sizeof( float ) ) );
 		// Create kernels
 		create_ocl_kernel("clearBuffers", clearBuffers);
 		create_ocl_kernel("findNeighbors", findNeighbors);
@@ -385,8 +386,6 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure()
 	return err;
 }
 
-extern float muscle_activation_signal;
-
 unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 {
 	if(numOfElasticP == 0 )
@@ -404,7 +403,8 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 10, elasticConnectionsData );
 	pcisph_computeElasticForces.setArg( 11, numOfBoundaryP*(!generateInitialConfiguration) );
 	pcisph_computeElasticForces.setArg( 12, PARTICLE_COUNT );
-	pcisph_computeElasticForces.setArg( 13, muscle_activation_signal);
+	pcisph_computeElasticForces.setArg( 13, MUSCLE_COUNT );
+	pcisph_computeElasticForces.setArg( 14, muscle_activation_signal);
 	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( (int) ( numOfElasticPCountRoundedUp ) ),
@@ -635,6 +635,13 @@ int owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_
 	queue.finish();
 	return err;
 }
+
+unsigned int owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_buffer)
+{
+	copy_buffer_to_device( _muscle_activation_signal_buffer, muscle_activation_signal, MUSCLE_COUNT * sizeof( float ) );
+	return 0;
+}
+
 owOpenCLSolver::~owOpenCLSolver(void)
 {
 	delete [] gridNextNonEmptyCellBuffer;
