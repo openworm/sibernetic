@@ -28,7 +28,8 @@ const float mu = 10.0f;//why this value? Dynamic viscosity of water at 25 C = 0.
 const float timeStep = 0.001f;//0.0005f;//0.0042f;// ATTENTION you should remember about time step: if it is larger 0.001 it can lead to 'explosion' of elastic matter objects
 const float CFLLimit = 100.0f;
 const float damping = 0.75f;
-const float r0 = 0.5f * h; // distance between two boundary particle
+const float r0 = 0.5f * h; // distance between two boundary particle == equilibrium distance between 2 particles // Ihmsen et. al., 2010, page 4, line 3 
+						   // M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 const float beta = timeStep*timeStep*mass*mass*2/(rho0*rho0);// B. Solenthaler's dissertation, formula 3.6 (end of page 30)
 const float betaInv = 1.f/beta;
 const float Wpoly6Coefficient = 315.0f / ( 64.0f * M_PI * pow( h * simulationScale, 9.0f ) );

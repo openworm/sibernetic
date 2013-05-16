@@ -996,13 +996,14 @@ __kernel void pcisph_computeElasticForces(
 
 	return;
 }
-//boundaryHandling
-float w_icb(float r0, float r_ib){
-	if((r0-r_ib) >= 0)
-		return (r0-r_ib)/r0;
-	else
-		return 0.f;
-}
+// Boundary handling, according to the following article:
+// M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
+// short citation: Ihmsen et. al., 2010
+// The article chapter 3.2 describes new boundary method that combines the idea of direct-forcing [BTT09]
+// with the pressure-based frozen-particles method. The proposed boundary method enforces non-penetration 
+// of rigid objects even for large time steps. By incorporating density estimates at the boundary into the 
+// pressure force, unnatural accelerations resulting from high pressure ratios are avoided.
+
 void calculateBoundaryParticleAffect(
 									   int id, 
 									   float r0, 
@@ -1019,14 +1020,13 @@ void calculateBoundaryParticleAffect(
 	//track selected particle (indices are not shuffled anymore)
 	int idx = id * NEIGHBOR_COUNT;
 	int id_source_particle, nc = 0;
-	float4 n_ci = (float4)(0.f,0.f,0.f,0.f); 
+	float4 n_c_i = (float4)(0.f,0.f,0.f,0.f); 
 	float4 n_b;
-	float w_icb_summ = 0.f, w_icb_second_summ = 0.f,w_icb_current;
-	float x_ib_norm;
+	float w_c_ib, w_c_ib_sum = 0.f, w_c_ib_second_sum = 0.f;
 	float4 dist;
-	float val,x_ib_norma;
+	float val,x_ib_norm;
 	int jd;
-	//float8 returnedValue;
+
 	do// gather density contribution from all neighbors (if they exist)
 	{
 		if( (jd = NEIGHBOR_MAP_ID( neighborMap[ idx + nc ])) != NO_PARTICLE_ID )
@@ -1035,34 +1035,35 @@ void calculateBoundaryParticleAffect(
 			id_source_particle = PI_SERIAL_ID( particleIndex[jd] );
 			if((int)position[id_source_particle].w == 3){
 				//dist = pos_ - position[id_source_particle];
-				x_ib_norma = ((*pos_).x - position[id_source_particle].x) * ((*pos_).x - position[id_source_particle].x);
-				x_ib_norma += ((*pos_).y - position[id_source_particle].y) * ((*pos_).y - position[id_source_particle].y);
-				x_ib_norma += ((*pos_).z - position[id_source_particle].z) * ((*pos_).z - position[id_source_particle].z);
-				x_ib_norma = SQRT(x_ib_norma);
-				w_icb_current = w_icb(r0,x_ib_norma);
-				n_b = velocity[id_source_particle];
-				n_ci += n_b * w_icb_current;
-				w_icb_summ += w_icb_current;
-				w_icb_second_summ += w_icb_current * (r0 - x_ib_norma);
+				x_ib_norm  = ((*pos_).x - position[id_source_particle].x) * ((*pos_).x - position[id_source_particle].x);
+				x_ib_norm += ((*pos_).y - position[id_source_particle].y) * ((*pos_).y - position[id_source_particle].y);
+				x_ib_norm += ((*pos_).z - position[id_source_particle].z) * ((*pos_).z - position[id_source_particle].z);
+				x_ib_norm = SQRT(x_ib_norm);
+				w_c_ib = max(0.f,(r0-x_ib_norm)/r0);							//Ihmsen et. al., 2010, page 4, formula (10)
+				n_b = velocity[id_source_particle];						//ATTENTION! for boundary, non-moving particles velocity has no sense, but instead we need to store normal vector. We keep it in velocity data structure for memory economy.
+				n_c_i += n_b * w_c_ib;									//Ihmsen et. al., 2010, page 4, formula (9)
+				w_c_ib_sum += w_c_ib;									//Ihmsen et. al., 2010, page 4, formula (11), sum #1
+				w_c_ib_second_sum += w_c_ib * (r0 - x_ib_norm); //Ihmsen et. al., 2010, page 4, formula (11), sum #2
 			}
 		}
-	}while( ++nc < NEIGHBOR_COUNT );
-	val = DOT(n_ci,n_ci);
+	}
+	while( ++nc < NEIGHBOR_COUNT );
+
+	val = DOT(n_c_i,n_c_i);
 	if(val != 0){
 		val = sqrt(val);
-		//n_ci = n_ci / val;
-		dist = n_ci/val * w_icb_second_summ * 1/w_icb_summ;
-		(*pos_).x += dist.x;
-		(*pos_).y += dist.y;
-		(*pos_).z += dist.z;
+		dist = n_c_i/val * w_c_ib_second_sum / w_c_ib_sum;	//
+		(*pos_).x += dist.x;								//
+		(*pos_).y += dist.y;								// Ihmsen et. al., 2010, page 4, formula (11)
+		(*pos_).z += dist.z;								//
 		if(tangVel){
-			float eps = 0.99f;//eps <= 1.0
-			float vel_n_len = n_ci.x * (*vel).x + n_ci.y * (*vel).y + n_ci.z * (*vel).z; 
+			float eps = 0.99f; //eps should be <= 1.0		// controls the friction of the collision
+			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z; 
 			if(vel_n_len < 0){
-				(*vel).x -= n_ci.x * vel_n_len;
-				(*vel).y -= n_ci.y * vel_n_len;
-				(*vel).z -= n_ci.z * vel_n_len;
-				(*vel) = (*vel) * eps;
+				(*vel).x -= n_c_i.x * vel_n_len;
+				(*vel).y -= n_c_i.y * vel_n_len;
+				(*vel).z -= n_c_i.z * vel_n_len;
+				(*vel) = (*vel) * eps;						// Ihmsen et. al., 2010, page 4, formula (12)
 			}
 		}
 	}
