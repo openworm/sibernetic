@@ -139,7 +139,7 @@ float calcDelta()
 
         dist = sqrt(v_x*v_x+v_y*v_y+v_z*v_z);//scaled, right?
 
-        if (dist <= h)
+        if (dist <= h*simulationScale)
         {
 			h_r_2 = pow((h*simulationScale - dist),2);//scaled
 
