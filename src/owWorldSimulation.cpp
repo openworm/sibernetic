@@ -41,9 +41,15 @@ float * muscle_activation_signal_buffer;
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 int local_NDRange_size = 256;//256;
+float ocuracy = 100;
+bool flag = false;
+void * m_font = (void *) GLUT_BITMAP_8_BY_13;
+
 void calculateFPS();
 void drawScene();
 void renderInfo(int,int);
+void glPrint(float,float,const char *, void*);
+void glPrint3D(float,float,float,const char *, void*);
 //float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
 
 void display(void)
@@ -168,7 +174,43 @@ inline void drawScene()
 	glColor3ub(255,255,255);//yellow
 	glVertex3d(v1.x,v1.y,v1.z); 
 	glVertex3d(v2.x,v2.y,v2.z);
+	
 
+	//
+	glColor3ub(0,0,0);//black
+	float s_v = 1 /(simulationScale);// = 1 m in simulation
+	float order = 0;
+	while(s_v >= 1){
+		s_v /= 10;
+		if(s_v < 1)
+		{
+			s_v *= 10;
+			break;
+		}
+		++order;
+	}
+	Vector3D v_s = Vector3D(  XMAX/2 - s_v,  YMAX/2,  ZMAX/2)*sc;
+	glVertex3d(v_s.x, v_s.y, v_s.z);
+	glVertex3d(v_s.x, v_s.y - 0.5f * sc , v_s.z);
+	glEnd();
+	std::stringstream ss;
+	std::string s;
+	ss << order;
+	s = "1E-" + ss.str() + "m";
+	glPrint3D( v_s.x , v_s.y - 2.f * sc, v_s.z, s.c_str(), m_font);
+	int n = 1;
+	ss.str("");
+	while(v_s.x > -XMAX/2*sc){
+		v_s.x -= s_v * sc;
+		if(v_s.x > -XMAX/2*sc){
+			glBegin(GL_LINES);
+				glVertex3d(v_s.x, v_s.y, v_s.z);
+				glVertex3d(v_s.x, v_s.y - 0.5f * sc , v_s.z);
+			glEnd();
+		}
+	}
+	glBegin(GL_LINES);
+	glColor3ub(255,255,255);//yellow
 	glVertex3d(v2.x,v2.y,v2.z);
 	glVertex3d(v3.x,v3.y,v3.z);
 
@@ -228,12 +270,17 @@ void endWinCoords(void)
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
 }
-float ocuracy = 100;
-bool flag = false;
-void * m_font = (void *) GLUT_BITMAP_8_BY_13;
 void glPrint(float x, float y, const char *s, void *font)
 {
 	glRasterPos2f((GLfloat)x, (GLfloat)y);
+    int len = (int) strlen(s);
+    for (int i = 0; i < len; i++) {
+        glutBitmapCharacter(font, s[i]);
+    }
+}
+void glPrint3D(float x, float y, float z, const char *s, void *font)
+{
+	glRasterPos3f((GLfloat)x, (GLfloat)y, (GLfloat)z);
     int len = (int) strlen(s);
     for (int i = 0; i < len; i++) {
         glutBitmapCharacter(font, s[i]);
@@ -243,6 +290,7 @@ int count_s = 0;
 float current_sv ;
 static char label[1000];                            /* Storage for current string   */
 bool showInfo = true;
+bool showRuler = false;
 void renderInfo(int x, int y)
 {
 	beginWinCoords();
@@ -254,7 +302,7 @@ void renderInfo(int x, int y)
 																													 numOfBoundaryP,PARTICLE_COUNT); 
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F); 
-		sprintf(label,"Selected OpenCL device: %s     FPS = %.2f, time step: %d (%f s)", device_full_name, fps, iterationCount,((float)iterationCount)*timeStep); 
+		sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d (%f s)", device_full_name, fps, iterationCount,((float)iterationCount)*timeStep); 
 		glPrint( 0 , 17 , label, m_font);
 
 		sprintf(label,"Muscle activation signals: %.3f | %.3f | %.3f | %.3f | %.3f // use keys '1' to '5' to activate/deactivate", 
@@ -267,24 +315,25 @@ void renderInfo(int x, int y)
 		glPrint( 0 , 32 , label, m_font);
 		y_m = 40;
 	}
-	glColor3ub(255, 0, 0);
-	float s_v = 1 * sc_scale * (1 /( ocuracy * simulationScale));
-	float temp_v = (float)glutGet(GLUT_WINDOW_WIDTH)/2.f;
-	float s_v_10 = s_v / 10;
-	std::stringstream ss;
-	std::string s;
-	glBegin(GL_LINES);
-		glColor3f(1.0f,0.0f,0.0f);
-		glVertex2f((GLfloat) 0.f,(GLfloat)y_m );
-		glVertex2f((GLfloat) s_v,(GLfloat)y_m );
-		glVertex2f((GLfloat) s_v,(GLfloat)y_m );
-		glVertex2f((GLfloat) s_v,(GLfloat)y_m + 5.f );
-	glEnd();
-		glPrint( s_v , y_m + 15.f , "1E-02 m", m_font);
-	glBegin(GL_LINES);		
-		glVertex2f((GLfloat) s_v_10,(GLfloat)y_m + 0.f);
-		glVertex2f((GLfloat) s_v_10,(GLfloat)y_m + 5.f);
-	glEnd();
+	if(showRuler){
+		glColor3ub(255, 0, 0);
+		float s_v = 1 * sc_scale * (1 /( ocuracy * simulationScale));
+		float temp_v = (float)glutGet(GLUT_WINDOW_WIDTH)/2.f;
+		float s_v_10 = s_v / 10;
+		std::stringstream ss;
+		std::string s;
+		glBegin(GL_LINES);
+			glColor3f(1.0f,0.0f,0.0f);
+			glVertex2f((GLfloat) 0.f,(GLfloat)y_m );
+			glVertex2f((GLfloat) s_v,(GLfloat)y_m );
+			glVertex2f((GLfloat) s_v,(GLfloat)y_m );
+			glVertex2f((GLfloat) s_v,(GLfloat)y_m + 5.f );
+		glEnd();
+			glPrint( s_v , y_m + 15.f , "1E-02 m", m_font);
+		glBegin(GL_LINES);		
+			glVertex2f((GLfloat) s_v_10,(GLfloat)y_m + 0.f);
+			glVertex2f((GLfloat) s_v_10,(GLfloat)y_m + 5.f);
+		glEnd();
 		if( 8 * s_v/pow(10.f,count_s) >= glutGet(GLUT_WINDOW_WIDTH)/2 ){
 			count_s++;
 			flag = true;
@@ -306,6 +355,7 @@ void renderInfo(int x, int y)
 				glPrint( s_v/pow(10.f,i + 1) , y_m + 15.f , s.c_str(), m_font);
 			}
 		}
+	}
 	endWinCoords();
 }
 void calculateFPS()
@@ -440,7 +490,10 @@ void respond_key_pressed(unsigned char key, int x, int y)
 	{
 		showInfo = !showInfo;
 	}
-	
+	if(key == 'r')
+	{
+		showRuler = !showRuler;
+	}
 	return;
 }
 
