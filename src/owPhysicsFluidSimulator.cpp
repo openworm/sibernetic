@@ -123,7 +123,7 @@ float calcDelta()
     float sum1_x = 0.f;
 	float sum1_y = 0.f;
 	float sum1_z = 0.f;
-    float sum1 = 0.f, sum2 = 0.f;
+    double sum1 = 0.0, sum2 = 0.0;
 	float v_x = 0.f;
 	float v_y = 0.f;
 	float v_z = 0.f;
@@ -151,5 +151,7 @@ float calcDelta()
         }
     }
 	sum1 = sum1_x*sum1_x + sum1_y*sum1_y + sum1_z*sum1_z;
-	return  1.0f / (beta * gradWspikyCoefficient * gradWspikyCoefficient * (sum1 + sum2));
+	double result = 1.0 / (beta * gradWspikyCoefficient * gradWspikyCoefficient * (sum1 + sum2));
+	//return  1.0f / (beta * gradWspikyCoefficient * gradWspikyCoefficient * (sum1 + sum2));
+	return (float)result;
 }

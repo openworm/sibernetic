@@ -124,7 +124,7 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 		{
 			//write particle coordinates to corresponding arrays
 			position[ 4 * i + 0 ] = XMAX/2+x*r0-nEx*r0/2 - r0*(nEx)/2 + r0*(nEx+0.4)*(nM>2);
-			position[ 4 * i + 1 ] = YMAX/2+y*r0-nEy*r0/2 - YMAX/3;
+			position[ 4 * i + 1 ] = YMAX/2+y*r0-nEy*r0/2 - 0*YMAX/4;
 			position[ 4 * i + 2 ] = ZMAX/2+z*r0-nEz*r0/2 - (nM<=2)*(nM-1)*(nEz*r0) - (nM>2)*(r0/2+(nM-4)*r0)*nEz - (nM==1)*r0/2.5 - (nM==2)*r0*2/2.5 + (nM==4)*r0/2.5;
 			position[ 4 * i + 3 ] = p_type;
 
@@ -200,11 +200,14 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 	}
 
 	//============= create volume of liquid =========================================================================
-	p_type = LIQUID_PARTICLE;
 
-	for(x = r0;x<(XMAX-XMIN)-r0;x += r0)
-	for(y = r0;y<(YMAX-YMIN)*0.0+2.5*r0;y += r0)
-	for(z = r0;z<(ZMAX-ZMIN)-r0;z += r0)
+	p_type = LIQUID_PARTICLE;
+	//int first_liquid_particle = 1;
+	//float h_fall;
+
+	for(x = r0*23;x<(XMAX-XMIN)-r0*23;x += r0)
+	for(y = r0*3;y<(YMAX-YMIN)*0.0+9.0*r0;y += r0)
+	for(z = r0*23;z<(ZMAX-ZMIN)-r0*23;z += r0)
 	{
 						// stage==0 - preliminary run
 		if(stage==1)	// stage==1 - final run
@@ -224,11 +227,21 @@ void owHelper::generateConfiguration(int stage, float *position, float *velocity
 			velocity[ 4 * i + 1 ] = 0;
 			velocity[ 4 * i + 2 ] = 0;
 			velocity[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
+
+			/*//just for debug
+			if(first_liquid_particle)
+			{
+				first_liquid_particle = 0;
+				position[ 4 * i + 0 ] = (XMAX-XMIN)*0.35f;
+				position[ 4 * i + 1 ] = (YMAX-YMIN)*0.454f;
+				position[ 4 * i + 2 ] = (ZMAX-ZMIN)*0.5f;
+			}*/
 		}
 
 		i++; // necessary for both stages
 	}
 	// end
+
 
 	if(stage==0) 
 	{

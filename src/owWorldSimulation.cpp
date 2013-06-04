@@ -254,7 +254,7 @@ void renderInfo(int x, int y)
 																													 numOfBoundaryP,PARTICLE_COUNT); 
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F); 
-		sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d (%f s)", device_full_name, fps, iterationCount,((float)iterationCount)*timeStep); 
+		sprintf(label,"Selected OpenCL device: %s     FPS = %.2f, time step: %d (%f s)", device_full_name, fps, iterationCount,((float)iterationCount)*timeStep); 
 		glPrint( 0 , 17 , label, m_font);
 
 		sprintf(label,"Muscle activation signals: %.3f | %.3f | %.3f | %.3f | %.3f // use keys '1' to '5' to activate/deactivate", 
