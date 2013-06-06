@@ -102,13 +102,13 @@ void owOpenCLSolver::initializeOpenCL()
 	// CL_DEVICE_TYPE
     cl_device_type type;
 	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
-	int preferable_device_type = 0;// 0-CPU, 1-GPU 
+	int preferable_device_type = 0;// 0-CPU, 1-GPU
 	
 	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
 	//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
 	cl_uint ciDeviceCount;
 	cl_device_id * devices_t;
-	bool bPassed, findDevice = false;
+	bool bPassed = true, findDevice = false;
 	cl_int result;
 	for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
 		if(findDevice)
