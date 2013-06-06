@@ -129,6 +129,17 @@ inline void drawScene()
 	//    [0]----[1]  
 	Vector3D vcenter(0,0,0);
 	Vector3D vbox[8];
+	float s_v = 1 /(simulationScale);// = 1 m in simulation
+	float order = 0;
+	while(s_v >= 1){
+		s_v /= 10;
+		if(s_v < 1)
+		{
+			s_v *= 10;
+			break;
+		}
+		++order;
+	}
 	vbox[0] = Vector3D(XMIN,YMIN,ZMIN);
 	vbox[1] = Vector3D(XMAX,YMIN,ZMIN);
 	vbox[2] = Vector3D(XMAX,YMAX,ZMIN);
@@ -176,40 +187,6 @@ inline void drawScene()
 	glVertex3d(v2.x,v2.y,v2.z);
 	
 
-	//
-	glColor3ub(0,0,0);//black
-	float s_v = 1 /(simulationScale);// = 1 m in simulation
-	float order = 0;
-	while(s_v >= 1){
-		s_v /= 10;
-		if(s_v < 1)
-		{
-			s_v *= 10;
-			break;
-		}
-		++order;
-	}
-	Vector3D v_s = Vector3D(  XMAX/2 - s_v,  YMAX/2,  ZMAX/2)*sc;
-	glVertex3d(v_s.x, v_s.y, v_s.z);
-	glVertex3d(v_s.x, v_s.y - 0.5f * sc , v_s.z);
-	glEnd();
-	std::stringstream ss;
-	std::string s;
-	ss << order;
-	s = "1E-" + ss.str() + "m";
-	glPrint3D( v_s.x , v_s.y - 2.f * sc, v_s.z, s.c_str(), m_font);
-	int n = 1;
-	ss.str("");
-	while(v_s.x > -XMAX/2*sc){
-		v_s.x -= s_v * sc;
-		if(v_s.x > -XMAX/2*sc){
-			glBegin(GL_LINES);
-				glVertex3d(v_s.x, v_s.y, v_s.z);
-				glVertex3d(v_s.x, v_s.y - 0.5f * sc , v_s.z);
-			glEnd();
-		}
-	}
-	glBegin(GL_LINES);
 	glColor3ub(255,255,255);//yellow
 	glVertex3d(v2.x,v2.y,v2.z);
 	glVertex3d(v3.x,v3.y,v3.z);
@@ -240,11 +217,42 @@ inline void drawScene()
 	glVertex3d(v7.x,v7.y,v7.z);
 
 	glVertex3d(v7.x,v7.y,v7.z);
-	glVertex3d(v8.x,v8.y,v8.z);
+	glVertex3d(v8.x + s_v*sc,v8.y,v8.z);
 
 	glVertex3d(v8.x,v8.y,v8.z);
 	glVertex3d(v5.x,v5.y,v5.z);
 	glEnd();
+	//
+	glBegin(GL_LINES);
+	glColor3ub(0,0,0);//black
+	
+
+	Vector3D v_s = Vector3D(  -XMAX/2 + s_v,  YMAX/2,  ZMAX/2)*sc;
+	glVertex3d(v_s.x, v_s.y, v_s.z);
+	glVertex3d(v_s.x, v_s.y - 0.5f * sc , v_s.z);
+	glLineWidth((GLfloat)10.0);
+	glVertex3d( v8.x,  v8.y,  v8.z);
+	glVertex3d(v_s.x, v_s.y, v_s.z);
+
+	glEnd();
+	glLineWidth((GLfloat)1.0);
+	std::stringstream ss;
+	std::string s;
+	ss << order;
+	s = "1E-" + ss.str() + "m";
+	glPrint3D( v8.x + 0.4f*sc , v8.y - 2.f * sc, v8.z, "0", m_font);
+	glPrint3D( v_s.x , v_s.y - 2.f * sc, v_s.z, s.c_str(), m_font);
+	int n = 1;
+	ss.str("");
+	while(v_s.x < XMAX/2*sc){
+		v_s.x += s_v * sc;
+		if(v_s.x < XMAX/2*sc){
+			glBegin(GL_LINES);
+				glVertex3d(v_s.x, v_s.y, v_s.z);
+				glVertex3d(v_s.x, v_s.y - 0.5f * sc , v_s.z);
+			glEnd();
+		}
+	}
 }
 void beginWinCoords(void)
 {

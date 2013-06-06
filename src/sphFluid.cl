@@ -32,6 +32,14 @@
 
 #pragma OPENCL EXTENSION cl_intel_printf : enable
 
+#ifdef cl_khr_fp64
+    #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+#elif defined(cl_amd_fp64)
+    #pragma OPENCL EXTENSION cl_amd_fp64 : enable
+#else
+    #error "Double precision floating point not supported by OpenCL implementation."
+#endif
+
 __kernel void clearBuffers(
 						   __global float2 * neighborMap,
 						   int PARTICLE_COUNT 
@@ -592,7 +600,6 @@ __kernel void pcisph_computeForcesAndInitPressure(
 		pressure[id] = 0.f;//initialize pressure with 0
 		return;
 	}
-		
 	int idx = id * NEIGHBOR_COUNT;
 	float hScaled = h * simulationScale;
 	float hScaled2 = hScaled*hScaled;//29aug_A.Palyanov
@@ -632,7 +639,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				//0.09 for experiments with water drops
 				//-0.0133
 				
-				accel_surfTensForce += ( -7.0e-09 * Wpoly6Coefficient * pow(hScaled2/2.0/*-r_ij*r_ij*/,3.0) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
+				accel_surfTensForce += ( -7.0e-09f * (float)(Wpoly6Coefficient * pow(hScaled2/2.0,3.0)) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
 			}
 		}
 		
@@ -658,7 +665,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 	//float viscosity = 0.3;//0.5f;//0.1f
 	// mu = viscosity
 
-	sum *= mass*mu*del2WviscosityCoefficient/rho[id];
+	sum *= (float)(mass * mu) * (float)(del2WviscosityCoefficient/rho[id]);
 
 	// apply external forces
 	acceleration_i = sum;
