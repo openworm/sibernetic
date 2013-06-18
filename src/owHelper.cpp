@@ -170,12 +170,12 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 					if(r2ij<=r0*r0*3.05f)
 					{
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 0 ] = ((float)j_ec) + 0.1f;//connect elastic particles 0 and 1
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 1 ] = (float)sqrt(r2ij)*simulationScale;
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0;
+						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 0 ] = ((float)j_ec) + 0.1f;				// index of j-th particle in a pair connected with spring
+						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 1 ] = (float)sqrt(r2ij)*simulationScale;	// resting density; that's why we use float type for elasticConnectionsData_cpp
+						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0;							// type of connection; 0 - ordinary spring, 1 - muscle
 						if(nMi==nMj)
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0 + (1.1f+nMi)*((dz2>100*dx2)&&(dz2>100*dy2));
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 3 ] = 0;
+						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0 + (1.1f+nMi)*((dz2>100*dx2)&&(dz2>100*dy2));// this line is for muscles
+						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 3 ] = 0;									// not in use yet
 						ecc++;
 					}
 
