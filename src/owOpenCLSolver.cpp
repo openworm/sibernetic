@@ -23,7 +23,7 @@ extern unsigned int * gridNextNonEmptyCellBuffer;
 
 int myCompare( const void * v1, const void * v2 ); 
 
-owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnections_cpp)
+owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp)
 {
 	try{
 		initializeOpenCL();
@@ -60,9 +60,9 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		copy_buffer_to_device( position_cpp, position, PARTICLE_COUNT * sizeof( float ) * 4 );
 		copy_buffer_to_device( velocity_cpp, velocity, PARTICLE_COUNT * sizeof( float ) * 4 );
 		//elastic connections
-		if(elasticConnections_cpp != NULL){
+		if(elasticConnectionsData_cpp != NULL){
 			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
-			copy_buffer_to_device(elasticConnections_cpp, elasticConnectionsData, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
+			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
 		}
 	}catch( std::exception &e ){
 		std::cout << "ERROR: " << e.what() << std::endl;
