@@ -59,7 +59,7 @@ void display(void)
 	drawScene();
 	int j;
 	//glColor3ub(255,255,255);//yellow
-	p_indexb = fluid_simulation->getParticleIndexBuffer();
+	p_indexb = fluid_simulation->getparticleIndex_cpp();
 	int pib;
 	for(int i=0;i<PARTICLE_COUNT;i++)
 	{
@@ -68,8 +68,8 @@ void display(void)
 	}
 	glPointSize(3.f);
 	glBegin(GL_POINTS);
-	p_b = fluid_simulation->getPositionBuffer();
-	d_b = fluid_simulation->getDensityBuffer();
+	p_b = fluid_simulation->getposition_cpp();
+	d_b = fluid_simulation->getdensity_cpp();
 	float dc, rho;
 	for(int i = 0; i<PARTICLE_COUNT; i++)
 	{
@@ -93,7 +93,7 @@ void display(void)
 		}
 	}
 
-	e_c = fluid_simulation->getElasticConnections();
+	e_c = fluid_simulation->getelasticConnectionsData_cpp();
 	
 	//if(generateInitialConfiguration)
 	for(int i, i_ec=0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)

@@ -23,10 +23,11 @@ extern unsigned int * gridNextNonEmptyCellBuffer;
 
 int myCompare( const void * v1, const void * v2 ); 
 
-owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * velocityBuffer, const float * elasticConnections)
+owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnections)
 {
 	try{
 		initializeOpenCL();
+		// Create OpenCL buffers
 		create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
 		create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 		create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
@@ -40,13 +41,13 @@ owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * veloc
 		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
 		create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
 		create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( MUSCLE_COUNT * sizeof( float ) ) );
-		// Create kernels
+		// Create OpenCL kernels
 		create_ocl_kernel("clearBuffers", clearBuffers);
 		create_ocl_kernel("findNeighbors", findNeighbors);
 		create_ocl_kernel("hashParticles", hashParticles);
 		create_ocl_kernel("indexx", indexx);
 		create_ocl_kernel("sortPostPass", sortPostPass);
-		// Additional kernels PCISPH
+		// Additional PCISPH-related kernels 
 		create_ocl_kernel("pcisph_computeForcesAndInitPressure", pcisph_computeForcesAndInitPressure);
 		create_ocl_kernel("pcisph_integrate", pcisph_integrate);
 		create_ocl_kernel("pcisph_predictPositions", pcisph_predictPositions);
@@ -55,9 +56,9 @@ owOpenCLSolver::owOpenCLSolver(const float * positionBuffer, const float * veloc
 		create_ocl_kernel("pcisph_computePressureForceAcceleration", pcisph_computePressureForceAcceleration);
 		create_ocl_kernel("pcisph_computeDensity", pcisph_computeDensity);
 		create_ocl_kernel("pcisph_computeElasticForces", pcisph_computeElasticForces);
-		//Copy positionBuffer and velocityBuffer to the OpenCL Device
-		copy_buffer_to_device( positionBuffer, position, PARTICLE_COUNT * sizeof( float ) * 4 );
-		copy_buffer_to_device( velocityBuffer, velocity, PARTICLE_COUNT * sizeof( float ) * 4 );
+		//Copy position_cpp and velocity_cpp to the OpenCL Device
+		copy_buffer_to_device( position_cpp, position, PARTICLE_COUNT * sizeof( float ) * 4 );
+		copy_buffer_to_device( velocity_cpp, velocity, PARTICLE_COUNT * sizeof( float ) * 4 );
 		//elastic connections
 		if(elasticConnections != NULL){
 			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
