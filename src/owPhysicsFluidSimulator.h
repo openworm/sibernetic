@@ -20,9 +20,10 @@ public:
 	double simulationStep();
 private:
 	owOpenCLSolver * ocl_solver;
-	float * position_cpp;			// everywhere in the code %variableName%_cpp means that we create 
-	float * velocity_cpp;			// and initialize in 'ordinary' memory some data, which will be 
+	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create 
+	float * velocity_cpp;				// and initialize in 'ordinary' memory some data, which will be 
 	float * elasticConnectionsData_cpp; // copied later to OpenCL buffer %variableName% 
+
 	//Helper arrays
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;
