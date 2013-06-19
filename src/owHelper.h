@@ -19,6 +19,7 @@ public:
 	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *& elasticConnectionsData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
 	static void log_bufferf( const float * buffer, const int element_size,const int global_size, const char * fileName);
 	static void log_bufferi( const int * buffer, const int element_size,const int global_size, const char * fileName);
+	static void loadConfigToFile(float * position, float * velocity, float * elasticConnection, int numofEC, const char * file_name = "./configuration/out_config_step_0.txt");
 	void watch_report(const char *str);
 	double get_elapsedTime() { return elapsedTime; };
 	void refreshTime();	

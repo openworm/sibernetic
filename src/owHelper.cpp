@@ -204,7 +204,9 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	p_type = LIQUID_PARTICLE;
 	//int first_liquid_particle = 1;
 	//float h_fall;
-
+	float x_t = (XMAX-XMIN)-r0*23;
+	float y_t = (YMAX-YMIN)*0.0+9.0*r0;
+	float z_t = (ZMAX-ZMIN)-r0*23;
 	for(x = r0*23;x<(XMAX-XMIN)-r0*23;x += r0)
 	for(y = r0*3;y<(YMAX-YMIN)*0.0+9.0*r0;y += r0)
 	for(z = r0*23;z<(ZMAX-ZMIN)-r0*23;z += r0)
@@ -221,13 +223,17 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			position_cpp[ 4 * i + 0 ] = x;
 			position_cpp[ 4 * i + 1 ] = y;
 			position_cpp[ 4 * i + 2 ] = z;
+			//if((z+r0) >= ((ZMAX-ZMIN)-r0*23)){
+			//	int debug = 1;
+			//	debug++;
+			//}
 			position_cpp[ 4 * i + 3 ] = p_type;
 
 			velocity_cpp[ 4 * i + 0 ] = 0;
 			velocity_cpp[ 4 * i + 1 ] = 0;
 			velocity_cpp[ 4 * i + 2 ] = 0;
 			velocity_cpp[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
-
+			
 			/*//just for debug
 			if(first_liquid_particle)
 			{
@@ -425,11 +431,41 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			printf("\nWarning! Preliminary [%d] and final [%d] particle count are different\n",PARTICLE_COUNT,i);
 			exit(-4);
 		}
+		//loadConfigToFile(position, velocity, elasticConnections, numOfElasticP*NEIGHBOR_COUNT);
 	}
-
+	
 	return;
 }
-
+void owHelper::loadConfigToFile(float * position, float * velocity, float * elasticConnection, int numofEC, const char * file_name)
+{
+	try
+	{
+		ofstream out_f (file_name);
+		if( out_f.is_open() )
+		{
+			out_f << "Position\n";
+			for(int i = 0; i < PARTICLE_COUNT; i++)
+			{
+				out_f << position[ 4 * i + 0 ] << "\t" << position[ 4 * i + 1 ] << "\t" << position[ 4 * i + 2 ] << "\t" << position[ 4 * i + 3 ] << "\n";
+			}
+			out_f << "Velocity\n";
+			for(int i = 0; i < PARTICLE_COUNT; i++)
+			{
+				out_f << velocity[ 4 * i + 0 ] << "\t" << velocity[ 4 * i + 1 ] << "\t" << velocity[ 4 * i + 2 ] << "\t" << velocity[ 4 * i + 3 ] << "\n";
+			}
+			out_f << "ElasticConnection\n";
+			for(int i = 0; i < numofEC; i++)
+			{
+				out_f << elasticConnection[ 4 * i + 0 ] << "\t" << elasticConnection[ 4 * i + 1 ] << "\t" << elasticConnection[ 4 * i + 2 ] << "\t" << elasticConnection[ 4 * i + 3 ] << "\n";
+			}
+		}
+		out_f.close();
+	}
+	catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
 void owHelper::preLoadConfiguration()
 {
 	try
@@ -448,9 +484,8 @@ void owHelper::preLoadConfiguration()
 				else break;//end of file
 			}
 		}
-
+		positionFile.close();
 		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
-
 		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
 	}
 	catch(std::exception &e){

@@ -18,7 +18,9 @@ public:
 	//TODO helper functions delete after fix!!
 	float * getelasticConnectionsData_cpp() { return elasticConnectionsData_cpp; };
 	double simulationStep();
+	void set_loadConfigStep(int step){ loadConfigStep = step; };
 private:
+	int loadConfigStep;
 	owOpenCLSolver * ocl_solver;
 	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create 
 	float * velocity_cpp;				// and initialize in 'ordinary' memory some data, which will be 

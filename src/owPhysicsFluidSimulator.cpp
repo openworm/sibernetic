@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 float calcDelta();
 extern const float delta = calcDelta();
@@ -33,7 +34,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		_particleIndex = new   int[ 2 * PARTICLE_COUNT ];
 		gridNextNonEmptyCellBuffer = new unsigned int[gridCellCount+1];
 		muscle_activation_signal_buffer = new float [MUSCLE_COUNT];
-
+		loadConfigStep = -1;
 		for(int i=0;i<MUSCLE_COUNT;i++)
 		{
 			muscle_activation_signal_buffer[i] = 0.f;
@@ -94,6 +95,13 @@ double owPhysicsFluidSimulator::simulationStep()
 		printf("------------------------------------\n");
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
 		printf("------------------------------------\n");
+		if(loadConfigStep == iterationCount){
+			std::stringstream ss;//create a stringstream
+			ss << iterationCount;//add number to the stream
+			std::string file_name = "./configuration/out_config_step_";
+			file_name += ss.str() + ".txt";
+			owHelper::loadConfigToFile(position_cpp,velocity_cpp,elasticConnectionsData_cpp,numOfElasticP * NEIGHBOR_COUNT, file_name.c_str());
+		}
 		iterationCount++;
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_buffer[i] *= 0.9f; }
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_buffer);

@@ -589,6 +589,11 @@ void run(int argc, char** argv, const bool with_graphics)
 {
 	helper = new owHelper();
 	fluid_simulation = new owPhysicsFluidSimulator(helper);
+	for(int i = 1; i<argc; i++){
+		if(strncmp(argv[i], "-l_config", 9) == 0){
+			fluid_simulation->set_loadConfigStep(atoi(argv[i + 1]));
+		}
+	}
 	if(with_graphics){
 		glutInit(&argc, argv);
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
