@@ -204,9 +204,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	p_type = LIQUID_PARTICLE;
 	//int first_liquid_particle = 1;
 	//float h_fall;
-	float x_t = (XMAX-XMIN)-r0*23;
-	float y_t = (YMAX-YMIN)*0.0+9.0*r0;
-	float z_t = (ZMAX-ZMIN)-r0*23;
 	for(x = r0*23;x<(XMAX-XMIN)-r0*23;x += r0)
 	for(y = r0*3;y<(YMAX-YMIN)*0.0+9.0*r0;y += r0)
 	for(z = r0*23;z<(ZMAX-ZMIN)-r0*23;z += r0)
@@ -223,10 +220,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			position_cpp[ 4 * i + 0 ] = x;
 			position_cpp[ 4 * i + 1 ] = y;
 			position_cpp[ 4 * i + 2 ] = z;
-			//if((z+r0) >= ((ZMAX-ZMIN)-r0*23)){
-			//	int debug = 1;
-			//	debug++;
-			//}
+
 			position_cpp[ 4 * i + 3 ] = p_type;
 
 			velocity_cpp[ 4 * i + 0 ] = 0;
