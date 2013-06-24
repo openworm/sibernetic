@@ -28,7 +28,7 @@ extern int MUSCLE_COUNT;
 class owOpenCLSolver
 {
 public:
-	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp = NULL);
+	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL);
 	owOpenCLSolver(void);
 	~owOpenCLSolver(void);
 	// Initialize OPENCL device, context, queue, program...
@@ -51,7 +51,7 @@ public:
 	unsigned int _run_pcisph_computePressureForceAcceleration();
 	unsigned int _run_pcisph_integrate();
 	//
-	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_buffer);
+	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp);
 	
 	void read_position_buffer( float * position_cpp ) { copy_buffer_from_device( position_cpp, position, PARTICLE_COUNT * sizeof( float ) * 4 ); };
 	void read_density_buffer( float * density_cpp ) { copy_buffer_from_device( density_cpp, rho, PARTICLE_COUNT * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
@@ -69,19 +69,22 @@ private:
 	cl::Buffer  muscle_activation_signal;   // array storing data (activation signals) for an array of muscles. 
 											// now each can be affected by user independently
 
-	cl::Buffer 	acceleration;				// forceAcceleration and pressureForceAcceleration
-	cl::Buffer 	gridCellIndex;
-	cl::Buffer 	gridCellIndexFixedUp;
-	cl::Buffer 	neighborMap;
-	cl::Buffer 	particleIndex;				// list of pairs [CellIndex, particleIndex]
-	cl::Buffer 	particleIndexBack;			// list of indexes of particles before sort 
-	cl::Buffer 	position;
-	cl::Buffer 	pressure;
-	cl::Buffer 	rho;						// size * 2
-	cl::Buffer 	sortedPosition;				// size * 2
-	cl::Buffer 	sortedVelocity;
-	cl::Buffer 	velocity;
-	cl::Buffer 	elasticConnectionsData;		//list of particle pairs connected with springs and rest distance between them
+	cl::Buffer acceleration;				// forceAcceleration and pressureForceAcceleration
+	cl::Buffer gridCellIndex;
+	cl::Buffer gridCellIndexFixedUp;
+	cl::Buffer neighborMap;
+	cl::Buffer particleIndex;				// list of pairs [CellIndex, particleIndex]
+	cl::Buffer particleIndexBack;			// list of indexes of particles before sort 
+	cl::Buffer position;
+	cl::Buffer pressure;
+	cl::Buffer rho;							// size * 2
+	cl::Buffer sortedPosition;				// size * 2
+	cl::Buffer sortedVelocity;
+	cl::Buffer velocity;
+	cl::Buffer elasticConnectionsData;		// list of particle pairs connected with springs and rest distance between them
+	cl::Buffer membraneData;				// elementary membrane is built on 3 adjacent particles (i,j,k) and should have a form of triangle
+											// highly recommended that i-j, j-k and k-i are already connected with springs to keep them close 
+											// to each other during whole lifetime of the simulation (user should control this by him(her)self)
 	// Kernels
 	cl::Kernel clearBuffers;
 	cl::Kernel computeAcceleration;

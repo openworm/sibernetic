@@ -433,6 +433,10 @@ __kernel void sortPostPass(
 						   )
 {
 	int id = get_global_id( 0 );
+	if(id==3500)
+	{
+		id = id;
+	}
 	if( id >= PARTICLE_COUNT ) return;
 	uint2 spi = particleIndex[ id ];//contains id of cell and id of particle it has sorted 
 	int serialId = PI_SERIAL_ID( spi );//get a particle Index
@@ -639,7 +643,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				//0.09 for experiments with water drops
 				//-0.0133
 				
-				accel_surfTensForce += ( -7.0e-09f * (float)(Wpoly6Coefficient * pow(hScaled2/2.0,3.0)) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
+				accel_surfTensForce += ( -5.0e-10f * (float)(Wpoly6Coefficient * pow(hScaled2/2.0,3.0)) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
 			}
 		}
 		
@@ -696,20 +700,28 @@ __kernel void pcisph_computeElasticForces(
 								  float h,
 								  float mass,
 								  float simulationScale,
-								  int numOfElasticParticle,
+								  int numOfElasticP,
 								  __global float4 * elasticConnectionsData,
 								  int offset,
 								  int PARTICLE_COUNT,
 								  int MUSCLE_COUNT,
-								  __global float * muscle_activation_signal
+								  __global float * muscle_activation_signal,
+								  __global float4 * position
 								  )
 {
 	int index = get_global_id( 0 );//it is the index of the elastic particle among all elastic particles but this isn't real id of particle
 	//printf(".[%d]",index);
-	if(index>=numOfElasticParticle) {
+	if(index==3500)
+	{
+		index = index;
+	}
+	if(index>=numOfElasticP) {
 		return;
 	}
 	int nc = 0;
+
+	float4 p_xyzw = position[index];
+
 	int id = particleIndexBack[index + offset];
 	int idx = index * NEIGHBOR_COUNT;
 	float r_ij_equilibrium, r_ij, delta_r_ij, v_i_cm_length;
@@ -717,7 +729,6 @@ __kernel void pcisph_computeElasticForces(
 	float4 vect_r_ij;
 	float4 centerOfMassVelocity;
 	float4 velocity_i_cm;
-	//float damping_coeff = 0.5f;
 	float check;
 	float4 proj_v_i_cm_on_r_ij;
 	float4 velocity_i = velocity[id];//velocity[ index + offset ];
@@ -726,21 +737,17 @@ __kernel void pcisph_computeElasticForces(
 	int i;
 	//float4 centerOfMassPosition = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );;
 	float4 iPos,jPos;
+	
+
+	iPos = sortedPosition[id];
 
 	do
 	{
 		if( (jd = (int)elasticConnectionsData[ idx + nc ].x) != NO_PARTICLE_ID )
 		{
-			jPos = sortedPosition[jd];
-
-			
 			jd = particleIndexBack[jd];
 			velocity_j = velocity[ jd ];
 
-			//velocity_i = velocity[id];
-			//velocity_j = velocity[jd];
-			
-			iPos = sortedPosition[id];
 			jPos = sortedPosition[jd];
 
 			r_ij_equilibrium = elasticConnectionsData[ idx + nc ].y;//rij0

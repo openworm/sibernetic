@@ -26,11 +26,11 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 //Sizes of the box containing simulated 'world'
 //Sizes choice is realized this way because it should be proportional to smoothing radius h
 #define XMIN 0
-#define XMAX 40.0*h
+#define XMAX 30.0*h // horizontal 1
 #define YMIN 0
-#define YMAX 24.0*h
+#define YMAX 34.0*h // vertical
 #define ZMIN 0
-#define ZMAX 54.0*h
+#define ZMAX 42.0*h // horizontal 2
 
 //const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
 

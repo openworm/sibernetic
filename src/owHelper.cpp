@@ -79,7 +79,7 @@ void owHelper::log_bufferi(const int * buffer, const int element_size, const int
 }
 
 
-void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
+void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes)
 {
 	// we need to know at least 
 	// 1) sizes of the box which contains the simulation within
@@ -97,19 +97,20 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
 	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
 
-	int nEx = 7;//7
-	int nEy = 4;//3
-	int nEz = 25;//23
+	int nEx = 5;//7
+	int nEy = 3;//4
+	int nEz = 9;//25
 	int nMuscles = 5;
 	int nM,nMi,nMj;
+	int numOfMembraneParticles = (nx-1)*(nz-1);
 
 	if(stage==0)
 	{
 		numOfLiquidP = 0;
-		numOfElasticP = nEx*nEy*nEz * nMuscles;
+		numOfElasticP = nEx*nEy*nEz * nMuscles + numOfMembraneParticles;
 		numOfBoundaryP = 0;
 
-		elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
+		if(numOfElasticP<=0) elasticConnectionsData_cpp = NULL; else elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
 	}
 
 	//=============== create elastic particles ==================================================
@@ -124,7 +125,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		{
 			//write particle coordinates to corresponding arrays
 			position_cpp[ 4 * i + 0 ] = XMAX/2+x*r0-nEx*r0/2 - r0*(nEx)/2 + r0*(nEx+0.4)*(nM>2);
-			position_cpp[ 4 * i + 1 ] = YMAX/2+y*r0-nEy*r0/2 - 0*YMAX/4;
+			position_cpp[ 4 * i + 1 ] = YMAX/2+y*r0-nEy*r0/2 - YMAX*0.4;
 			position_cpp[ 4 * i + 2 ] = ZMAX/2+z*r0-nEz*r0/2 - (nM<=2)*(nM-1)*(nEz*r0) - (nM>2)*(r0/2+(nM-4)*r0)*nEz - (nM==1)*r0/2.5 - (nM==2)*r0*2/2.5 + (nM==4)*r0/2.5;
 			position_cpp[ 4 * i + 3 ] = p_type;
 
@@ -136,17 +137,46 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			i++;
 		}
 
-		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
-		for(int i_ec = 0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
+		//now add membrane
+		for(x=1;x<nx;x+=1)
+		for(z=1;z<nz;z+=1)
 		{
-			elasticConnectionsData_cpp[ 4 * i_ec + 0 ] = NO_PARTICLE_ID;
-			elasticConnectionsData_cpp[ 4 * i_ec + 1 ] = 0;
-			elasticConnectionsData_cpp[ 4 * i_ec + 2 ] = 0;
-			elasticConnectionsData_cpp[ 4 * i_ec + 3 ] = 0; 
+			//write particle coordinates to corresponding arrays
+			position_cpp[ 4 * i + 0 ] = x*r0;
+			position_cpp[ 4 * i + 1 ] = YMAX/2+YMAX*0+r0/2;
+			position_cpp[ 4 * i + 2 ] = z*r0;
+			position_cpp[ 4 * i + 3 ] = p_type;
+
+			velocity_cpp[ 4 * i + 0 ] = 0;
+			velocity_cpp[ 4 * i + 1 ] = 0;
+			velocity_cpp[ 4 * i + 2 ] = 0;
+			velocity_cpp[ 4 * i + 3 ] = p_type;
+
+			i++;
 		}
 
 		float r2ij;
 		float dx2,dy2,dz2;
+
+		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
+		for(int ii = 0; ii < numOfElasticP * NEIGHBOR_COUNT; ii++)
+		{
+			ecc = 0;
+
+			elasticConnectionsData_cpp[ 4 * ii + 0 ] = NO_PARTICLE_ID;
+			elasticConnectionsData_cpp[ 4 * ii + 1 ] = 0;
+			elasticConnectionsData_cpp[ 4 * ii + 2 ] = 0;
+			elasticConnectionsData_cpp[ 4 * ii + 3 ] = 0; 
+		}
+
+
+
+			//if(ecc>=NEIGHBOR_COUNT) break;
+			///////////////debug////////////
+		
+
+
+		/*!*/numOfElasticP -= numOfMembraneParticles;
 
 		for(int i_ec = 0; i_ec < numOfElasticP; i_ec++)
 		{
@@ -184,6 +214,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			}
 		}
 
+		/*!*/numOfElasticP += numOfMembraneParticles;
+
 		//and connections between them
 		/*
 		elasticConnections[ 4 * 0 + 0 ] = 1.1f;//connect elastic particles 0 and 1
@@ -197,6 +229,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		elasticConnections[ 4 * NEIGHBOR_COUNT + 2 ] = 0;
 		elasticConnections[ 4 * NEIGHBOR_COUNT + 3 ] = 0;
 		*/
+
+
 	}
 
 	//============= create volume of liquid =========================================================================
@@ -204,6 +238,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	p_type = LIQUID_PARTICLE;
 	//int first_liquid_particle = 1;
 	//float h_fall;
+
+	/*
 	for(x = r0*23;x<(XMAX-XMIN)-r0*23;x += r0)
 	for(y = r0*3;y<(YMAX-YMIN)*0.0+9.0*r0;y += r0)
 	for(z = r0*23;z<(ZMAX-ZMIN)-r0*23;z += r0)
@@ -220,22 +256,39 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			position_cpp[ 4 * i + 0 ] = x;
 			position_cpp[ 4 * i + 1 ] = y;
 			position_cpp[ 4 * i + 2 ] = z;
-
 			position_cpp[ 4 * i + 3 ] = p_type;
 
 			velocity_cpp[ 4 * i + 0 ] = 0;
 			velocity_cpp[ 4 * i + 1 ] = 0;
 			velocity_cpp[ 4 * i + 2 ] = 0;
 			velocity_cpp[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
-			
-			/*//just for debug
-			if(first_liquid_particle)
+		}
+
+		i++; // necessary for both stages
+	}*/
+
+	for(x = (XMAX-XMIN)/2-5*r0;x<(XMAX-XMIN)/2+r0*5;x += r0)
+	for(y = r0*52;y<(YMAX-YMIN)*0.0+r0*65;y += r0)
+	for(z = (ZMAX-ZMIN)/2-5*r0;z<(ZMAX-ZMIN)/2+r0*5;z += r0)
+	{
+						// stage==0 - preliminary run
+		if(stage==1)	// stage==1 - final run
+		{
+			if(i>=numOfLiquidP+numOfElasticP) 
 			{
-				first_liquid_particle = 0;
-				position[ 4 * i + 0 ] = (XMAX-XMIN)*0.35f;
-				position[ 4 * i + 1 ] = (YMAX-YMIN)*0.454f;
-				position[ 4 * i + 2 ] = (ZMAX-ZMIN)*0.5f;
-			}*/
+				printf("\nWarning! Final particle count >= preliminary particle count!\n");
+				exit(-3);
+			}
+			//write particle coordinates to corresponding arrays
+			position_cpp[ 4 * i + 0 ] = x;
+			position_cpp[ 4 * i + 1 ] = y;
+			position_cpp[ 4 * i + 2 ] = z;
+			position_cpp[ 4 * i + 3 ] = p_type;
+
+			velocity_cpp[ 4 * i + 0 ] = 0;
+			velocity_cpp[ 4 * i + 1 ] = 0;
+			velocity_cpp[ 4 * i + 2 ] = 0;
+			velocity_cpp[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
 		}
 
 		i++; // necessary for both stages
@@ -416,6 +469,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			printf("\nWarning! Generated scene contains %d particles!\n",PARTICLE_COUNT);
 			exit(-2);
 		}
+
+		numOfMembranes = 2;
 	}
 	else
 	if(stage==1)
@@ -425,41 +480,52 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			printf("\nWarning! Preliminary [%d] and final [%d] particle count are different\n",PARTICLE_COUNT,i);
 			exit(-4);
 		}
-		//loadConfigToFile(position, velocity, elasticConnections, numOfElasticP*NEIGHBOR_COUNT);
-	}
-	
-	return;
-}
-void owHelper::loadConfigToFile(float * position, float * velocity, float * elasticConnection, int numofEC, const char * file_name)
-{
-	try
-	{
-		ofstream out_f (file_name);
-		if( out_f.is_open() )
+
+		membraneData_cpp [0+0] = 0;
+		membraneData_cpp [0+1] = 1;
+		membraneData_cpp [0+2] = nEz;
+
+		membraneData_cpp [3+0] = 1;
+		membraneData_cpp [3+1] = nEz;
+		membraneData_cpp [3+2] = nEz+1;
+
+		///////////////debug////////////
+		int j;
+		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
 		{
-			out_f << "Position\n";
-			for(int i = 0; i < PARTICLE_COUNT; i++)
+			ecc = 0;
+			for(j=0;j<numOfLiquidP+numOfElasticP+numOfBoundaryP;j++)
 			{
-				out_f << position[ 4 * i + 0 ] << "\t" << position[ 4 * i + 1 ] << "\t" << position[ 4 * i + 2 ] << "\t" << position[ 4 * i + 3 ] << "\n";
-			}
-			out_f << "Velocity\n";
-			for(int i = 0; i < PARTICLE_COUNT; i++)
-			{
-				out_f << velocity[ 4 * i + 0 ] << "\t" << velocity[ 4 * i + 1 ] << "\t" << velocity[ 4 * i + 2 ] << "\t" << velocity[ 4 * i + 3 ] << "\n";
-			}
-			out_f << "ElasticConnection\n";
-			for(int i = 0; i < numofEC; i++)
-			{
-				out_f << elasticConnection[ 4 * i + 0 ] << "\t" << elasticConnection[ 4 * i + 1 ] << "\t" << elasticConnection[ 4 * i + 2 ] << "\t" << elasticConnection[ 4 * i + 3 ] << "\n";
+				if(j==numOfElasticP) j+= numOfLiquidP;//skip liquid particles as candidates to spring connections
+
+				//ecc = 0;//!important!
+				//float xi,yi,zi,xj,yj,zj;
+				//int i_ec = numOfElasticP - numOfMembraneParticles;
+				//int j_ec = numOfElasticP - numOfMembraneParticles + 1;
+				//int j_ec = 11616;//last liquid particle
+				//int j_ec = 11616+1+ny*2*nx*2-7040+1;//1-st boundary particle
+
+				float dx2 = (position_cpp[ 4 * i + 0 ] - position_cpp[ 4 * j + 0 ]); dx2 *= dx2;
+				float dy2 = (position_cpp[ 4 * i + 1 ] - position_cpp[ 4 * j + 1 ]); dy2 *= dy2;
+				float dz2 = (position_cpp[ 4 * i + 2 ] - position_cpp[ 4 * j + 2 ]); dz2 *= dz2;
+				float r2_ij = dx2 + dy2 + dz2;
+				float r_ij = (float)sqrt(r2_ij);
+
+				if(r_ij<=r0*sqrt(2.1))
+				{
+					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
+					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.6;	// resting density; that's why we use float type for elasticConnectionsData_cpp
+					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
+					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
+					ecc++;
+				}
 			}
 		}
-		out_f.close();
 	}
-	catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
-	}
+
+	return;
 }
+
 void owHelper::preLoadConfiguration()
 {
 	try
@@ -478,8 +544,9 @@ void owHelper::preLoadConfiguration()
 				else break;//end of file
 			}
 		}
-		positionFile.close();
+
 		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+
 		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
 	}
 	catch(std::exception &e){

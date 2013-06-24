@@ -18,12 +18,13 @@ int gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
 extern int numOfLiquidP;
 extern int numOfElasticP;
 extern int numOfBoundaryP;
+extern int numOfMembranes;
 extern int * _particleIndex;
 extern unsigned int * gridNextNonEmptyCellBuffer;
 
 int myCompare( const void * v1, const void * v2 ); 
 
-owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp)
+owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp, const int * membraneData_cpp)
 {
 	try{
 		initializeOpenCL();
@@ -59,6 +60,12 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		//Copy position_cpp and velocity_cpp to the OpenCL Device
 		copy_buffer_to_device( position_cpp, position, PARTICLE_COUNT * sizeof( float ) * 4 );
 		copy_buffer_to_device( velocity_cpp, velocity, PARTICLE_COUNT * sizeof( float ) * 4 );
+		//membranes
+		if(membraneData_cpp != NULL )
+		{
+			create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 4 ) );
+			copy_buffer_to_device( membraneData_cpp, membraneData, numOfMembranes * sizeof( int ) * 3 );
+		}
 		//elastic connections
 		if(elasticConnectionsData_cpp != NULL){
 			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
@@ -406,9 +413,10 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 12, PARTICLE_COUNT );
 	pcisph_computeElasticForces.setArg( 13, MUSCLE_COUNT );
 	pcisph_computeElasticForces.setArg( 14, muscle_activation_signal);
+	pcisph_computeElasticForces.setArg( 15, position);
 	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( (int) ( numOfElasticPCountRoundedUp ) ),
+		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( numOfElasticPCountRoundedUp ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -636,9 +644,9 @@ int owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_
 	return err;
 }
 
-unsigned int owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_buffer)
+unsigned int owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_cpp)
 {
-	copy_buffer_to_device( _muscle_activation_signal_buffer, muscle_activation_signal, MUSCLE_COUNT * sizeof( float ) );
+	copy_buffer_to_device( _muscle_activation_signal_cpp, muscle_activation_signal, MUSCLE_COUNT * sizeof( float ) );
 	return 0;
 }
 

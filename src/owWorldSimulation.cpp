@@ -6,6 +6,7 @@
 extern int numOfLiquidP;
 extern int numOfElasticP;
 extern int numOfBoundaryP;
+extern int numOfMembranes;
 extern int iterationCount;
 extern 
 
@@ -34,10 +35,11 @@ double fps;
 char device_full_name [1000];
 double prevTime;
 unsigned int * p_indexb;
-float * d_b;
-float * p_b;
-float * e_c;
-float * muscle_activation_signal_buffer;
+float * d_cpp;
+float * p_cpp;
+float * ec_cpp;
+float * muscle_activation_signal_cpp;
+int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 int local_NDRange_size = 256;//256;
@@ -57,9 +59,9 @@ void display(void)
 	helper->refreshTime();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	drawScene();
-	int j;
+	int i,j,k;
 	//glColor3ub(255,255,255);//yellow
-	p_indexb = fluid_simulation->getparticleIndex_cpp();
+	p_indexb = fluid_simulation->getParticleIndex_cpp();
 	int pib;
 	for(int i=0;i<PARTICLE_COUNT;i++)
 	{
@@ -68,12 +70,12 @@ void display(void)
 	}
 	glPointSize(3.f);
 	glBegin(GL_POINTS);
-	p_b = fluid_simulation->getposition_cpp();
-	d_b = fluid_simulation->getdensity_cpp();
+	p_cpp = fluid_simulation->getPosition_cpp();
+	d_cpp = fluid_simulation->getDensity_cpp();
 	float dc, rho;
-	for(int i = 0; i<PARTICLE_COUNT; i++)
+	for(i = 0; i<PARTICLE_COUNT; i++)
 	{
-		rho = d_b[ p_indexb[ i * 2 + 0 ] ];
+		rho = d_cpp[ p_indexb[ i * 2 + 0 ] ];
 		if( rho < 0 ) rho = 0;
 		if( rho > 2 * rho0) rho = 2 * rho0;
 		dc = 100.f * ( rho - rho0 ) / rho0 ;
@@ -85,33 +87,69 @@ void display(void)
 		if( (dc=100*(rho-rho0*1.02f)/rho0) >0 )	glColor4f(  dc,   1,   0,1.0f);//yellow
 		if( (dc=100*(rho-rho0*1.03f)/rho0) >0 )	glColor4f(   1,1-dc,   0,1.0f);//red
 		if( (dc=100*(rho-rho0*1.04f)/rho0) >0 )	glColor4f(   1,   0,   0,1.0f);
-		if((int)p_b[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_b[i*4 + 3] != ELASTIC_PARTICLE*/){
+		if((int)p_cpp[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/){
 			glBegin(GL_POINTS);
-			if((int)p_b[i*4+3]==2) glColor4f(   1,   1,   0,  1.0f);
-			glVertex3f( (p_b[i*4]-XMAX/2)*sc , (p_b[i*4+1]-YMAX/2)*sc, (p_b[i*4+2]-ZMAX/2)*sc );
+			if((int)p_cpp[i*4+3]==2) glColor4f(   1,   1,   0,  1.0f);
+			glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
 			glEnd();
 		}
 	}
 
-	e_c = fluid_simulation->getelasticConnectionsData_cpp();
+	ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
 	
 	//if(generateInitialConfiguration)
-	for(int i, i_ec=0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
+	for(int i_ec=0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
 	{
 		//offset = 0
-		if((j=(int)e_c[ 4 * i_ec + 0 ])>=0)
+		if((j=(int)ec_cpp[ 4 * i_ec + 0 ])>=0)
 		{
-			i = (i_ec / NEIGHBOR_COUNT) + (generateInitialConfiguration!=1)*numOfBoundaryP;
+			i = (i_ec / NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
 
 			glColor4b(255/2, 125/2, 0, 100/2/*alpha*/);
-			if(e_c[ 4 * i_ec + 2 ]>1.f) glColor4b(255/2, 0, 0, 255/2/*alpha*/);
+			if(ec_cpp[ 4 * i_ec + 2 ]>1.f) glColor4b(255/2, 0, 0, 255/2/*alpha*/);
 			
 			glBegin(GL_LINES);
-			glVertex3f( (p_b[i*4]-XMAX/2)*sc , (p_b[i*4+1]-YMAX/2)*sc, (p_b[i*4+2]-ZMAX/2)*sc );
-			glVertex3f( (p_b[j*4]-XMAX/2)*sc , (p_b[j*4+1]-YMAX/2)*sc, (p_b[j*4+2]-ZMAX/2)*sc );
+			glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+			glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
 			glEnd();
 		}
 	}
+
+	//draw membranes
+	md_cpp = fluid_simulation->getMembraneData_cpp();
+
+	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
+
+	for(int i_m = 0; i_m < numOfMembranes; i_m++)
+	{
+		i = md_cpp [i_m*3+0];
+		j = md_cpp [i_m*3+1];
+		k = md_cpp [i_m*3+2];
+
+		glBegin(GL_LINES);
+		glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+
+		glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[k*4]-XMAX/2)*sc , (p_cpp[k*4+1]-YMAX/2)*sc, (p_cpp[k*4+2]-ZMAX/2)*sc );
+
+		glVertex3f( (p_cpp[k*4]-XMAX/2)*sc , (p_cpp[k*4+1]-YMAX/2)*sc, (p_cpp[k*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+		glEnd();
+
+		glBegin(GL_LINES);
+		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[i*4]+p_cpp[k*4]+4*p_cpp[j*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[k*4+1]+4*p_cpp[j*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[k*4+2]+4*p_cpp[j*4+2])/6-ZMAX/2)*sc );
+
+		glVertex3f( ((p_cpp[i*4]+p_cpp[k*4]+4*p_cpp[j*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[k*4+1]+4*p_cpp[j*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[k*4+2]+4*p_cpp[j*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-XMAX/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-YMAX/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-ZMAX/2)*sc );
+
+		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-XMAX/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-YMAX/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-ZMAX/2)*sc );
+		glEnd();
+	}
+
+
 	glEnd();
 	glutSwapBuffers();
 	helper->watch_report("graphics: \t\t%9.3f ms\n====================================\n");
@@ -314,11 +352,11 @@ void renderInfo(int x, int y)
 		glPrint( 0 , 17 , label, m_font);
 
 		sprintf(label,"Muscle activation signals: %.3f | %.3f | %.3f | %.3f | %.3f // use keys '1' to '5' to activate/deactivate", 
-			muscle_activation_signal_buffer[0],
-			muscle_activation_signal_buffer[1],
-			muscle_activation_signal_buffer[2],
-			muscle_activation_signal_buffer[3],
-			muscle_activation_signal_buffer[4]); 
+			muscle_activation_signal_cpp[0],
+			muscle_activation_signal_cpp[1],
+			muscle_activation_signal_cpp[2],
+			muscle_activation_signal_cpp[3],
+			muscle_activation_signal_cpp[4]); 
 		glRasterPos2f (0.01F, 0.05F); 
 		glPrint( 0 , 32 , label, m_font);
 		y_m = 40;
@@ -449,50 +487,50 @@ void mouse_motion (int x, int y)
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 
-extern float *muscle_activation_signal_buffer;
+extern float *muscle_activation_signal_cpp;
 
 void respond_key_pressed(unsigned char key, int x, int y)
 {
 	
 	if(key=='1')
 	{
-		if(muscle_activation_signal_buffer[0]<=0.5f)
-		muscle_activation_signal_buffer[0] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[0] = 0.f;
-		//if(muscle_activation_signal_buffer[0]>1.f) muscle_activation_signal_buffer[0] = 1.f;
+		if(muscle_activation_signal_cpp[0]<=0.5f)
+		muscle_activation_signal_cpp[0] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_cpp[0] = 0.f;
+		//if(muscle_activation_signal_cpp[0]>1.f) muscle_activation_signal_cpp[0] = 1.f;
 
 	}
 
 	if(key=='2')
 	{
-		if(muscle_activation_signal_buffer[1]<=0.5f)
-		muscle_activation_signal_buffer[1] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[1] = 0.f;
-		//if(muscle_activation_signal_buffer[1]>1.f) muscle_activation_signal_buffer[1] = 1.f;
+		if(muscle_activation_signal_cpp[1]<=0.5f)
+		muscle_activation_signal_cpp[1] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_cpp[1] = 0.f;
+		//if(muscle_activation_signal_cpp[1]>1.f) muscle_activation_signal_cpp[1] = 1.f;
 	}
 
 	if(key=='3')
 	{
-		if(muscle_activation_signal_buffer[2]<=0.5f)
-		muscle_activation_signal_buffer[2] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[2] = 0.f;
-		//if(muscle_activation_signal_buffer[2]>1.f) muscle_activation_signal_buffer[2] = 1.f;
+		if(muscle_activation_signal_cpp[2]<=0.5f)
+		muscle_activation_signal_cpp[2] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_cpp[2] = 0.f;
+		//if(muscle_activation_signal_cpp[2]>1.f) muscle_activation_signal_cpp[2] = 1.f;
 	}
 
 	if(key=='4')
 	{
-		if(muscle_activation_signal_buffer[3]<=0.5f)
-		muscle_activation_signal_buffer[3] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[3] = 0.f;
-		//if(muscle_activation_signal_buffer[3]>1.f) muscle_activation_signal_buffer[3] = 1.f;
+		if(muscle_activation_signal_cpp[3]<=0.5f)
+		muscle_activation_signal_cpp[3] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_cpp[3] = 0.f;
+		//if(muscle_activation_signal_cpp[3]>1.f) muscle_activation_signal_cpp[3] = 1.f;
 	}
 
 	if(key=='5')
 	{
-		if(muscle_activation_signal_buffer[4]<=0.5f)
-		muscle_activation_signal_buffer[4] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[4] = 0.f;
-		//if(muscle_activation_signal_buffer[4]>1.f) muscle_activation_signal_buffer[4] = 1.f;
+		if(muscle_activation_signal_cpp[4]<=0.5f)
+		muscle_activation_signal_cpp[4] = 1.f;//+= 0.1f;
+		else muscle_activation_signal_cpp[4] = 0.f;
+		//if(muscle_activation_signal_cpp[4]>1.f) muscle_activation_signal_cpp[4] = 1.f;
 	}
 	if(key == 'i')
 	{
@@ -589,11 +627,6 @@ void run(int argc, char** argv, const bool with_graphics)
 {
 	helper = new owHelper();
 	fluid_simulation = new owPhysicsFluidSimulator(helper);
-	for(int i = 1; i<argc; i++){
-		if(strncmp(argv[i], "-l_config", 9) == 0){
-			fluid_simulation->set_loadConfigStep(atoi(argv[i + 1]));
-		}
-	}
 	if(with_graphics){
 		glutInit(&argc, argv);
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
