@@ -28,7 +28,7 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 #define XMIN 0
 #define XMAX 30.0*h // horizontal 1
 #define YMIN 0
-#define YMAX 34.0*h // vertical
+#define YMAX 58.0*h // vertical
 #define ZMIN 0
 #define ZMAX 42.0*h // horizontal 2
 

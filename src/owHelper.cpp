@@ -102,7 +102,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int nEz = 9;//25
 	int nMuscles = 5;
 	int nM,nMi,nMj;
-	int numOfMembraneParticles = (nx-1)*(nz-1);
+	int numOfMembraneParticles = (nx*2/3-3)*(nz*2/3-3);
 
 	if(stage==0)
 	{
@@ -138,8 +138,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		}
 
 		//now add membrane
-		for(x=1;x<nx;x+=1)
-		for(z=1;z<nz;z+=1)
+		for(x=3;x<nx-2.5;x+=1.5)
+		for(z=3;z<nz-2.5;z+=1.5)
 		{
 			//write particle coordinates to corresponding arrays
 			position_cpp[ 4 * i + 0 ] = x*r0;
@@ -267,9 +267,9 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		i++; // necessary for both stages
 	}*/
 
-	for(x = (XMAX-XMIN)/2-5*r0;x<(XMAX-XMIN)/2+r0*5;x += r0)
-	for(y = r0*52;y<(YMAX-YMIN)*0.0+r0*65;y += r0)
-	for(z = (ZMAX-ZMIN)/2-5*r0;z<(ZMAX-ZMIN)/2+r0*5;z += r0)
+	for(x = (XMAX-XMIN)/2-7*r0;x<(XMAX-XMIN)/2+r0*7;x += r0)
+	for(y = r0*92;y<(YMAX-YMIN)*0.0+r0*107;y += r0)
+	for(z = (ZMAX-ZMIN)/2-7*r0;z<(ZMAX-ZMIN)/2+r0*7;z += r0)
 	{
 						// stage==0 - preliminary run
 		if(stage==1)	// stage==1 - final run
@@ -511,7 +511,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				float r2_ij = dx2 + dy2 + dz2;
 				float r_ij = (float)sqrt(r2_ij);
 
-				if(r_ij<=r0*sqrt(2.1))
+				if(r_ij<=r0*2*sqrt(/*3.2*/1.7))
 				{
 					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
 					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.6;	// resting density; that's why we use float type for elasticConnectionsData_cpp

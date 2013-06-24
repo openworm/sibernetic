@@ -643,7 +643,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				//0.09 for experiments with water drops
 				//-0.0133
 				
-				accel_surfTensForce += ( -5.0e-10f * (float)(Wpoly6Coefficient * pow(hScaled2/2.0,3.0)) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
+				accel_surfTensForce += ( -5.0e-09f * (float)(Wpoly6Coefficient * pow(hScaled2/2.0,3.0)) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
 			}
 		}
 		
