@@ -41,8 +41,8 @@
 #endif
 
 __kernel void clearBuffers(
-						   __global float2 * neighborMap,
-						   int PARTICLE_COUNT 
+							__global float2 * neighborMap,
+							int PARTICLE_COUNT
 						   )
 {
 	int id = get_global_id( 0 );
@@ -50,6 +50,7 @@ __kernel void clearBuffers(
 	__global float4 * nm = (__global float4 *)neighborMap;
 	int outIdx = ( id * NEIGHBOR_COUNT ) >> 1;//int4 versus int2 addressing
 	float4 fdata = (float4)( -1, -1, -1, -1 );
+	int i,j,k,mnl;//mnl = membrane number in the list. 0..MAX_MEMBRANES_INCLUDING_SAME_PARTICLE-1
 
 	nm[ outIdx++ ] = fdata;
 	nm[ outIdx++ ] = fdata;
@@ -642,8 +643,8 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				//29aug_A.Palyanov_end_block
 				//0.09 for experiments with water drops
 				//-0.0133
-				
-				accel_surfTensForce += ( -5.0e-09f * (float)(Wpoly6Coefficient * pow(hScaled2/2.0,3.0)) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
+				// surface tension force
+				accel_surfTensForce += ( -3.5e-09f * (float)(Wpoly6Coefficient * pow(hScaled2/2.0,3.0)) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
 			}
 		}
 		
@@ -725,7 +726,7 @@ __kernel void pcisph_computeElasticForces(
 	int id = particleIndexBack[index + offset];
 	int idx = index * NEIGHBOR_COUNT;
 	float r_ij_equilibrium, r_ij, delta_r_ij, v_i_cm_length;
-	float k = 300000000.f;// k - coefficient of elasticity
+	float k = 600000000.f;// k - coefficient of elasticity
 	float4 vect_r_ij;
 	float4 centerOfMassVelocity;
 	float4 velocity_i_cm;
@@ -837,16 +838,16 @@ void calculateBoundaryParticleAffect(
 		{
 			//jd = particleIndexBack[jd];
 			id_source_particle = PI_SERIAL_ID( particleIndex[jd] );
-			if((int)position[id_source_particle].w == 3){
+			if((int)position[id_source_particle].w == BOUNDARY_PARTICLE){ 
 				//dist = pos_ - position[id_source_particle];
 				x_ib_norm  = ((*pos_).x - position[id_source_particle].x) * ((*pos_).x - position[id_source_particle].x);
 				x_ib_norm += ((*pos_).y - position[id_source_particle].y) * ((*pos_).y - position[id_source_particle].y);
 				x_ib_norm += ((*pos_).z - position[id_source_particle].z) * ((*pos_).z - position[id_source_particle].z);
 				x_ib_norm = SQRT(x_ib_norm);
-				w_c_ib = max(0.f,(r0-x_ib_norm)/r0);							//Ihmsen et. al., 2010, page 4, formula (10)
-				n_b = velocity[id_source_particle];						//ATTENTION! for boundary, non-moving particles velocity has no sense, but instead we need to store normal vector. We keep it in velocity data structure for memory economy.
-				n_c_i += n_b * w_c_ib;									//Ihmsen et. al., 2010, page 4, formula (9)
-				w_c_ib_sum += w_c_ib;									//Ihmsen et. al., 2010, page 4, formula (11), sum #1
+				w_c_ib = max(0.f,(r0-x_ib_norm)/r0);			//Ihmsen et. al., 2010, page 4, formula (10)
+				n_b = velocity[id_source_particle];				//ATTENTION! for boundary, non-moving particles velocity has no sense, but instead we need to store normal vector. We keep it in velocity data structure for memory economy.
+				n_c_i += n_b * w_c_ib;							//Ihmsen et. al., 2010, page 4, formula (9)
+				w_c_ib_sum += w_c_ib;							//Ihmsen et. al., 2010, page 4, formula (11), sum #1
 				w_c_ib_second_sum += w_c_ib * (r0 - x_ib_norm); //Ihmsen et. al., 2010, page 4, formula (11), sum #2
 			}
 		}

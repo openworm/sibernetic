@@ -28,7 +28,7 @@ extern int MUSCLE_COUNT;
 class owOpenCLSolver
 {
 public:
-	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL);
+	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL, const int * particleMembranesList_cpp = NULL);
 	owOpenCLSolver(void);
 	~owOpenCLSolver(void);
 	// Initialize OPENCL device, context, queue, program...
@@ -82,9 +82,16 @@ private:
 	cl::Buffer sortedVelocity;
 	cl::Buffer velocity;
 	cl::Buffer elasticConnectionsData;		// list of particle pairs connected with springs and rest distance between them
+
 	cl::Buffer membraneData;				// elementary membrane is built on 3 adjacent particles (i,j,k) and should have a form of triangle
 											// highly recommended that i-j, j-k and k-i are already connected with springs to keep them close 
 											// to each other during whole lifetime of the simulation (user should control this by him(her)self)
+
+	cl::Buffer particleMembranesList;		// potentially any particle can be connected with others via membrane(s)
+											// this buffer contains MAX_MEMBRANES_INCLUDING_SAME_PARTICLE integer data cells per particle
+											// each cell can contain -1 in case when no or no more membranes are associated with this particle,
+											// or the index of corresponding membrane in membraneData list othewize
+
 	// Kernels
 	cl::Kernel clearBuffers;
 	cl::Kernel computeAcceleration;
@@ -94,8 +101,8 @@ private:
 	cl::Kernel indexx;
 	cl::Kernel integrate;
 	cl::Kernel sortPostPass;
-	// Additional kernels for PCISPH and for calculation ellastic forces
-	cl::Kernel preElasticMatterPass;
+	// Additional kernels for PCISPH and for calculation elastic forces
+	//cl::Kernel preElasticMatterPass;
 	cl::Kernel pcisph_computeDensity;
 	cl::Kernel pcisph_computeForcesAndInitPressure;
 	cl::Kernel pcisph_integrate;
@@ -104,6 +111,9 @@ private:
 	cl::Kernel pcisph_correctPressure;
 	cl::Kernel pcisph_computePressureForceAcceleration;
 	cl::Kernel pcisph_computeElasticForces;
+	//
+	//cl::Kernel prepareMembranesList;
+
 };
 
 #endif //OW_OPENCL_SOLVER_H

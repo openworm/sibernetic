@@ -79,7 +79,7 @@ void owHelper::log_bufferi(const int * buffer, const int element_size, const int
 }
 
 
-void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes)
+void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp)
 {
 	// we need to know at least 
 	// 1) sizes of the box which contains the simulation within
@@ -97,12 +97,13 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
 	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
 
-	int nEx = 5;//7
-	int nEy = 3;//4
-	int nEz = 9;//25
+	int nEx = 5*0;//7
+	int nEy = 3*0;//4
+	int nEz = 9*0;//25
 	int nMuscles = 5;
 	int nM,nMi,nMj;
-	int numOfMembraneParticles = (nx*2/3-3)*(nz*2/3-3);
+	//int numOfMembraneParticles = (nx*2/3-3)*(nz*2/3-3);
+	int numOfMembraneParticles = (nx-3)*(nz-3);
 
 	if(stage==0)
 	{
@@ -138,12 +139,12 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		}
 
 		//now add membrane
-		for(x=3;x<nx-2.5;x+=1.5)
-		for(z=3;z<nz-2.5;z+=1.5)
+		for(x=2;x<nx-1.5;x+=1.0)
+		for(z=2;z<nz-1.5;z+=1.0)
 		{
 			//write particle coordinates to corresponding arrays
 			position_cpp[ 4 * i + 0 ] = x*r0;
-			position_cpp[ 4 * i + 1 ] = YMAX/2+YMAX*0+r0/2;
+			position_cpp[ 4 * i + 1 ] = YMAX/2+YMAX*0.06+r0/2;
 			position_cpp[ 4 * i + 2 ] = z*r0;
 			position_cpp[ 4 * i + 3 ] = p_type;
 
@@ -267,9 +268,9 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		i++; // necessary for both stages
 	}*/
 
-	for(x = (XMAX-XMIN)/2-7*r0;x<(XMAX-XMIN)/2+r0*7;x += r0)
-	for(y = r0*92;y<(YMAX-YMIN)*0.0+r0*107;y += r0)
-	for(z = (ZMAX-ZMIN)/2-7*r0;z<(ZMAX-ZMIN)/2+r0*7;z += r0)
+	for(x = (XMAX-XMIN)/2-6*r0;x<(XMAX-XMIN)/2+r0*6;x += r0)
+	for(y = r0*79;y<(YMAX-YMIN)*0.0+r0*92;y += r0)
+	for(z = (ZMAX-ZMIN)/2-6*r0;z<(ZMAX-ZMIN)/2+r0*6;z += r0)
 	{
 						// stage==0 - preliminary run
 		if(stage==1)	// stage==1 - final run
@@ -286,7 +287,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			position_cpp[ 4 * i + 3 ] = p_type;
 
 			velocity_cpp[ 4 * i + 0 ] = 0;
-			velocity_cpp[ 4 * i + 1 ] = 0;
+			velocity_cpp[ 4 * i + 1 ] = -0.027;
 			velocity_cpp[ 4 * i + 2 ] = 0;
 			velocity_cpp[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
 		}
@@ -470,7 +471,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			exit(-2);
 		}
 
-		numOfMembranes = 2;
+		//numOfMembranes = 2;
+		numOfMembranes = (nz-3-1-2*2)*(nx-3-1-2*2)*2;
 	}
 	else
 	if(stage==1)
@@ -481,13 +483,52 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			exit(-4);
 		}
 
-		membraneData_cpp [0+0] = 0;
-		membraneData_cpp [0+1] = 1;
-		membraneData_cpp [0+2] = nEz;
+		
+		for(int mli = 0/*membrane list index*/; mli<numOfElasticP; mli++)
+		{
+			for(int sli = 0 /*sublist index*/; sli<MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; sli++)
+			{
+				particleMembranesList_cpp [mli*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE + sli] = -1;// no membrains connected with current particle
+			}
+		}
 
-		membraneData_cpp [3+0] = 1;
-		membraneData_cpp [3+1] = nEz;
-		membraneData_cpp [3+2] = nEz+1;
+		
+		int mc = 0;//membrane counter
+
+		// create membranes using recently generated elastic matter plane
+		for(int ix = 2; ix<(nx-3)-1-2; ix++)
+		{
+			for(int iz = 2; iz<(nz-3)-1-2; iz++)
+			{
+				membraneData_cpp [mc*3+0] = (ix+0)*(nz-3) + iz;
+				membraneData_cpp [mc*3+1] = (ix+0)*(nz-3) + iz + 1;
+				membraneData_cpp [mc*3+2] = (ix+1)*(nz-3) + iz + 1;
+
+				mc++;
+
+				membraneData_cpp [mc*3+0] = (ix+0)*(nz-3) + iz;
+				membraneData_cpp [mc*3+1] = (ix+1)*(nz-3) + iz;
+				membraneData_cpp [mc*3+2] = (ix+1)*(nz-3) + iz + 1;
+
+				mc++;
+			}
+		}
+		// end of create membranes
+
+		for(int _mc = 0; _mc < mc*3; _mc++)
+		{
+			int particle_index;
+			for(int sli=0;sli<MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; sli++)
+			{
+				if(particleMembranesList_cpp [particle_index = membraneData_cpp [_mc]*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE+sli]==-1)
+				{
+					particleMembranesList_cpp [particle_index] = _mc/3;
+					//if(sli>=5) { sli = sli; }
+					break;
+				}
+			}		
+		}
+		
 
 		///////////////debug////////////
 		int j;
@@ -511,7 +552,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				float r2_ij = dx2 + dy2 + dz2;
 				float r_ij = (float)sqrt(r2_ij);
 
-				if(r_ij<=r0*2*sqrt(/*3.2*/1.7))
+				//if(r_ij<=r0*2*sqrt(/*3.2*/1.7))//grid = 1.5 r0
+				if(r_ij<=r0*sqrt(/*3.2*/2.7))//grid = 1.0 r0
 				{
 					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
 					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.6;	// resting density; that's why we use float type for elasticConnectionsData_cpp

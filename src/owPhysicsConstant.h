@@ -28,7 +28,7 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 #define XMIN 0
 #define XMAX 30.0*h // horizontal 1
 #define YMIN 0
-#define YMAX 58.0*h // vertical
+#define YMAX 48.0*h // vertical
 #define ZMIN 0
 #define ZMAX 42.0*h // horizontal 2
 
@@ -55,10 +55,10 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 // So, in this case (1e+5 particles) we need r0 = 3.2 um = 3.2e-6 m
 // and particle mass = 3.25e-14 kg
 
-const float timeStep = 4.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
+const float timeStep = 8.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
 
 const float stiffness = 0.75f;	//need description of this parameter
-const float viscosity = 0.0003f;	// liquid viscosity  //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
+const float viscosity = 0.00008f;//0.00015f;	// liquid viscosity  //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
 const float damping = 0.75f;	//need description of this parameter
 
 const float CFLLimit = 100.0f;

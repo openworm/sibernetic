@@ -26,6 +26,7 @@ private:
 	float * velocity_cpp;				// and initialize in 'ordinary' memory some data, which will be 
 	float * elasticConnectionsData_cpp; // copied later to OpenCL buffer %variableName% 
 	int	  * membraneData_cpp;
+	int   * particleMembranesList_cpp;
 
 	//Helper arrays
 	float * density_cpp;
