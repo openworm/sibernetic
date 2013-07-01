@@ -67,7 +67,7 @@ private:
 	cl::Program				  program;
 	// Buffers
 	cl::Buffer  muscle_activation_signal;   // array storing data (activation signals) for an array of muscles. 
-											// now each can be affected by user independently
+											// now each can be activated by user independently
 
 	cl::Buffer acceleration;				// forceAcceleration and pressureForceAcceleration
 	cl::Buffer gridCellIndex;

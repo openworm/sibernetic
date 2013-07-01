@@ -809,7 +809,7 @@ __kernel void pcisph_computeElasticForces(
 // of rigid objects even for large time steps. By incorporating density estimates at the boundary into the 
 // pressure force, unnatural accelerations resulting from high pressure ratios are avoided.
 
-void calculateBoundaryParticleAffect(
+void calculateBoundaryParticlesEffect(
 									   int id, 
 									   float r0, 
 									   __global float2 * neighborMap,
@@ -829,7 +829,7 @@ void calculateBoundaryParticleAffect(
 	float4 n_b;
 	float w_c_ib, w_c_ib_sum = 0.f, w_c_ib_second_sum = 0.f;
 	float4 dist;
-	float val,x_ib_norm;
+	float n_c_i_length,x_ib_norm;
 	int jd;
 
 	do// gather density contribution from all neighbors (if they exist)
@@ -854,14 +854,14 @@ void calculateBoundaryParticleAffect(
 	}
 	while( ++nc < NEIGHBOR_COUNT );
 
-	val = DOT(n_c_i,n_c_i);
-	if(val != 0){
-		val = sqrt(val);
-		dist = n_c_i/val * w_c_ib_second_sum / w_c_ib_sum;	//
+	n_c_i_length = DOT(n_c_i,n_c_i);
+	if(n_c_i_length != 0){
+		n_c_i_length = sqrt(n_c_i_length);
+		dist = ((n_c_i/n_c_i_length)*w_c_ib_second_sum)/w_c_ib_sum;	//
 		(*pos_).x += dist.x;								//
 		(*pos_).y += dist.y;								// Ihmsen et. al., 2010, page 4, formula (11)
 		(*pos_).z += dist.z;								//
-		if(tangVel){
+		if(tangVel){// tangential component of velocity
 			float eps = 0.99f; //eps should be <= 1.0		// controls the friction of the collision
 			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z; 
 			if(vel_n_len < 0){
@@ -916,7 +916,7 @@ __kernel void pcisph_predictPositions(
 	float4 newPosition_ = position_ + posTimeStep * newVelocity_; //newPosition_.w = 0.f;
 
 	//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
-	calculateBoundaryParticleAffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_);
+	calculateBoundaryParticlesEffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_);
 	sortedPosition[PARTICLE_COUNT+id] = newPosition_;// in current version sortedPosition array has double size, 
 													 // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
@@ -1189,7 +1189,7 @@ __kernel void pcisph_integrate(
 
 	float particleType = position[ id_source_particle ].w;
 	newVelocity_ = (velocity_ + newVelocity_) * 0.5f ;
-	calculateBoundaryParticleAffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_, true, &newVelocity_);
+	calculateBoundaryParticlesEffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_, true, &newVelocity_);
 	velocity[ id_source_particle ] = newVelocity_;//newVelocity_;
 	position[ id_source_particle ] = newPosition_;
 	position[ id_source_particle ].w = particleType;
