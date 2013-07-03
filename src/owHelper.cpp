@@ -597,7 +597,7 @@ void owHelper::preLoadConfiguration()
 	}
 }
 
-void owHelper::loadConfiguration(float *position, float *velocity, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
+void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
 {
 
 	try
@@ -610,10 +610,10 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 			while( positionFile.good() && i < PARTICLE_COUNT )
 			{
 				positionFile >> x >> y >> z >> p_type;
-				position[ 4 * i + 0 ] = x;
-				position[ 4 * i + 1 ] = y;
-				position[ 4 * i + 2 ] = z;
-				position[ 4 * i + 3 ] = p_type;
+				position_cpp[ 4 * i + 0 ] = x;
+				position_cpp[ 4 * i + 1 ] = y;
+				position_cpp[ 4 * i + 2 ] = z;
+				position_cpp[ 4 * i + 3 ] = p_type;
 				switch((int)p_type){
 					case LIQUID_PARTICLE:
 						numOfLiquidP++;
@@ -638,10 +638,10 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 			while( velocityFile.good() && i < PARTICLE_COUNT )
 			{
 				velocityFile >> x >> y >> z >> p_type;
-				velocity[ 4 * i + 0 ] = x;
-				velocity[ 4 * i + 1 ] = y;
-				velocity[ 4 * i + 2 ] = z;
-				velocity[ 4 * i + 3 ] = p_type;
+				velocity_cpp[ 4 * i + 0 ] = x;
+				velocity_cpp[ 4 * i + 1 ] = y;
+				velocity_cpp[ 4 * i + 2 ] = z;
+				velocity_cpp[ 4 * i + 3 ] = p_type;
 				i++;
 			}
 			velocityFile.close();
@@ -684,7 +684,7 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 	}
 }
 //This Function is currently on testing stage
-void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, float *&elasticConnections, int &numOfLiquidP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
+void owHelper::loadConfigurationFromOneFile(float *position_cpp, float *velocity_cpp, float *&elasticConnections, int &numOfLiquidP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
 {
 	try
 	{
@@ -725,10 +725,10 @@ void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, fl
 				} if(isNotString){
 					switch(block){
 						case isPositionBlock: {
-							position[ 4 * i + 0 ] = x;
-							position[ 4 * i + 1 ] = y;
-							position[ 4 * i + 2 ] = z;
-							position[ 4 * i + 3 ] = p_type;
+							position_cpp[ 4 * i + 0 ] = x;
+							position_cpp[ 4 * i + 1 ] = y;
+							position_cpp[ 4 * i + 2 ] = z;
+							position_cpp[ 4 * i + 3 ] = p_type;
 							switch((int)p_type){
 								case LIQUID_PARTICLE:
 									numOfLiquidP++;
@@ -744,10 +744,10 @@ void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, fl
 							break;
 						}
 						case isVelocityBlock: {
-							velocity[ 4 * i + 0 ] = x;
-							velocity[ 4 * i + 1 ] = y;
-							velocity[ 4 * i + 2 ] = z;
-							velocity[ 4 * i + 3 ] = p_type;
+							velocity_cpp[ 4 * i + 0 ] = x;
+							velocity_cpp[ 4 * i + 1 ] = y;
+							velocity_cpp[ 4 * i + 2 ] = z;
+							velocity_cpp[ 4 * i + 3 ] = p_type;
 							i++;
 							break;
 						}

@@ -92,6 +92,9 @@ double owPhysicsFluidSimulator::simulationStep()
 			ocl_solver->_run_pcisph_computePressureForceAcceleration();
 			iter++;
 		}while( iter < maxIteration );
+
+		ocl_solver->_run_clearMembraneBuffers();
+		ocl_solver->_run_computeInteractionWithMembranes();
 		ocl_solver->_run_pcisph_integrate();						helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
 		ocl_solver->read_position_buffer(position_cpp);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n"); 
 		//END PCISPH algorithm

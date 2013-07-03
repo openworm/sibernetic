@@ -819,7 +819,8 @@ void calculateBoundaryParticlesEffect(
 									   __global float4 * velocity,
 									   float4 * pos_,
 									   bool tangVel,
-									   float4 * vel
+									   float4 * vel,
+									   int PARTICLE_COUNT
 									   )
 {
 	//track selected particle (indices are not shuffled anymore)
@@ -916,7 +917,7 @@ __kernel void pcisph_predictPositions(
 	float4 newPosition_ = position_ + posTimeStep * newVelocity_; //newPosition_.w = 0.f;
 
 	//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
-	calculateBoundaryParticlesEffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_);
+	calculateBoundaryParticlesEffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_,PARTICLE_COUNT);
 	sortedPosition[PARTICLE_COUNT+id] = newPosition_;// in current version sortedPosition array has double size, 
 													 // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
@@ -1113,6 +1114,55 @@ __kernel void pcisph_computePressureForceAcceleration(
 
 }
 
+__kernel void clearMembraneBuffers(
+						__global float4 * position,
+						__global float4 * velocity,
+						__global float4 * sortedPosition,
+						int PARTICLE_COUNT 
+						)
+{
+	int id = get_global_id( 0 ); 
+	if(id>=PARTICLE_COUNT) return;
+
+	position[PARTICLE_COUNT + id] = (float4)(0,0,0,0); //extra memory to store changes in considered particles's coordinates due to interaction with membranes. Need to make it = 0 every step.
+	velocity[PARTICLE_COUNT + id] = (float4)(0,0,0,0); //extra memory to store changes in considered particles's   velocity  due to interaction with membranes. Need to make it = 0 every step.
+	//sortedPosition[PARTICLE_COUNT*2 + id] = (float4)(0,0,0,0); 
+}
+
+__kernel void computeInteractionWithMembranes(
+						__global float4 * position,
+						__global float4 * velocity,
+						__global float4 * sortedPosition,
+						__global uint2 * particleIndex,
+						__global uint * particleIndexBack,
+						__global float2 * neighborMap,
+						int PARTICLE_COUNT,
+						int numOfElasticP
+						)
+{
+	int id = get_global_id( 0 ); 
+	if(id>=PARTICLE_COUNT) return;
+	//id = particleIndexBack[id]; 
+	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
+
+	//float4 position_ = sortedPosition[ id ];
+	float4 position_ = position[ id ];
+	
+	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE) return;
+	
+	int jd, idx = id * NEIGHBOR_COUNT;
+
+	for(int nc=0; nc<NEIGHBOR_COUNT; nc++)//nc - neighbou counter
+	{
+		if( (jd = NEIGHBOR_MAP_ID( neighborMap[ idx + nc ])) != NO_PARTICLE_ID)
+		{
+			//r_ij = NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc] );
+		}
+		else break;
+	}
+	
+}
+
 __kernel void pcisph_integrate(
 						__global float4 * acceleration,
 						__global float4 * sortedPosition,
@@ -1178,7 +1228,6 @@ __kernel void pcisph_integrate(
 
 	// in Chao Fang version here is also acceleration 'speed limit' applied
 
-
 	if(newPosition_.x<xmin) newPosition_.x = xmin;//A.Palyanov 30.08.2012
 	if(newPosition_.y<ymin) newPosition_.y = ymin;//A.Palyanov 30.08.2012
 	if(newPosition_.z<zmin) newPosition_.z = zmin;//A.Palyanov 30.08.2012
@@ -1189,7 +1238,7 @@ __kernel void pcisph_integrate(
 
 	float particleType = position[ id_source_particle ].w;
 	newVelocity_ = (velocity_ + newVelocity_) * 0.5f ;
-	calculateBoundaryParticlesEffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_, true, &newVelocity_);
+	calculateBoundaryParticlesEffect(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_, true, &newVelocity_,PARTICLE_COUNT);
 	velocity[ id_source_particle ] = newVelocity_;//newVelocity_;
 	position[ id_source_particle ] = newPosition_;
 	position[ id_source_particle ].w = particleType;

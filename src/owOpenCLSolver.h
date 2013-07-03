@@ -51,6 +51,9 @@ public:
 	unsigned int _run_pcisph_computePressureForceAcceleration();
 	unsigned int _run_pcisph_integrate();
 	//
+	unsigned int _run_clearMembraneBuffers();
+	unsigned int _run_computeInteractionWithMembranes();
+	//
 	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp);
 	
 	void read_position_buffer( float * position_cpp ) { copy_buffer_from_device( position_cpp, position, PARTICLE_COUNT * sizeof( float ) * 4 ); };
@@ -76,11 +79,11 @@ private:
 	cl::Buffer particleIndex;				// list of pairs [CellIndex, particleIndex]
 	cl::Buffer particleIndexBack;			// list of indexes of particles before sort 
 	cl::Buffer position;
-	cl::Buffer pressure;
+	cl::Buffer pressure;					// size * (1+1extra[for membrane handling])
 	cl::Buffer rho;							// size * 2
 	cl::Buffer sortedPosition;				// size * 2
-	cl::Buffer sortedVelocity;
-	cl::Buffer velocity;
+	cl::Buffer sortedVelocity;				
+	cl::Buffer velocity;					// size * (1+1extra[for membrane handling])
 	cl::Buffer elasticConnectionsData;		// list of particle pairs connected with springs and rest distance between them
 
 	cl::Buffer membraneData;				// elementary membrane is built on 3 adjacent particles (i,j,k) and should have a form of triangle
@@ -113,6 +116,8 @@ private:
 	cl::Kernel pcisph_computeElasticForces;
 	//
 	//cl::Kernel prepareMembranesList;
+	cl::Kernel clearMembraneBuffers;
+	cl::Kernel computeInteractionWithMembranes;
 
 };
 

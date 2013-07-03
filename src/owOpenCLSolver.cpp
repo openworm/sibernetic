@@ -35,12 +35,12 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		create_ocl_buffer( "neighborMap", neighborMap, CL_MEM_READ_WRITE, ( NEIGHBOR_COUNT * PARTICLE_COUNT * sizeof( float ) * 2 ) );
 		create_ocl_buffer( "particleIndex", particleIndex, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( unsigned int ) * 2 ) );
 		create_ocl_buffer( "particleIndexBack", particleIndexBack, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( unsigned int ) ) );
-		create_ocl_buffer( "position", position, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
-		create_ocl_buffer( "pressure", pressure, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
+		create_ocl_buffer( "position", position, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * (1 + 1/*1 extra, for membrane handling*/)) );
+		create_ocl_buffer( "pressure", pressure, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 1 ) );
 		create_ocl_buffer( "rho", rho, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 2 ) );
 		create_ocl_buffer( "sortedPosition", sortedPosition, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
 		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
-		create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 ) );
+		create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * (1 + 1/*1 extra, for membrane handling*/) ) );
 		create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( MUSCLE_COUNT * sizeof( float ) ) );
 		// Create OpenCL kernels
 		create_ocl_kernel("clearBuffers", clearBuffers);
@@ -57,6 +57,9 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		create_ocl_kernel("pcisph_computePressureForceAcceleration", pcisph_computePressureForceAcceleration);
 		create_ocl_kernel("pcisph_computeDensity", pcisph_computeDensity);
 		create_ocl_kernel("pcisph_computeElasticForces", pcisph_computeElasticForces);
+		// membrane handling kernels
+		create_ocl_kernel("clearMembraneBuffers",clearMembraneBuffers);
+		create_ocl_kernel("computeInteractionWithMembranes",computeInteractionWithMembranes);
 		//Copy position_cpp and velocity_cpp to the OpenCL Device
 		copy_buffer_to_device( position_cpp, position, PARTICLE_COUNT * sizeof( float ) * 4 );
 		copy_buffer_to_device( velocity_cpp, velocity, PARTICLE_COUNT * sizeof( float ) * 4 );
@@ -566,6 +569,50 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration()
 #endif
 	return err;
 }
+
+unsigned int owOpenCLSolver::_run_clearMembraneBuffers()
+{
+	clearMembraneBuffers.setArg( 0, position );
+	clearMembraneBuffers.setArg( 1, velocity );
+	clearMembraneBuffers.setArg( 2, sortedPosition );
+	clearMembraneBuffers.setArg( 3, PARTICLE_COUNT );
+	int err = queue.enqueueNDRangeKernel(
+		clearMembraneBuffers, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+#if defined( __APPLE__ )
+		cl::NullRange, NULL, NULL );
+#else
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
+#endif
+#if QUEUE_EACH_KERNEL
+	queue.finish();
+#endif
+	return err;
+}
+
+unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes()
+{
+	computeInteractionWithMembranes.setArg( 0, position );
+	computeInteractionWithMembranes.setArg( 1, velocity );
+	computeInteractionWithMembranes.setArg( 2, sortedPosition );
+	computeInteractionWithMembranes.setArg( 3, particleIndex );
+	computeInteractionWithMembranes.setArg( 4, particleIndexBack );
+	computeInteractionWithMembranes.setArg( 5, neighborMap );
+	computeInteractionWithMembranes.setArg( 6, PARTICLE_COUNT );
+	computeInteractionWithMembranes.setArg( 7, numOfElasticP );
+	int err = queue.enqueueNDRangeKernel(
+		computeInteractionWithMembranes, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+#if defined( __APPLE__ )
+		cl::NullRange, NULL, NULL );
+#else
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
+#endif
+#if QUEUE_EACH_KERNEL
+	queue.finish();
+#endif
+	return err;
+}
+
+
 unsigned int owOpenCLSolver::_run_pcisph_integrate()
 {
 	// Stage Integrate
