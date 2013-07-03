@@ -828,7 +828,7 @@ void calculateBoundaryParticlesEffect(
 	float4 n_c_i = (float4)(0.f,0.f,0.f,0.f); 
 	float4 n_b;
 	float w_c_ib, w_c_ib_sum = 0.f, w_c_ib_second_sum = 0.f;
-	float4 dist;
+	float4 delta_pos;
 	float n_c_i_length,x_ib_norm;
 	int jd;
 
@@ -857,18 +857,18 @@ void calculateBoundaryParticlesEffect(
 	n_c_i_length = DOT(n_c_i,n_c_i);
 	if(n_c_i_length != 0){
 		n_c_i_length = sqrt(n_c_i_length);
-		dist = ((n_c_i/n_c_i_length)*w_c_ib_second_sum)/w_c_ib_sum;	//
-		(*pos_).x += dist.x;								//
-		(*pos_).y += dist.y;								// Ihmsen et. al., 2010, page 4, formula (11)
-		(*pos_).z += dist.z;								//
+		delta_pos = ((n_c_i/n_c_i_length)*w_c_ib_second_sum)/w_c_ib_sum;	//
+		(*pos_).x += delta_pos.x;								//
+		(*pos_).y += delta_pos.y;								// Ihmsen et. al., 2010, page 4, formula (11)
+		(*pos_).z += delta_pos.z;								//
 		if(tangVel){// tangential component of velocity
-			float eps = 0.99f; //eps should be <= 1.0		// controls the friction of the collision
+			float eps = 0.99f; //eps should be <= 1.0			// controls the friction of the collision
 			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z; 
 			if(vel_n_len < 0){
 				(*vel).x -= n_c_i.x * vel_n_len;
 				(*vel).y -= n_c_i.y * vel_n_len;
 				(*vel).z -= n_c_i.z * vel_n_len;
-				(*vel) = (*vel) * eps;						// Ihmsen et. al., 2010, page 4, formula (12)
+				(*vel) = (*vel) * eps;							// Ihmsen et. al., 2010, page 4, formula (12)
 			}
 		}
 	}

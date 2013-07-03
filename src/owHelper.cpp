@@ -513,7 +513,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				mc++;
 			}
 		}
-		// end of create membranes
+		// end of membranes creation
 
 		for(int _mc = 0; _mc < mc*3; _mc++)
 		{
