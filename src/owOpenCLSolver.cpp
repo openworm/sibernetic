@@ -597,8 +597,10 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes()
 	computeInteractionWithMembranes.setArg( 3, particleIndex );
 	computeInteractionWithMembranes.setArg( 4, particleIndexBack );
 	computeInteractionWithMembranes.setArg( 5, neighborMap );
-	computeInteractionWithMembranes.setArg( 6, PARTICLE_COUNT );
-	computeInteractionWithMembranes.setArg( 7, numOfElasticP );
+	computeInteractionWithMembranes.setArg( 6, particleMembranesList );
+	computeInteractionWithMembranes.setArg( 7, membraneData );
+	computeInteractionWithMembranes.setArg( 8, PARTICLE_COUNT );
+	computeInteractionWithMembranes.setArg( 9, numOfElasticP );
 	int err = queue.enqueueNDRangeKernel(
 		computeInteractionWithMembranes, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
 #if defined( __APPLE__ )

@@ -1136,27 +1136,63 @@ __kernel void computeInteractionWithMembranes(
 						__global uint2 * particleIndex,
 						__global uint * particleIndexBack,
 						__global float2 * neighborMap,
+						__global int * particleMembranesList,
+						__global int * membraneData,
 						int PARTICLE_COUNT,
 						int numOfElasticP
 						)
 {
 	int id = get_global_id( 0 ); 
 	if(id>=PARTICLE_COUNT) return;
-	//id = particleIndexBack[id]; 
+	
+	id = particleIndexBack[id]; 
+
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
+	int jd_source_particle;
 
 	//float4 position_ = sortedPosition[ id ];
 	float4 position_ = position[ id ];
 	
 	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE) return;
+
+	if((int)(position[ id_source_particle ].w) != LIQUID_PARTICLE) return;
 	
 	int jd, idx = id * NEIGHBOR_COUNT;
+	int mdi;//membraneData index
+	int i,j,k;
 
-	for(int nc=0; nc<NEIGHBOR_COUNT; nc++)//nc - neighbou counter
+	//check all neighbours of each particle to find those which belong to membranes.
+	//particleMembranesList(size:numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
+	//was introduced to provide this possibility. The same order of indexes as in <position> buffer
+
+	for(int nc=0; nc<NEIGHBOR_COUNT; nc++)//nc - neighbour counter
 	{
 		if( (jd = NEIGHBOR_MAP_ID( neighborMap[ idx + nc ])) != NO_PARTICLE_ID)
 		{
-			//r_ij = NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc] );
+			jd_source_particle = PI_SERIAL_ID( particleIndex[jd] );
+
+			if((int)(position[ jd_source_particle ].w) == ELASTIC_PARTICLE)	//in current version only elastic
+			{																//matter particles can compose membranes
+				// so, now we have only elastic matter particle, 
+				// no information about participation in membrane composition
+				// Let's get it - check corresponding position of particleMembranesList if it is non-empty
+				for(int mli=0;mli<MAX_MEMBRANES_INCLUDING_SAME_PARTICLE;mli++)
+				{
+					if((mdi=particleMembranesList[jd_source_particle*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE+mli])>-1)
+					{
+						i = membraneData[mdi*3+0];
+						j = membraneData[mdi*3+1];
+						k = membraneData[mdi*3+2];
+						mdi = mdi;
+						//printf("+%d",mli);
+						//printf("+");
+					}
+					else break;
+				}
+
+			
+				//r_ij = NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc] );
+			}
 		}
 		else break;
 	}
