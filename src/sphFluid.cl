@@ -1129,6 +1129,14 @@ __kernel void clearMembraneBuffers(
 	//sortedPosition[PARTICLE_COUNT*2 + id] = (float4)(0,0,0,0); 
 }
 
+float4 calculateProjectionOfPointToPlane(float4 p0, float4 p1, float4 p2, float4 p3)
+{// p0 - point to project on the plane; p1-p2-p3 - vertices of the triangle defining the plane
+	float4 p0proj;
+
+
+	return p0proj;
+}
+
 __kernel void computeInteractionWithMembranes(
 						__global float4 * position,
 						__global float4 * velocity,
@@ -1155,11 +1163,13 @@ __kernel void computeInteractionWithMembranes(
 	
 	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE) return;
 
-	if((int)(position[ id_source_particle ].w) != LIQUID_PARTICLE) return;
+	if((int)(position[ id_source_particle ].w) != LIQUID_PARTICLE) return;/*!!!*/
 	
 	int jd, idx = id * NEIGHBOR_COUNT;
 	int mdi;//membraneData index
-	int i,j,k;
+	int i,j,k;//these i and j have nothing in common with id and jd indexes
+	int i_sp,j_sp,k_sp;
+	float4 pos_i,pos_j,pos_k;
 
 	//check all neighbours of each particle to find those which belong to membranes.
 	//particleMembranesList(size:numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
@@ -1183,9 +1193,27 @@ __kernel void computeInteractionWithMembranes(
 						i = membraneData[mdi*3+0];
 						j = membraneData[mdi*3+1];
 						k = membraneData[mdi*3+2];
+						
+						i_sp = i;//PI_SERIAL_ID( particleIndex[i]);
+						j_sp = j;//PI_SERIAL_ID( particleIndex[j]);
+						k_sp = k;//PI_SERIAL_ID( particleIndex[k]);
+
+						pos_i = position[i_sp];
+						pos_j = position[j_sp];
+						pos_k = position[k_sp];
 						mdi = mdi;
 						//printf("+%d",mli);
-						//printf("+");
+						printf("\n+");
+						printf("\n[%6d]: %10f,%10f,%10f,%d\n+",	id_source_particle,
+														position[ id_source_particle ].x,
+														position[ id_source_particle ].y,
+														position[ id_source_particle ].z,
+													(int)position[ id_source_particle ].w);
+						printf("\n[%6d]: %10f,%10f,%10f,%d",i_sp,pos_i.x,pos_i.y,pos_i.z,(int)pos_i.w);
+						printf("\n[%6d]: %10f,%10f,%10f,%d",j_sp,pos_j.x,pos_j.y,pos_j.z,(int)pos_j.w);
+						printf("\n[%6d]: %10f,%10f,%10f,%d",k_sp,pos_k.x,pos_k.y,pos_k.z,(int)pos_k.w);
+
+						calculateProjectionOfPointToPlane(position[ id_source_particle ],pos_i,pos_i,pos_k);
 					}
 					else break;
 				}
