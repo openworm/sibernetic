@@ -268,9 +268,9 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		i++; // necessary for both stages
 	}*/
 
-	for(x = (XMAX-XMIN)/2-6*r0;x<(XMAX-XMIN)/2+r0*6;x += r0)
-	for(y = r0*79;y<(YMAX-YMIN)*0.0+r0*92;y += r0)
-	for(z = (ZMAX-ZMIN)/2-6*r0;z<(ZMAX-ZMIN)/2+r0*6;z += r0)
+	for(x = (XMAX-XMIN)/2-(6+18*0)*r0;x<(XMAX-XMIN)/2+r0*(6+18*0);x += r0)
+	for(y = r0*79-25*0;y<(YMAX-YMIN)*0.0+r0*92;y += r0)
+	for(z = (ZMAX-ZMIN)/2-(6+30*0)*r0;z<(ZMAX-ZMIN)/2+r0*(6+30*0);z += r0)
 	{
 						// stage==0 - preliminary run
 		if(stage==1)	// stage==1 - final run

@@ -1129,12 +1129,71 @@ __kernel void clearMembraneBuffers(
 	//sortedPosition[PARTICLE_COUNT*2 + id] = (float4)(0,0,0,0); 
 }
 
-float4 calculateProjectionOfPointToPlane(float4 p0, float4 p1, float4 p2, float4 p3)
-{// p0 - point to project on the plane; p1-p2-p3 - vertices of the triangle defining the plane
-	float4 p0proj;
+float calcDeterminant3x3(float4 c1, float4 c2, float4 c3)
+{// here we expect the following structure of input vectors (0-th component of each is not used, 1,2,3 - used)
+//  [c1]: c11  c12  c13 
+//  [c2]: c21  c22  c23
+//  [c3]: c31  c32  c33
+//  by the way, result for transposed matrix will be equal to the original one
 
+	return  c1[1]*c2[2]*c3[3] + c1[2]*c2[3]*c3[1] + c1[3]*c2[1]*c3[2]  
+		  - c1[3]*c2[2]*c3[1] - c1[1]*c2[3]*c3[2] - c1[2]*c2[1]*c3[3];
 
-	return p0proj;
+//	return  c1.x*c2.y*c3.z + c1.y*c2.z*c3.x + c1.z*c2.x*c3.y  
+//		  - c1.z*c2.y*c3.x - c1.x*c2.z*c3.y - c1.y*c2.x*c3.z;
+}
+
+float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4 pc)
+{// ps - point to project on the plane; pa-pb-pc - vertices of the triangle defining the plane
+	float4 a_1,a_2,a_3,b; 
+	float4 pm = (float4)(0,0,0,0);//projection of ps on pa-pb-pc plane
+	float denominator;
+	//  b  a_2 a_3   a_1
+	// |b1 a12 a13|  a11
+	// |b2 a22 a23|  a21
+	// |b3 a32 a33|  a31
+
+	b[1] = pa.x*((pb.y-pa.y)*(pc.z-pa.z)-(pb.z-pa.z)*(pc.y-pa.y))
+		 + pa.y*((pb.z-pa.z)*(pc.x-pa.x)-(pb.x-pa.x)*(pc.z-pa.z))
+		 + pa.z*((pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x));
+	b[2] = ps.x*(pb.x-pa.x)+ps.y*(pb.y-pa.y)+ps.z*(pb.z-pa.z);
+	b[3] = ps.x*(pc.x-pa.x)+ps.y*(pc.y-pa.y)+ps.z*(pc.z-pa.z);
+
+	a_1[1] = (pb.y-pa.y)*(pc.z-pa.z)-(pb.z-pa.z)*(pc.y-pa.y);
+	a_1[2] = pb.x - pa.x;
+	a_1[3] = pc.x - pa.x;
+
+	a_2[1] = (pb.z-pa.z)*(pc.x-pa.x)-(pb.x-pa.x)*(pc.z-pa.z);
+	a_2[2] = pb.y - pa.y;
+	a_2[3] = pc.y - pa.y;
+
+	a_3[1] = (pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x);
+	a_3[2] = pb.z - pa.z;
+	a_3[3] = pc.z - pa.z;
+
+	denominator = calcDeterminant3x3(a_1,a_2,a_3);
+
+	if(denominator!=0)
+	{
+		pm.x = calcDeterminant3x3(b  ,a_2,a_3)/denominator;
+		pm.y = calcDeterminant3x3(a_1,b  ,a_3)/denominator;
+		pm.z = calcDeterminant3x3(a_1,a_2,b  )/denominator;
+	}
+	else pm.w = -1;//indicates error
+
+	return pm;
+}
+
+float calculateTriangleSquare(float4 v1, float4 v2, float4 v3)
+{
+	// here 'v' is for vertex or vector, anyway v1, v2, v3 are coordinates of 3 points in 3D. 
+	// 4-th coordinate is not used
+	// first calc 2 vectors: v21 and v31
+	float4 a = v2 - v1;//v21
+	float4 b = v3 - v1;//v31
+	//vector product of them
+	float4 ab = (float4)(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x, 0);
+	return sqrt(ab.x*ab.x+ab.y*ab.y+ab.z*ab.z)/2.f;
 }
 
 __kernel void computeInteractionWithMembranes(
@@ -1170,6 +1229,7 @@ __kernel void computeInteractionWithMembranes(
 	int i,j,k;//these i and j have nothing in common with id and jd indexes
 	int i_sp,j_sp,k_sp;
 	float4 pos_i,pos_j,pos_k;
+	float4 pos_p;//position of id-particle projection on membrane plane;
 
 	//check all neighbours of each particle to find those which belong to membranes.
 	//particleMembranesList(size:numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
@@ -1203,7 +1263,7 @@ __kernel void computeInteractionWithMembranes(
 						pos_k = position[k_sp];
 						mdi = mdi;
 						//printf("+%d",mli);
-						printf("\n+");
+						/*printf("\n+");
 						printf("\n[%6d]: %10f,%10f,%10f,%d\n+",	id_source_particle,
 														position[ id_source_particle ].x,
 														position[ id_source_particle ].y,
@@ -1211,9 +1271,51 @@ __kernel void computeInteractionWithMembranes(
 													(int)position[ id_source_particle ].w);
 						printf("\n[%6d]: %10f,%10f,%10f,%d",i_sp,pos_i.x,pos_i.y,pos_i.z,(int)pos_i.w);
 						printf("\n[%6d]: %10f,%10f,%10f,%d",j_sp,pos_j.x,pos_j.y,pos_j.z,(int)pos_j.w);
-						printf("\n[%6d]: %10f,%10f,%10f,%d",k_sp,pos_k.x,pos_k.y,pos_k.z,(int)pos_k.w);
+						printf("\n[%6d]: %10f,%10f,%10f,%d",k_sp,pos_k.x,pos_k.y,pos_k.z,(int)pos_k.w);*/
 
-						calculateProjectionOfPointToPlane(position[ id_source_particle ],pos_i,pos_i,pos_k);
+						pos_p = calculateProjectionOfPointToPlane(position[ id_source_particle ],pos_i,pos_j,pos_k);
+
+						// ok, we finally have projection of considered particle on the plane of i-j-k triangle.
+						// If triangle's square >0 and if projection point is inside the triangle (not outside)
+						// then this triangle is located is such way that we have to take it into account and 
+						// calculate repulsion from it. This is the sense of membranes.
+
+						if(pos_p.w==0)//no errors, all ok in previous function 
+						{
+							// now we'll consider 4 triangles and their squares:
+							// 1: i-j-k - main triangle
+							// 2: p-j-k // 'p' for projection
+							// 3: i-p-k
+							// 4: i-j-p
+							// if square(1) = square(2) + square(3) + square(4), then p is inside i-j-k
+							// otherwise (if square(1) is less than right part), p is outside 
+
+							float s1,s2,s3,s4,s_sum;
+
+							s1 = calculateTriangleSquare(pos_i,pos_j,pos_k);
+							s2 = calculateTriangleSquare(pos_p,pos_j,pos_k);
+							s3 = calculateTriangleSquare(pos_i,pos_p,pos_k);
+							s4 = calculateTriangleSquare(pos_i,pos_j,pos_p);
+							s_sum = s2 + s3 + s4;
+
+							//printf("\n%10f=?=%10f %d",s1,s_sum,(int)(s_sum/s1<1.0001));
+
+							if(s1>0)
+							{
+								if(s_sum/s1<1.0001)
+								{
+									
+									
+								}
+							}
+
+						}
+
+						/*printf("\n[%6d]: %10f,%10f,%10f,%d - projection",id_source_particle,
+							pos_id_proj_on_membrane_plane.x,
+							pos_id_proj_on_membrane_plane.y,
+							pos_id_proj_on_membrane_plane.z,
+							(int)pos_id_proj_on_membrane_plane.w);*/
 					}
 					else break;
 				}
