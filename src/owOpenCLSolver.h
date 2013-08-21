@@ -53,6 +53,7 @@ public:
 	//
 	unsigned int _run_clearMembraneBuffers();
 	unsigned int _run_computeInteractionWithMembranes();
+	unsigned int _run_computeInteractionWithMembranes_finalize();
 	//
 	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp);
 	
@@ -118,6 +119,7 @@ private:
 	//cl::Kernel prepareMembranesList;
 	cl::Kernel clearMembraneBuffers;
 	cl::Kernel computeInteractionWithMembranes;
+	cl::Kernel computeInteractionWithMembranes_finalize;
 
 };
 

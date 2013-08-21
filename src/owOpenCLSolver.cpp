@@ -60,6 +60,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		// membrane handling kernels
 		create_ocl_kernel("clearMembraneBuffers",clearMembraneBuffers);
 		create_ocl_kernel("computeInteractionWithMembranes",computeInteractionWithMembranes);
+		create_ocl_kernel("computeInteractionWithMembranes_finalize",computeInteractionWithMembranes_finalize);
 		//Copy position_cpp and velocity_cpp to the OpenCL Device
 		copy_buffer_to_device( position_cpp, position, PARTICLE_COUNT * sizeof( float ) * 4 );
 		copy_buffer_to_device( velocity_cpp, velocity, PARTICLE_COUNT * sizeof( float ) * 4 );
@@ -601,8 +602,29 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes()
 	computeInteractionWithMembranes.setArg( 7, membraneData );
 	computeInteractionWithMembranes.setArg( 8, PARTICLE_COUNT );
 	computeInteractionWithMembranes.setArg( 9, numOfElasticP );
+	computeInteractionWithMembranes.setArg(10, r0 );
 	int err = queue.enqueueNDRangeKernel(
 		computeInteractionWithMembranes, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+#if defined( __APPLE__ )
+		cl::NullRange, NULL, NULL );
+#else
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
+#endif
+#if QUEUE_EACH_KERNEL
+	queue.finish();
+#endif
+	return err;
+}
+
+unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize()
+{
+	computeInteractionWithMembranes_finalize.setArg( 0, position );
+	computeInteractionWithMembranes_finalize.setArg( 1, velocity );
+	computeInteractionWithMembranes_finalize.setArg( 2, particleIndex );
+	computeInteractionWithMembranes_finalize.setArg( 3, particleIndexBack );
+	computeInteractionWithMembranes_finalize.setArg( 4, PARTICLE_COUNT );
+	int err = queue.enqueueNDRangeKernel(
+		computeInteractionWithMembranes_finalize, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else

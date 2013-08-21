@@ -29,7 +29,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		owHelper::preLoadConfiguration();	
 											//=======================
 
-		position_cpp = new float[ 8 * PARTICLE_COUNT ];
+		position_cpp = new float[ 4 * PARTICLE_COUNT ];
 		velocity_cpp = new float[ 4 * PARTICLE_COUNT ];
 		_particleIndex = new   int[ 2 * PARTICLE_COUNT ];
 		gridNextNonEmptyCellBuffer = new unsigned int[gridCellCount+1];
@@ -93,10 +93,15 @@ double owPhysicsFluidSimulator::simulationStep()
 			iter++;
 		}while( iter < maxIteration );
 
-		ocl_solver->_run_clearMembraneBuffers();
-		ocl_solver->_run_computeInteractionWithMembranes();
 		ocl_solver->_run_pcisph_integrate();						helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+
+		/**/ocl_solver->_run_clearMembraneBuffers();
+		/**/ocl_solver->_run_computeInteractionWithMembranes();
+		/**/// compute change of coordinates due to interactions with membranes
+		/**/ocl_solver->_run_computeInteractionWithMembranes_finalize();
+
 		ocl_solver->read_position_buffer(position_cpp);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n"); 
+
 		//END PCISPH algorithm
 		printf("------------------------------------\n");
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
@@ -105,7 +110,9 @@ double owPhysicsFluidSimulator::simulationStep()
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp);
 		return helper->get_elapsedTime();
-	}catch(std::exception &e){
+	}
+	catch(std::exception &e)
+	{
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
 	}
