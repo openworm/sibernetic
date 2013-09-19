@@ -48,7 +48,7 @@ __kernel void clearBuffers(
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT )return;
 	__global float4 * nm = (__global float4 *)neighborMap;
-	int outIdx = ( id * NEIGHBOR_COUNT ) >> 1;//int4 versus int2 addressing
+	int outIdx = ( id * MAX_NEIGHBOR_COUNT ) >> 1;//int4 versus int2 addressing
 	float4 fdata = (float4)( -1, -1, -1, -1 );
 	int i,j,k,mnl;//mnl = membrane number in the list. 0..MAX_MEMBRANES_INCLUDING_SAME_PARTICLE-1
 
@@ -144,11 +144,11 @@ int searchForNeighbors(
 					// and 2nd time with mode = 1, to select 32 nearest neighbors
 					if(mode)
 					{
-						myOffset = NEIGHBOR_COUNT - spaceLeft + foundCount;
-						if(myOffset>=NEIGHBOR_COUNT) break;// New line fixing the bug with indeterminism. A. Palyanov 22.02.2013
+						myOffset = MAX_NEIGHBOR_COUNT - spaceLeft + foundCount;
+						if(myOffset>=MAX_NEIGHBOR_COUNT) break;// New line fixing the bug with indeterminism. A. Palyanov 22.02.2013
 						neighbor_data.x = neighborParticleId;
 						neighbor_data.y = _distance * simulationScale; // scaled, OK
-						neighborMap[ myParticleId*NEIGHBOR_COUNT + myOffset ] = neighbor_data;
+						neighborMap[ myParticleId*MAX_NEIGHBOR_COUNT + myOffset ] = neighbor_data;
 						foundCount++;
 					}
 				}
@@ -226,7 +226,7 @@ __kernel void findNeighbors(
 
 		searchCell_ = myCellId;
 		foundCount += searchForNeighbors( searchCell_, gridCellIndex, position_, 
-			id, sortedPosition, neighborMap, NEIGHBOR_COUNT - foundCount, 
+			id, sortedPosition, neighborMap, MAX_NEIGHBOR_COUNT - foundCount, 
 			h, simulationScale, mode, radius_distrib, r_thr );
 
 		// p is the current particle position within the bounds of the hash grid
@@ -253,37 +253,37 @@ __kernel void findNeighbors(
 
 		searchCell_ = searchCell( myCellId, delta.x, 0, 0, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
 		foundCount += searchForNeighbors( searchCell_, gridCellIndex, position_, 
-			id, sortedPosition, neighborMap, NEIGHBOR_COUNT - foundCount, 
+			id, sortedPosition, neighborMap, MAX_NEIGHBOR_COUNT - foundCount, 
 			h, simulationScale, mode, radius_distrib, r_thr  );
 
 		searchCell_ = searchCell( myCellId, 0, delta.y, 0, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
 		foundCount += searchForNeighbors( searchCell_, gridCellIndex, position_, 
-			id, sortedPosition, neighborMap, NEIGHBOR_COUNT - foundCount, 
+			id, sortedPosition, neighborMap, MAX_NEIGHBOR_COUNT - foundCount, 
 			h, simulationScale, mode, radius_distrib, r_thr  );
 
 		searchCell_ = searchCell( myCellId, 0, 0, delta.z, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
 		foundCount += searchForNeighbors( searchCell_, gridCellIndex, position_, 
-			id, sortedPosition, neighborMap, NEIGHBOR_COUNT - foundCount, 
+			id, sortedPosition, neighborMap, MAX_NEIGHBOR_COUNT - foundCount, 
 			h, simulationScale, mode, radius_distrib, r_thr  );
 
 		searchCell_ = searchCell( myCellId, delta.x, delta.y, 0, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
 		foundCount += searchForNeighbors( searchCell_, gridCellIndex, position_, 
-			id, sortedPosition, neighborMap, NEIGHBOR_COUNT - foundCount, 
+			id, sortedPosition, neighborMap, MAX_NEIGHBOR_COUNT - foundCount, 
 			h, simulationScale, mode, radius_distrib, r_thr  );
 
 		searchCell_ = searchCell( myCellId, delta.x, 0, delta.z, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
 		foundCount += searchForNeighbors( searchCell_, gridCellIndex, position_, 
-			id, sortedPosition, neighborMap, NEIGHBOR_COUNT - foundCount, 
+			id, sortedPosition, neighborMap, MAX_NEIGHBOR_COUNT - foundCount, 
 			h, simulationScale, mode, radius_distrib, r_thr  );
 
 		searchCell_ = searchCell( myCellId, 0, delta.y, delta.z, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
 		foundCount += searchForNeighbors( searchCell_, gridCellIndex, position_, 
-			id, sortedPosition, neighborMap, NEIGHBOR_COUNT - foundCount, 
+			id, sortedPosition, neighborMap, MAX_NEIGHBOR_COUNT - foundCount, 
 			h, simulationScale, mode, radius_distrib, r_thr  );
 
 		searchCell_ = searchCell( myCellId, delta.x, delta.y, delta.z, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
 		foundCount += searchForNeighbors( searchCell_, gridCellIndex, position_, 
-			id, sortedPosition, neighborMap, NEIGHBOR_COUNT - foundCount, 
+			id, sortedPosition, neighborMap, MAX_NEIGHBOR_COUNT - foundCount, 
 			h, simulationScale, mode, radius_distrib, r_thr );
 
 		if(mode==0)
@@ -293,8 +293,8 @@ __kernel void findNeighbors(
 			while(j<radius_segments)
 			{
 				distrib_sum += radius_distrib[j];
-				if(distrib_sum==NEIGHBOR_COUNT) break;
-				if(distrib_sum> NEIGHBOR_COUNT) { j--; break; }
+				if(distrib_sum==MAX_NEIGHBOR_COUNT) break;
+				if(distrib_sum> MAX_NEIGHBOR_COUNT) { j--; break; }
 				j++;
 			}
 
@@ -473,7 +473,7 @@ __kernel void pcisph_computeDensity(
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
-	int idx = id * NEIGHBOR_COUNT;
+	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
 	/*float*/double density = 0.0f;
 	float r_ij2;//squared r_ij
@@ -493,7 +493,7 @@ __kernel void pcisph_computeDensity(
 			real_nc++;
 		}
 
-	}while( ++nc < NEIGHBOR_COUNT );
+	}while( ++nc < MAX_NEIGHBOR_COUNT );
 	
 	//if(density==0.f) density = hScaled2*hScaled2*hScaled2;
 	if(density<hScaled6) density = hScaled6;
@@ -605,7 +605,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 		pressure[id] = 0.f;//initialize pressure with 0
 		return;
 	}
-	int idx = id * NEIGHBOR_COUNT;
+	int idx = id * MAX_NEIGHBOR_COUNT;
 	float hScaled = h * simulationScale;
 	float hScaled2 = hScaled*hScaled;//29aug_A.Palyanov
 
@@ -648,7 +648,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 			}
 		}
 		
-	}while(  ++nc < NEIGHBOR_COUNT );
+	}while(  ++nc < MAX_NEIGHBOR_COUNT );
 
 	accel_surfTensForce.w = 0.f;
 
@@ -724,7 +724,7 @@ __kernel void pcisph_computeElasticForces(
 	float4 p_xyzw = position[index];
 
 	int id = particleIndexBack[index + offset];
-	int idx = index * NEIGHBOR_COUNT;
+	int idx = index * MAX_NEIGHBOR_COUNT;
 	float r_ij_equilibrium, r_ij, delta_r_ij, v_i_cm_length;
 	float k = 600000000.f;// k - coefficient of elasticity
 	float4 vect_r_ij;
@@ -789,7 +789,7 @@ __kernel void pcisph_computeElasticForces(
 		}
 		else
 			break;//once we meet NO_PARTICLE_ID in the list of neighbours, it means that all the rest till the end are also NO_PARTICLE_ID
-	}while( ++nc < NEIGHBOR_COUNT );
+	}while( ++nc < MAX_NEIGHBOR_COUNT );
 
 	/*
 	if(nc>0) 
@@ -824,7 +824,7 @@ void computeInteractionWithBoundaryParticles(
 									   )
 {
 	//track selected particle (indices are not shuffled anymore)
-	int idx = id * NEIGHBOR_COUNT;
+	int idx = id * MAX_NEIGHBOR_COUNT;
 	int id_b;//index of id's particle neighbour which is a boundary particle
 	int id_b_source_particle, nc = 0;
 	float4 n_c_i = (float4)(0.f,0.f,0.f,0.f); 
@@ -852,7 +852,7 @@ void computeInteractionWithBoundaryParticles(
 			}
 		}
 	}
-	while( ++nc < NEIGHBOR_COUNT );
+	while( ++nc < MAX_NEIGHBOR_COUNT );
 
 	n_c_i_length = DOT(n_c_i,n_c_i);
 	if(n_c_i_length != 0){
@@ -944,7 +944,7 @@ __kernel void pcisph_predictDensity(
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
-	int idx = id * NEIGHBOR_COUNT;
+	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
 	/*double*/double density = 0.0f;
 	float4 r_ij;
@@ -970,7 +970,7 @@ __kernel void pcisph_predictDensity(
 			}
 		}
 
-	}while( ++nc < NEIGHBOR_COUNT );
+	}while( ++nc < MAX_NEIGHBOR_COUNT );
 	
 	//if(density==0.f) 
 	if(density<hScaled6)
@@ -1010,7 +1010,7 @@ __kernel void pcisph_correctPressure(
 	/*int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	if((int)(position[ id_source_particle ].w) == 3)
 		return;*/
-	int idx = id * NEIGHBOR_COUNT;
+	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc = 0;// neigbor counter
 	float rho_err;
 	float p_corr;
@@ -1056,7 +1056,7 @@ __kernel void pcisph_computePressureForceAcceleration(
 		acceleration[ PARTICLE_COUNT+id ] = 0.f;
 		return;
 	}
-	int idx = id * NEIGHBOR_COUNT;
+	int idx = id * MAX_NEIGHBOR_COUNT;
 	float hScaled = h * simulationScale;
 
 	//float4 position_i = sortedPosition[ id ];
@@ -1104,7 +1104,7 @@ __kernel void pcisph_computePressureForceAcceleration(
 			total_neighbors++;
 		}
 
-	}while( ++nc < NEIGHBOR_COUNT );
+	}while( ++nc < MAX_NEIGHBOR_COUNT );
 
 	/*1*/result *= (float)( ((double)mass)*gradWspikyCoefficient/((double)rho[PARTICLE_COUNT+id]) );
 	/*2*///result *= mass*gradWspikyCoefficient;
@@ -1125,8 +1125,8 @@ __kernel void clearMembraneBuffers(
 	int id = get_global_id( 0 ); 
 	if(id>=PARTICLE_COUNT) return;
 
-	position[PARTICLE_COUNT + id] = (float4)(0,0,0,0); //extra memory to store changes in considered particles's coordinates due to interaction with membranes. Need to make it = 0 every step.
-	velocity[PARTICLE_COUNT + id] = (float4)(0,0,0,0); //extra memory to store changes in considered particles's   velocity  due to interaction with membranes. Need to make it = 0 every step.
+	position[PARTICLE_COUNT + id] = (float4)(0,0,0,0); //extra memory to store changes in considered particles's coordinates due to interaction with membranes. Need to make it zero every step.
+	velocity[PARTICLE_COUNT + id] = (float4)(0,0,0,0); //extra memory to store changes in considered particles's   velocity  due to interaction with membranes. Need to make it zero every step.
 	//sortedPosition[PARTICLE_COUNT*2 + id] = (float4)(0,0,0,0); 
 }
 
@@ -1232,7 +1232,7 @@ __kernel void computeInteractionWithMembranes(
 	if((int)(position[ id_source_particle ].w) != LIQUID_PARTICLE) return;	//!!! currently we consider only liquid particles 
 																			//!!! interacting with membranes 
 	
-	int jd, idx = id * NEIGHBOR_COUNT;
+	int jd, idx = id * MAX_NEIGHBOR_COUNT;
 	int mdi;//membraneData index
 	int i,j,k;//these i and j have nothing in common with id and jd indexes
 	int i_sp,j_sp,k_sp;
@@ -1242,14 +1242,14 @@ __kernel void computeInteractionWithMembranes(
 	float  normal_to_ijk_plane_length;
 	float4 vector_id_jd;
 	float4 normal_vector_final = (float4)(0,0,0,0);
-	float4 membrane_jd_normal_vector [NEIGHBOR_COUNT];
+	float4 membrane_jd_normal_vector [MAX_NEIGHBOR_COUNT];
 	float  _distance_id_jd;
-	float  distance_id_jd [NEIGHBOR_COUNT];
-	int    membrane_jd [NEIGHBOR_COUNT];
+	float  distance_id_jd [MAX_NEIGHBOR_COUNT];
+	int    membrane_jd [MAX_NEIGHBOR_COUNT];
 	int	   membrane_jd_counter = 0;
 	int    membrane_ijk_counter = 0;
 
-	for(i=0;i<NEIGHBOR_COUNT;i++)
+	for(i=0;i<MAX_NEIGHBOR_COUNT;i++)
 	{
 		membrane_jd_normal_vector[i] = (float4)(0,0,0,0);
 		//membrane_jd[i] = -1;
@@ -1259,7 +1259,7 @@ __kernel void computeInteractionWithMembranes(
 	//particleMembranesList(size:numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
 	//was introduced to provide this possibility. The same order of indexes as in <position> buffer
 
-	for(int nc=0; nc<NEIGHBOR_COUNT; nc++)//nc - neighbour counter
+	for(int nc=0; nc<MAX_NEIGHBOR_COUNT; nc++)//nc - neighbour counter
 	{//search for membrane particles through all id-th particle neighbours
 	//11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 		if( (jd = NEIGHBOR_MAP_ID( neighborMap[ idx + nc ])) != NO_PARTICLE_ID)
@@ -1367,16 +1367,6 @@ __kernel void computeInteractionWithMembranes(
 							s_sum = s2 + s3 + s4;
 
 							//printf("\n%10f=?=%10f %d",s1,s_sum,(int)(s_sum/s1<1.0001));
-
-							if(s1>0)
-							{
-								if(s_sum/s1<1.0001)
-								{
-									
-									
-								}
-							}
-
 						}*/
 
 						/*printf("\n[%6d]: %10f,%10f,%10f,%d - projection",id_source_particle,
@@ -1397,8 +1387,7 @@ __kernel void computeInteractionWithMembranes(
 				}
 
 				//here for pair id - jd summary normal vector for jd particle (if it belongs to membrane) is already calculated and we can use it
-
-			
+		
 				//r_ij = NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc] );
 			}
 		}
@@ -1415,6 +1404,7 @@ __kernel void computeInteractionWithMembranes(
 		float4 n_m;
 		float w_c_im, w_c_im_sum = 0.f, w_c_im_second_sum = 0.f;
 		float4 delta_pos;
+		float4 velocity_membrane_average = (float4)(0.f,0.f,0.f,0.f); 
 		float n_c_i_length,x_im_dist;
 		int id_m_source_particle;//index of i-th particle's (current) neighbours which are membrane particles
 								// they are already in the list <membrane_jd>
@@ -1430,6 +1420,8 @@ __kernel void computeInteractionWithMembranes(
 			w_c_im_sum += w_c_im;							//Ihmsen et. al., 2010, page 4, formula (11), sum #1
 			w_c_im_second_sum += w_c_im * (r0 - x_im_dist); //Ihmsen et. al., 2010, page 4, formula (11), sum #2
 
+			velocity_membrane_average += velocity[PARTICLE_COUNT+id_m_source_particle];
+
 		}//333333333333333333333333333333333333333333333333333333333333333333333333
 		while( ++nc < membrane_jd_counter );
 
@@ -1444,9 +1436,15 @@ __kernel void computeInteractionWithMembranes(
 			position[PARTICLE_COUNT+id_source_particle].x += delta_pos.x;		//
 			position[PARTICLE_COUNT+id_source_particle].y += delta_pos.y;		// Ihmsen et. al., 2010, page 4, formula (11)
 			position[PARTICLE_COUNT+id_source_particle].z += delta_pos.z;		//
-			//velocity[id_source_particle].x = 0;
-			//velocity[id_source_particle].y = 0;
-			//velocity[id_source_particle].z = 0;
+
+			velocity_membrane_average += velocity[PARTICLE_COUNT+id_source_particle];
+			velocity_membrane_average /= (membrane_jd_counter+1);
+			
+			//change of velocity for id_source_particle after interaction with membrane(s).
+			//will be applied in function computeInteractionWithMembranes_finalize
+			//velocity[PARTICLE_COUNT+id_source_particle].x = velocity_membrane_average.x;
+			//velocity[PARTICLE_COUNT+id_source_particle].y = velocity_membrane_average.y;
+			//velocity[PARTICLE_COUNT+id_source_particle].z = velocity_membrane_average.z;
 
 			//change of coordinates for involved membrane particles
 			nc = 0;
@@ -1458,12 +1456,15 @@ __kernel void computeInteractionWithMembranes(
 				n_m = membrane_jd_normal_vector[nc];
 				n_c_i += n_m * w_c_im;							//Ihmsen et. al., 2010, page 4, formula (9)
 				delta_pos = -((n_c_i/n_c_i_length)*w_c_im*(r0 - x_im_dist))/w_c_im_sum;	//adaptation for membranes case
-				position[PARTICLE_COUNT+id_m_source_particle].x += delta_pos.x;		//
-				position[PARTICLE_COUNT+id_m_source_particle].y += delta_pos.y;		// Ihmsen et. al., 2010, page 4, formula (11) (adaptation for membranes case)
-				position[PARTICLE_COUNT+id_m_source_particle].z += delta_pos.z;		//
+				//position[PARTICLE_COUNT+id_m_source_particle].x += delta_pos.x;		//
+				//position[PARTICLE_COUNT+id_m_source_particle].y += delta_pos.y;		// Ihmsen et. al., 2010, page 4, formula (11) (adaptation for membranes case)
+				//position[PARTICLE_COUNT+id_m_source_particle].z += delta_pos.z;		//
 				//velocity[id_m_source_particle].x = 0;
 				//velocity[id_m_source_particle].y = 0;
 				//velocity[id_m_source_particle].z = 0;
+			//	velocity[PARTICLE_COUNT+id_m_source_particle].x = velocity_membrane_average.x;
+			//	velocity[PARTICLE_COUNT+id_m_source_particle].y = velocity_membrane_average.y;
+			//	velocity[PARTICLE_COUNT+id_m_source_particle].z = velocity_membrane_average.z;
 			}//44444444444444444444444444444444444444444444444444444444444444444444444
 			while( ++nc < membrane_jd_counter );
 
@@ -1499,11 +1500,20 @@ __kernel void computeInteractionWithMembranes_finalize(
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	int jd_source_particle;
 	float4 position_ = position[ id ];
+	float v2;
 	
 	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE) return;
 	//if((int)(position[ id_source_particle ].w) != LIQUID_PARTICLE) return;	//!!! currently we consider only liquid particles 
 																			//!!! interacting with membranes 
 	position[ id_source_particle ] += position[ PARTICLE_COUNT + id_source_particle ];
+	
+	/*
+	velocity[ PARTICLE_COUNT + id_source_particle ].w = 0;
+	v2 = DOT(velocity[ PARTICLE_COUNT + id_source_particle ],velocity[ PARTICLE_COUNT + id_source_particle ]);
+
+	if(v2>0.f)
+	velocity[ id_source_particle ] = velocity[ PARTICLE_COUNT + id_source_particle ];
+	*/
 }
 
 __kernel void pcisph_integrate(

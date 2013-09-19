@@ -14,7 +14,7 @@ const float mass = 3.25e-14f;// kg // we need 3.25e-14 kg
 
 const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);
 
-const float h = 3.34f;//pow((( 3 * mass * (float)NEIGHBOR_COUNT )/( 4 * M_PI * rho0 )), 1.f/3.f ) / simulationScale; //3.34f;
+const float h = 3.34f;//pow((( 3 * mass * (float)MAX_NEIGHBOR_COUNT )/( 4 * M_PI * rho0 )), 1.f/3.f ) / simulationScale; //3.34f;
 const float hashGridCellSize = 2.0f * h;
 const float hashGridCellSizeInv = 1.0f / hashGridCellSize;
 const float simulationScaleInv = 1.0f / simulationScale;

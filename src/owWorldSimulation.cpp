@@ -98,12 +98,12 @@ void display(void)
 	ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
 	
 	//if(generateInitialConfiguration)
-	for(int i_ec=0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
+	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
 	{
 		//offset = 0
 		if((j=(int)ec_cpp[ 4 * i_ec + 0 ])>=0)
 		{
-			i = (i_ec / NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
+			i = (i_ec / MAX_NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
 
 			glColor4b(255/2, 125/2, 0, 100/2/*alpha*/);
 			if(ec_cpp[ 4 * i_ec + 2 ]>1.f) glColor4b(255/2, 0, 0, 255/2/*alpha*/);
@@ -120,6 +120,7 @@ void display(void)
 
 	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
 
+	/**//*
 	for(int i_m = 0; i_m < numOfMembranes; i_m++)
 	{
 		i = md_cpp [i_m*3+0];
@@ -147,7 +148,7 @@ void display(void)
 		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-XMAX/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-YMAX/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-ZMAX/2)*sc );
 		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-ZMAX/2)*sc );
 		glEnd();
-	}
+	}/**/
 
 
 	glEnd();
@@ -632,7 +633,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 		glutInitWindowSize(800, 600);
 		glutInitWindowPosition(100, 100);
-		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter demo [2013]");
+		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes demo [2013]");
 		glutIdleFunc (idle); 
 		glEnable(GL_LIGHTING);
 		glEnable(GL_LIGHT0);

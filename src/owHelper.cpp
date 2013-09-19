@@ -78,6 +78,157 @@ void owHelper::log_bufferi(const int * buffer, const int element_size, const int
 	}
 }
 
+int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp)
+{
+	int segmentsCount;// = 10;
+	float alpha;// = 2.f*3.14159f/segmentsCount;
+	float coeff = 0.23f;
+	float wormBodyRadius;// = h*coeff / sin(alpha/2);
+	int pCount = 0;//particle counter
+	int i,j;
+	float value;
+	float *positionVector;
+	float *velocityVector;
+	float x = XMAX/2.f;
+	float y = YMAX*(0.48f);
+	float z = ZMAX/2.f;
+
+	// makeworm
+	// outer worm shell elastic cylinder generation
+	
+	for( j = -39; j <= 39; ++j)
+	{
+		value = 20*20-j*j/4;
+		if(value>=0)
+		{
+		segmentsCount = (int)sqrt(value);
+		alpha = 2.f*3.14159f/segmentsCount;
+		wormBodyRadius = h*coeff / sin(alpha/2);
+
+		if(wormBodyRadius>=1.7f*h*coeff) 
+		{
+			for(int cylinderLayers = 1; cylinderLayers<= 1; cylinderLayers++ )
+			{
+				float pdist_coeff = 2.0;//2.0f;
+
+				for( i = 0 ; i < segmentsCount; ++i )
+				{
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					velocityVector = velocity_cpp + 4 * (pCount+i_start);
+
+					if(stage==1)
+					{
+						positionVector[ 0 ] = x + wormBodyRadius*sin(alpha*i);
+						positionVector[ 1 ] = y + wormBodyRadius*cos(alpha*i);
+						positionVector[ 2 ] = z + pdist_coeff*h*coeff*(float)j ;
+						positionVector[ 3 ] = 2.1f;// 2 = elastic matter
+						if(cylinderLayers>9) positionVector[ 3 ] = 1.1f;// 1 = liquid
+
+						velocityVector[ 0 ] = 0;
+						velocityVector[ 1 ] = 0;
+						velocityVector[ 2 ] = 0;
+						velocityVector[ 3 ] = 0;
+					}
+
+					pCount++;
+				}
+
+				if(wormBodyRadius<1.9f*2.f*h*coeff) 
+				{
+					break;
+				}
+				
+				//if(cylinderLayers>4) pdist_coeff = 1.7f;
+
+				segmentsCount *= (wormBodyRadius - pdist_coeff*h*coeff);
+				segmentsCount /= wormBodyRadius;
+				wormBodyRadius -= pdist_coeff*h*coeff;
+				
+				alpha = 2.f*3.14159f/segmentsCount;
+			}
+		}
+		}
+	}
+
+	return pCount;
+}
+
+int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp)
+{
+	int segmentsCount;// = 10;
+	float alpha;// = 2.f*3.14159f/segmentsCount;
+	float coeff = 0.23f;
+	float wormBodyRadius;// = h*coeff / sin(alpha/2);
+	int pCount = 0;//particle counter
+	int i,j;
+
+	float *positionVector;
+	float *velocityVector;
+	float x = XMAX/2.f;
+	float y = YMAX*(0.48f);
+	float z = ZMAX/2.f;
+	float value;
+
+	// makeworm
+	// outer worm shell elastic cylinder generation
+	
+	for( j = -39; j <= 39; ++j)
+	{
+		value = 18*18-j*j/4;
+		if(value>=0)
+		{
+		segmentsCount = (int)sqrt(value);
+		alpha = 2.f*3.14159f/segmentsCount;
+		wormBodyRadius = h*coeff / sin(alpha/2);
+
+		if(wormBodyRadius>=1.7f*h*coeff) 
+		{
+			for(int cylinderLayers = 1; cylinderLayers<= 10; cylinderLayers++ )
+			{
+				float pdist_coeff = 2.0;//2.0f;
+
+				for( i = 0 ; i < segmentsCount; ++i )
+				{
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					velocityVector = velocity_cpp + 4 * (pCount+i_start);
+
+					if(stage==1)
+					{
+						positionVector[ 0 ] = x + wormBodyRadius*sin(alpha*i);
+						positionVector[ 1 ] = y + wormBodyRadius*cos(alpha*i);
+						positionVector[ 2 ] = z + pdist_coeff*h*coeff*(float)j ;
+						positionVector[ 3 ] = 1.1f;// 1 = liquid matter
+						//if(cylinderLayers>9) positionVector[ 3 ] = 1.1f;// 1 = liquid
+
+						velocityVector[ 0 ] = 0;
+						velocityVector[ 1 ] = 0;
+						velocityVector[ 2 ] = 0;
+						velocityVector[ 3 ] = 0;
+					}
+
+					pCount++;
+				}
+
+				if(wormBodyRadius<1.9f*2.f*h*coeff) 
+				{
+					break;
+				}
+				
+				//if(cylinderLayers>4) pdist_coeff = 1.7f;
+
+				segmentsCount *= (wormBodyRadius - pdist_coeff*h*coeff);
+				segmentsCount /= wormBodyRadius;
+				wormBodyRadius -= pdist_coeff*h*coeff;
+				
+				alpha = 2.f*3.14159f/segmentsCount;
+			}
+		}
+		}
+	}
+
+	return pCount;
+}
+
 
 void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp)
 {
@@ -102,16 +253,17 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int nEz = 9*0;//25
 	int nMuscles = 5;
 	int nM,nMi,nMj;
+	int wormIndex_start,wormIndex_end;
 	//int numOfMembraneParticles = (nx*2/3-3)*(nz*2/3-3);
-	int numOfMembraneParticles = (nx-3)*(nz-3);
+	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp) + (nx-3)*(nz-3);
 
 	if(stage==0)
 	{
-		numOfLiquidP = 0;
+		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp);;
 		numOfElasticP = nEx*nEy*nEz * nMuscles + numOfMembraneParticles;
 		numOfBoundaryP = 0;
 
-		if(numOfElasticP<=0) elasticConnectionsData_cpp = NULL; else elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
+		if(numOfElasticP<=0) elasticConnectionsData_cpp = NULL; else elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
 	}
 
 	//=============== create elastic particles ==================================================
@@ -119,6 +271,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	{
 		p_type = ELASTIC_PARTICLE;
 
+		/*
 		for(nM=0;nM<nMuscles;nM++)
 		for(x=0;x<nEx;x+=1.f)
 		for(y=0;y<nEy;y+=1.f)
@@ -136,9 +289,12 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			velocity_cpp[ 4 * i + 3 ] = p_type;
 
 			i++;
-		}
+		}*/
+		
 
-		//now add membrane
+
+		//now add membrane particles
+		//their number should be precisely = numOfMembraneParticles
 		for(x=2;x<nx-1.5;x+=1.0)
 		for(z=2;z<nz-1.5;z+=1.0)
 		{
@@ -154,13 +310,17 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			velocity_cpp[ 4 * i + 3 ] = p_type;
 
 			i++;
-		}
+		}//==================================
+
+		wormIndex_start = i;
+		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp);
+		wormIndex_end = i;
 
 		float r2ij;
 		float dx2,dy2,dz2;
 
 		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
-		for(int ii = 0; ii < numOfElasticP * NEIGHBOR_COUNT; ii++)
+		for(int ii = 0; ii < numOfElasticP * MAX_NEIGHBOR_COUNT; ii++)
 		{
 			ecc = 0;
 
@@ -171,14 +331,10 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		}
 
 
+		/*!*///numOfElasticP -= numOfMembraneParticles;
 
-			//if(ecc>=NEIGHBOR_COUNT) break;
-			///////////////debug////////////
-		
-
-
-		/*!*/numOfElasticP -= numOfMembraneParticles;
-
+		/*
+		//for defining connections between muscles particles
 		for(int i_ec = 0; i_ec < numOfElasticP; i_ec++)
 		{
 			ecc = 0;
@@ -201,21 +357,22 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 					if(r2ij<=r0*r0*3.05f)
 					{
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 0 ] = ((float)j_ec) + 0.1f;				// index of j-th particle in a pair connected with spring
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 1 ] = (float)sqrt(r2ij)*simulationScale;	// resting density; that's why we use float type for elasticConnectionsData_cpp
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0;							// type of connection; 0 - ordinary spring, 1 - muscle
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 0 ] = ((float)j_ec) + 0.1f;				// index of j-th particle in a pair connected with spring
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 1 ] = (float)sqrt(r2ij)*simulationScale;	// resting density; that's why we use float type for elasticConnectionsData_cpp
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0;							// type of connection; 0 - ordinary spring, 1 - muscle
 						if(nMi==nMj)
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0 + (1.1f+nMi)*((dz2>100*dx2)&&(dz2>100*dy2));// this line is for muscles
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 3 ] = 0;									// not in use yet
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0 + (1.1f+nMi)*((dz2>100*dx2)&&(dz2>100*dy2));// this line is for muscles
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 3 ] = 0;									// not in use yet
 						ecc++;
 					}
 
-					if(ecc>=NEIGHBOR_COUNT) break;
+					if(ecc>=MAX_NEIGHBOR_COUNT) break;
 				}
 			}
 		}
+		*/
 
-		/*!*/numOfElasticP += numOfMembraneParticles;
+		/*!*///numOfElasticP += numOfMembraneParticles;
 
 		//and connections between them
 		/*
@@ -225,10 +382,10 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		elasticConnections[ 4 * 0 + 3 ] = 0;
 
 		
-		elasticConnections[ 4 * NEIGHBOR_COUNT + 0 ] = 0.1f;//connect elastic particles 0 and 1
-		elasticConnections[ 4 * NEIGHBOR_COUNT + 1 ] = r0*simulationScale;
-		elasticConnections[ 4 * NEIGHBOR_COUNT + 2 ] = 0;
-		elasticConnections[ 4 * NEIGHBOR_COUNT + 3 ] = 0;
+		elasticConnections[ 4 * MAX_NEIGHBOR_COUNT + 0 ] = 0.1f;//connect elastic particles 0 and 1
+		elasticConnections[ 4 * MAX_NEIGHBOR_COUNT + 1 ] = r0*simulationScale;
+		elasticConnections[ 4 * MAX_NEIGHBOR_COUNT + 2 ] = 0;
+		elasticConnections[ 4 * MAX_NEIGHBOR_COUNT + 3 ] = 0;
 		*/
 
 
@@ -268,6 +425,13 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		i++; // necessary for both stages
 	}*/
 
+	if(stage==1)
+	{
+		i += generateInnerWormLiquid(stage,i,position_cpp,velocity_cpp);
+	}
+
+	/**/
+
 	for(x = (XMAX-XMIN)/2-(6+18*0)*r0;x<(XMAX-XMIN)/2+r0*(6+18*0);x += r0)
 	for(y = r0*79-25*0;y<(YMAX-YMIN)*0.0+r0*92;y += r0)
 	for(z = (ZMAX-ZMIN)/2-(6+30*0)*r0;z<(ZMAX-ZMIN)/2+r0*(6+30*0);z += r0)
@@ -287,19 +451,20 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			position_cpp[ 4 * i + 3 ] = p_type;
 
 			velocity_cpp[ 4 * i + 0 ] = 0;
-			velocity_cpp[ 4 * i + 1 ] = -0.027;
+			velocity_cpp[ 4 * i + 1 ] = 0;
 			velocity_cpp[ 4 * i + 2 ] = 0;
 			velocity_cpp[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
 		}
 
 		i++; // necessary for both stages
-	}
+		if(stage==0) numOfLiquidP++;
+	}/**/
 	// end
 
 
 	if(stage==0) 
 	{
-		numOfLiquidP = i;// - numOfElasticP;
+		//numOfLiquidP = i;// - numOfElasticP;
 		numOfBoundaryP = 2 * ( nx*ny + (nx+ny-2)*(nz-2) ); 
 	}
 	else
@@ -473,6 +638,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 		//numOfMembranes = 2;
 		numOfMembranes = (nz-3-1-2*2)*(nx-3-1-2*2)*2;
+		numOfMembranes = 36836;
 	}
 	else
 	if(stage==1)
@@ -515,6 +681,71 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		}
 		// end of membranes creation
 
+		///////////////debug////////////
+		int j;
+		int array_j[MAX_NEIGHBOR_COUNT];
+		//int j_count=0;
+		//int array_k[MAX_NEIGHBOR_COUNT];
+		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
+		{
+			float dx2,dy2,dz2,r2_ij,r_ij;
+			int k;
+			ecc = 0;//!important!
+			//        _____1_______      2       _____3________       
+			for(j=0;j<numOfElasticP+numOfLiquidP+numOfBoundaryP;j++)
+			{
+				if(j==numOfElasticP) j+= numOfLiquidP;//skip liquid particles (they are located in the middle of memory) as candidates to spring connections
+
+				dx2 = (position_cpp[ 4 * i + 0 ] - position_cpp[ 4 * j + 0 ]); dx2 *= dx2;
+				dy2 = (position_cpp[ 4 * i + 1 ] - position_cpp[ 4 * j + 1 ]); dy2 *= dy2;
+				dz2 = (position_cpp[ 4 * i + 2 ] - position_cpp[ 4 * j + 2 ]); dz2 *= dz2;
+				r2_ij = dx2 + dy2 + dz2;
+				r_ij = (float)sqrt(r2_ij);
+
+				//if(r_ij<=r0*2*sqrt(/*3.2*/1.7))//grid = 1.5*r0
+				if(r_ij<=r0*sqrt(/*3.2*/2.7))//grid = 1.0*r0
+				{
+					elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
+					elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.6;	// resting density; that's why we use float type for elasticConnectionsData_cpp
+					elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
+					elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
+					array_j[ecc] = j;
+					ecc++;
+				}
+			}
+			/////////
+			if((i>=wormIndex_start)&&(i<=wormIndex_end))
+			if(ecc>=2)
+			{
+				for(j=0;j<ecc;j++)
+				{
+					for(k=0;k<ecc;k++)
+					{
+						if(j!=k)
+						if((i!=array_j[j])&&(i!=array_j[k]))
+						if((array_j[j]>=wormIndex_start)&&(array_j[k]<=wormIndex_end))
+						if((array_j[j]>=wormIndex_start)&&(array_j[k]<=wormIndex_end))
+						{
+							dx2 = (position_cpp[ 4 * array_j[j] + 0 ] - position_cpp[ 4 * array_j[k] + 0 ]); dx2 *= dx2;
+							dy2 = (position_cpp[ 4 * array_j[j] + 1 ] - position_cpp[ 4 * array_j[k] + 1 ]); dy2 *= dy2;
+							dz2 = (position_cpp[ 4 * array_j[j] + 2 ] - position_cpp[ 4 * array_j[k] + 2 ]); dz2 *= dz2;
+							r2_ij = dx2 + dy2 + dz2;
+							r_ij = (float)sqrt(r2_ij);
+
+							if(r_ij<=r0*sqrt(2.7))//grid = 1.0*r0
+							{
+								membraneData_cpp [mc*3+0] = i;
+								membraneData_cpp [mc*3+1] = array_j[j];
+								membraneData_cpp [mc*3+2] = array_j[k];
+								mc++;
+							}
+						}
+					}
+				}
+			}
+			/////////
+		}
+
 		for(int _mc = 0; _mc < mc*3; _mc++)
 		{
 			int particle_index;
@@ -523,47 +754,13 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				if(particleMembranesList_cpp [particle_index = membraneData_cpp [_mc]*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE+sli]==-1)
 				{
 					particleMembranesList_cpp [particle_index] = _mc/3;
-					//if(sli>=5) { sli = sli; }
 					break;
 				}
 			}		
 		}
-		
-
-		///////////////debug////////////
-		int j;
-		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
-		{
-			ecc = 0;
-			for(j=0;j<numOfLiquidP+numOfElasticP+numOfBoundaryP;j++)
-			{
-				if(j==numOfElasticP) j+= numOfLiquidP;//skip liquid particles as candidates to spring connections
-
-				//ecc = 0;//!important!
-				//float xi,yi,zi,xj,yj,zj;
-				//int i_ec = numOfElasticP - numOfMembraneParticles;
-				//int j_ec = numOfElasticP - numOfMembraneParticles + 1;
-				//int j_ec = 11616;//last liquid particle
-				//int j_ec = 11616+1+ny*2*nx*2-7040+1;//1-st boundary particle
-
-				float dx2 = (position_cpp[ 4 * i + 0 ] - position_cpp[ 4 * j + 0 ]); dx2 *= dx2;
-				float dy2 = (position_cpp[ 4 * i + 1 ] - position_cpp[ 4 * j + 1 ]); dy2 *= dy2;
-				float dz2 = (position_cpp[ 4 * i + 2 ] - position_cpp[ 4 * j + 2 ]); dz2 *= dz2;
-				float r2_ij = dx2 + dy2 + dz2;
-				float r_ij = (float)sqrt(r2_ij);
-
-				//if(r_ij<=r0*2*sqrt(/*3.2*/1.7))//grid = 1.5 r0
-				if(r_ij<=r0*sqrt(/*3.2*/2.7))//grid = 1.0 r0
-				{
-					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
-					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.6;	// resting density; that's why we use float type for elasticConnectionsData_cpp
-					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
-					elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
-					ecc++;
-				}
-			}
-		}
 	}
+
+
 
 	return;
 }
@@ -651,9 +848,9 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		//TODO NEXT BLOCK WILL BE new load of elastic connections
 		if(numOfElasticP != 0){
 			ifstream elasticConectionsFile ("./configuration/elasticconnections.txt");
-			elasticConnections = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
+			elasticConnections = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
 			/*int numElasticConnections = 0;
-			for(i=0;i<numOfElasticP * NEIGHBOR_COUNT;i++)
+			for(i=0;i<numOfElasticP * MAX_NEIGHBOR_COUNT;i++)
 			{
 				elasticConnections[ 4 * i + 0 ] = NO_PARTICLE_ID;
 			}*/

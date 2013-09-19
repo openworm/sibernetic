@@ -32,7 +32,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
 		create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 		create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
-		create_ocl_buffer( "neighborMap", neighborMap, CL_MEM_READ_WRITE, ( NEIGHBOR_COUNT * PARTICLE_COUNT * sizeof( float ) * 2 ) );
+		create_ocl_buffer( "neighborMap", neighborMap, CL_MEM_READ_WRITE, ( MAX_NEIGHBOR_COUNT * PARTICLE_COUNT * sizeof( float ) * 2 ) );
 		create_ocl_buffer( "particleIndex", particleIndex, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( unsigned int ) * 2 ) );
 		create_ocl_buffer( "particleIndexBack", particleIndexBack, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( unsigned int ) ) );
 		create_ocl_buffer( "position", position, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * (1 + 1/*1 extra, for membrane handling*/)) );
@@ -81,8 +81,8 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		}
 		//elastic connections
 		if(elasticConnectionsData_cpp != NULL){
-			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
-			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * NEIGHBOR_COUNT * sizeof(float) * 4);
+			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
 		}
 
 	}catch( std::exception &e ){
