@@ -904,8 +904,8 @@ __kernel void pcisph_predictPositions(
 	id = particleIndexBack[id];
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
 	float4 position_ = sortedPosition[ id ];
-	if((int)(position[ id_source_particle ].w) == 3){
-		sortedPosition[PARTICLE_COUNT+id] = position_;//this line was missing (absent) and caused serions errors in program behavior
+	if((int)(position[ id_source_particle ].w) == 3){//stationary (boundary) particles, right?
+		sortedPosition[PARTICLE_COUNT+id] = position_;//this line was missing (absent) and this fact caused serions errors in program behavior
 		return;
 	}
 	float4 acceleration_ = acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ];
@@ -921,6 +921,45 @@ __kernel void pcisph_predictPositions(
 	//computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_,PARTICLE_COUNT);
 	sortedPosition[PARTICLE_COUNT+id] = newPosition_;// in current version sortedPosition array has double size, 
 													 // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
+
+	/*
+	float4 dr = newPosition_ - position_;
+	float dr2 = (newPosition_.x - position_.x)*(newPosition_.x - position_.x)+
+				(newPosition_.y - position_.y)*(newPosition_.y - position_.y)+
+				(newPosition_.z - position_.z)*(newPosition_.z - position_.z);
+	dr2 = sqrt(dr2);*/
+
+	//if(dr2>0.08)
+	//	printf("\n~[%d]-(%f)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",id,dr2);
+
+	int status = 0;
+
+	if(!(	(position_.x>=0)&&(position_.x<=xmax)&&
+			(position_.y>=0)&&(position_.y<=ymax)&&
+			(position_.z>=0)&&(position_.z<=zmax) ))
+	{
+		printf("\nError: position_[%d] coordinates: %f , %f , %f out of the world space\n",id,position_.x,position_.y,position_.z);
+		status=1;
+	}
+
+	if(!(	(newPosition_.x>=0)&&(newPosition_.x<=xmax)&&
+			(newPosition_.y>=0)&&(newPosition_.y<=ymax)&&
+			(newPosition_.z>=0)&&(newPosition_.z<=zmax) ))
+	{
+		printf("\n position_[%d]	: %f , %f , %f ",id,position_.x,position_.y,position_.z);
+		printf("\n velocity_[%d]	: %f , %f , %f ",id,velocity_.x,velocity_.y,velocity_.z);
+		printf("\n acceleration_[id]: %f , %f , %f ",acceleration[id].x,acceleration[id].y,acceleration[id].z);
+		printf("\n acceleration_[PARTICLE_COUNT+id]: %f , %f , %f ",acceleration[PARTICLE_COUNT+id].x,acceleration[PARTICLE_COUNT+id].y,acceleration[PARTICLE_COUNT+id].z);
+		printf("\nError: newPosition_[%d] coordinates: %f , %f , %f out of the world space\n",id,newPosition_.x,newPosition_.y,newPosition_.z);
+		status=1;
+	}
+
+	/*
+	if(status==1)
+	for(int i=0;i<10000;i++)
+	{
+		printf(":");
+	}*/
 }
 
 
@@ -956,6 +995,19 @@ __kernel void pcisph_predictDensity(
 	int jd;
 	int real_nc = 0;
 
+	//if((int)(sortedPosition[/*PARTICLE_COUNT+*/id].w) == LIQUID_PARTICLE)
+	/*for(int k = 0; k<PARTICLE_COUNT; k++)
+	{
+		if(id!=k)
+		if( (sortedPosition[PARTICLE_COUNT+id].x==sortedPosition[PARTICLE_COUNT+k].x)&&
+			(sortedPosition[PARTICLE_COUNT+id].y==sortedPosition[PARTICLE_COUNT+k].y)&&
+			(sortedPosition[PARTICLE_COUNT+id].z==sortedPosition[PARTICLE_COUNT+k].z)	)
+			{
+				printf("@@@@@@@@@@@@@@@@@@@@@@@|>>[%d]-[%d]<<|@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",id,k);
+
+			}
+	}*/
+
 	do// gather density contribution from all neighbors (if they exist)
 	{
 		if( (jd = NEIGHBOR_MAP_ID( neighborMap[ idx + nc ])) != NO_PARTICLE_ID )
@@ -967,6 +1019,12 @@ __kernel void pcisph_predictDensity(
 			{
 				density += (hScaled2-r_ij2)*(hScaled2-r_ij2)*(hScaled2-r_ij2);
 				real_nc++;
+			}
+
+			if(r_ij2==0)
+			{
+				//printf("\a\n");
+				printf("@@@|>>[%d]-[%d]<<|@@@ %E @@@@ (%f) (%f) ####",id,jd,((double)r_ij2),sortedPosition[PARTICLE_COUNT+id].w,sortedPosition[PARTICLE_COUNT+jd].w );
 			}
 		}
 
@@ -1090,6 +1148,12 @@ __kernel void pcisph_computePressureForceAcceleration(
 				/*2*///value = -(hScaled-r_ij)*(hScaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
 				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
 				vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
+				if(r_ij==0.0f) 
+				{
+					printf("\n> Error!: r_ij: %f ",r_ij);
+					printf("\n> sortedPosition[%d]	: %f , %f , %f ",id,sortedPosition[id].x,sortedPosition[id].y,sortedPosition[id].z);
+					printf("\n> sortedPosition[%d]	: %f , %f , %f ",jd,sortedPosition[jd].x,sortedPosition[jd].y,sortedPosition[jd].z);
+				}
 				result += value*vr_ij/r_ij;
 				//result = result;
 
@@ -1111,6 +1175,22 @@ __kernel void pcisph_computePressureForceAcceleration(
 	//
 	//result = -2.f*mass*pressure[id]*sum_gradW/(rho0*rho0);
 	//result.w = 0.0f;
+
+	if(!(	(result.x>=-10000)&&(result.x<=10000)&&
+			(result.y>=-10000)&&(result.y<=10000)&&
+			(result.z>=-10000)&&(result.z<=10000) ))
+	{
+		printf("\n Error!: acceleration_[PARTICLE_COUNT+id]: %f , %f , %f ",result.x,result.y,result.z);
+		printf("\n rho[PARTICLE_COUNT+id]: %f",rho[PARTICLE_COUNT+id]);
+		printf("\n mass: %E",((double)mass));
+		printf("\n gradWspikyCoefficient: %f",gradWspikyCoefficient);
+/*		printf("\n velocity_[%d]	: %f , %f , %f ",id,velocity_.x,velocity_.y,velocity_.z);
+		printf("\n acceleration_[id]: %f , %f , %f ",acceleration[id].x,acceleration[id].y,acceleration[id].z);
+		printf("\n acceleration_[PARTICLE_COUNT+id]: %f , %f , %f ",acceleration[PARTICLE_COUNT+id].x,acceleration[PARTICLE_COUNT+id].y,acceleration[PARTICLE_COUNT+id].z);
+		printf("\nError: newPosition_[%d] coordinates: %f , %f , %f out of the world space\n",id,newPosition_.x,newPosition_.y,newPosition_.z);
+*/
+	}
+
 	acceleration[ PARTICLE_COUNT+id ] = result; // pressureForceAcceleration "=" or "+=" ???
 
 }
@@ -1539,7 +1619,8 @@ __kernel void pcisph_integrate(
 						__global float * rho,
 						float r0,
 						__global float2 * neighborMap,
-						int PARTICLE_COUNT
+						int PARTICLE_COUNT,
+						int iterationCount
 						)
 {
 	int id = get_global_id( 0 ); 
@@ -1579,7 +1660,7 @@ __kernel void pcisph_integrate(
 	}*/
 	//else//if mode==1
 
-	// in Chao Fang version here is also acceleration 'speed limit' applied
+	// in Chao Fang realization here is also acceleration 'speed limit' applied
 
 	if(newPosition_.x<xmin) newPosition_.x = xmin;//A.Palyanov 30.08.2012
 	if(newPosition_.y<ymin) newPosition_.y = ymin;//A.Palyanov 30.08.2012
@@ -1596,5 +1677,47 @@ __kernel void pcisph_integrate(
 	velocity[ id_source_particle ] = newVelocity_;//newVelocity_;
 	position[ id_source_particle ] = newPosition_;
 	position[ id_source_particle ].w = particleType;
+
+	/*
+	if( (newPosition_.x>60.477958)&&(newPosition_.x<60.477960)&&
+		(newPosition_.y>104.181762)&&(newPosition_.y<104.181764)&&
+		(newPosition_.z>59.417441)&&(newPosition_.z<59.417443))
+	{
+		printf("!here it is! [ %d | %d | %d ]\n",get_global_id( 0 ),id,id_source_particle);
+		printf("*** position_: %f, %f, %f ***\n",position_.x,position_.y,position_.z);
+		printf("*** newVelocity_: %f, %f, %f ***\n",newVelocity_.x,newVelocity_.y,newVelocity_.z);
+	}
+
+	if( (newPosition_.x>60.486682)&&(newPosition_.x<60.486684)&&
+		(newPosition_.y>104.16377)&&(newPosition_.y<104.16379)&&
+		(newPosition_.z>59.418760)&&(newPosition_.z<59.418780))
+	{
+		printf("!here it is! [ %d | %d | %d ]\n",get_global_id( 0 ),id,id_source_particle);
+		printf("*** position_: %f, %f, %f ***\n",position_.x,position_.y,position_.z);
+		printf("*** newVelocity_: %f, %f, %f ***\n",newVelocity_.x,newVelocity_.y,newVelocity_.z);
+	}*/
+
+	if(id_source_particle==30)
+	printf(">>> %d <<<\n",iterationCount);
+	
+	if((id_source_particle==30)/*||(id_source_particle==55)*/)
+	{
+		printf("\n>>> position_[%d] %f, %f, %f",id_source_particle,position_.x,position_.y,position_.z);
+		if(id_source_particle==30)
+		{
+			//int jd_source_particle = PI_SERIAL_ID( particleIndex[55] );
+			
+			int jd = particleIndexBack[31];
+			printf("\n>>> position_[%d] %f, %f, %f",31,sortedPosition[ jd ].x,sortedPosition[ jd ].y,sortedPosition[ jd ].z);
+			float rij = sqrt(	(position_.x - sortedPosition[ jd ].x)*(position_.x - sortedPosition[ jd ].x) +
+								(position_.y - sortedPosition[ jd ].y)*(position_.y - sortedPosition[ jd ].y) + 
+								(position_.z - sortedPosition[ jd ].z)*(position_.z - sortedPosition[ jd ].z) );
+			printf("\n>>> r_ij = %f, r0 = %f (%f%%)\n",rij,r0,100.f*rij/r0);
+		}
+		
+		//printf("\n>>> newPosition_[%d] %f, %f, %f",id_source_particle,newPosition_.x,newPosition_.y,newPosition_.z);
+	}
+	
+	
 	// position[0..2] stores x,y,z; position[3] - for particle type
 }

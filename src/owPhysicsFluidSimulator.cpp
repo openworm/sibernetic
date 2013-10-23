@@ -69,7 +69,8 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 double owPhysicsFluidSimulator::simulationStep()
 {
 	//PCISPH algorithm
-	int iter = 0;
+	int iter = 0;//PCISPH prediction-correction iterations conter
+	//if(iterationCount!=0) return 0.0;//uncomment this line to switch off (stop) physics-induced movement of the scene
 	helper->refreshTime();
 	printf("\n[[ Step %d ]]\n",iterationCount);
 	try{
@@ -86,6 +87,7 @@ double owPhysicsFluidSimulator::simulationStep()
 		ocl_solver->_run_pcisph_computeForcesAndInitPressure();		
 		ocl_solver->_run_pcisph_computeElasticForces();				
 		do{
+			printf("\n^^^^ iter %d ^^^^\n",iter);
 			ocl_solver->_run_pcisph_predictPositions();				
 			ocl_solver->_run_pcisph_predictDensity();				
 			ocl_solver->_run_pcisph_correctPressure();				
@@ -93,7 +95,7 @@ double owPhysicsFluidSimulator::simulationStep()
 			iter++;
 		}while( iter < maxIteration );
 
-		ocl_solver->_run_pcisph_integrate();						helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+		ocl_solver->_run_pcisph_integrate(iterationCount);			helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
 
 		/**/ocl_solver->_run_clearMembraneBuffers();
 		/**/ocl_solver->_run_computeInteractionWithMembranes();

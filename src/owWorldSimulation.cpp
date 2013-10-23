@@ -43,7 +43,7 @@ int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 int local_NDRange_size = 256;//256;
-float ocuracy = 100;
+float accuracy = 100;//what it it?
 bool flag = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
 
@@ -53,17 +53,59 @@ void renderInfo(int,int);
 void glPrint(float,float,const char *, void*);
 void glPrint3D(float,float,float,const char *, void*);
 //float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
+void beginWinCoords(void)
+{
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glTranslatef(0.0f, (GLfloat)glutGet(GLUT_WINDOW_HEIGHT) - 10, 0.0f);
+    glScalef(8.0f, -1.0f, 1.0f);
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, glutGet(GLUT_WINDOW_WIDTH), 0, glutGet(GLUT_WINDOW_HEIGHT), -1, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void endWinCoords(void)
+{
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+}
+void glPrint(float x, float y, const char *s, void *font)
+{
+	glRasterPos2f((GLfloat)x, (GLfloat)y);
+    int len = (int) strlen(s);
+    for (int i = 0; i < len; i++) {
+        glutBitmapCharacter(font, s[i]);
+    }
+}
+void glPrint3D(float x, float y, float z, const char *s, void *font)
+{
+	glRasterPos3f((GLfloat)x, (GLfloat)y, (GLfloat)z);
+    int len = (int) strlen(s);
+    for (int i = 0; i < len; i++) {
+        glutBitmapCharacter(font, s[i]);
+    }
+}
 
 void display(void)
 {
 	helper->refreshTime();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	drawScene();
+
 	int i,j,k;
 	//glColor3ub(255,255,255);//yellow
 	p_indexb = fluid_simulation->getParticleIndex_cpp();
 	int pib;
-	for(int i=0;i<PARTICLE_COUNT;i++)
+	int err_coord_cnt = 0;
+	for(i=0;i<PARTICLE_COUNT;i++)
 	{
 		pib = p_indexb[2*i + 1];
 		p_indexb[2*pib + 0] = i;
@@ -75,6 +117,7 @@ void display(void)
 	float dc, rho;
 	for(i = 0; i<PARTICLE_COUNT; i++)
 	{
+		//printf("[%d]",i);
 		rho = d_cpp[ p_indexb[ i * 2 + 0 ] ];
 		if( rho < 0 ) rho = 0;
 		if( rho > 2 * rho0) rho = 2 * rho0;
@@ -87,16 +130,52 @@ void display(void)
 		if( (dc=100*(rho-rho0*1.02f)/rho0) >0 )	glColor4f(  dc,   1,   0,1.0f);//yellow
 		if( (dc=100*(rho-rho0*1.03f)/rho0) >0 )	glColor4f(   1,1-dc,   0,1.0f);//red
 		if( (dc=100*(rho-rho0*1.04f)/rho0) >0 )	glColor4f(   1,   0,   0,1.0f);
-		if((int)p_cpp[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/){
+		if((int)p_cpp[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/)
+		{
 			glBegin(GL_POINTS);
 			if((int)p_cpp[i*4+3]==2) glColor4f(   1,   1,   0,  1.0f);
 			glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
 			glEnd();
+
+			if(!(	(p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=XMAX)&&
+					(p_cpp[i*4+1]>=0)&&(p_cpp[i*4+1]<=YMAX)&&
+					(p_cpp[i*4+2]>=0)&&(p_cpp[i*4+2]<=ZMAX) ))
+			{
+			char label[50];
+			beginWinCoords();
+			glRasterPos2f (0.01F, 0.05F); 
+			if(err_coord_cnt<50){
+			sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
+			glPrint( 0, 50+err_coord_cnt*11, label, m_font);}
+			if(err_coord_cnt==50) {
+			glPrint( 0, 50+err_coord_cnt*11, "............", m_font);}
+			err_coord_cnt++;
+			endWinCoords();
+			}
 		}
+		else
+		{
+			//printf("[%d]",i);
+		}
+
+		/*
+		for(k = 0; k<125; k++)
+		{
+			if(i!=k)
+			if( (p_cpp[i*4  ]==p_cpp[k*4  ])&&
+				(p_cpp[i*4+1]==p_cpp[k*4+1])&&
+				(p_cpp[i*4+2]==p_cpp[k*4+2])	)
+				{
+					printf(">>[%d]-[%d]<<",i,k);
+					printf(" x= %f, y= %f, z= %f \n",p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
+
+				}
+		}*/
 	}
 
 	ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
 	
+	int ecc=0;//elastic connections counter;
 	//if(generateInitialConfiguration)
 	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
 	{
@@ -105,28 +184,52 @@ void display(void)
 		{
 			i = (i_ec / MAX_NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
 
-			glColor4b(255/2, 125/2, 0, 100/2/*alpha*/);
-			if(ec_cpp[ 4 * i_ec + 2 ]>1.f) glColor4b(255/2, 0, 0, 255/2/*alpha*/);
-			
+			glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
+
 			glBegin(GL_LINES);
-			glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
-			glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+
+			if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
+			{
+				glColor4b(255/2, 0, 0,255/2);//red
+				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+			}
+			else
+			{
+										glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
+				if(p_cpp[i*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2/*alpha*/);
+				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+										glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
+				if(p_cpp[j*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2/*alpha*/);
+				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+			}
 			glEnd();
+			
+			ecc++;
 		}
 	}
+
+	beginWinCoords();
+	char label[50];
+	glRasterPos2f (0.01F, 0.05F); 
+	sprintf(label,"elastic connections count: %d",ecc);
+	glPrint( 50, 50, label, m_font);
+	endWinCoords();
+
 
 	//draw membranes
 	md_cpp = fluid_simulation->getMembraneData_cpp();
 
 	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
 
-	/**//*
+	/**/
 	for(int i_m = 0; i_m < numOfMembranes; i_m++)
 	{
 		i = md_cpp [i_m*3+0];
 		j = md_cpp [i_m*3+1];
 		k = md_cpp [i_m*3+2];
 
+		/*
 		glBegin(GL_LINES);
 		glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
 		glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
@@ -136,7 +239,7 @@ void display(void)
 
 		glVertex3f( (p_cpp[k*4]-XMAX/2)*sc , (p_cpp[k*4+1]-YMAX/2)*sc, (p_cpp[k*4+2]-ZMAX/2)*sc );
 		glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
-		glEnd();
+		glEnd();*/
 
 		glBegin(GL_LINES);
 		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-ZMAX/2)*sc );
@@ -293,46 +396,7 @@ inline void drawScene()
 		}
 	}
 }
-void beginWinCoords(void)
-{
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-    glTranslatef(0.0f, (GLfloat)glutGet(GLUT_WINDOW_HEIGHT) - 10, 0.0f);
-    glScalef(8.0f, -1.0f, 1.0f);
 
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(0, glutGet(GLUT_WINDOW_WIDTH), 0, glutGet(GLUT_WINDOW_HEIGHT), -1, 1);
-
-    glMatrixMode(GL_MODELVIEW);
-}
-
-void endWinCoords(void)
-{
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-}
-void glPrint(float x, float y, const char *s, void *font)
-{
-	glRasterPos2f((GLfloat)x, (GLfloat)y);
-    int len = (int) strlen(s);
-    for (int i = 0; i < len; i++) {
-        glutBitmapCharacter(font, s[i]);
-    }
-}
-void glPrint3D(float x, float y, float z, const char *s, void *font)
-{
-	glRasterPos3f((GLfloat)x, (GLfloat)y, (GLfloat)z);
-    int len = (int) strlen(s);
-    for (int i = 0; i < len; i++) {
-        glutBitmapCharacter(font, s[i]);
-    }
-}
 int count_s = 0;
 float current_sv ;
 static char label[1000];                            /* Storage for current string   */
@@ -364,7 +428,7 @@ void renderInfo(int x, int y)
 	}
 	if(showRuler){
 		glColor3ub(255, 0, 0);
-		float s_v = 1 * sc_scale * (1 /( ocuracy * simulationScale));
+		float s_v = 1 * sc_scale * (1 /( accuracy * simulationScale));
 		float temp_v = (float)glutGet(GLUT_WINDOW_WIDTH)/2.f;
 		float s_v_10 = s_v / 10;
 		std::stringstream ss;
@@ -633,7 +697,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 		glutInitWindowSize(800, 600);
 		glutInitWindowPosition(100, 100);
-		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes demo [2013]");
+		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
 		glutIdleFunc (idle); 
 		glEnable(GL_LIGHTING);
 		glEnable(GL_LIGHT0);

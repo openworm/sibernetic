@@ -78,83 +78,380 @@ void owHelper::log_bufferi(const int * buffer, const int element_size, const int
 	}
 }
 
-int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp)
+int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp, int &numOfMembranes, int *membraneData_cpp)
 {
-	int segmentsCount;// = 10;
-	float alpha;// = 2.f*3.14159f/segmentsCount;
-	float coeff = 0.23f;
-	float wormBodyRadius;// = h*coeff / sin(alpha/2);
-	int pCount = 0;//particle counter
+	//return 0;
+	if( !((stage==0)||(stage==1)) ) return 0;
+
+	float alpha;
+	float wormBodyRadius;
+	int pCount = 0;//total counter of particles being created within this function
 	int i,j;
-	float value;
 	float *positionVector;
 	float *velocityVector;
-	float x = XMAX/2.f;
-	float y = YMAX*(0.48f);
-	float z = ZMAX/2.f;
+	float xc = XMAX*0.5f;
+	float yc = YMAX*0.5f;
+	float zc = ZMAX*0.5f;
+	int elasticLayers = 1;//starting value
+	float PI = 3.1415926536f;
+	int currSlice_pCount;
+	int prevSlice_pCount;
+	int currSlice_start;
+	int prevSlice_start;
+	int mc = 0;
+	float angle;
+	int tip = 0;
 
-	// makeworm
-	// outer worm shell elastic cylinder generation
-	
-	for( j = -39; j <= 39; ++j)
-	{
-		value = 20*20-j*j/4;
-		if(value>=0)
-		{
-		segmentsCount = (int)sqrt(value);
-		alpha = 2.f*3.14159f/segmentsCount;
-		wormBodyRadius = h*coeff / sin(alpha/2);
+	int jmin=-100,jmax=/*-48*/100;
 
-		if(wormBodyRadius>=1.7f*h*coeff) 
+	if(stage==0) numOfMembranes=0;
+
+	//return 0;
+
+	for(j=jmin;j<=jmax;j++)	// number of cross-slices of the worm, in direction from head to tail. -
+							// 1..-1 for example will give 3 slices in the middle of the worm
+	{////////////////////////////////////////////////////
+		currSlice_pCount = 0;
+		currSlice_start = pCount;
+		wormBodyRadius = 6.0f*r0*sqrt(max(1.f-(1.0e-4f)*j*j,0.f));
+		tip = 0;
+
+		if((wormBodyRadius>0.707*r0)&&
+		   (wormBodyRadius<1.000*r0)) wormBodyRadius = 1.000*r0;
+
+		if(wormBodyRadius<0.707*r0) { tip = 1; wormBodyRadius = 0.707f*r0; }//0.707 = sqrt(2)/2
+
+		//alpha = 2*asin(0.5*r0/wormBodyRadius);//in radians
+		//angle = alpha;
+
+		elasticLayers = 1;
+
+		if(stage==1)
 		{
-			for(int cylinderLayers = 1; cylinderLayers<= 1; cylinderLayers++ )
+			positionVector = position_cpp + 4 * (pCount+i_start);
+			positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0);
+			positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0);
+			positionVector[ 2 ] = zc + r0*j;
+			positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+
+			positionVector = position_cpp + 4 * (pCount+1+i_start);
+			positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0);
+			positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0);
+			positionVector[ 2 ] = zc + r0*j;
+			positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+		}
+		pCount+=2;
+		currSlice_pCount+=2;
+
+		if(tip==1)
+		{
+			if(stage==1)
 			{
-				float pdist_coeff = 2.0;//2.0f;
+				positionVector = position_cpp + 4 * (pCount+i_start);
+				positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0);
+				positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0);
+				positionVector[ 2 ] = zc + r0*j;
+				positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 
-				for( i = 0 ; i < segmentsCount; ++i )
-				{
+				positionVector = position_cpp + 4 * (pCount+1+i_start);
+				positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0);
+				positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0);
+				positionVector[ 2 ] = zc + r0*j;
+				positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+			}
+			pCount+=2;
+			currSlice_pCount+=2;
+
+		}
+
+		while(elasticLayers<=2)//this number defines number of radial muscle layers. can be 1, 2, 3 or more
+		{
+			if(wormBodyRadius<r0/2) break;
+			alpha = 2*asin(0.5*r0/wormBodyRadius);//in radians//recalculate -- wormBodyRadius changed
+			angle = alpha;
+
+			while(angle<0.89/*radians = less or equal to 51 degrees*/)
+			{
+				if(stage==1)
+				{	
 					positionVector = position_cpp + 4 * (pCount+i_start);
-					velocityVector = velocity_cpp + 4 * (pCount+i_start);
+					positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
+					positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green */ 
 
-					if(stage==1)
+					positionVector = position_cpp + 4 * (pCount+1+i_start);
+					positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
+					positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green*/ 
+
+					positionVector = position_cpp + 4 * (pCount+2+i_start);
+					positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
+					positionVector[ 1 ] = yc - wormBodyRadius*cos(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green */ 
+
+					positionVector = position_cpp + 4 * (pCount+3+i_start);
+					positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
+					positionVector[ 1 ] = yc - wormBodyRadius*cos(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green*/ 
+				}
+				pCount += 4;
+				currSlice_pCount +=4;
+				angle+= alpha;
+			}
+
+			if(elasticLayers==1)
+			{
+				angle-= alpha;//step back for 1 radial segment
+				float non_muscle_angle = PI - 2.f*angle;
+				int n_non_muscle_particles = floor(non_muscle_angle / alpha)-1;// distance between each 2 radially adjacent particles will be r0 or more (not less); alpha corresponds to r0
+				if(n_non_muscle_particles>0)
+				{
+					float beta = non_muscle_angle / (n_non_muscle_particles+1);
+					int nmp_counter = 0;//non muscle particles counter
+
+					for(i=0;i<(n_non_muscle_particles+1)/2;i++)
 					{
-						positionVector[ 0 ] = x + wormBodyRadius*sin(alpha*i);
-						positionVector[ 1 ] = y + wormBodyRadius*cos(alpha*i);
-						positionVector[ 2 ] = z + pdist_coeff*h*coeff*(float)j ;
-						positionVector[ 3 ] = 2.1f;// 2 = elastic matter
-						if(cylinderLayers>9) positionVector[ 3 ] = 1.1f;// 1 = liquid
+						angle+= beta;
 
-						velocityVector[ 0 ] = 0;
-						velocityVector[ 1 ] = 0;
-						velocityVector[ 2 ] = 0;
-						velocityVector[ 3 ] = 0;
+						if(stage==1)
+						{	
+							positionVector = position_cpp + 4 * (pCount+i_start);
+							positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
+							positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+							positionVector[ 2 ] = zc + r0*j;
+							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+						
+							positionVector = position_cpp + 4 * (pCount+1+i_start);
+							positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
+							positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+							positionVector[ 2 ] = zc + r0*j;
+							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+						}
+
+						pCount += 2;
+						currSlice_pCount += 2;
+						nmp_counter += 2;
+
+						if(nmp_counter/2==n_non_muscle_particles)
+						{
+							break;
+						}
+
+						if(stage==1)
+						{	
+							positionVector = position_cpp + 4 * (pCount+i_start);
+							positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
+							positionVector[ 1 ] = yc - wormBodyRadius*cos(angle);
+							positionVector[ 2 ] = zc + r0*j;
+							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+						
+							positionVector = position_cpp + 4 * (pCount+1+i_start);
+							positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
+							positionVector[ 1 ] = yc - wormBodyRadius*cos(angle);
+							positionVector[ 2 ] = zc + r0*j;
+							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+						}
+
+						pCount += 2;
+						currSlice_pCount += 2;
+						nmp_counter += 2;
+					}
+				}
+
+				//1-st, outer layer (outer worm shell) was just created (I mean mass points composing it)
+				//now it's time for membrane
+
+				if(stage==0)
+				{
+					if((j==jmin)||(j==jmax))
+					{
+						numOfMembranes+= currSlice_pCount;//currently we plan to build membrane over only outer worm shell surface
+						if((j==jmin)&&(currSlice_pCount==4)) numOfMembranes+=2;
+						if((j==jmax)&&(currSlice_pCount==4)) numOfMembranes+=2;
+					}
+					else
+						numOfMembranes+= currSlice_pCount*2;//all inner structures of the worm will not be covered by membranes in actual version
+				}
+				else
+				{
+					//here, at stage = 1, memory for membraneData_cpp (numOfMembranes) is already allocated,
+					//and we fill it with i-j-k indexes of membranes which we build here:
+					if((j==jmin)&&(currSlice_pCount==4))
+					{
+						membraneData_cpp [mc*3+0] = 0+i_start;
+						membraneData_cpp [mc*3+1] = 1+i_start;
+						membraneData_cpp [mc*3+2] = 2+i_start;
+						mc++;
+						membraneData_cpp [mc*3+0] = 0+i_start;
+						membraneData_cpp [mc*3+1] = 1+i_start;
+						membraneData_cpp [mc*3+2] = 3+i_start;
+						mc++;
 					}
 
-					pCount++;
+					if((j==jmax)&&(currSlice_pCount==4))
+					{
+						membraneData_cpp [mc*3+0] = currSlice_start+0+i_start;
+						membraneData_cpp [mc*3+1] = currSlice_start+1+i_start;
+						membraneData_cpp [mc*3+2] = currSlice_start+2+i_start;
+						mc++;
+						membraneData_cpp [mc*3+0] = currSlice_start+0+i_start;
+						membraneData_cpp [mc*3+1] = currSlice_start+1+i_start;
+						membraneData_cpp [mc*3+2] = currSlice_start+3+i_start;
+						mc++;
+					}
+
+					if(j>jmin)
+					{
+						int ii,jj,kk=0;
+						float middle_pos_x;
+						float middle_pos_y;
+						float middle_pos_z;
+						float dist;//distance between middle of [ii]-[jj] and [kk]
+						float dist_min;
+						int q,w;
+						float *pii;
+						float *pjj;
+						float *pkk;
+
+						// ii and jj on prevSlice, kk - on currSlice
+						// 11111111111111111111111111111111111111111111111111111111111111111
+						for(q=0;q<prevSlice_pCount;q++)
+						{
+							if(q==0) { ii=prevSlice_start+0; jj=prevSlice_start+2; } else
+							if(q==1) { ii=prevSlice_start+0; jj=prevSlice_start+3; } else
+							if(q==2) { ii=prevSlice_start+1; jj=prevSlice_start+4; } else
+							if(q==3) { ii=prevSlice_start+1; jj=prevSlice_start+5; } else
+									 { ii=prevSlice_start+q-2; jj=prevSlice_start+q+2*(q+2<prevSlice_pCount); }
+
+							if(prevSlice_pCount==4)//head or tail tip
+							{
+								if(q==0) { ii=prevSlice_start+0; jj=prevSlice_start+2; } else
+								if(q==1) { ii=prevSlice_start+0; jj=prevSlice_start+3; } else
+								if(q==2) { ii=prevSlice_start+1; jj=prevSlice_start+2; } else
+								if(q==3) { ii=prevSlice_start+1; jj=prevSlice_start+3; }
+							}
+
+							ii+= i_start;
+							jj+= i_start;
+							
+							pii = position_cpp + 4 * (ii);
+							pjj = position_cpp + 4 * (jj);
+
+							middle_pos_x = (pii[0]+pjj[0])/2.f;
+							middle_pos_y = (pii[1]+pjj[1])/2.f;
+							middle_pos_z = (pii[2]+pjj[2])/2.f;
+
+							dist_min = 10*r0;
+								
+							for(w=0;w<currSlice_pCount;w++)
+							{
+								pkk = position_cpp + 4 * (currSlice_start+w+i_start);
+								dist = sqrt( (middle_pos_x - pkk[0])*(middle_pos_x - pkk[0])+
+											 (middle_pos_y - pkk[1])*(middle_pos_y - pkk[1])+
+											 (middle_pos_z - pkk[2])*(middle_pos_z - pkk[2]) );
+								if(dist<=dist_min)//!!! "<=" here and "<" at the similar place below is necessary
+								{
+									dist_min = dist;
+									kk = currSlice_start+w+i_start;
+								}
+							}
+
+							membraneData_cpp [mc*3+0] = ii;//i;
+							membraneData_cpp [mc*3+1] = jj;//array_j[j];
+							membraneData_cpp [mc*3+2] = kk;//array_j[k];
+							mc++;
+						}
+						// 11111111111111111111111111111111111111111111111111111111111111111
+
+						
+						// ii and jj on currSlice, kk - on prevSlice
+						// 22222222222222222222222222222222222222222222222222222222222222222
+						for(q=0;q<currSlice_pCount;q++)
+						{
+							if(q==0) { ii=currSlice_start+0; jj=currSlice_start+2; } else
+							if(q==1) { ii=currSlice_start+0; jj=currSlice_start+3; } else
+							if(q==2) { ii=currSlice_start+1; jj=currSlice_start+4; } else
+							if(q==3) { ii=currSlice_start+1; jj=currSlice_start+5; } else
+									 { ii=currSlice_start+q-2; jj=currSlice_start+q+2*(q+2<currSlice_pCount); }
+
+							if(currSlice_pCount==4)//head or tail tip
+							{
+								if(q==0) { ii=currSlice_start+0; jj=currSlice_start+2; } else
+								if(q==1) { ii=currSlice_start+0; jj=currSlice_start+3; } else
+								if(q==2) { ii=currSlice_start+1; jj=currSlice_start+2; } else
+								if(q==3) { ii=currSlice_start+1; jj=currSlice_start+3; }
+							}
+
+							ii+= i_start;
+							jj+= i_start;
+							
+							pii = position_cpp + 4 * (ii);
+							pjj = position_cpp + 4 * (jj);
+
+							middle_pos_x = (pii[0]+pjj[0])/2.f;
+							middle_pos_y = (pii[1]+pjj[1])/2.f;
+							middle_pos_z = (pii[2]+pjj[2])/2.f;
+
+							dist_min = 10*r0;
+								
+							for(w=0;w<prevSlice_pCount;w++)
+							{
+								pkk = position_cpp + 4 * (prevSlice_start+w+i_start);
+								dist = sqrt( (middle_pos_x - pkk[0])*(middle_pos_x - pkk[0])+
+											 (middle_pos_y - pkk[1])*(middle_pos_y - pkk[1])+
+											 (middle_pos_z - pkk[2])*(middle_pos_z - pkk[2]) );
+								if(dist<dist_min)//!!! 
+								{
+									dist_min = dist;
+									kk = prevSlice_start+w+i_start;
+								}
+							}
+
+							membraneData_cpp [mc*3+0] = ii;//i;
+							membraneData_cpp [mc*3+1] = jj;//array_j[j];
+							membraneData_cpp [mc*3+2] = kk;//array_j[k];
+							mc++;
+						}
+						// 22222222222222222222222222222222222222222222222222222222222222222
+					}
+
 				}
 
-				if(wormBodyRadius<1.9f*2.f*h*coeff) 
-				{
-					break;
-				}
-				
-				//if(cylinderLayers>4) pdist_coeff = 1.7f;
-
-				segmentsCount *= (wormBodyRadius - pdist_coeff*h*coeff);
-				segmentsCount /= wormBodyRadius;
-				wormBodyRadius -= pdist_coeff*h*coeff;
-				
-				alpha = 2.f*3.14159f/segmentsCount;
+				prevSlice_pCount = currSlice_pCount;
+				prevSlice_start = currSlice_start;
 			}
+
+			wormBodyRadius -= r0;
+			elasticLayers++;
 		}
+	}////////////////////////////////////////////////////
+
+	if(stage==1)
+	{
+		for(i=0;i<pCount;i++)
+		{
+			velocityVector = velocity_cpp + 4 * (i+i_start);	
+			velocityVector[ 0 ] = 0;
+			velocityVector[ 1 ] = 0;
+			velocityVector[ 2 ] = 0;
+			velocityVector[ 3 ] = 0;
 		}
 	}
 
+	//if(stage==0) numOfMembranes /= 2;//remove this line when development of this function is complete
+
 	return pCount;
+
+	// makeworm
 }
 
 int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp)
 {
+	//return 0;
 	int segmentsCount;// = 10;
 	float alpha;// = 2.f*3.14159f/segmentsCount;
 	float coeff = 0.23f;
@@ -165,16 +462,16 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 	float *positionVector;
 	float *velocityVector;
 	float x = XMAX/2.f;
-	float y = YMAX*(0.48f);
+	float y = YMAX/2.f;
 	float z = ZMAX/2.f;
 	float value;
 
 	// makeworm
 	// outer worm shell elastic cylinder generation
 	
-	for( j = -39; j <= 39; ++j)
+	for( j = -100; j <= 100; ++j)
 	{
-		value = 18*18-j*j/4;
+		value = 30*30-j*j/(3.3*3.3);//6.0f*r0*sqrt(max(1.f-(1.0e-4f)*j*j,0.f));
 		if(value>=0)
 		{
 		segmentsCount = (int)sqrt(value);
@@ -255,12 +552,12 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int nM,nMi,nMj;
 	int wormIndex_start,wormIndex_end;
 	//int numOfMembraneParticles = (nx*2/3-3)*(nz*2/3-3);
-	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp) + (nx-3)*(nz-3);
+	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp);// + (nx-3)*(nz-3);
 
 	if(stage==0)
 	{
 		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp);;
-		numOfElasticP = nEx*nEy*nEz * nMuscles + numOfMembraneParticles;
+		numOfElasticP = /*nEx*nEy*nEz * nMuscles + */numOfMembraneParticles;
 		numOfBoundaryP = 0;
 
 		if(numOfElasticP<=0) elasticConnectionsData_cpp = NULL; else elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
@@ -294,7 +591,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 
 		//now add membrane particles
-		//their number should be precisely = numOfMembraneParticles
+		//their number should be precisely equal to numOfMembraneParticles
+		/*
 		for(x=2;x<nx-1.5;x+=1.0)
 		for(z=2;z<nz-1.5;z+=1.0)
 		{
@@ -311,9 +609,11 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 			i++;
 		}//==================================
+		/**/
+
 
 		wormIndex_start = i;
-		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp);
+		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp);
 		wormIndex_end = i;
 
 		float r2ij;
@@ -432,9 +732,13 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 	/**/
 
-	for(x = (XMAX-XMIN)/2-(6+18*0)*r0;x<(XMAX-XMIN)/2+r0*(6+18*0);x += r0)
+	/*for(x = (XMAX-XMIN)/2-(6+18*0)*r0;x<(XMAX-XMIN)/2+r0*(6+18*0);x += r0)
 	for(y = r0*79-25*0;y<(YMAX-YMIN)*0.0+r0*92;y += r0)
-	for(z = (ZMAX-ZMIN)/2-(6+30*0)*r0;z<(ZMAX-ZMIN)/2+r0*(6+30*0);z += r0)
+	for(z = (ZMAX-ZMIN)/2-(6+30*0)*r0;z<(ZMAX-ZMIN)/2+r0*(6+30*0);z += r0)*/
+	/*
+	for(x = (XMAX-XMIN)/2-(2)*r0;x<(XMAX-XMIN)/2+r0*(2);x += r0)
+	for(y = (YMAX-YMIN)/2-(2)*r0;y<(YMAX-YMIN)/2+r0*(2);y += r0)
+	for(z = (ZMAX-ZMIN)/2-(2)*r0;z<(ZMAX-ZMIN)/2+r0*(2);z += r0)
 	{
 						// stage==0 - preliminary run
 		if(stage==1)	// stage==1 - final run
@@ -453,7 +757,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			velocity_cpp[ 4 * i + 0 ] = 0;
 			velocity_cpp[ 4 * i + 1 ] = 0;
 			velocity_cpp[ 4 * i + 2 ] = 0;
-			velocity_cpp[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
+			velocity_cpp[ 4 * i + 3 ] = p_type;//or =0, for example; if particle type is already defined in 'position', we don't need its duplicate here, right? (this field is not used)
 		}
 
 		i++; // necessary for both stages
@@ -636,9 +940,10 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			exit(-2);
 		}
 
-		//numOfMembranes = 2;
-		numOfMembranes = (nz-3-1-2*2)*(nx-3-1-2*2)*2;
-		numOfMembranes = 36836;
+		//numOfMembranes = 10728;
+		//numOfMembranes = /*!*/(nz-3-1-2*2)*(nx-3-1-2*2)*2;
+		//numOfMembranes = 107024;
+		//numOfMembranes = numOfMembranes;
 	}
 	else
 	if(stage==1)
@@ -654,14 +959,15 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		{
 			for(int sli = 0 /*sublist index*/; sli<MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; sli++)
 			{
-				particleMembranesList_cpp [mli*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE + sli] = -1;// no membrains connected with current particle
+				particleMembranesList_cpp [mli*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE + sli] = -1;// no membranes connected with current particle
 			}
 		}
 
 		
-		int mc = 0;//membrane counter
+		//int mc = 0;//membrane counter
 
 		// create membranes using recently generated elastic matter plane
+		/*!*//*
 		for(int ix = 2; ix<(nx-3)-1-2; ix++)
 		{
 			for(int iz = 2; iz<(nz-3)-1-2; iz++)
@@ -679,11 +985,14 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				mc++;
 			}
 		}
+		/*!*/
 		// end of membranes creation
 
 		///////////////debug////////////
 		int j;
+		int ecc_total = 0;
 		int array_j[MAX_NEIGHBOR_COUNT];
+		//float ix,iy,iz,jx,jy,jz;
 		//int j_count=0;
 		//int array_k[MAX_NEIGHBOR_COUNT];
 		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
@@ -694,26 +1003,45 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			//        _____1_______      2       _____3________       
 			for(j=0;j<numOfElasticP+numOfLiquidP+numOfBoundaryP;j++)
 			{
-				if(j==numOfElasticP) j+= numOfLiquidP;//skip liquid particles (they are located in the middle of memory) as candidates to spring connections
-
-				dx2 = (position_cpp[ 4 * i + 0 ] - position_cpp[ 4 * j + 0 ]); dx2 *= dx2;
-				dy2 = (position_cpp[ 4 * i + 1 ] - position_cpp[ 4 * j + 1 ]); dy2 *= dy2;
-				dz2 = (position_cpp[ 4 * i + 2 ] - position_cpp[ 4 * j + 2 ]); dz2 *= dz2;
-				r2_ij = dx2 + dy2 + dz2;
-				r_ij = (float)sqrt(r2_ij);
-
-				//if(r_ij<=r0*2*sqrt(/*3.2*/1.7))//grid = 1.5*r0
-				if(r_ij<=r0*sqrt(/*3.2*/2.7))//grid = 1.0*r0
+				if(i!=j)
 				{
-					elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
-					elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.6;	// resting density; that's why we use float type for elasticConnectionsData_cpp
-					elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
-					elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
-					array_j[ecc] = j;
-					ecc++;
+					if(j==numOfElasticP) j+= numOfLiquidP;//skip liquid particles (they are located in the middle of memory) as candidates to spring connections
+
+					/*ix = position_cpp[ 4 * i + 0 ];
+					iy = position_cpp[ 4 * i + 1 ];
+					iz = position_cpp[ 4 * i + 2 ];
+					jx = position_cpp[ 4 * j + 0 ];
+					jy = position_cpp[ 4 * j + 1 ];
+					jz = position_cpp[ 4 * j + 2 ];*/
+
+					dx2 = (position_cpp[ 4 * i + 0 ] - position_cpp[ 4 * j + 0 ]); dx2 *= dx2;
+					dy2 = (position_cpp[ 4 * i + 1 ] - position_cpp[ 4 * j + 1 ]); dy2 *= dy2;
+					dz2 = (position_cpp[ 4 * i + 2 ] - position_cpp[ 4 * j + 2 ]); dz2 *= dz2;
+					r2_ij = dx2 + dy2 + dz2;
+					r_ij = (float)sqrt(r2_ij);
+
+					//if(r_ij<=r0*2*sqrt(/*3.2*/1.7))//grid = 1.5*r0
+					if(r_ij<=r0*sqrt(/*2.3*/2.7/*2.7*/))//grid = 1.0*r0
+					{
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.95;	// resting distance; that's why we use float type for elasticConnectionsData_cpp
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
+						if( (fabs(position_cpp[4*i+3]-2.2f)<=0.05) && (fabs(position_cpp[4*j+3]-2.2f)<=0.05) )//both green
+						{
+							if((dz2>4*dx2)&&(dz2>4*dy2)&&(dy2>4*dx2))
+							elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 1.1f;// type of connection; 0 - ordinary spring, 1 - muscle
+						}
+						array_j[ecc] = j;
+						ecc++;
+						ecc_total++;
+
+
+					}
 				}
 			}
 			/////////
+			/*
 			if((i>=wormIndex_start)&&(i<=wormIndex_end))
 			if(ecc>=2)
 			{
@@ -733,28 +1061,40 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 							r_ij = (float)sqrt(r2_ij);
 
 							if(r_ij<=r0*sqrt(2.7))//grid = 1.0*r0
-							{
+							{	
 								membraneData_cpp [mc*3+0] = i;
 								membraneData_cpp [mc*3+1] = array_j[j];
 								membraneData_cpp [mc*3+2] = array_j[k];
+								
 								mc++;
 							}
 						}
 					}
 				}
 			}
+
+			mc = mc;
+			/**/
 			/////////
+			//mc = mc;
 		}
 
-		for(int _mc = 0; _mc < mc*3; _mc++)
+		//membraneData - the list containing triplets of indexes of particles forming triangular membranes; size: numOfMembranes*3
+		//particleMembranesList - the list containing for each particle(involved in membranes) its list of these membranes indexes (which are stored in membraneData array)
+
+		for(int _mc = 0; _mc < numOfMembranes*3; _mc++)
 		{
 			int particle_index;
-			for(int sli=0;sli<MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; sli++)
-			{
-				if(particleMembranesList_cpp [particle_index = membraneData_cpp [_mc]*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE+sli]==-1)
+			for(int sli=0/*sublist index*/;sli<MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; sli++)
+			{//search for the not filled yet cell (-1) in the list and fill it; 
+				if(/**/particleMembranesList_cpp [particle_index = membraneData_cpp [_mc]*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE+sli]/**/==-1)
 				{
 					particleMembranesList_cpp [particle_index] = _mc/3;
-					break;
+					break;//if there are no free cells, break, because we are limited with MAX_MEMBRANES_INCLUDING_SAME_PARTICLE per particle
+				} 
+				else
+				{
+					_mc = _mc;
 				}
 			}		
 		}

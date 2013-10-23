@@ -49,7 +49,7 @@ public:
 	unsigned int _run_pcisph_predictDensity();
 	unsigned int _run_pcisph_correctPressure();
 	unsigned int _run_pcisph_computePressureForceAcceleration();
-	unsigned int _run_pcisph_integrate();
+	unsigned int _run_pcisph_integrate(int iterationCount);
 	//
 	unsigned int _run_clearMembraneBuffers();
 	unsigned int _run_computeInteractionWithMembranes();

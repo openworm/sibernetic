@@ -11,6 +11,7 @@
 
 const float rho0 = 1000.0f;
 const float mass = 3.25e-14f;// kg // we need 3.25e-14 kg
+//const float mass = 3.25e-08f;// kg // we need 3.25e-14 kg
 
 const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);
 
@@ -30,7 +31,7 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 #define YMIN 0
 #define YMAX 48.0*h // vertical
 #define ZMIN 0
-#define ZMAX 42.0*h // horizontal 2
+#define ZMAX 142.0*h // horizontal 2 //142
 
 //const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
 
@@ -56,6 +57,7 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 // and particle mass = 3.25e-14 kg
 
 const float timeStep = 8.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
+//const float timeStep = 1.0e-02f;
 
 const float stiffness = 0.75f;	//need description of this parameter
 const float viscosity = 0.00008f;//0.00015f;	// liquid viscosity  //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
@@ -68,7 +70,7 @@ const double Wpoly6Coefficient = 315.0 / ( 64.0 * M_PI * pow( (double)(h*simulat
 const double gradWspikyCoefficient= -45.0 / ( M_PI * pow( (double)(h*simulationScale), 6.0 ) );
 const double del2WviscosityCoefficient = - gradWspikyCoefficient;
 const float gravity_x = 0.0f;
-const float gravity_y = -9.8f;
+const float gravity_y = -9.8f;//-9.8f;
 const float gravity_z = 0.0f;
 extern const float delta;
 const int maxIteration = 3;

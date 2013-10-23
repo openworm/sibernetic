@@ -637,7 +637,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize()
 }
 
 
-unsigned int owOpenCLSolver::_run_pcisph_integrate()
+unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount)
 {
 	// Stage Integrate
 	pcisph_integrate.setArg( 0, acceleration );
@@ -663,6 +663,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate()
 	pcisph_integrate.setArg( 20, r0 );
 	pcisph_integrate.setArg( 21, neighborMap );
 	pcisph_integrate.setArg( 22, PARTICLE_COUNT );
+	pcisph_integrate.setArg( 23, iterationCount );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_integrate, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
 #if defined( __APPLE__ )
