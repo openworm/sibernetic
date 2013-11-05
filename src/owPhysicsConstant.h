@@ -11,7 +11,10 @@
 
 const float rho0 = 1000.0f;
 const float mass = 3.25e-14f;// kg // we need 3.25e-14 kg
-//const float mass = 3.25e-08f;// kg // we need 3.25e-14 kg
+//const float mass = 3.25e-08f;
+const float timeStep = 5.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
+//const float timeStep = 0.2e-04f;
+//const float timeStep = 1.0e-02f;
 
 const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);
 
@@ -29,7 +32,7 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 #define XMIN 0
 #define XMAX 30.0*h // horizontal 1
 #define YMIN 0
-#define YMAX 48.0*h // vertical
+#define YMAX 20.0*h // vertical
 #define ZMIN 0
 #define ZMAX 142.0*h // horizontal 2 //142
 
@@ -56,11 +59,8 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 // So, in this case (1e+5 particles) we need r0 = 3.2 um = 3.2e-6 m
 // and particle mass = 3.25e-14 kg
 
-const float timeStep = 8.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
-//const float timeStep = 1.0e-02f;
-
 const float stiffness = 0.75f;	//need description of this parameter
-const float viscosity = 0.00008f;//0.00015f;	// liquid viscosity  //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
+const float viscosity = 0.00005f;//0.00015f;	// liquid viscosity  //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
 const float damping = 0.75f;	//need description of this parameter
 
 const float CFLLimit = 100.0f;
@@ -70,7 +70,7 @@ const double Wpoly6Coefficient = 315.0 / ( 64.0 * M_PI * pow( (double)(h*simulat
 const double gradWspikyCoefficient= -45.0 / ( M_PI * pow( (double)(h*simulationScale), 6.0 ) );
 const double del2WviscosityCoefficient = - gradWspikyCoefficient;
 const float gravity_x = 0.0f;
-const float gravity_y = -9.8f;//-9.8f;
+const float gravity_y = -9.8f;
 const float gravity_z = 0.0f;
 extern const float delta;
 const int maxIteration = 3;

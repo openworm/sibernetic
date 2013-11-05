@@ -18,7 +18,9 @@ float camera_rot_lag[] = {0, 0, 0};
 const float inertia = 1.0f;
 float modelView[16];
 int buttonState = 0;
-float sc = 0.025f;		//0.0145;//0.045;//0.07
+
+float sc = 0.045f;		//0.0145;//0.045;//0.07
+
 float sc_scale = 1.0f;
 
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
@@ -133,8 +135,13 @@ void display(void)
 		if((int)p_cpp[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/)
 		{
 			glBegin(GL_POINTS);
-			if((int)p_cpp[i*4+3]==2) glColor4f(   1,   1,   0,  1.0f);
+			if((int)p_cpp[i*4+3]==2) 
+			{ 
+				glColor4f(   0,   0,   0,  1.0f);// color of elastic particles
+				glPointSize(6.f);
+			}
 			glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+			glPointSize(3.f);
 			glEnd();
 
 			if(!(	(p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=XMAX)&&
@@ -159,22 +166,37 @@ void display(void)
 		}
 
 		/*
-		for(k = 0; k<125; k++)
+		float rij;
+		
+		for(j = 0; j<252; j++)
 		{
-			if(i!=k)
-			if( (p_cpp[i*4  ]==p_cpp[k*4  ])&&
-				(p_cpp[i*4+1]==p_cpp[k*4+1])&&
-				(p_cpp[i*4+2]==p_cpp[k*4+2])	)
-				{
-					printf(">>[%d]-[%d]<<",i,k);
-					printf(" x= %f, y= %f, z= %f \n",p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
+			rij = sqrt(  (p_cpp[i*4+0]-p_cpp[j*4+0])*(p_cpp[i*4+0]-p_cpp[j*4+0])
+						+(p_cpp[i*4+1]-p_cpp[j*4+1])*(p_cpp[i*4+1]-p_cpp[j*4+1])
+						+(p_cpp[i*4+2]-p_cpp[j*4+2])*(p_cpp[i*4+2]-p_cpp[j*4+2]) );
 
-				}
-		}*/
+			if(i!=j)
+			if( rij < 0.2f*r0)
+			{
+				//glBegin(GL_LINES);
+				glColor4b(255/2, 0, 255/2,255/2);//red
+				glBegin(GL_POINTS);
+				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+				glEnd();
+				//printf(">>[%d]-[%d]<<",i,j);
+				//printf(" x= %f, y= %f, z= %f \n",p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
+
+			}
+		}
+		/**/
 	}
+
+				
 
 	ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
 	
+	glLineWidth((GLfloat)0.1);
+
 	int ecc=0;//elastic connections counter;
 	//if(generateInitialConfiguration)
 	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
@@ -186,34 +208,41 @@ void display(void)
 
 			glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
 
-			glBegin(GL_LINES);
+			
 
 			if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
 			{
+				glLineWidth((GLfloat)1.0);
+				glBegin(GL_LINES);
 				glColor4b(255/2, 0, 0,255/2);//red
 				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
 				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+				glEnd();
 			}
 			else
 			{
+				glLineWidth((GLfloat)0.1);
+				glBegin(GL_LINES);
 										glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
 				if(p_cpp[i*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2/*alpha*/);
 				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
 										glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
 				if(p_cpp[j*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2/*alpha*/);
 				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+				glEnd();
 			}
-			glEnd();
+			
 			
 			ecc++;
 		}
 	}
 
 	beginWinCoords();
-	char label[50];
+	char label[300];
 	glRasterPos2f (0.01F, 0.05F); 
-	sprintf(label,"elastic connections count: %d",ecc);
-	glPrint( 50, 50, label, m_font);
+	glColor4b(255/2, 255/2, 0, 255/2/*alpha*/);
+	sprintf(label,"elastic connections count: %d, elementary membranes count: %d",ecc,numOfMembranes);
+	glPrint( 1, 50, label, m_font);
 	endWinCoords();
 
 
@@ -254,7 +283,10 @@ void display(void)
 	}/**/
 
 
-	glEnd();
+	//glEnd();//???
+
+	glLineWidth((GLfloat)1.0);
+
 	glutSwapBuffers();
 	helper->watch_report("graphics: \t\t%9.3f ms\n====================================\n");
 	renderTime = helper->get_elapsedTime();
@@ -626,6 +658,7 @@ void Timer(int value)
     glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);
 	glutPostRedisplay();
 }
+/*
 void SetProjectionMatrix(void){
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();									// Current projection matrix is dropped to identity matrix 
@@ -638,23 +671,38 @@ void SetModelviewMatrix(void){
      glRotatef(0*10.0, 1.0, 0.0, 0.0);
      glRotatef(0.0, 0.0, 1.0, 0.0);                              
 }
+*/
 GLvoid resize(GLsizei width, GLsizei height){
-	if(height == 0)
-	{
-		height = 1;										
-	}
 
-	glViewport(0, 0, width, height);					// Sev view area
-
-	viewHeight = height;
-	viewWidth = width;
-
-	SetProjectionMatrix();
-	SetModelviewMatrix();
-
-//================= fixes a small bug -- scene's point of view is set to initial after window rezise ('forgotten' to update)
-	glMatrixMode(GL_MODELVIEW);
+	if(height == 0) { height = 1; }										 
+	if(width == 0) { width = 1; }										 
+	
+	glViewport(0, 0, width, height);					// Set view area
+	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
+	
+	float aspectRatio = (GLfloat)width / (GLfloat)height;
+	if (aspectRatio>1.f)
+		glFrustum(-1*aspectRatio, 1*aspectRatio, -1, 1, 3, 45);
+	else
+		glFrustum(-1, 1, -1/aspectRatio, 1/aspectRatio, 3, 45);
+	
+	
+
+	///// Model View ///////
+	glMatrixMode(GL_MODELVIEW);
+	//glLoadIdentity();   
+    //glTranslatef(0.0, 0.0, -8.0);                              
+
+    //glRotatef(0.0, 1.0, 0.0, 0.0);
+    //glRotatef(0.0, 0.0, 1.0, 0.0);
+	//gluPerspective(30.0f,  1/(width/height), 1.0f, 15.0f);
+	//glOrtho(0, width, 0, height, -1, 1);
+	//SetProjectionMatrix();
+	//SetModelviewMatrix();
+	//glMatrixMode(GL_MODELVIEW);
+
+
 	for (int c = 0; c < 3; ++c)
 	{
 	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]) * inertia;
@@ -664,6 +712,7 @@ GLvoid resize(GLsizei width, GLsizei height){
 	glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
+
 //==================
 }
 void init(void){
@@ -695,7 +744,7 @@ void run(int argc, char** argv, const bool with_graphics)
 	if(with_graphics){
 		glutInit(&argc, argv);
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-		glutInitWindowSize(800, 600);
+		glutInitWindowSize(1024, 1024);
 		glutInitWindowPosition(100, 100);
 		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
 		glutIdleFunc (idle); 
@@ -711,7 +760,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutDisplayFunc(display);
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
-		glutMotionFunc(mouse_motion);	// The former handles movement while the mouse is clicked, 
+		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked, 
 		glutKeyboardFunc(respond_key_pressed);
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();

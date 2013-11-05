@@ -546,7 +546,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration()
 	pcisph_computePressureForceAcceleration.setArg( 3, sortedPosition );
 	pcisph_computePressureForceAcceleration.setArg( 4, sortedVelocity );
 	pcisph_computePressureForceAcceleration.setArg( 5, particleIndexBack );
-	pcisph_computePressureForceAcceleration.setArg( 6, CFLLimit );
+	pcisph_computePressureForceAcceleration.setArg( 6, delta );
 	//pcisph_computePressureForceAcceleration.setArg( 7, del2WviscosityCoefficient );
 	pcisph_computePressureForceAcceleration.setArg( 7, gradWspikyCoefficient );
 	pcisph_computePressureForceAcceleration.setArg( 8, h );

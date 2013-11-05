@@ -70,7 +70,7 @@ double owPhysicsFluidSimulator::simulationStep()
 {
 	//PCISPH algorithm
 	int iter = 0;//PCISPH prediction-correction iterations conter
-	//if(iterationCount!=0) return 0.0;//uncomment this line to switch off (stop) physics-induced movement of the scene
+	//if(iterationCount!=0) return 0.0;//uncomment this line to stop movement of the scene
 	helper->refreshTime();
 	printf("\n[[ Step %d ]]\n",iterationCount);
 	try{
