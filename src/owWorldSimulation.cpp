@@ -206,34 +206,34 @@ void display(void)
 		{
 			i = (i_ec / MAX_NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
 
-			glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
-
-			
-
-			if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
+			if(i<j)	
 			{
-				glLineWidth((GLfloat)1.0);
-				glBegin(GL_LINES);
-				glColor4b(255/2, 0, 0,255/2);//red
-				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
-				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
-				glEnd();
+				glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
+
+				if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
+				{
+					glLineWidth((GLfloat)1.0);
+					glBegin(GL_LINES);
+					glColor4b(255/2, 0, 0,255/2);//red
+					glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+					glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+					glEnd();
+				}
+				else
+				{
+					glLineWidth((GLfloat)0.1);
+					glBegin(GL_LINES);
+											glColor4b(150/2, 125/2, 0, 100/2);
+					if(p_cpp[i*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2);
+					glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+											glColor4b(150/2, 125/2, 0, 100/2);
+					if(p_cpp[j*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2);
+					glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+					glEnd();
+				}
+				
+				ecc++;
 			}
-			else
-			{
-				glLineWidth((GLfloat)0.1);
-				glBegin(GL_LINES);
-										glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
-				if(p_cpp[i*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2/*alpha*/);
-				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
-										glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
-				if(p_cpp[j*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2/*alpha*/);
-				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
-				glEnd();
-			}
-			
-			
-			ecc++;
 		}
 	}
 

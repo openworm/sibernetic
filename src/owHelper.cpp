@@ -887,6 +887,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		int array_j[MAX_NEIGHBOR_COUNT];
 		//float ix,iy,iz,jx,jy,jz;
 		//int j_count=0;
+		int muscleCounter = 0;
 		//int array_k[MAX_NEIGHBOR_COUNT];
 		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
 		{
@@ -919,13 +920,14 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 						if( (fabs(position_cpp[4*i+3]-2.2f)<=0.05) && (fabs(position_cpp[4*j+3]-2.2f)<=0.05) )//both green
 						{
 							if((dz2>4*dx2)&&(dz2>4*dy2)&&(dx2>4*dy2))
-							elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 1.1f;// type of connection; 0 - ordinary spring, 1 - muscle
+							{
+								elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 1.1f;// type of connection; 0 - ordinary spring, 1 - muscle
+								muscleCounter++;
+							}
 						}
 						array_j[ecc] = j;
 						ecc++;
 						ecc_total++;
-
-
 					}
 				}
 			}
