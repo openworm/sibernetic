@@ -129,14 +129,14 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 		if(stage==1)
 		{
 			positionVector = position_cpp + 4 * (pCount+i_start);
-			positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0);
-			positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0);
+			positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0);
+			positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0);
 			positionVector[ 2 ] = zc + r0*j;
 			positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 
 			positionVector = position_cpp + 4 * (pCount+1+i_start);
-			positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0);
-			positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0);
+			positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0);
+			positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0);
 			positionVector[ 2 ] = zc + r0*j;
 			positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 		}
@@ -148,14 +148,14 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 			if(stage==1)
 			{
 				positionVector = position_cpp + 4 * (pCount+i_start);
-				positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0);
-				positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0);
+				positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0);
+				positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0);
 				positionVector[ 2 ] = zc + r0*j;
 				positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 
 				positionVector = position_cpp + 4 * (pCount+1+i_start);
-				positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0);
-				positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0);
+				positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0);
+				positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0);
 				positionVector[ 2 ] = zc + r0*j;
 				positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 			}
@@ -175,14 +175,14 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 					if(stage==1)
 					{
 						positionVector = position_cpp + 4 * (pCount+i_start);
-						positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0);
-						positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0);
+						positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0);
+						positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0);
 						positionVector[ 2 ] = zc + r0*j;
 						positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 
 						positionVector = position_cpp + 4 * (pCount+1+i_start);
-						positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0);
-						positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0);
+						positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0);
+						positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0);
 						positionVector[ 2 ] = zc + r0*j;
 						positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 					}
@@ -214,26 +214,26 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 				if(stage==1)
 				{	
 					positionVector = position_cpp + 4 * (pCount+i_start);
-					positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
-					positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+					positionVector[ 0 ] = xc + wormBodyRadius*cos(angle);
+					positionVector[ 1 ] = yc + wormBodyRadius*sin(angle);
 					positionVector[ 2 ] = zc + r0*j;
 					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green */ 
 
 					positionVector = position_cpp + 4 * (pCount+1+i_start);
-					positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
-					positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+					positionVector[ 0 ] = xc + wormBodyRadius*cos(angle);
+					positionVector[ 1 ] = yc - wormBodyRadius*sin(angle);
 					positionVector[ 2 ] = zc + r0*j;
 					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green*/ 
 
 					positionVector = position_cpp + 4 * (pCount+2+i_start);
-					positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
-					positionVector[ 1 ] = yc - wormBodyRadius*cos(angle);
+					positionVector[ 0 ] = xc - wormBodyRadius*cos(angle);
+					positionVector[ 1 ] = yc + wormBodyRadius*sin(angle);
 					positionVector[ 2 ] = zc + r0*j;
 					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green */ 
 
 					positionVector = position_cpp + 4 * (pCount+3+i_start);
-					positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
-					positionVector[ 1 ] = yc - wormBodyRadius*cos(angle);
+					positionVector[ 0 ] = xc - wormBodyRadius*cos(angle);
+					positionVector[ 1 ] = yc - wormBodyRadius*sin(angle);
 					positionVector[ 2 ] = zc + r0*j;
 					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green*/ 
 				}
@@ -259,14 +259,14 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 						if(stage==1)
 						{	
 							positionVector = position_cpp + 4 * (pCount+i_start);
-							positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
-							positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+							positionVector[ 0 ] = xc + wormBodyRadius*cos(angle);
+							positionVector[ 1 ] = yc + wormBodyRadius*sin(angle);
 							positionVector[ 2 ] = zc + r0*j;
 							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 						
 							positionVector = position_cpp + 4 * (pCount+1+i_start);
-							positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
-							positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+							positionVector[ 0 ] = xc + wormBodyRadius*cos(angle);
+							positionVector[ 1 ] = yc - wormBodyRadius*sin(angle);
 							positionVector[ 2 ] = zc + r0*j;
 							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 						}
@@ -283,14 +283,14 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 						if(stage==1)
 						{	
 							positionVector = position_cpp + 4 * (pCount+i_start);
-							positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
-							positionVector[ 1 ] = yc - wormBodyRadius*cos(angle);
+							positionVector[ 0 ] = xc - wormBodyRadius*cos(angle);
+							positionVector[ 1 ] = yc + wormBodyRadius*sin(angle);
 							positionVector[ 2 ] = zc + r0*j;
 							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 						
 							positionVector = position_cpp + 4 * (pCount+1+i_start);
-							positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
-							positionVector[ 1 ] = yc - wormBodyRadius*cos(angle);
+							positionVector[ 0 ] = xc - wormBodyRadius*cos(angle);
+							positionVector[ 1 ] = yc - wormBodyRadius*sin(angle);
 							positionVector[ 2 ] = zc + r0*j;
 							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 						}
@@ -633,12 +633,6 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 
 void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp)
 {
-	// we need to know at least 
-	// 1) sizes of the box which contains the simulation within
-	// [0..MAX_X],[0..MAX_Y],[0..MAX_Z]
-	// 2) smoothing radius
-	// local vectors system and template data for each structure we are going to generate here
-
 	float x,y,z;
 	float p_type = LIQUID_PARTICLE;
 	int i = 0;// particle counter
@@ -655,67 +649,20 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int nMuscles = 5;
 	int nM,nMi,nMj;
 	int wormIndex_start,wormIndex_end;
-	//int numOfMembraneParticles = (nx*2/3-3)*(nz*2/3-3);
-	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp);// + (nx-3)*(nz-3);
+	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp);
 
 	if(stage==0)
 	{
-		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp);;
-		numOfElasticP = /*nEx*nEy*nEz * nMuscles + */numOfMembraneParticles;
+		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp);
+		numOfElasticP = numOfMembraneParticles;
 		numOfBoundaryP = 0;
 
 		if(numOfElasticP<=0) elasticConnectionsData_cpp = NULL; else elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
 	}
 
-	//=============== create elastic particles ==================================================
+	//=============== create worm body (elastic parts) ==================================================
 	if(stage==1)
 	{
-		p_type = ELASTIC_PARTICLE;
-
-		/*
-		for(nM=0;nM<nMuscles;nM++)
-		for(x=0;x<nEx;x+=1.f)
-		for(y=0;y<nEy;y+=1.f)
-		for(z=0;z<nEz;z+=1.f)
-		{
-			//write particle coordinates to corresponding arrays
-			position_cpp[ 4 * i + 0 ] = XMAX/2+x*r0-nEx*r0/2 - r0*(nEx)/2 + r0*(nEx+0.4)*(nM>2);
-			position_cpp[ 4 * i + 1 ] = YMAX/2+y*r0-nEy*r0/2 - YMAX*0.4;
-			position_cpp[ 4 * i + 2 ] = ZMAX/2+z*r0-nEz*r0/2 - (nM<=2)*(nM-1)*(nEz*r0) - (nM>2)*(r0/2+(nM-4)*r0)*nEz - (nM==1)*r0/2.5 - (nM==2)*r0*2/2.5 + (nM==4)*r0/2.5;
-			position_cpp[ 4 * i + 3 ] = p_type;
-
-			velocity_cpp[ 4 * i + 0 ] = 0;
-			velocity_cpp[ 4 * i + 1 ] = 0;
-			velocity_cpp[ 4 * i + 2 ] = 0;
-			velocity_cpp[ 4 * i + 3 ] = p_type;
-
-			i++;
-		}*/
-		
-
-
-		//now add membrane particles
-		//their number should be precisely equal to numOfMembraneParticles
-		/*
-		for(x=2;x<nx-1.5;x+=1.0)
-		for(z=2;z<nz-1.5;z+=1.0)
-		{
-			//write particle coordinates to corresponding arrays
-			position_cpp[ 4 * i + 0 ] = x*r0;
-			position_cpp[ 4 * i + 1 ] = YMAX/2+YMAX*0.06+r0/2;
-			position_cpp[ 4 * i + 2 ] = z*r0;
-			position_cpp[ 4 * i + 3 ] = p_type;
-
-			velocity_cpp[ 4 * i + 0 ] = 0;
-			velocity_cpp[ 4 * i + 1 ] = 0;
-			velocity_cpp[ 4 * i + 2 ] = 0;
-			velocity_cpp[ 4 * i + 3 ] = p_type;
-
-			i++;
-		}//==================================
-		/**/
-
-
 		wormIndex_start = i;
 		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp);
 		wormIndex_end = i;
@@ -733,145 +680,18 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			elasticConnectionsData_cpp[ 4 * ii + 2 ] = 0;
 			elasticConnectionsData_cpp[ 4 * ii + 3 ] = 0; 
 		}
-
-
-		/*!*///numOfElasticP -= numOfMembraneParticles;
-
-		/*
-		//for defining connections between muscles particles
-		for(int i_ec = 0; i_ec < numOfElasticP; i_ec++)
-		{
-			ecc = 0;
-			float test;
-			nMi = i_ec*nMuscles/numOfElasticP;
-
-			for(int j_ec = 0; j_ec < numOfElasticP; j_ec++)
-			{
-				nMj = j_ec*nMuscles/numOfElasticP;
-
-				if(i_ec!=j_ec)
-				{
-					dx2 = (position_cpp[ 4 * i_ec + 0 ] - position_cpp[ 4 * j_ec + 0 ]);
-					dy2 = (position_cpp[ 4 * i_ec + 1 ] - position_cpp[ 4 * j_ec + 1 ]);
-					dz2 = (position_cpp[ 4 * i_ec + 2 ] - position_cpp[ 4 * j_ec + 2 ]);
-					dx2 *= dx2;
-					dy2 *= dy2;
-					dz2 *= dz2;
-					r2ij = dx2 + dy2 + dz2;
-
-					if(r2ij<=r0*r0*3.05f)
-					{
-						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 0 ] = ((float)j_ec) + 0.1f;				// index of j-th particle in a pair connected with spring
-						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 1 ] = (float)sqrt(r2ij)*simulationScale;	// resting density; that's why we use float type for elasticConnectionsData_cpp
-						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0;							// type of connection; 0 - ordinary spring, 1 - muscle
-						if(nMi==nMj)
-						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0 + (1.1f+nMi)*((dz2>100*dx2)&&(dz2>100*dy2));// this line is for muscles
-						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i_ec + ecc) + 3 ] = 0;									// not in use yet
-						ecc++;
-					}
-
-					if(ecc>=MAX_NEIGHBOR_COUNT) break;
-				}
-			}
-		}
-		*/
-
-		/*!*///numOfElasticP += numOfMembraneParticles;
-
-		//and connections between them
-		/*
-		elasticConnections[ 4 * 0 + 0 ] = 1.1f;//connect elastic particles 0 and 1
-		elasticConnections[ 4 * 0 + 1 ] = r0*simulationScale;
-		elasticConnections[ 4 * 0 + 2 ] = 0;
-		elasticConnections[ 4 * 0 + 3 ] = 0;
-
-		
-		elasticConnections[ 4 * MAX_NEIGHBOR_COUNT + 0 ] = 0.1f;//connect elastic particles 0 and 1
-		elasticConnections[ 4 * MAX_NEIGHBOR_COUNT + 1 ] = r0*simulationScale;
-		elasticConnections[ 4 * MAX_NEIGHBOR_COUNT + 2 ] = 0;
-		elasticConnections[ 4 * MAX_NEIGHBOR_COUNT + 3 ] = 0;
-		*/
-
-
 	}
 
-	//============= create volume of liquid =========================================================================
 
-	p_type = LIQUID_PARTICLE;
-	//int first_liquid_particle = 1;
-	//float h_fall;
-
-	/*
-	for(x = r0*23;x<(XMAX-XMIN)-r0*23;x += r0)
-	for(y = r0*3;y<(YMAX-YMIN)*0.0+9.0*r0;y += r0)
-	for(z = r0*23;z<(ZMAX-ZMIN)-r0*23;z += r0)
-	{
-						// stage==0 - preliminary run
-		if(stage==1)	// stage==1 - final run
-		{
-			if(i>=numOfLiquidP+numOfElasticP) 
-			{
-				printf("\nWarning! Final particle count >= preliminary particle count!\n");
-				exit(-3);
-			}
-			//write particle coordinates to corresponding arrays
-			position_cpp[ 4 * i + 0 ] = x;
-			position_cpp[ 4 * i + 1 ] = y;
-			position_cpp[ 4 * i + 2 ] = z;
-			position_cpp[ 4 * i + 3 ] = p_type;
-
-			velocity_cpp[ 4 * i + 0 ] = 0;
-			velocity_cpp[ 4 * i + 1 ] = 0;
-			velocity_cpp[ 4 * i + 2 ] = 0;
-			velocity_cpp[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
-		}
-
-		i++; // necessary for both stages
-	}*/
-
+	//=============== create worm body (inner liquid) ==================================================
 	if(stage==1)
 	{
 		i += generateInnerWormLiquid(stage,i,position_cpp,velocity_cpp);
 	}
 
-	/**/
-
-	/*for(x = (XMAX-XMIN)/2-(6+18*0)*r0;x<(XMAX-XMIN)/2+r0*(6+18*0);x += r0)
-	for(y = r0*79-25*0;y<(YMAX-YMIN)*0.0+r0*92;y += r0)
-	for(z = (ZMAX-ZMIN)/2-(6+30*0)*r0;z<(ZMAX-ZMIN)/2+r0*(6+30*0);z += r0)*/
-/*	for(x = (XMAX-XMIN)/2-(2)*r0;x<(XMAX-XMIN)/2+r0*(2);x += r0)
-	for(y = (YMAX-YMIN)/2-(2)*r0;y<(YMAX-YMIN)/2+r0*(2);y += r0)
-	for(z = (ZMAX-ZMIN)/2-(2)*r0;z<(ZMAX-ZMIN)/2+r0*(2);z += r0)
-	{
-						// stage==0 - preliminary run
-		if(stage==1)	// stage==1 - final run
-		{
-			if(i>=numOfLiquidP+numOfElasticP) 
-			{
-				printf("\nWarning! Final particle count >= preliminary particle count!\n");
-				exit(-3);
-			}
-			//write particle coordinates to corresponding arrays
-			position_cpp[ 4 * i + 0 ] = x;
-			position_cpp[ 4 * i + 1 ] = y;
-			position_cpp[ 4 * i + 2 ] = z;
-			position_cpp[ 4 * i + 3 ] = p_type;
-
-			velocity_cpp[ 4 * i + 0 ] = 0;
-			velocity_cpp[ 4 * i + 1 ] = 0;
-			velocity_cpp[ 4 * i + 2 ] = 0;
-			velocity_cpp[ 4 * i + 3 ] = p_type;//or =0, for example; if particle type is already defined in 'position', we don't need its duplicate here, right? (this field is not used)
-		}
-
-		i++; // necessary for both stages
-		if(stage==0) numOfLiquidP++;
-	}*/
-	// end
-
 
 	if(stage==0) 
 	{
-		//numOfLiquidP = i;// - numOfElasticP;
 		numOfBoundaryP = 2 * ( nx*ny + (nx+ny-2)*(nz-2) ); 
 	}
 	else
@@ -1042,11 +862,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			printf("\nWarning! Generated scene contains %d particles!\n",PARTICLE_COUNT);
 			exit(-2);
 		}
-
-		//numOfMembranes = 10728;
-		//numOfMembranes = /*!*/(nz-3-1-2*2)*(nx-3-1-2*2)*2;
-		//numOfMembranes = 107024;
-		//numOfMembranes = numOfMembranes;
 	}
 	else
 	if(stage==1)
@@ -1065,31 +880,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				particleMembranesList_cpp [mli*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE + sli] = -1;// no membranes connected with current particle
 			}
 		}
-
-		
-		//int mc = 0;//membrane counter
-
-		// create membranes using recently generated elastic matter plane
-		/*!*//*
-		for(int ix = 2; ix<(nx-3)-1-2; ix++)
-		{
-			for(int iz = 2; iz<(nz-3)-1-2; iz++)
-			{
-				membraneData_cpp [mc*3+0] = (ix+0)*(nz-3) + iz;
-				membraneData_cpp [mc*3+1] = (ix+0)*(nz-3) + iz + 1;
-				membraneData_cpp [mc*3+2] = (ix+1)*(nz-3) + iz + 1;
-
-				mc++;
-
-				membraneData_cpp [mc*3+0] = (ix+0)*(nz-3) + iz;
-				membraneData_cpp [mc*3+1] = (ix+1)*(nz-3) + iz;
-				membraneData_cpp [mc*3+2] = (ix+1)*(nz-3) + iz + 1;
-
-				mc++;
-			}
-		}
-		/*!*/
-		// end of membranes creation
 
 		///////////////debug////////////
 		int j;
@@ -1110,12 +900,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				{
 					if(j==numOfElasticP) j+= numOfLiquidP;//skip liquid particles (they are located in the middle of memory) as candidates to spring connections
 
-					/*ix = position_cpp[ 4 * i + 0 ];
-					iy = position_cpp[ 4 * i + 1 ];
-					iz = position_cpp[ 4 * i + 2 ];
-					jx = position_cpp[ 4 * j + 0 ];
-					jy = position_cpp[ 4 * j + 1 ];
-					jz = position_cpp[ 4 * j + 2 ];*/
 
 					dx2 = (position_cpp[ 4 * i + 0 ] - position_cpp[ 4 * j + 0 ]); dx2 *= dx2;
 					dy2 = (position_cpp[ 4 * i + 1 ] - position_cpp[ 4 * j + 1 ]); dy2 *= dy2;
@@ -1131,10 +915,10 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
 						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
 
-						if(position_cpp[ 4 * i + 1 ]>YMAX*0.3)
+						if(position_cpp[ 4 * i + 0 ]>XMAX*0.5)
 						if( (fabs(position_cpp[4*i+3]-2.2f)<=0.05) && (fabs(position_cpp[4*j+3]-2.2f)<=0.05) )//both green
 						{
-							if((dz2>4*dx2)&&(dz2>4*dy2)&&(dy2>4*dx2))
+							if((dz2>4*dx2)&&(dz2>4*dy2)&&(dx2>4*dy2))
 							elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 1.1f;// type of connection; 0 - ordinary spring, 1 - muscle
 						}
 						array_j[ecc] = j;
@@ -1145,43 +929,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 					}
 				}
 			}
-			/////////
-			/*
-			if((i>=wormIndex_start)&&(i<=wormIndex_end))
-			if(ecc>=2)
-			{
-				for(j=0;j<ecc;j++)
-				{
-					for(k=0;k<ecc;k++)
-					{
-						if(j!=k)
-						if((i!=array_j[j])&&(i!=array_j[k]))
-						if((array_j[j]>=wormIndex_start)&&(array_j[k]<=wormIndex_end))
-						if((array_j[j]>=wormIndex_start)&&(array_j[k]<=wormIndex_end))
-						{
-							dx2 = (position_cpp[ 4 * array_j[j] + 0 ] - position_cpp[ 4 * array_j[k] + 0 ]); dx2 *= dx2;
-							dy2 = (position_cpp[ 4 * array_j[j] + 1 ] - position_cpp[ 4 * array_j[k] + 1 ]); dy2 *= dy2;
-							dz2 = (position_cpp[ 4 * array_j[j] + 2 ] - position_cpp[ 4 * array_j[k] + 2 ]); dz2 *= dz2;
-							r2_ij = dx2 + dy2 + dz2;
-							r_ij = (float)sqrt(r2_ij);
-
-							if(r_ij<=r0*sqrt(2.7))//grid = 1.0*r0
-							{	
-								membraneData_cpp [mc*3+0] = i;
-								membraneData_cpp [mc*3+1] = array_j[j];
-								membraneData_cpp [mc*3+2] = array_j[k];
-								
-								mc++;
-							}
-						}
-					}
-				}
-			}
-
-			mc = mc;
-			/**/
-			/////////
-			//mc = mc;
 		}
 
 		//membraneData - the list containing triplets of indexes of particles forming triangular membranes; size: numOfMembranes*3

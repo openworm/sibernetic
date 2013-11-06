@@ -690,10 +690,8 @@ GLvoid resize(GLsizei width, GLsizei height){
 	
 
 	///// Model View ///////
-	glMatrixMode(GL_MODELVIEW);
+	//glMatrixMode(GL_MODELVIEW);
 	//glLoadIdentity();   
-    //glTranslatef(0.0, 0.0, -8.0);                              
-
     //glRotatef(0.0, 1.0, 0.0, 0.0);
     //glRotatef(0.0, 0.0, 1.0, 0.0);
 	//gluPerspective(30.0f,  1/(width/height), 1.0f, 15.0f);
@@ -701,7 +699,9 @@ GLvoid resize(GLsizei width, GLsizei height){
 	//SetProjectionMatrix();
 	//SetModelviewMatrix();
 	//glMatrixMode(GL_MODELVIEW);
-
+	
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 
 	for (int c = 0; c < 3; ++c)
 	{
