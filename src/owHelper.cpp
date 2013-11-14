@@ -930,6 +930,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		{
 			float dx2,dy2,dz2,r2_ij,r_ij;
 			int k;
+			int q_i_start;
+			int dq;//dorsal quadrant - "+1"=right, "-1"=left
 			float muscle_color = 0.1f;
 			ecc = 0;//!important!
 			//        _____1_______      2       _____3________       
@@ -957,191 +959,193 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 						//define muscles
 						if((position_cpp[ 4 * i + 2 ]<WZC+r0*95)&&(position_cpp[ 4 * j + 2 ]<WZC+r0*95))
 						if((position_cpp[ 4 * i + 2 ]>WZC-r0*92)&&(position_cpp[ 4 * j + 2 ]>WZC-r0*92))
-						//if(position_cpp[ 4 * i + 0 ]>XMAX*0.5)
+						if(position_cpp[ 4 * i + 0 ]>XMAX*0.5)
 						if( (fabs(position_cpp[4*i+3]-2.2f)<=0.05) && (fabs(position_cpp[4*j+3]-2.2f)<=0.05) )//both green
 						{
 							if((dz2>4*dx2)&&(dz2>4*dy2)&&(dx2>4*dy2))
 							{
 								muscle_color = 1.1f;
 
-								//DR quadrant muscles
+								//DR and DL quadrant muscles mapping
 								
 								if(position_cpp[ 4 * i + 0 ]>WXC)
+								for(dq=-1;dq<=1;dq+=2)//dorsal quadrant - "+1"=right, "-1"=left
 								{
-									if((position_cpp[4*i+1]<WYC)      &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*97)&&(position_cpp[4*j+2]<WZC+r0*97)) //MDR01
-									if((position_cpp[4*i+2]>WZC+r0*85.9)&&(position_cpp[4*j+2]>WZC+r0*85.9)) muscle_color = 1.2f;//x.2 = red
+									q_i_start = 24; if(dq==1) q_i_start = 0; //muscle quadrant starting index
+									
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*97)&&(position_cpp[4*j+2]<WZC+r0*97)) //MDR01(1) || MDL01(1+24)
+									if((position_cpp[4*i+2]>WZC+r0*85.9)&&(position_cpp[4*j+2]>WZC+r0*85.9)) muscle_color = q_i_start + 1.2f;//x.2 = red
 
-									if((position_cpp[4*i+1]<WYC-1*r0) &&(position_cpp[4*i+1]>WYC-2*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*95.0)&&(position_cpp[4*j+2]<WZC+r0*95.0)) //MDR02
-									if((position_cpp[4*i+2]>WZC+r0*83.5)&&(position_cpp[4*j+2]>WZC+r0*83.5)) muscle_color = 2.4f;//x.4 = magenta
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*95.0)&&(position_cpp[4*j+2]<WZC+r0*95.0)) //MDR02(2) || MDL02(2+24)
+									if((position_cpp[4*i+2]>WZC+r0*83.5)&&(position_cpp[4*j+2]>WZC+r0*83.5)) muscle_color = q_i_start + 2.4f;//x.4 = magenta
 
-									if((position_cpp[4*i+1]<WYC)      &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*86.5)&&(position_cpp[4*j+2]<WZC+r0*86.5)) //MDR03
-									if((position_cpp[4*i+2]>WZC+r0*77.5)&&(position_cpp[4*j+2]>WZC+r0*77.5)) muscle_color = 3.3f;//x.3 = orange
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*86.5)&&(position_cpp[4*j+2]<WZC+r0*86.5)) //MDR03(3) || MDL03(3+24)
+									if((position_cpp[4*i+2]>WZC+r0*77.5)&&(position_cpp[4*j+2]>WZC+r0*77.5)) muscle_color = q_i_start + 3.3f;//x.3 = orange
 
-									if((position_cpp[4*i+1]<WYC-1*r0) &&(position_cpp[4*i+1]>WYC-2*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*84.5)&&(position_cpp[4*j+2]<WZC+r0*84.5)) //MDR04
-									if((position_cpp[4*i+2]>WZC+r0*76.5)&&(position_cpp[4*j+2]>WZC+r0*76.5)) muscle_color = 4.5f;
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*84.5)&&(position_cpp[4*j+2]<WZC+r0*84.5)) //MDR04(4) || MDL04(4+24)
+									if((position_cpp[4*i+2]>WZC+r0*76.5)&&(position_cpp[4*j+2]>WZC+r0*76.5)) muscle_color = q_i_start + 4.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*82.5)&&(position_cpp[4*j+2]<WZC+r0*82.5)) 
-									if((position_cpp[4*i+2]>WZC+r0*72.5)&&(position_cpp[4*j+2]>WZC+r0*72.5)) muscle_color = 4.5f;//x.5 = violet
+									if((position_cpp[4*i+2]>WZC+r0*72.5)&&(position_cpp[4*j+2]>WZC+r0*72.5)) muscle_color = q_i_start + 4.5f;//x.5 = violet
 								
-									if((position_cpp[4*i+1]<WYC)      &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*78)&&(position_cpp[4*j+2]<WZC+r0*78)) //MDR05
-									if((position_cpp[4*i+2]>WZC+r0*66.9)&&(position_cpp[4*j+2]>WZC+r0*66.9)) muscle_color = 5.2f;
-									if((position_cpp[4*i+1]<WYC-1*r0) &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*78)&&(position_cpp[4*j+2]<WZC+r0*78)) //MDR05(5) || MDL05(5+24)
+									if((position_cpp[4*i+2]>WZC+r0*66.9)&&(position_cpp[4*j+2]>WZC+r0*66.9)) muscle_color = q_i_start + 5.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*77.5)&&(position_cpp[4*j+2]<WZC+r0*77.5)) 
-									if((position_cpp[4*i+2]>WZC+r0*65.9)&&(position_cpp[4*j+2]>WZC+r0*65.9)) muscle_color = 5.2f;//x.2 = red
+									if((position_cpp[4*i+2]>WZC+r0*65.9)&&(position_cpp[4*j+2]>WZC+r0*65.9)) muscle_color = q_i_start + 5.2f;//x.2 = red
 
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) //MDR06
-									if((position_cpp[4*i+2]>WZC+r0*55.0)&&(position_cpp[4*j+2]>WZC+r0*55.0)) muscle_color = 6.4f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) //MDR06(6) || MDL06(6+24)
+									if((position_cpp[4*i+2]>WZC+r0*55.0)&&(position_cpp[4*j+2]>WZC+r0*55.0)) muscle_color = q_i_start + 6.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) 
-									if((position_cpp[4*i+2]>WZC+r0*54.5)&&(position_cpp[4*j+2]>WZC+r0*54.5)) muscle_color = 6.4f;//x.4 = magenta
+									if((position_cpp[4*i+2]>WZC+r0*54.5)&&(position_cpp[4*j+2]>WZC+r0*54.5)) muscle_color = q_i_start + 6.4f;//x.4 = magenta
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*68.5)&&(position_cpp[4*j+2]<WZC+r0*68.5)) //MDR07
-									if((position_cpp[4*i+2]>WZC+r0*51.0)&&(position_cpp[4*j+2]>WZC+r0*51.0)) muscle_color = 7.3f;
-									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*68.5)&&(position_cpp[4*j+2]<WZC+r0*68.5)) //MDR07(7) || MDL07(7+24)
+									if((position_cpp[4*i+2]>WZC+r0*51.0)&&(position_cpp[4*j+2]>WZC+r0*51.0)) muscle_color = q_i_start + 7.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*66.5)&&(position_cpp[4*j+2]<WZC+r0*66.5)) 
-									if((position_cpp[4*i+2]>WZC+r0*49.5)&&(position_cpp[4*j+2]>WZC+r0*49.5)) muscle_color = 7.3f;//x.3 = orange
+									if((position_cpp[4*i+2]>WZC+r0*49.5)&&(position_cpp[4*j+2]>WZC+r0*49.5)) muscle_color = q_i_start + 7.3f;//x.3 = orange
 
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*56.5)&&(position_cpp[4*j+2]<WZC+r0*56.5)) //MDR08
-									if((position_cpp[4*i+2]>WZC+r0*40.0)&&(position_cpp[4*j+2]>WZC+r0*40.0)) muscle_color = 8.5f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*56.5)&&(position_cpp[4*j+2]<WZC+r0*56.5)) //MDR08(8) || MDL08(8+24)
+									if((position_cpp[4*i+2]>WZC+r0*40.0)&&(position_cpp[4*j+2]>WZC+r0*40.0)) muscle_color = q_i_start + 8.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*55.5)&&(position_cpp[4*j+2]<WZC+r0*55.5)) 
-									if((position_cpp[4*i+2]>WZC+r0*38.5)&&(position_cpp[4*j+2]>WZC+r0*38.5)) muscle_color = 8.5f;//x.5 = violet
+									if((position_cpp[4*i+2]>WZC+r0*38.5)&&(position_cpp[4*j+2]>WZC+r0*38.5)) muscle_color = q_i_start + 8.5f;//x.5 = violet
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*51.5)&&(position_cpp[4*j+2]<WZC+r0*51.5)) //MDR09
-									if((position_cpp[4*i+2]>WZC+r0*33.5)&&(position_cpp[4*j+2]>WZC+r0*33.5)) muscle_color = 9.2f;
-									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*51.5)&&(position_cpp[4*j+2]<WZC+r0*51.5)) //MDR09(9) || MDL09(9+24)
+									if((position_cpp[4*i+2]>WZC+r0*33.5)&&(position_cpp[4*j+2]>WZC+r0*33.5)) muscle_color = q_i_start + 9.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*50.0)&&(position_cpp[4*j+2]<WZC+r0*50.0)) 
-									if((position_cpp[4*i+2]>WZC+r0*33.0)&&(position_cpp[4*j+2]>WZC+r0*33.0)) muscle_color = 9.2f;//x.2 = red
+									if((position_cpp[4*i+2]>WZC+r0*33.0)&&(position_cpp[4*j+2]>WZC+r0*33.0)) muscle_color = q_i_start + 9.2f;//x.2 = red
 
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*40.5)&&(position_cpp[4*j+2]<WZC+r0*40.5)) //MDR10
-									if((position_cpp[4*i+2]>WZC+r0*22.5)&&(position_cpp[4*j+2]>WZC+r0*22.5)) muscle_color = 10.4f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.5)&&(position_cpp[4*j+2]<WZC+r0*40.5)) //MDR10(10) || MDL10(10+24)
+									if((position_cpp[4*i+2]>WZC+r0*22.5)&&(position_cpp[4*j+2]>WZC+r0*22.5)) muscle_color = q_i_start + 10.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
-									if((position_cpp[4*i+2]>WZC+r0*21.5)&&(position_cpp[4*j+2]>WZC+r0*21.5)) muscle_color = 10.4f;
-									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]>WZC+r0*21.5)&&(position_cpp[4*j+2]>WZC+r0*21.5)) muscle_color = q_i_start + 10.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
-									if((position_cpp[4*i+2]>WZC+r0*20.5)&&(position_cpp[4*j+2]>WZC+r0*20.5)) muscle_color = 10.4f;//x.4 = magenta
+									if((position_cpp[4*i+2]>WZC+r0*20.5)&&(position_cpp[4*j+2]>WZC+r0*20.5)) muscle_color = q_i_start + 10.4f;//x.4 = magenta
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*34.5)&&(position_cpp[4*j+2]<WZC+r0*34.5)) //MDR11
-									if((position_cpp[4*i+2]>WZC+r0*15.5)&&(position_cpp[4*j+2]>WZC+r0*15.5)) muscle_color = 11.3f;
-									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)        &&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*34.5)&&(position_cpp[4*j+2]<WZC+r0*34.5)) //MDR11(11) || MDL11(11+24)
+									if((position_cpp[4*i+2]>WZC+r0*15.5)&&(position_cpp[4*j+2]>WZC+r0*15.5)) muscle_color = q_i_start + 11.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)   &&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*33.5)&&(position_cpp[4*j+2]<WZC+r0*33.5)) 
-									if((position_cpp[4*i+2]>WZC+r0*14.5)&&(position_cpp[4*j+2]>WZC+r0*14.5)) muscle_color = 11.3f;//x.3 = orange
+									if((position_cpp[4*i+2]>WZC+r0*14.5)&&(position_cpp[4*j+2]>WZC+r0*14.5)) muscle_color = q_i_start + 11.3f;//x.3 = orange
 
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*23.5)&&(position_cpp[4*j+2]<WZC+r0*23.5)) //MDR12
-									if((position_cpp[4*i+2]>WZC+r0* 8.5)&&(position_cpp[4*j+2]>WZC+r0* 8.5)) muscle_color = 12.5f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*23.5)&&(position_cpp[4*j+2]<WZC+r0*23.5)) //MDR12(12) || MDL12(12+24)
+									if((position_cpp[4*i+2]>WZC+r0* 8.5)&&(position_cpp[4*j+2]>WZC+r0* 8.5)) muscle_color = q_i_start + 12.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*22.5)&&(position_cpp[4*j+2]<WZC+r0*22.5)) 
-									if((position_cpp[4*i+2]>WZC+r0* 7.5)&&(position_cpp[4*j+2]>WZC+r0* 7.5)) muscle_color = 12.5f;
-									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]>WZC+r0* 7.5)&&(position_cpp[4*j+2]>WZC+r0* 7.5)) muscle_color = q_i_start + 12.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*21.5)&&(position_cpp[4*j+2]<WZC+r0*21.5)) 
-									if((position_cpp[4*i+2]>WZC+r0* 6.5)&&(position_cpp[4*j+2]>WZC+r0* 6.5)) muscle_color = 12.5f;//x.5 = violet
+									if((position_cpp[4*i+2]>WZC+r0* 6.5)&&(position_cpp[4*j+2]>WZC+r0* 6.5)) muscle_color = q_i_start + 12.5f;//x.5 = violet
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*16.0)&&(position_cpp[4*j+2]<WZC+r0*16.0)) //MDR13
-									if((position_cpp[4*i+2]>WZC+r0* 1.5)&&(position_cpp[4*j+2]>WZC+r0* 1.5)) muscle_color = 13.2f;
-									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*16.0)&&(position_cpp[4*j+2]<WZC+r0*16.0)) //MDR13(13) || MDL13(13+24)
+									if((position_cpp[4*i+2]>WZC+r0* 1.5)&&(position_cpp[4*j+2]>WZC+r0* 1.5)) muscle_color = q_i_start + 13.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*15.5)&&(position_cpp[4*j+2]<WZC+r0*15.5)) 
-									if((position_cpp[4*i+2]>WZC+r0* 0.5)&&(position_cpp[4*j+2]>WZC+r0* 0.5)) muscle_color = 13.2f;//x.2 = red
+									if((position_cpp[4*i+2]>WZC+r0* 0.5)&&(position_cpp[4*j+2]>WZC+r0* 0.5)) muscle_color = q_i_start + 13.2f;//x.2 = red
 
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0* 9.0)&&(position_cpp[4*j+2]<WZC+r0* 9.0)) //MDR14
-									if((position_cpp[4*i+2]>WZC-r0* 2.5)&&(position_cpp[4*j+2]>WZC-r0* 2.5)) muscle_color = 14.4f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 9.0)&&(position_cpp[4*j+2]<WZC+r0* 9.0)) //MDR14(14) || MDL14(14+24)
+									if((position_cpp[4*i+2]>WZC-r0* 2.5)&&(position_cpp[4*j+2]>WZC-r0* 2.5)) muscle_color = q_i_start + 14.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0* 8.5)&&(position_cpp[4*j+2]<WZC+r0* 8.5)) 
-									if((position_cpp[4*i+2]>WZC-r0* 3.5)&&(position_cpp[4*j+2]>WZC-r0* 3.5)) muscle_color = 14.4f;
-									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]>WZC-r0* 3.5)&&(position_cpp[4*j+2]>WZC-r0* 3.5)) muscle_color = q_i_start + 14.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0* 7.5)&&(position_cpp[4*j+2]<WZC+r0* 7.5)) 
-									if((position_cpp[4*i+2]>WZC-r0* 4.5)&&(position_cpp[4*j+2]>WZC-r0* 4.5)) muscle_color = 14.4f;//x.4 = magenta
+									if((position_cpp[4*i+2]>WZC-r0* 4.5)&&(position_cpp[4*j+2]>WZC-r0* 4.5)) muscle_color = q_i_start + 14.4f;//x.4 = magenta
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0* 2.0)&&(position_cpp[4*j+2]<WZC+r0* 2.0)) //MDR15
-									if((position_cpp[4*i+2]>WZC-r0*14.5)&&(position_cpp[4*j+2]>WZC-r0*14.5)) muscle_color = 15.3f;
-									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 2.0)&&(position_cpp[4*j+2]<WZC+r0* 2.0)) //MDR15(15) || MDL15(15+24)
+									if((position_cpp[4*i+2]>WZC-r0*14.5)&&(position_cpp[4*j+2]>WZC-r0*14.5)) muscle_color = q_i_start + 15.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)   &&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0* 1.0)&&(position_cpp[4*j+2]<WZC+r0* 1.0)) 
-									if((position_cpp[4*i+2]>WZC-r0*15.5)&&(position_cpp[4*j+2]>WZC-r0*15.5)) muscle_color = 15.3f;//x.3 = orange
+									if((position_cpp[4*i+2]>WZC-r0*15.5)&&(position_cpp[4*j+2]>WZC-r0*15.5)) muscle_color = q_i_start + 15.3f;//x.3 = orange
 
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0* 1.5)&&(position_cpp[4*j+2]<WZC-r0* 1.5)) //MDR16
-									if((position_cpp[4*i+2]>WZC-r0*21.5)&&(position_cpp[4*j+2]>WZC-r0*21.5)) muscle_color = 16.5f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 1.5)&&(position_cpp[4*j+2]<WZC-r0* 1.5)) //MDR16(16) || MDL16(16+24)
+									if((position_cpp[4*i+2]>WZC-r0*21.5)&&(position_cpp[4*j+2]>WZC-r0*21.5)) muscle_color = q_i_start + 16.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0* 2.5)&&(position_cpp[4*j+2]<WZC-r0* 2.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*22.5)&&(position_cpp[4*j+2]>WZC-r0*22.5)) muscle_color = 16.5f;
-									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]>WZC-r0*22.5)&&(position_cpp[4*j+2]>WZC-r0*22.5)) muscle_color = q_i_start + 16.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0* 3.5)&&(position_cpp[4*j+2]<WZC-r0* 3.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*23.5)&&(position_cpp[4*j+2]>WZC-r0*23.5)) muscle_color = 16.5f;//x.5 = violet
+									if((position_cpp[4*i+2]>WZC-r0*23.5)&&(position_cpp[4*j+2]>WZC-r0*23.5)) muscle_color = q_i_start + 16.5f;//x.5 = violet
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*14.0)&&(position_cpp[4*j+2]<WZC-r0*14.0)) //MDR17
-									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = 17.2f;
-									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*14.0)&&(position_cpp[4*j+2]<WZC-r0*14.0)) //MDR17(17) || MDL17(17+24)
+									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = q_i_start + 17.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*15.0)&&(position_cpp[4*j+2]<WZC-r0*15.0)) 
-									if((position_cpp[4*i+2]>WZC-r0*35.5)&&(position_cpp[4*j+2]>WZC-r0*35.5)) muscle_color = 17.2f;//x.2 = red
+									if((position_cpp[4*i+2]>WZC-r0*35.5)&&(position_cpp[4*j+2]>WZC-r0*35.5)) muscle_color = q_i_start + 17.2f;//x.2 = red
 
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*20.0)&&(position_cpp[4*j+2]<WZC-r0*20.0)) //MDR18
-									if((position_cpp[4*i+2]>WZC-r0*40.5)&&(position_cpp[4*j+2]>WZC-r0*40.5)) muscle_color = 18.4f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*20.0)&&(position_cpp[4*j+2]<WZC-r0*20.0)) //MDR18(18) || MDL18(18+24)
+									if((position_cpp[4*i+2]>WZC-r0*40.5)&&(position_cpp[4*j+2]>WZC-r0*40.5)) muscle_color = q_i_start + 18.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*21.5)&&(position_cpp[4*j+2]<WZC-r0*21.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*41.5)&&(position_cpp[4*j+2]>WZC-r0*41.5)) muscle_color = 18.4f;
-									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]>WZC-r0*41.5)&&(position_cpp[4*j+2]>WZC-r0*41.5)) muscle_color = q_i_start + 18.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*22.5)&&(position_cpp[4*j+2]<WZC-r0*22.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = 18.4f;//x.4 = magenta
+									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = q_i_start + 18.4f;//x.4 = magenta
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*34.0)&&(position_cpp[4*j+2]<WZC-r0*34.0)) //MDR19
-									if((position_cpp[4*i+2]>WZC-r0*54.5)&&(position_cpp[4*j+2]>WZC-r0*54.5)) muscle_color = 19.3f;
-									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*34.0)&&(position_cpp[4*j+2]<WZC-r0*34.0)) //MDR19(19) || MDL19(19+24)
+									if((position_cpp[4*i+2]>WZC-r0*54.5)&&(position_cpp[4*j+2]>WZC-r0*54.5)) muscle_color = q_i_start + 19.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*34.5)&&(position_cpp[4*j+2]<WZC-r0*34.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*55.5)&&(position_cpp[4*j+2]>WZC-r0*55.5)) muscle_color = 19.3f;//x.3 = orange
+									if((position_cpp[4*i+2]>WZC-r0*55.5)&&(position_cpp[4*j+2]>WZC-r0*55.5)) muscle_color = q_i_start + 19.3f;//x.3 = orange
 
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*39.5)&&(position_cpp[4*j+2]<WZC-r0*39.5)) //MDR20
-									if((position_cpp[4*i+2]>WZC-r0*50.5)&&(position_cpp[4*j+2]>WZC-r0*50.5)) muscle_color = 20.5f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*39.5)&&(position_cpp[4*j+2]<WZC-r0*39.5)) //MDR20(20) || MDL20(20+24)
+									if((position_cpp[4*i+2]>WZC-r0*50.5)&&(position_cpp[4*j+2]>WZC-r0*50.5)) muscle_color = q_i_start + 20.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*40.5)&&(position_cpp[4*j+2]<WZC-r0*40.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*51.5)&&(position_cpp[4*j+2]>WZC-r0*51.5)) muscle_color = 20.5f;//x.5 = violet
+									if((position_cpp[4*i+2]>WZC-r0*51.5)&&(position_cpp[4*j+2]>WZC-r0*51.5)) muscle_color = q_i_start + 20.5f;//x.5 = violet
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*53.0)&&(position_cpp[4*j+2]<WZC-r0*53.0)) //MDR21
-									if((position_cpp[4*i+2]>WZC-r0*71.5)&&(position_cpp[4*j+2]>WZC-r0*71.5)) muscle_color = 21.2f;
-									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*53.0)&&(position_cpp[4*j+2]<WZC-r0*53.0)) //MDR21(21) || MDL21(21+24)
+									if((position_cpp[4*i+2]>WZC-r0*71.5)&&(position_cpp[4*j+2]>WZC-r0*71.5)) muscle_color = q_i_start + 21.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*54.0)&&(position_cpp[4*j+2]<WZC-r0*54.0)) 
-									if((position_cpp[4*i+2]>WZC-r0*72.5)&&(position_cpp[4*j+2]>WZC-r0*72.5)) muscle_color = 21.2f;//x.2 = red
+									if((position_cpp[4*i+2]>WZC-r0*72.5)&&(position_cpp[4*j+2]>WZC-r0*72.5)) muscle_color = q_i_start + 21.2f;//x.2 = red
 
-									if((position_cpp[4*i+1]<WYC-2*r0)   &&(position_cpp[4*i+1]>WYC-3*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*50.0)&&(position_cpp[4*j+2]<WZC-r0*50.0)) //MDR22
-									if((position_cpp[4*i+2]>WZC-r0*63.5)&&(position_cpp[4*j+2]>WZC-r0*63.5)) muscle_color = 22.4f;
-									if((position_cpp[4*i+1]<WYC-3*r0)   &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*50.0)&&(position_cpp[4*j+2]<WZC-r0*50.0)) //MDR22(22) || MDL22(22+24)
+									if((position_cpp[4*i+2]>WZC-r0*63.5)&&(position_cpp[4*j+2]>WZC-r0*63.5)) muscle_color = q_i_start + 22.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*51.0)&&(position_cpp[4*j+2]<WZC-r0*51.0)) 
-									if((position_cpp[4*i+2]>WZC-r0*64.5)&&(position_cpp[4*j+2]>WZC-r0*64.5)) muscle_color = 22.4f;//x.4 = magenta
+									if((position_cpp[4*i+2]>WZC-r0*64.5)&&(position_cpp[4*j+2]>WZC-r0*64.5)) muscle_color = q_i_start + 22.4f;//x.4 = magenta
 
-									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*70.0)&&(position_cpp[4*j+2]<WZC-r0*70.0)) //MDR23
-									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = 23.3f;//x.3 = orange
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*70.0)&&(position_cpp[4*j+2]<WZC-r0*70.0)) //MDR23(23) || MDL23(23+24)
+									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = q_i_start + 23.3f;//x.3 = orange
 
-									if((position_cpp[4*i+1]<WYC-1*r0) &&(position_cpp[4*i+1]>WYC-2*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*71.5)&&(position_cpp[4*j+2]<WZC-r0*71.5)) //MDR24
-									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = 24.5f;
-									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*71.5)&&(position_cpp[4*j+2]<WZC-r0*71.5)) //MDR24(24) || MDL24(24+24)
+									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = q_i_start + 24.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*62.5)&&(position_cpp[4*j+2]<WZC-r0*62.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*82.5)&&(position_cpp[4*j+2]>WZC-r0*82.5)) muscle_color = 24.5f;
-									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]>WZC-r0*82.5)&&(position_cpp[4*j+2]>WZC-r0*82.5)) muscle_color = q_i_start + 24.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*63.5)&&(position_cpp[4*j+2]<WZC-r0*63.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*66.0)&&(position_cpp[4*j+2]>WZC-r0*66.0)) muscle_color = 24.5f;//x.5 = violet
-
+									if((position_cpp[4*i+2]>WZC-r0*66.0)&&(position_cpp[4*j+2]>WZC-r0*66.0)) muscle_color = q_i_start + 24.5f;//x.5 = violet
 								}
 
 								elasticConnectionsData_cpp[ m_index[muscleCounter] = 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = muscle_color;// type of connection; 0 - ordinary spring, 1 or more - muscle
