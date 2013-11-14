@@ -28,7 +28,7 @@ GLsizei viewHeight, viewWidth;
 int winIdMain;
 int PARTICLE_COUNT = 0;
 int PARTICLE_COUNT_RoundedUp = 0;
-int MUSCLE_COUNT = 10;//increase this value and modify corresponding code if you plan to add more than 10 muscles
+int MUSCLE_COUNT = 100;//increase this value and modify corresponding code if you plan to add more than 10 muscles
 double totalTime = 0;
 int frames_counter = 0;
 double calculationTime;
@@ -213,14 +213,66 @@ void display(void)
 				if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
 				{
 					glLineWidth((GLfloat)1.0);
-					glBegin(GL_LINES);
-					glColor4b(255/2, 0, 0,255/2);//red
-					glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
-					glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
-					glEnd();
+
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.45f) 
+					{
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0)
+						glLineWidth((GLfloat)5.0); else glLineWidth((GLfloat)2.0);
+						glColor4b(127/2, 0, 255/2, 255/2);/* muscle_number+0.5 <--> violet*/  
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glColor4b(255/2, 255/2, 255/2, 255/2);
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+					else
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.35f) 
+					{ 
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0)
+						glLineWidth((GLfloat)5.0); else glLineWidth((GLfloat)2.0);
+						glColor4b(255/2, 0, 255/2, 255/2);/* muscle_number+0.4 <--> magenta*/  
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glColor4b(255/2, 255/2, 255/2, 255/2);
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+					else
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.25f) 
+					{ 
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0)
+						glLineWidth((GLfloat)5.0); else glLineWidth((GLfloat)2.0);
+						glColor4b(255/2, 127/2, 0, 255/2);/* muscle_number+0.3 <--> orange*/  
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glColor4b(255/2, 255/2, 255/2, 255/2);
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+					else
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.15f) 
+					{ 
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0)
+						glLineWidth((GLfloat)5.0); else glLineWidth((GLfloat)2.0);
+						glColor4b(255/2, 0, 0, 255/2);/* muscle_number+0.2 <--> red*/  
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glColor4b(255/2, 255/2, 255/2, 255/2);
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+					else
+					{
+						glColor4b(255/2, 0,     0, 255/2);/* muscle_number+0.1 <--> red */
+
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
 				}
 				else
-				{
+				{//ordinary springs
 					glLineWidth((GLfloat)0.1);
 					glBegin(GL_LINES);
 											glColor4b(150/2, 125/2, 0, 100/2);

@@ -102,7 +102,7 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 	float angle;
 	int tip = 0;
 
-	int jmin=-100,jmax=/*-48*/100;
+	int jmin=-100,jmax=98;
 
 	if(stage==0) numOfMembranes=0;
 
@@ -166,6 +166,19 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 
 		while(elasticLayers<=2)//this number defines number of radial muscle layers. can be 1, 2, 3 or more
 		{
+			if((elasticLayers==2)&&(j==jmin))
+			{
+				if(stage==1)
+				{
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					positionVector[ 0 ] = xc;
+					positionVector[ 1 ] = yc;
+					positionVector[ 2 ] = zc + r0*(j-1);
+					positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+				}
+				pCount++;
+				currSlice_pCount++;
+			}
 
 			if(wormBodyRadius>0)
 			if(elasticLayers>=2)
@@ -312,7 +325,7 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 						{
 							numOfMembranes+= currSlice_pCount;//currently we plan to build membrane over only outer worm shell surface
 							if((j==jmin)&&(currSlice_pCount==4)) numOfMembranes+=2;
-							if((j==jmax)&&(currSlice_pCount==4)) numOfMembranes+=2;
+							if((j==jmax)&&(currSlice_pCount==6)) numOfMembranes+=6;
 						}
 						else
 							numOfMembranes+= currSlice_pCount*2;//all inner structures of the worm will not be covered by membranes in actual version
@@ -333,15 +346,33 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 							mc++;
 						}
 
-						if((j==jmax)&&(currSlice_pCount==4))
+						if((j==jmax)&&(currSlice_pCount==6))
 						{
 							membraneData_cpp [mc*3+0] = currSlice_start+0+i_start;
-							membraneData_cpp [mc*3+1] = currSlice_start+1+i_start;
-							membraneData_cpp [mc*3+2] = currSlice_start+2+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+2+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
 							mc++;
 							membraneData_cpp [mc*3+0] = currSlice_start+0+i_start;
-							membraneData_cpp [mc*3+1] = currSlice_start+1+i_start;
-							membraneData_cpp [mc*3+2] = currSlice_start+3+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+3+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+
+							membraneData_cpp [mc*3+0] = currSlice_start+2+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+4+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+							membraneData_cpp [mc*3+0] = currSlice_start+3+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+5+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+
+							membraneData_cpp [mc*3+0] = currSlice_start+1+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+4+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+							membraneData_cpp [mc*3+0] = currSlice_start+1+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+5+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
 							mc++;
 						}
 
@@ -888,11 +919,18 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		//float ix,iy,iz,jx,jy,jz;
 		//int j_count=0;
 		int muscleCounter = 0;
+		int m_index[10640];
+		float m_number[10640];
+		float WXC = XMAX*0.5f;
+		float WYC = YMAX*0.3f;
+		float WZC = ZMAX*0.5f;
+		//int sm_cnt = 0;
 		//int array_k[MAX_NEIGHBOR_COUNT];
 		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
 		{
 			float dx2,dy2,dz2,r2_ij,r_ij;
 			int k;
+			float muscle_color = 0.1f;
 			ecc = 0;//!important!
 			//        _____1_______      2       _____3________       
 			for(j=0;j<numOfElasticP+numOfLiquidP+numOfBoundaryP;j++)
@@ -916,12 +954,197 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
 						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
 
-						if(position_cpp[ 4 * i + 0 ]>XMAX*0.5)
+						//define muscles
+						if((position_cpp[ 4 * i + 2 ]<WZC+r0*95)&&(position_cpp[ 4 * j + 2 ]<WZC+r0*95))
+						if((position_cpp[ 4 * i + 2 ]>WZC-r0*92)&&(position_cpp[ 4 * j + 2 ]>WZC-r0*92))
+						//if(position_cpp[ 4 * i + 0 ]>XMAX*0.5)
 						if( (fabs(position_cpp[4*i+3]-2.2f)<=0.05) && (fabs(position_cpp[4*j+3]-2.2f)<=0.05) )//both green
 						{
 							if((dz2>4*dx2)&&(dz2>4*dy2)&&(dx2>4*dy2))
 							{
-								elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 1.1f;// type of connection; 0 - ordinary spring, 1 - muscle
+								muscle_color = 1.1f;
+
+								//DR quadrant muscles
+								
+								if(position_cpp[ 4 * i + 0 ]>WXC)
+								{
+									if((position_cpp[4*i+1]<WYC)      &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*97)&&(position_cpp[4*j+2]<WZC+r0*97)) //MDR01
+									if((position_cpp[4*i+2]>WZC+r0*85.9)&&(position_cpp[4*j+2]>WZC+r0*85.9)) muscle_color = 1.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]<WYC-1*r0) &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*95.0)&&(position_cpp[4*j+2]<WZC+r0*95.0)) //MDR02
+									if((position_cpp[4*i+2]>WZC+r0*83.5)&&(position_cpp[4*j+2]>WZC+r0*83.5)) muscle_color = 2.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]<WYC)      &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*86.5)&&(position_cpp[4*j+2]<WZC+r0*86.5)) //MDR03
+									if((position_cpp[4*i+2]>WZC+r0*77.5)&&(position_cpp[4*j+2]>WZC+r0*77.5)) muscle_color = 3.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]<WYC-1*r0) &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*84.5)&&(position_cpp[4*j+2]<WZC+r0*84.5)) //MDR04
+									if((position_cpp[4*i+2]>WZC+r0*76.5)&&(position_cpp[4*j+2]>WZC+r0*76.5)) muscle_color = 4.5f;
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*82.5)&&(position_cpp[4*j+2]<WZC+r0*82.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*72.5)&&(position_cpp[4*j+2]>WZC+r0*72.5)) muscle_color = 4.5f;//x.5 = violet
+								
+									if((position_cpp[4*i+1]<WYC)      &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*78)&&(position_cpp[4*j+2]<WZC+r0*78)) //MDR05
+									if((position_cpp[4*i+2]>WZC+r0*66.9)&&(position_cpp[4*j+2]>WZC+r0*66.9)) muscle_color = 5.2f;
+									if((position_cpp[4*i+1]<WYC-1*r0) &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*77.5)&&(position_cpp[4*j+2]<WZC+r0*77.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*65.9)&&(position_cpp[4*j+2]>WZC+r0*65.9)) muscle_color = 5.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) //MDR06
+									if((position_cpp[4*i+2]>WZC+r0*55.0)&&(position_cpp[4*j+2]>WZC+r0*55.0)) muscle_color = 6.4f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*54.5)&&(position_cpp[4*j+2]>WZC+r0*54.5)) muscle_color = 6.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*68.5)&&(position_cpp[4*j+2]<WZC+r0*68.5)) //MDR07
+									if((position_cpp[4*i+2]>WZC+r0*51.0)&&(position_cpp[4*j+2]>WZC+r0*51.0)) muscle_color = 7.3f;
+									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*66.5)&&(position_cpp[4*j+2]<WZC+r0*66.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*49.5)&&(position_cpp[4*j+2]>WZC+r0*49.5)) muscle_color = 7.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*56.5)&&(position_cpp[4*j+2]<WZC+r0*56.5)) //MDR08
+									if((position_cpp[4*i+2]>WZC+r0*40.0)&&(position_cpp[4*j+2]>WZC+r0*40.0)) muscle_color = 8.5f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*55.5)&&(position_cpp[4*j+2]<WZC+r0*55.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*38.5)&&(position_cpp[4*j+2]>WZC+r0*38.5)) muscle_color = 8.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*51.5)&&(position_cpp[4*j+2]<WZC+r0*51.5)) //MDR09
+									if((position_cpp[4*i+2]>WZC+r0*33.5)&&(position_cpp[4*j+2]>WZC+r0*33.5)) muscle_color = 9.2f;
+									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*50.0)&&(position_cpp[4*j+2]<WZC+r0*50.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*33.0)&&(position_cpp[4*j+2]>WZC+r0*33.0)) muscle_color = 9.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.5)&&(position_cpp[4*j+2]<WZC+r0*40.5)) //MDR10
+									if((position_cpp[4*i+2]>WZC+r0*22.5)&&(position_cpp[4*j+2]>WZC+r0*22.5)) muscle_color = 10.4f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*21.5)&&(position_cpp[4*j+2]>WZC+r0*21.5)) muscle_color = 10.4f;
+									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*20.5)&&(position_cpp[4*j+2]>WZC+r0*20.5)) muscle_color = 10.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*34.5)&&(position_cpp[4*j+2]<WZC+r0*34.5)) //MDR11
+									if((position_cpp[4*i+2]>WZC+r0*15.5)&&(position_cpp[4*j+2]>WZC+r0*15.5)) muscle_color = 11.3f;
+									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*33.5)&&(position_cpp[4*j+2]<WZC+r0*33.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*14.5)&&(position_cpp[4*j+2]>WZC+r0*14.5)) muscle_color = 11.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*23.5)&&(position_cpp[4*j+2]<WZC+r0*23.5)) //MDR12
+									if((position_cpp[4*i+2]>WZC+r0* 8.5)&&(position_cpp[4*j+2]>WZC+r0* 8.5)) muscle_color = 12.5f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*22.5)&&(position_cpp[4*j+2]<WZC+r0*22.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 7.5)&&(position_cpp[4*j+2]>WZC+r0* 7.5)) muscle_color = 12.5f;
+									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*21.5)&&(position_cpp[4*j+2]<WZC+r0*21.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 6.5)&&(position_cpp[4*j+2]>WZC+r0* 6.5)) muscle_color = 12.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*16.0)&&(position_cpp[4*j+2]<WZC+r0*16.0)) //MDR13
+									if((position_cpp[4*i+2]>WZC+r0* 1.5)&&(position_cpp[4*j+2]>WZC+r0* 1.5)) muscle_color = 13.2f;
+									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*15.5)&&(position_cpp[4*j+2]<WZC+r0*15.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 0.5)&&(position_cpp[4*j+2]>WZC+r0* 0.5)) muscle_color = 13.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 9.0)&&(position_cpp[4*j+2]<WZC+r0* 9.0)) //MDR14
+									if((position_cpp[4*i+2]>WZC-r0* 2.5)&&(position_cpp[4*j+2]>WZC-r0* 2.5)) muscle_color = 14.4f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 8.5)&&(position_cpp[4*j+2]<WZC+r0* 8.5)) 
+									if((position_cpp[4*i+2]>WZC-r0* 3.5)&&(position_cpp[4*j+2]>WZC-r0* 3.5)) muscle_color = 14.4f;
+									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 7.5)&&(position_cpp[4*j+2]<WZC+r0* 7.5)) 
+									if((position_cpp[4*i+2]>WZC-r0* 4.5)&&(position_cpp[4*j+2]>WZC-r0* 4.5)) muscle_color = 14.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 2.0)&&(position_cpp[4*j+2]<WZC+r0* 2.0)) //MDR15
+									if((position_cpp[4*i+2]>WZC-r0*14.5)&&(position_cpp[4*j+2]>WZC-r0*14.5)) muscle_color = 15.3f;
+									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 1.0)&&(position_cpp[4*j+2]<WZC+r0* 1.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*15.5)&&(position_cpp[4*j+2]>WZC-r0*15.5)) muscle_color = 15.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 1.5)&&(position_cpp[4*j+2]<WZC-r0* 1.5)) //MDR16
+									if((position_cpp[4*i+2]>WZC-r0*21.5)&&(position_cpp[4*j+2]>WZC-r0*21.5)) muscle_color = 16.5f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 2.5)&&(position_cpp[4*j+2]<WZC-r0* 2.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*22.5)&&(position_cpp[4*j+2]>WZC-r0*22.5)) muscle_color = 16.5f;
+									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 3.5)&&(position_cpp[4*j+2]<WZC-r0* 3.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*23.5)&&(position_cpp[4*j+2]>WZC-r0*23.5)) muscle_color = 16.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*14.0)&&(position_cpp[4*j+2]<WZC-r0*14.0)) //MDR17
+									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = 17.2f;
+									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*15.0)&&(position_cpp[4*j+2]<WZC-r0*15.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*35.5)&&(position_cpp[4*j+2]>WZC-r0*35.5)) muscle_color = 17.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*20.0)&&(position_cpp[4*j+2]<WZC-r0*20.0)) //MDR18
+									if((position_cpp[4*i+2]>WZC-r0*40.5)&&(position_cpp[4*j+2]>WZC-r0*40.5)) muscle_color = 18.4f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*21.5)&&(position_cpp[4*j+2]<WZC-r0*21.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*41.5)&&(position_cpp[4*j+2]>WZC-r0*41.5)) muscle_color = 18.4f;
+									if((position_cpp[4*i+1]<WYC-4*r0) &&(position_cpp[4*i+1]>WYC-5*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*22.5)&&(position_cpp[4*j+2]<WZC-r0*22.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = 18.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*34.0)&&(position_cpp[4*j+2]<WZC-r0*34.0)) //MDR19
+									if((position_cpp[4*i+2]>WZC-r0*54.5)&&(position_cpp[4*j+2]>WZC-r0*54.5)) muscle_color = 19.3f;
+									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*34.5)&&(position_cpp[4*j+2]<WZC-r0*34.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*55.5)&&(position_cpp[4*j+2]>WZC-r0*55.5)) muscle_color = 19.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*39.5)&&(position_cpp[4*j+2]<WZC-r0*39.5)) //MDR20
+									if((position_cpp[4*i+2]>WZC-r0*50.5)&&(position_cpp[4*j+2]>WZC-r0*50.5)) muscle_color = 20.5f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*40.5)&&(position_cpp[4*j+2]<WZC-r0*40.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*51.5)&&(position_cpp[4*j+2]>WZC-r0*51.5)) muscle_color = 20.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*53.0)&&(position_cpp[4*j+2]<WZC-r0*53.0)) //MDR21
+									if((position_cpp[4*i+2]>WZC-r0*71.5)&&(position_cpp[4*j+2]>WZC-r0*71.5)) muscle_color = 21.2f;
+									if((position_cpp[4*i+1]<WYC-1*r0)   &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*54.0)&&(position_cpp[4*j+2]<WZC-r0*54.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*72.5)&&(position_cpp[4*j+2]>WZC-r0*72.5)) muscle_color = 21.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]<WYC-2*r0)   &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*50.0)&&(position_cpp[4*j+2]<WZC-r0*50.0)) //MDR22
+									if((position_cpp[4*i+2]>WZC-r0*63.5)&&(position_cpp[4*j+2]>WZC-r0*63.5)) muscle_color = 22.4f;
+									if((position_cpp[4*i+1]<WYC-3*r0)   &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*51.0)&&(position_cpp[4*j+2]<WZC-r0*51.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*64.5)&&(position_cpp[4*j+2]>WZC-r0*64.5)) muscle_color = 22.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]<WYC)        &&(position_cpp[4*i+1]>WYC-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*70.0)&&(position_cpp[4*j+2]<WZC-r0*70.0)) //MDR23
+									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = 23.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]<WYC-1*r0) &&(position_cpp[4*i+1]>WYC-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*71.5)&&(position_cpp[4*j+2]<WZC-r0*71.5)) //MDR24
+									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = 24.5f;
+									if((position_cpp[4*i+1]<WYC-2*r0) &&(position_cpp[4*i+1]>WYC-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*62.5)&&(position_cpp[4*j+2]<WZC-r0*62.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*82.5)&&(position_cpp[4*j+2]>WZC-r0*82.5)) muscle_color = 24.5f;
+									if((position_cpp[4*i+1]<WYC-3*r0) &&(position_cpp[4*i+1]>WYC-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*63.5)&&(position_cpp[4*j+2]<WZC-r0*63.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*66.0)&&(position_cpp[4*j+2]>WZC-r0*66.0)) muscle_color = 24.5f;//x.5 = violet
+
+								}
+
+								elasticConnectionsData_cpp[ m_index[muscleCounter] = 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = muscle_color;// type of connection; 0 - ordinary spring, 1 or more - muscle
 								muscleCounter++;
 							}
 						}
@@ -932,6 +1155,18 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				}
 			}
 		}
+
+		
+		/*
+		if(muscleCounter==10408)
+		{
+			//for(i=0;i<muscleCounter;i++)
+
+			//m_number[m_index[0]] = 1.2f;
+			elasticConnectionsData_cpp[m_index[3]] = 1.2f;
+
+		}*/
+
 
 		//membraneData - the list containing triplets of indexes of particles forming triangular membranes; size: numOfMembranes*3
 		//particleMembranesList - the list containing for each particle(involved in membranes) its list of these membranes indexes (which are stored in membraneData array)
