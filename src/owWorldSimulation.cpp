@@ -216,8 +216,8 @@ void display(void)
 
 					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.45f) 
 					{
-						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0)
-						glLineWidth((GLfloat)5.0); else glLineWidth((GLfloat)2.0);
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
+						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
 						glColor4b(127/2, 0, 255/2, 255/2);/* muscle_number+0.5 <--> violet*/  
 						glBegin(GL_LINES);
 						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
@@ -228,8 +228,8 @@ void display(void)
 					else
 					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.35f) 
 					{ 
-						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0)
-						glLineWidth((GLfloat)5.0); else glLineWidth((GLfloat)2.0);
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
+						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
 						glColor4b(255/2, 0, 255/2, 255/2);/* muscle_number+0.4 <--> magenta*/  
 						glBegin(GL_LINES);
 						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
@@ -240,8 +240,8 @@ void display(void)
 					else
 					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.25f) 
 					{ 
-						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0)
-						glLineWidth((GLfloat)5.0); else glLineWidth((GLfloat)2.0);
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
+						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
 						glColor4b(255/2, 127/2, 0, 255/2);/* muscle_number+0.3 <--> orange*/  
 						glBegin(GL_LINES);
 						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
@@ -252,8 +252,8 @@ void display(void)
 					else
 					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.15f) 
 					{ 
-						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0)
-						glLineWidth((GLfloat)5.0); else glLineWidth((GLfloat)2.0);
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
+						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
 						glColor4b(255/2, 0, 0, 255/2);/* muscle_number+0.2 <--> red*/  
 						glBegin(GL_LINES);
 						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
@@ -289,13 +289,13 @@ void display(void)
 		}
 	}
 
-	beginWinCoords();
+	/*beginWinCoords();
 	char label[300];
 	glRasterPos2f (0.01F, 0.05F); 
-	glColor4b(255/2, 255/2, 0, 255/2/*alpha*/);
+	glColor4b(255/2, 255/2, 0, 255/2);
 	sprintf(label,"elastic connections count: %d, elementary membranes count: %d",ecc,numOfMembranes);
 	glPrint( 1, 50, label, m_font);
-	endWinCoords();
+	endWinCoords();*/
 
 
 	//draw membranes
@@ -490,8 +490,9 @@ void renderInfo(int x, int y)
 {
 	beginWinCoords();
 	int y_m = y;
+	int i_shift = 0;
 	if(showInfo){
-		glColor3f (1.0F, 1.0F, 1.0F);
+		glColor3f (0.5F, 1.0F, 1.0F);
 		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
 																													 numOfElasticP,
 																													 numOfBoundaryP,PARTICLE_COUNT); 
@@ -500,14 +501,131 @@ void renderInfo(int x, int y)
 		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, iterationCount,((float)iterationCount)*timeStep); 
 		glPrint( 0 , 17 , label, m_font);
 
-		sprintf(label,"Muscle activation signals: %.3f | %.3f | %.3f | %.3f | %.3f // use keys '1' to '5' to activate/deactivate", 
-			muscle_activation_signal_cpp[0],
-			muscle_activation_signal_cpp[1],
-			muscle_activation_signal_cpp[2],
-			muscle_activation_signal_cpp[3],
-			muscle_activation_signal_cpp[4]); 
-		glRasterPos2f (0.01F, 0.05F); 
+
+		sprintf(label,"Muscle activation signals:          // demo: use keys '1' to '9' to activate/deactivate first nine muscles in array ");
+//		glRasterPos2f (0.01F, 0.05F); 
 		glPrint( 0 , 32 , label, m_font);
+
+		i_shift = 0;
+		sprintf(label,"MDR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +0",
+			muscle_activation_signal_cpp[ 0+i_shift],
+			muscle_activation_signal_cpp[ 2+i_shift],
+			muscle_activation_signal_cpp[ 4+i_shift],
+			muscle_activation_signal_cpp[ 6+i_shift],
+			muscle_activation_signal_cpp[ 8+i_shift],
+			muscle_activation_signal_cpp[10+i_shift],
+			muscle_activation_signal_cpp[12+i_shift],
+			muscle_activation_signal_cpp[14+i_shift],
+			muscle_activation_signal_cpp[16+i_shift],
+			muscle_activation_signal_cpp[18+i_shift],
+			muscle_activation_signal_cpp[20+i_shift],
+			muscle_activation_signal_cpp[22+i_shift]); 
+		glPrint( 0 , 45 , label, m_font);
+		sprintf(label,"MDR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +0",
+			muscle_activation_signal_cpp[ 1+i_shift],
+			muscle_activation_signal_cpp[ 3+i_shift],
+			muscle_activation_signal_cpp[ 5+i_shift],
+			muscle_activation_signal_cpp[ 7+i_shift],
+			muscle_activation_signal_cpp[ 9+i_shift],
+			muscle_activation_signal_cpp[11+i_shift],
+			muscle_activation_signal_cpp[13+i_shift],
+			muscle_activation_signal_cpp[15+i_shift],
+			muscle_activation_signal_cpp[17+i_shift],
+			muscle_activation_signal_cpp[19+i_shift],
+			muscle_activation_signal_cpp[21+i_shift],
+			muscle_activation_signal_cpp[23+i_shift]);
+		glPrint( 0 , 60 , label, m_font);
+
+		i_shift = 24;
+		sprintf(label,"MVR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +24",
+			muscle_activation_signal_cpp[ 0+i_shift],
+			muscle_activation_signal_cpp[ 2+i_shift],
+			muscle_activation_signal_cpp[ 4+i_shift],
+			muscle_activation_signal_cpp[ 6+i_shift],
+			muscle_activation_signal_cpp[ 8+i_shift],
+			muscle_activation_signal_cpp[10+i_shift],
+			muscle_activation_signal_cpp[12+i_shift],
+			muscle_activation_signal_cpp[14+i_shift],
+			muscle_activation_signal_cpp[16+i_shift],
+			muscle_activation_signal_cpp[18+i_shift],
+			muscle_activation_signal_cpp[20+i_shift],
+			muscle_activation_signal_cpp[22+i_shift]); 
+		glPrint( 0 , 62+15 , label, m_font);
+		sprintf(label,"MVR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +24",
+			muscle_activation_signal_cpp[ 1+i_shift],
+			muscle_activation_signal_cpp[ 3+i_shift],
+			muscle_activation_signal_cpp[ 5+i_shift],
+			muscle_activation_signal_cpp[ 7+i_shift],
+			muscle_activation_signal_cpp[ 9+i_shift],
+			muscle_activation_signal_cpp[11+i_shift],
+			muscle_activation_signal_cpp[13+i_shift],
+			muscle_activation_signal_cpp[15+i_shift],
+			muscle_activation_signal_cpp[17+i_shift],
+			muscle_activation_signal_cpp[19+i_shift],
+			muscle_activation_signal_cpp[21+i_shift],
+			muscle_activation_signal_cpp[23+i_shift]);
+		glPrint( 0 , 62+15+12 , label, m_font);
+		
+		i_shift = 24*2;
+		sprintf(label,"MVL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +48",
+			muscle_activation_signal_cpp[ 0+i_shift],
+			muscle_activation_signal_cpp[ 2+i_shift],
+			muscle_activation_signal_cpp[ 4+i_shift],
+			muscle_activation_signal_cpp[ 6+i_shift],
+			muscle_activation_signal_cpp[ 8+i_shift],
+			muscle_activation_signal_cpp[10+i_shift],
+			muscle_activation_signal_cpp[12+i_shift],
+			muscle_activation_signal_cpp[14+i_shift],
+			muscle_activation_signal_cpp[16+i_shift],
+			muscle_activation_signal_cpp[18+i_shift],
+			muscle_activation_signal_cpp[20+i_shift],
+			muscle_activation_signal_cpp[22+i_shift]); 
+		glPrint( 0 , 91+15 , label, m_font);
+		sprintf(label,"MVL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +48",
+			muscle_activation_signal_cpp[ 1+i_shift],
+			muscle_activation_signal_cpp[ 3+i_shift],
+			muscle_activation_signal_cpp[ 5+i_shift],
+			muscle_activation_signal_cpp[ 7+i_shift],
+			muscle_activation_signal_cpp[ 9+i_shift],
+			muscle_activation_signal_cpp[11+i_shift],
+			muscle_activation_signal_cpp[13+i_shift],
+			muscle_activation_signal_cpp[15+i_shift],
+			muscle_activation_signal_cpp[17+i_shift],
+			muscle_activation_signal_cpp[19+i_shift],
+			muscle_activation_signal_cpp[21+i_shift],
+			muscle_activation_signal_cpp[23+i_shift]);
+		glPrint( 0 , 91+15+12 , label, m_font);
+
+		i_shift = 24*3;
+		sprintf(label,"MDL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +72",
+			muscle_activation_signal_cpp[ 0+i_shift],
+			muscle_activation_signal_cpp[ 2+i_shift],
+			muscle_activation_signal_cpp[ 4+i_shift],
+			muscle_activation_signal_cpp[ 6+i_shift],
+			muscle_activation_signal_cpp[ 8+i_shift],
+			muscle_activation_signal_cpp[10+i_shift],
+			muscle_activation_signal_cpp[12+i_shift],
+			muscle_activation_signal_cpp[14+i_shift],
+			muscle_activation_signal_cpp[16+i_shift],
+			muscle_activation_signal_cpp[18+i_shift],
+			muscle_activation_signal_cpp[20+i_shift],
+			muscle_activation_signal_cpp[22+i_shift]); 
+		glPrint( 0 , 119+15 , label, m_font);
+		sprintf(label,"MDL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +72",
+			muscle_activation_signal_cpp[ 1+i_shift],
+			muscle_activation_signal_cpp[ 3+i_shift],
+			muscle_activation_signal_cpp[ 5+i_shift],
+			muscle_activation_signal_cpp[ 7+i_shift],
+			muscle_activation_signal_cpp[ 9+i_shift],
+			muscle_activation_signal_cpp[11+i_shift],
+			muscle_activation_signal_cpp[13+i_shift],
+			muscle_activation_signal_cpp[15+i_shift],
+			muscle_activation_signal_cpp[17+i_shift],
+			muscle_activation_signal_cpp[19+i_shift],
+			muscle_activation_signal_cpp[21+i_shift],
+			muscle_activation_signal_cpp[23+i_shift]);
+		glPrint( 0 , 119+15+12 , label, m_font);
+
 		y_m = 40;
 	}
 	if(showRuler){
@@ -640,47 +758,79 @@ extern float *muscle_activation_signal_cpp;
 
 void respond_key_pressed(unsigned char key, int x, int y)
 {
+	int shift=0;
+	//for(shift=0;shift<=72;shift+=72)
+	{
 	
-	if(key=='1')
-	{
-		if(muscle_activation_signal_cpp[0]<=0.5f)
-		muscle_activation_signal_cpp[0] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_cpp[0] = 0.f;
-		//if(muscle_activation_signal_cpp[0]>1.f) muscle_activation_signal_cpp[0] = 1.f;
+		if(key=='1')
+		{
+			if(muscle_activation_signal_cpp[0+shift]<=0.5f)
+			muscle_activation_signal_cpp[0+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[0+shift] = 0.f;
+			//if(muscle_activation_signal_cpp[0]>1.f) muscle_activation_signal_cpp[0] = 1.f;
+		}
+
+		if(key=='2')
+		{
+			if(muscle_activation_signal_cpp[1+shift]<=0.5f)
+			muscle_activation_signal_cpp[1+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[1+shift] = 0.f;
+			//if(muscle_activation_signal_cpp[1]>1.f) muscle_activation_signal_cpp[1] = 1.f;
+		}
+
+		if(key=='3')
+		{
+			if(muscle_activation_signal_cpp[2+shift]<=0.5f)
+			muscle_activation_signal_cpp[2+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[2+shift] = 0.f;
+			//if(muscle_activation_signal_cpp[2]>1.f) muscle_activation_signal_cpp[2] = 1.f;
+		}
+
+		if(key=='4')
+		{
+			if(muscle_activation_signal_cpp[3+shift]<=0.5f)
+			muscle_activation_signal_cpp[3+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[3+shift] = 0.f;
+			//if(muscle_activation_signal_cpp[3]>1.f) muscle_activation_signal_cpp[3] = 1.f;
+		}
+
+		if(key=='5')
+		{
+			if(muscle_activation_signal_cpp[4+shift]<=0.5f)
+			muscle_activation_signal_cpp[4+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[4+shift] = 0.f;
+		}
+
+		if(key=='6')
+		{
+			if(muscle_activation_signal_cpp[5+shift]<=0.5f)
+			muscle_activation_signal_cpp[5+shift] = 1.f;
+			else muscle_activation_signal_cpp[5+shift] = 0.f;
+		}
+
+		if(key=='7')
+		{
+			if(muscle_activation_signal_cpp[6+shift]<=0.5f)
+			muscle_activation_signal_cpp[6+shift] = 1.f;
+			else muscle_activation_signal_cpp[6+shift] = 0.f;
+		}
+
+		if(key=='8')
+		{
+			if(muscle_activation_signal_cpp[7+shift]<=0.5f)
+			muscle_activation_signal_cpp[7+shift] = 1.f;
+			else muscle_activation_signal_cpp[7+shift] = 0.f;
+		}
+
+		if(key=='9')
+		{
+			if(muscle_activation_signal_cpp[8+shift]<=0.5f)
+			muscle_activation_signal_cpp[8+shift] = 1.f;
+			else muscle_activation_signal_cpp[8+shift] = 0.f;
+		}
 
 	}
 
-	if(key=='2')
-	{
-		if(muscle_activation_signal_cpp[1]<=0.5f)
-		muscle_activation_signal_cpp[1] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_cpp[1] = 0.f;
-		//if(muscle_activation_signal_cpp[1]>1.f) muscle_activation_signal_cpp[1] = 1.f;
-	}
-
-	if(key=='3')
-	{
-		if(muscle_activation_signal_cpp[2]<=0.5f)
-		muscle_activation_signal_cpp[2] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_cpp[2] = 0.f;
-		//if(muscle_activation_signal_cpp[2]>1.f) muscle_activation_signal_cpp[2] = 1.f;
-	}
-
-	if(key=='4')
-	{
-		if(muscle_activation_signal_cpp[3]<=0.5f)
-		muscle_activation_signal_cpp[3] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_cpp[3] = 0.f;
-		//if(muscle_activation_signal_cpp[3]>1.f) muscle_activation_signal_cpp[3] = 1.f;
-	}
-
-	if(key=='5')
-	{
-		if(muscle_activation_signal_cpp[4]<=0.5f)
-		muscle_activation_signal_cpp[4] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_cpp[4] = 0.f;
-		//if(muscle_activation_signal_cpp[4]>1.f) muscle_activation_signal_cpp[4] = 1.f;
-	}
 	if(key == 'i')
 	{
 		showInfo = !showInfo;
