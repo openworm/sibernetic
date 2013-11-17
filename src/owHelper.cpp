@@ -541,6 +541,7 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 	float PI = 3.1415926536f;
 	float beta;
 	float angle;
+	float x,y,z;
 
 	// makeworm
 	// outer worm shell elastic cylinder generation
@@ -643,7 +644,27 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 			elasticLayers++;
 			wormBodyRadius -= r0*0.85;
 		}
+	}
 
+	//and here we add outer liquid for worm swimming
+	for(x=3*r0;x<XMAX-3*r0;x+=r0)
+	{
+		for(y=3*r0;y<YMAX*0.15/*-r0*/;y+=r0)
+		{
+			for(z=3*r0;z<ZMAX-3*r0;z+=r0)
+			{
+				if(stage==1)
+				{	
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					positionVector[ 0 ] = x;
+					positionVector[ 1 ] = y;
+					positionVector[ 2 ] = z;
+					positionVector[ 3 ] = 1.1f;// liquid
+				}
+
+				pCount++;
+			}
+		}
 	}
 
 	if(stage==1)
