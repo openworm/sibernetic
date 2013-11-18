@@ -34,7 +34,7 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 #define YMIN 0
 #define YMAX 20.0*h // vertical
 #define ZMIN 0
-#define ZMAX 260.0*h // horizontal 2 //142
+#define ZMAX 250.0*h // horizontal 2 //142
 
 //const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
 
