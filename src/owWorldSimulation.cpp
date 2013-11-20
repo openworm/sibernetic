@@ -6,6 +6,7 @@
 extern int numOfLiquidP;
 extern int numOfElasticP;
 extern int numOfBoundaryP;
+extern int numOfMembranes;
 extern int iterationCount;
 extern 
 
@@ -17,7 +18,9 @@ float camera_rot_lag[] = {0, 0, 0};
 const float inertia = 1.0f;
 float modelView[16];
 int buttonState = 0;
-float sc = 0.025f;		//0.0145;//0.045;//0.07
+
+float sc = 0.045f;		//0.0145;//0.045;//0.07
+
 float sc_scale = 1.0f;
 
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
@@ -25,7 +28,7 @@ GLsizei viewHeight, viewWidth;
 int winIdMain;
 int PARTICLE_COUNT = 0;
 int PARTICLE_COUNT_RoundedUp = 0;
-int MUSCLE_COUNT = 10;//increase this value and modify corresponding code if you plan to add more than 10 muscles
+int MUSCLE_COUNT = 100;//increase this value and modify corresponding code if you plan to add more than 10 muscles
 double totalTime = 0;
 int frames_counter = 0;
 double calculationTime;
@@ -34,14 +37,15 @@ double fps;
 char device_full_name [1000];
 double prevTime;
 unsigned int * p_indexb;
-float * d_b;
-float * p_b;
-float * e_c;
-float * muscle_activation_signal_buffer;
+float * d_cpp;
+float * p_cpp;
+float * ec_cpp;
+float * muscle_activation_signal_cpp;
+int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 int local_NDRange_size = 256;//256;
-float ocuracy = 100;
+float accuracy = 100;//what it it?
 bool flag = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
 
@@ -51,29 +55,72 @@ void renderInfo(int,int);
 void glPrint(float,float,const char *, void*);
 void glPrint3D(float,float,float,const char *, void*);
 //float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
+void beginWinCoords(void)
+{
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glTranslatef(0.0f, (GLfloat)glutGet(GLUT_WINDOW_HEIGHT) - 10, 0.0f);
+    glScalef(8.0f, -1.0f, 1.0f);
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, glutGet(GLUT_WINDOW_WIDTH), 0, glutGet(GLUT_WINDOW_HEIGHT), -1, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void endWinCoords(void)
+{
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+}
+void glPrint(float x, float y, const char *s, void *font)
+{
+	glRasterPos2f((GLfloat)x, (GLfloat)y);
+    int len = (int) strlen(s);
+    for (int i = 0; i < len; i++) {
+        glutBitmapCharacter(font, s[i]);
+    }
+}
+void glPrint3D(float x, float y, float z, const char *s, void *font)
+{
+	glRasterPos3f((GLfloat)x, (GLfloat)y, (GLfloat)z);
+    int len = (int) strlen(s);
+    for (int i = 0; i < len; i++) {
+        glutBitmapCharacter(font, s[i]);
+    }
+}
 
 void display(void)
 {
 	helper->refreshTime();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	drawScene();
-	int j;
+
+	int i,j,k;
 	//glColor3ub(255,255,255);//yellow
-	p_indexb = fluid_simulation->getparticleIndex_cpp();
+	p_indexb = fluid_simulation->getParticleIndex_cpp();
 	int pib;
-	for(int i=0;i<PARTICLE_COUNT;i++)
+	int err_coord_cnt = 0;
+	for(i=0;i<PARTICLE_COUNT;i++)
 	{
 		pib = p_indexb[2*i + 1];
 		p_indexb[2*pib + 0] = i;
 	}
 	glPointSize(3.f);
 	glBegin(GL_POINTS);
-	p_b = fluid_simulation->getposition_cpp();
-	d_b = fluid_simulation->getdensity_cpp();
+	p_cpp = fluid_simulation->getPosition_cpp();
+	d_cpp = fluid_simulation->getDensity_cpp();
 	float dc, rho;
-	for(int i = 0; i<PARTICLE_COUNT; i++)
+	for(i = 0; i<PARTICLE_COUNT; i++)
 	{
-		rho = d_b[ p_indexb[ i * 2 + 0 ] ];
+		//printf("[%d]",i);
+		rho = d_cpp[ p_indexb[ i * 2 + 0 ] ];
 		if( rho < 0 ) rho = 0;
 		if( rho > 2 * rho0) rho = 2 * rho0;
 		dc = 100.f * ( rho - rho0 ) / rho0 ;
@@ -85,34 +132,213 @@ void display(void)
 		if( (dc=100*(rho-rho0*1.02f)/rho0) >0 )	glColor4f(  dc,   1,   0,1.0f);//yellow
 		if( (dc=100*(rho-rho0*1.03f)/rho0) >0 )	glColor4f(   1,1-dc,   0,1.0f);//red
 		if( (dc=100*(rho-rho0*1.04f)/rho0) >0 )	glColor4f(   1,   0,   0,1.0f);
-		if((int)p_b[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_b[i*4 + 3] != ELASTIC_PARTICLE*/){
+		if((int)p_cpp[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/)
+		{
 			glBegin(GL_POINTS);
-			if((int)p_b[i*4+3]==2) glColor4f(   1,   1,   0,  1.0f);
-			glVertex3f( (p_b[i*4]-XMAX/2)*sc , (p_b[i*4+1]-YMAX/2)*sc, (p_b[i*4+2]-ZMAX/2)*sc );
+			if((int)p_cpp[i*4+3]==2) 
+			{ 
+				glColor4f(   0,   0,   0,  1.0f);// color of elastic particles
+				glPointSize(6.f);
+			}
+			glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+			glPointSize(3.f);
 			glEnd();
+
+			if(!(	(p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=XMAX)&&
+					(p_cpp[i*4+1]>=0)&&(p_cpp[i*4+1]<=YMAX)&&
+					(p_cpp[i*4+2]>=0)&&(p_cpp[i*4+2]<=ZMAX) ))
+			{
+			char label[50];
+			beginWinCoords();
+			glRasterPos2f (0.01F, 0.05F); 
+			if(err_coord_cnt<50){
+			sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
+			glPrint( 0, 50+err_coord_cnt*11, label, m_font);}
+			if(err_coord_cnt==50) {
+			glPrint( 0, 50+err_coord_cnt*11, "............", m_font);}
+			err_coord_cnt++;
+			endWinCoords();
+			}
 		}
+		else
+		{
+			//printf("[%d]",i);
+		}
+
+		/*
+		float rij;
+		
+		for(j = 0; j<252; j++)
+		{
+			rij = sqrt(  (p_cpp[i*4+0]-p_cpp[j*4+0])*(p_cpp[i*4+0]-p_cpp[j*4+0])
+						+(p_cpp[i*4+1]-p_cpp[j*4+1])*(p_cpp[i*4+1]-p_cpp[j*4+1])
+						+(p_cpp[i*4+2]-p_cpp[j*4+2])*(p_cpp[i*4+2]-p_cpp[j*4+2]) );
+
+			if(i!=j)
+			if( rij < 0.2f*r0)
+			{
+				//glBegin(GL_LINES);
+				glColor4b(255/2, 0, 255/2,255/2);//red
+				glBegin(GL_POINTS);
+				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+				glEnd();
+				//printf(">>[%d]-[%d]<<",i,j);
+				//printf(" x= %f, y= %f, z= %f \n",p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
+
+			}
+		}
+		/**/
 	}
 
-	e_c = fluid_simulation->getelasticConnectionsData_cpp();
+				
+
+	ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
 	
+	glLineWidth((GLfloat)0.1);
+
+	int ecc=0;//elastic connections counter;
 	//if(generateInitialConfiguration)
-	for(int i, i_ec=0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
+	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
 	{
 		//offset = 0
-		if((j=(int)e_c[ 4 * i_ec + 0 ])>=0)
+		if((j=(int)ec_cpp[ 4 * i_ec + 0 ])>=0)
 		{
-			i = (i_ec / NEIGHBOR_COUNT) + (generateInitialConfiguration!=1)*numOfBoundaryP;
+			i = (i_ec / MAX_NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
 
-			glColor4b(255/2, 125/2, 0, 100/2/*alpha*/);
-			if(e_c[ 4 * i_ec + 2 ]>1.f) glColor4b(255/2, 0, 0, 255/2/*alpha*/);
-			
-			glBegin(GL_LINES);
-			glVertex3f( (p_b[i*4]-XMAX/2)*sc , (p_b[i*4+1]-YMAX/2)*sc, (p_b[i*4+2]-ZMAX/2)*sc );
-			glVertex3f( (p_b[j*4]-XMAX/2)*sc , (p_b[j*4+1]-YMAX/2)*sc, (p_b[j*4+2]-ZMAX/2)*sc );
-			glEnd();
+			if(i<j)	
+			{
+				glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
+
+				if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
+				{
+					glLineWidth((GLfloat)1.0);
+
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.45f) 
+					{
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
+						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
+						glColor4b(127/2, 0, 255/2, 255/2);/* muscle_number+0.5 <--> violet*/  
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glColor4b(255/2, 255/2, 255/2, 255/2);
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+					else
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.35f) 
+					{ 
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
+						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
+						glColor4b(255/2, 0, 255/2, 255/2);/* muscle_number+0.4 <--> magenta*/  
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glColor4b(255/2, 255/2, 255/2, 255/2);
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+					else
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.25f) 
+					{ 
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
+						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
+						glColor4b(255/2, 127/2, 0, 255/2);/* muscle_number+0.3 <--> orange*/  
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glColor4b(255/2, 255/2, 255/2, 255/2);
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+					else
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.15f) 
+					{ 
+						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
+						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
+						glColor4b(255/2, 0, 0, 255/2);/* muscle_number+0.2 <--> red*/  
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glColor4b(255/2, 255/2, 255/2, 255/2);
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+					else
+					{
+						glColor4b(255/2, 0,     0, 255/2);/* muscle_number+0.1 <--> red */
+
+						glBegin(GL_LINES);
+						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glEnd();
+					}
+				}
+				else
+				{//ordinary springs
+					glLineWidth((GLfloat)0.1);
+					glBegin(GL_LINES);
+											glColor4b(150/2, 125/2, 0, 100/2);
+					if(p_cpp[i*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2);
+					glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+											glColor4b(150/2, 125/2, 0, 100/2);
+					if(p_cpp[j*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2);
+					glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+					glEnd();
+				}
+				
+				ecc++;
+			}
 		}
 	}
-	glEnd();
+
+	/*beginWinCoords();
+	char label[300];
+	glRasterPos2f (0.01F, 0.05F); 
+	glColor4b(255/2, 255/2, 0, 255/2);
+	sprintf(label,"elastic connections count: %d, elementary membranes count: %d",ecc,numOfMembranes);
+	glPrint( 1, 50, label, m_font);
+	endWinCoords();*/
+
+
+	//draw membranes
+	md_cpp = fluid_simulation->getMembraneData_cpp();
+
+	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
+
+	/**/
+	for(int i_m = 0; i_m < numOfMembranes; i_m++)
+	{
+		i = md_cpp [i_m*3+0];
+		j = md_cpp [i_m*3+1];
+		k = md_cpp [i_m*3+2];
+
+		/*
+		glBegin(GL_LINES);
+		glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+
+		glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[k*4]-XMAX/2)*sc , (p_cpp[k*4+1]-YMAX/2)*sc, (p_cpp[k*4+2]-ZMAX/2)*sc );
+
+		glVertex3f( (p_cpp[k*4]-XMAX/2)*sc , (p_cpp[k*4+1]-YMAX/2)*sc, (p_cpp[k*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+		glEnd();*/
+
+		glBegin(GL_LINES);
+		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[i*4]+p_cpp[k*4]+4*p_cpp[j*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[k*4+1]+4*p_cpp[j*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[k*4+2]+4*p_cpp[j*4+2])/6-ZMAX/2)*sc );
+
+		glVertex3f( ((p_cpp[i*4]+p_cpp[k*4]+4*p_cpp[j*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[k*4+1]+4*p_cpp[j*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[k*4+2]+4*p_cpp[j*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-XMAX/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-YMAX/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-ZMAX/2)*sc );
+
+		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-XMAX/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-YMAX/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-ZMAX/2)*sc );
+		glEnd();
+	}/**/
+
+
+	//glEnd();//???
+
+	glLineWidth((GLfloat)1.0);
+
 	glutSwapBuffers();
 	helper->watch_report("graphics: \t\t%9.3f ms\n====================================\n");
 	renderTime = helper->get_elapsedTime();
@@ -254,46 +480,7 @@ inline void drawScene()
 		}
 	}
 }
-void beginWinCoords(void)
-{
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-    glTranslatef(0.0f, (GLfloat)glutGet(GLUT_WINDOW_HEIGHT) - 10, 0.0f);
-    glScalef(8.0f, -1.0f, 1.0f);
 
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(0, glutGet(GLUT_WINDOW_WIDTH), 0, glutGet(GLUT_WINDOW_HEIGHT), -1, 1);
-
-    glMatrixMode(GL_MODELVIEW);
-}
-
-void endWinCoords(void)
-{
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-
-    glMatrixMode(GL_MODELVIEW);
-    glPopMatrix();
-}
-void glPrint(float x, float y, const char *s, void *font)
-{
-	glRasterPos2f((GLfloat)x, (GLfloat)y);
-    int len = (int) strlen(s);
-    for (int i = 0; i < len; i++) {
-        glutBitmapCharacter(font, s[i]);
-    }
-}
-void glPrint3D(float x, float y, float z, const char *s, void *font)
-{
-	glRasterPos3f((GLfloat)x, (GLfloat)y, (GLfloat)z);
-    int len = (int) strlen(s);
-    for (int i = 0; i < len; i++) {
-        glutBitmapCharacter(font, s[i]);
-    }
-}
 int count_s = 0;
 float current_sv ;
 static char label[1000];                            /* Storage for current string   */
@@ -303,29 +490,147 @@ void renderInfo(int x, int y)
 {
 	beginWinCoords();
 	int y_m = y;
+	int i_shift = 0;
 	if(showInfo){
-		glColor3f (1.0F, 1.0F, 1.0F);
+		glColor3f (0.5F, 1.0F, 1.0F);
 		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
 																													 numOfElasticP,
 																													 numOfBoundaryP,PARTICLE_COUNT); 
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F); 
-		sprintf(label,"Selected device: %s     FPS = %.2f, time step: %d (%f s)", device_full_name, fps, iterationCount,((float)iterationCount)*timeStep); 
+		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, iterationCount,((float)iterationCount)*timeStep); 
 		glPrint( 0 , 17 , label, m_font);
 
-		sprintf(label,"Muscle activation signals: %.3f | %.3f | %.3f | %.3f | %.3f // use keys '1' to '5' to activate/deactivate", 
-			muscle_activation_signal_buffer[0],
-			muscle_activation_signal_buffer[1],
-			muscle_activation_signal_buffer[2],
-			muscle_activation_signal_buffer[3],
-			muscle_activation_signal_buffer[4]); 
-		glRasterPos2f (0.01F, 0.05F); 
+
+		sprintf(label,"Muscle activation signals:          // demo: use keys '1' to '9' to activate/deactivate first nine muscles in array ");
+//		glRasterPos2f (0.01F, 0.05F); 
 		glPrint( 0 , 32 , label, m_font);
+
+		i_shift = 0;
+		sprintf(label,"MDR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +0",
+			muscle_activation_signal_cpp[ 0+i_shift],
+			muscle_activation_signal_cpp[ 2+i_shift],
+			muscle_activation_signal_cpp[ 4+i_shift],
+			muscle_activation_signal_cpp[ 6+i_shift],
+			muscle_activation_signal_cpp[ 8+i_shift],
+			muscle_activation_signal_cpp[10+i_shift],
+			muscle_activation_signal_cpp[12+i_shift],
+			muscle_activation_signal_cpp[14+i_shift],
+			muscle_activation_signal_cpp[16+i_shift],
+			muscle_activation_signal_cpp[18+i_shift],
+			muscle_activation_signal_cpp[20+i_shift],
+			muscle_activation_signal_cpp[22+i_shift]); 
+		glPrint( 0 , 45 , label, m_font);
+		sprintf(label,"MDR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +0",
+			muscle_activation_signal_cpp[ 1+i_shift],
+			muscle_activation_signal_cpp[ 3+i_shift],
+			muscle_activation_signal_cpp[ 5+i_shift],
+			muscle_activation_signal_cpp[ 7+i_shift],
+			muscle_activation_signal_cpp[ 9+i_shift],
+			muscle_activation_signal_cpp[11+i_shift],
+			muscle_activation_signal_cpp[13+i_shift],
+			muscle_activation_signal_cpp[15+i_shift],
+			muscle_activation_signal_cpp[17+i_shift],
+			muscle_activation_signal_cpp[19+i_shift],
+			muscle_activation_signal_cpp[21+i_shift],
+			muscle_activation_signal_cpp[23+i_shift]);
+		glPrint( 0 , 60 , label, m_font);
+
+		i_shift = 24;
+		sprintf(label,"MVR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +24",
+			muscle_activation_signal_cpp[ 0+i_shift],
+			muscle_activation_signal_cpp[ 2+i_shift],
+			muscle_activation_signal_cpp[ 4+i_shift],
+			muscle_activation_signal_cpp[ 6+i_shift],
+			muscle_activation_signal_cpp[ 8+i_shift],
+			muscle_activation_signal_cpp[10+i_shift],
+			muscle_activation_signal_cpp[12+i_shift],
+			muscle_activation_signal_cpp[14+i_shift],
+			muscle_activation_signal_cpp[16+i_shift],
+			muscle_activation_signal_cpp[18+i_shift],
+			muscle_activation_signal_cpp[20+i_shift],
+			muscle_activation_signal_cpp[22+i_shift]); 
+		glPrint( 0 , 62+15 , label, m_font);
+		sprintf(label,"MVR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +24",
+			muscle_activation_signal_cpp[ 1+i_shift],
+			muscle_activation_signal_cpp[ 3+i_shift],
+			muscle_activation_signal_cpp[ 5+i_shift],
+			muscle_activation_signal_cpp[ 7+i_shift],
+			muscle_activation_signal_cpp[ 9+i_shift],
+			muscle_activation_signal_cpp[11+i_shift],
+			muscle_activation_signal_cpp[13+i_shift],
+			muscle_activation_signal_cpp[15+i_shift],
+			muscle_activation_signal_cpp[17+i_shift],
+			muscle_activation_signal_cpp[19+i_shift],
+			muscle_activation_signal_cpp[21+i_shift],
+			muscle_activation_signal_cpp[23+i_shift]);
+		glPrint( 0 , 62+15+12 , label, m_font);
+		
+		i_shift = 24*2;
+		sprintf(label,"MVL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +48",
+			muscle_activation_signal_cpp[ 0+i_shift],
+			muscle_activation_signal_cpp[ 2+i_shift],
+			muscle_activation_signal_cpp[ 4+i_shift],
+			muscle_activation_signal_cpp[ 6+i_shift],
+			muscle_activation_signal_cpp[ 8+i_shift],
+			muscle_activation_signal_cpp[10+i_shift],
+			muscle_activation_signal_cpp[12+i_shift],
+			muscle_activation_signal_cpp[14+i_shift],
+			muscle_activation_signal_cpp[16+i_shift],
+			muscle_activation_signal_cpp[18+i_shift],
+			muscle_activation_signal_cpp[20+i_shift],
+			muscle_activation_signal_cpp[22+i_shift]); 
+		glPrint( 0 , 91+15 , label, m_font);
+		sprintf(label,"MVL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +48",
+			muscle_activation_signal_cpp[ 1+i_shift],
+			muscle_activation_signal_cpp[ 3+i_shift],
+			muscle_activation_signal_cpp[ 5+i_shift],
+			muscle_activation_signal_cpp[ 7+i_shift],
+			muscle_activation_signal_cpp[ 9+i_shift],
+			muscle_activation_signal_cpp[11+i_shift],
+			muscle_activation_signal_cpp[13+i_shift],
+			muscle_activation_signal_cpp[15+i_shift],
+			muscle_activation_signal_cpp[17+i_shift],
+			muscle_activation_signal_cpp[19+i_shift],
+			muscle_activation_signal_cpp[21+i_shift],
+			muscle_activation_signal_cpp[23+i_shift]);
+		glPrint( 0 , 91+15+12 , label, m_font);
+
+		i_shift = 24*3;
+		sprintf(label,"MDL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +72",
+			muscle_activation_signal_cpp[ 0+i_shift],
+			muscle_activation_signal_cpp[ 2+i_shift],
+			muscle_activation_signal_cpp[ 4+i_shift],
+			muscle_activation_signal_cpp[ 6+i_shift],
+			muscle_activation_signal_cpp[ 8+i_shift],
+			muscle_activation_signal_cpp[10+i_shift],
+			muscle_activation_signal_cpp[12+i_shift],
+			muscle_activation_signal_cpp[14+i_shift],
+			muscle_activation_signal_cpp[16+i_shift],
+			muscle_activation_signal_cpp[18+i_shift],
+			muscle_activation_signal_cpp[20+i_shift],
+			muscle_activation_signal_cpp[22+i_shift]); 
+		glPrint( 0 , 119+15 , label, m_font);
+		sprintf(label,"MDL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +72",
+			muscle_activation_signal_cpp[ 1+i_shift],
+			muscle_activation_signal_cpp[ 3+i_shift],
+			muscle_activation_signal_cpp[ 5+i_shift],
+			muscle_activation_signal_cpp[ 7+i_shift],
+			muscle_activation_signal_cpp[ 9+i_shift],
+			muscle_activation_signal_cpp[11+i_shift],
+			muscle_activation_signal_cpp[13+i_shift],
+			muscle_activation_signal_cpp[15+i_shift],
+			muscle_activation_signal_cpp[17+i_shift],
+			muscle_activation_signal_cpp[19+i_shift],
+			muscle_activation_signal_cpp[21+i_shift],
+			muscle_activation_signal_cpp[23+i_shift]);
+		glPrint( 0 , 119+15+12 , label, m_font);
+
 		y_m = 40;
 	}
 	if(showRuler){
 		glColor3ub(255, 0, 0);
-		float s_v = 1 * sc_scale * (1 /( ocuracy * simulationScale));
+		float s_v = 1 * sc_scale * (1 /( accuracy * simulationScale));
 		float temp_v = (float)glutGet(GLUT_WINDOW_WIDTH)/2.f;
 		float s_v_10 = s_v / 10;
 		std::stringstream ss;
@@ -449,51 +754,83 @@ void mouse_motion (int x, int y)
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 
-extern float *muscle_activation_signal_buffer;
+extern float *muscle_activation_signal_cpp;
 
 void respond_key_pressed(unsigned char key, int x, int y)
 {
+	int shift=0;
+	//for(shift=0;shift<=72;shift+=72)
+	{
 	
-	if(key=='1')
-	{
-		if(muscle_activation_signal_buffer[0]<=0.5f)
-		muscle_activation_signal_buffer[0] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[0] = 0.f;
-		//if(muscle_activation_signal_buffer[0]>1.f) muscle_activation_signal_buffer[0] = 1.f;
+		if(key=='1')
+		{
+			if(muscle_activation_signal_cpp[0+shift]<=0.5f)
+			muscle_activation_signal_cpp[0+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[0+shift] = 0.f;
+			//if(muscle_activation_signal_cpp[0]>1.f) muscle_activation_signal_cpp[0] = 1.f;
+		}
+
+		if(key=='2')
+		{
+			if(muscle_activation_signal_cpp[1+shift]<=0.5f)
+			muscle_activation_signal_cpp[1+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[1+shift] = 0.f;
+			//if(muscle_activation_signal_cpp[1]>1.f) muscle_activation_signal_cpp[1] = 1.f;
+		}
+
+		if(key=='3')
+		{
+			if(muscle_activation_signal_cpp[2+shift]<=0.5f)
+			muscle_activation_signal_cpp[2+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[2+shift] = 0.f;
+			//if(muscle_activation_signal_cpp[2]>1.f) muscle_activation_signal_cpp[2] = 1.f;
+		}
+
+		if(key=='4')
+		{
+			if(muscle_activation_signal_cpp[3+shift]<=0.5f)
+			muscle_activation_signal_cpp[3+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[3+shift] = 0.f;
+			//if(muscle_activation_signal_cpp[3]>1.f) muscle_activation_signal_cpp[3] = 1.f;
+		}
+
+		if(key=='5')
+		{
+			if(muscle_activation_signal_cpp[4+shift]<=0.5f)
+			muscle_activation_signal_cpp[4+shift] = 1.f;//+= 0.1f;
+			else muscle_activation_signal_cpp[4+shift] = 0.f;
+		}
+
+		if(key=='6')
+		{
+			if(muscle_activation_signal_cpp[5+shift]<=0.5f)
+			muscle_activation_signal_cpp[5+shift] = 1.f;
+			else muscle_activation_signal_cpp[5+shift] = 0.f;
+		}
+
+		if(key=='7')
+		{
+			if(muscle_activation_signal_cpp[6+shift]<=0.5f)
+			muscle_activation_signal_cpp[6+shift] = 1.f;
+			else muscle_activation_signal_cpp[6+shift] = 0.f;
+		}
+
+		if(key=='8')
+		{
+			if(muscle_activation_signal_cpp[7+shift]<=0.5f)
+			muscle_activation_signal_cpp[7+shift] = 1.f;
+			else muscle_activation_signal_cpp[7+shift] = 0.f;
+		}
+
+		if(key=='9')
+		{
+			if(muscle_activation_signal_cpp[8+shift]<=0.5f)
+			muscle_activation_signal_cpp[8+shift] = 1.f;
+			else muscle_activation_signal_cpp[8+shift] = 0.f;
+		}
 
 	}
 
-	if(key=='2')
-	{
-		if(muscle_activation_signal_buffer[1]<=0.5f)
-		muscle_activation_signal_buffer[1] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[1] = 0.f;
-		//if(muscle_activation_signal_buffer[1]>1.f) muscle_activation_signal_buffer[1] = 1.f;
-	}
-
-	if(key=='3')
-	{
-		if(muscle_activation_signal_buffer[2]<=0.5f)
-		muscle_activation_signal_buffer[2] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[2] = 0.f;
-		//if(muscle_activation_signal_buffer[2]>1.f) muscle_activation_signal_buffer[2] = 1.f;
-	}
-
-	if(key=='4')
-	{
-		if(muscle_activation_signal_buffer[3]<=0.5f)
-		muscle_activation_signal_buffer[3] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[3] = 0.f;
-		//if(muscle_activation_signal_buffer[3]>1.f) muscle_activation_signal_buffer[3] = 1.f;
-	}
-
-	if(key=='5')
-	{
-		if(muscle_activation_signal_buffer[4]<=0.5f)
-		muscle_activation_signal_buffer[4] = 1.f;//+= 0.1f;
-		else muscle_activation_signal_buffer[4] = 0.f;
-		//if(muscle_activation_signal_buffer[4]>1.f) muscle_activation_signal_buffer[4] = 1.f;
-	}
 	if(key == 'i')
 	{
 		showInfo = !showInfo;
@@ -523,6 +860,7 @@ void Timer(int value)
     glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);
 	glutPostRedisplay();
 }
+/*
 void SetProjectionMatrix(void){
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();									// Current projection matrix is dropped to identity matrix 
@@ -535,23 +873,38 @@ void SetModelviewMatrix(void){
      glRotatef(0*10.0, 1.0, 0.0, 0.0);
      glRotatef(0.0, 0.0, 1.0, 0.0);                              
 }
+*/
 GLvoid resize(GLsizei width, GLsizei height){
-	if(height == 0)
-	{
-		height = 1;										
-	}
 
-	glViewport(0, 0, width, height);					// Sev view area
+	if(height == 0) { height = 1; }										 
+	if(width == 0) { width = 1; }										 
+	
+	glViewport(0, 0, width, height);					// Set view area
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	
+	float aspectRatio = (GLfloat)width / (GLfloat)height;
+	if (aspectRatio>1.f)
+		glFrustum(-1*aspectRatio, 1*aspectRatio, -1, 1, 3, 45);
+	else
+		glFrustum(-1, 1, -1/aspectRatio, 1/aspectRatio, 3, 45);
+	
+	
 
-	viewHeight = height;
-	viewWidth = width;
-
-	SetProjectionMatrix();
-	SetModelviewMatrix();
-
-//================= fixes a small bug -- scene's point of view is set to initial after window rezise ('forgotten' to update)
+	///// Model View ///////
+	//glMatrixMode(GL_MODELVIEW);
+	//glLoadIdentity();   
+    //glRotatef(0.0, 1.0, 0.0, 0.0);
+    //glRotatef(0.0, 0.0, 1.0, 0.0);
+	//gluPerspective(30.0f,  1/(width/height), 1.0f, 15.0f);
+	//glOrtho(0, width, 0, height, -1, 1);
+	//SetProjectionMatrix();
+	//SetModelviewMatrix();
+	//glMatrixMode(GL_MODELVIEW);
+	
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+
 	for (int c = 0; c < 3; ++c)
 	{
 	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]) * inertia;
@@ -561,6 +914,7 @@ GLvoid resize(GLsizei width, GLsizei height){
 	glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
+
 //==================
 }
 void init(void){
@@ -589,17 +943,12 @@ void run(int argc, char** argv, const bool with_graphics)
 {
 	helper = new owHelper();
 	fluid_simulation = new owPhysicsFluidSimulator(helper);
-	for(int i = 1; i<argc; i++){
-		if(strncmp(argv[i], "-l_config", 9) == 0){
-			fluid_simulation->set_loadConfigStep(atoi(argv[i + 1]));
-		}
-	}
 	if(with_graphics){
 		glutInit(&argc, argv);
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-		glutInitWindowSize(800, 600);
+		glutInitWindowSize(1024, 1024);
 		glutInitWindowPosition(100, 100);
-		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter demo [2013]");
+		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
 		glutIdleFunc (idle); 
 		glEnable(GL_LIGHTING);
 		glEnable(GL_LIGHT0);
@@ -613,7 +962,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutDisplayFunc(display);
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
-		glutMotionFunc(mouse_motion);	// The former handles movement while the mouse is clicked, 
+		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked, 
 		glutKeyboardFunc(respond_key_pressed);
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();

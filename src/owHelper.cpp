@@ -78,15 +78,613 @@ void owHelper::log_bufferi(const int * buffer, const int element_size, const int
 	}
 }
 
-
-void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
+int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp, int &numOfMembranes, int *membraneData_cpp)
 {
-	// we need to know at least 
-	// 1) sizes of the box which contains the simulation within
-	// [0..MAX_X],[0..MAX_Y],[0..MAX_Z]
-	// 2) smoothing radius
-	// local vectors system and template data for each structure we are going to generate here
+	//return 0;
+	if( !((stage==0)||(stage==1)) ) return 0;
 
+	float alpha;
+	float wormBodyRadius;
+	int pCount = 0;//total counter of particles being created within this function
+	int i,j;
+	float *positionVector;
+	float *velocityVector;
+	float xc = XMAX*0.5f;
+	float yc = YMAX*0.3f;
+	float zc = ZMAX*0.5f;
+	int elasticLayers = 1;//starting value
+	float PI = 3.1415926536f;
+	int currSlice_pCount;
+	int prevSlice_pCount;
+	int currSlice_start;
+	int prevSlice_start;
+	int mc = 0;
+	float angle;
+	int tip = 0;
+
+	int jmin=-100,jmax=98;
+
+	if(stage==0) numOfMembranes=0;
+
+	//return 0;
+
+	for(j=jmin;j<=jmax;j++)	// number of cross-slices of the worm, in direction from head to tail. -
+							// 1..-1 for example will give 3 slices in the middle of the worm
+	{////////////////////////////////////////////////////
+		currSlice_pCount = 0;
+		currSlice_start = pCount;
+		wormBodyRadius = 6.0f*r0*sqrt(max(1.f-(1.0e-4f)*j*j,0.f));
+		tip = 0;
+
+		if((wormBodyRadius>0.707*r0)&&
+		   (wormBodyRadius<1.000*r0)) wormBodyRadius = 1.000*r0;
+
+		if(wormBodyRadius<0.707*r0) { tip = 1; wormBodyRadius = 0.707f*r0; }//0.707 = sqrt(2)/2
+
+		//alpha = 2*asin(0.5*r0/wormBodyRadius);//in radians
+		//angle = alpha;
+
+		elasticLayers = 1;
+
+		if(stage==1)
+		{
+			positionVector = position_cpp + 4 * (pCount+i_start);
+			positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0);
+			positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0);
+			positionVector[ 2 ] = zc + r0*j;
+			positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+
+			positionVector = position_cpp + 4 * (pCount+1+i_start);
+			positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0);
+			positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0);
+			positionVector[ 2 ] = zc + r0*j;
+			positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+		}
+		pCount+=2;
+		currSlice_pCount+=2;
+
+		if(tip==1)
+		{
+			if(stage==1)
+			{
+				positionVector = position_cpp + 4 * (pCount+i_start);
+				positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0);
+				positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0);
+				positionVector[ 2 ] = zc + r0*j;
+				positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+
+				positionVector = position_cpp + 4 * (pCount+1+i_start);
+				positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0);
+				positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0);
+				positionVector[ 2 ] = zc + r0*j;
+				positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+			}
+			pCount+=2;
+			currSlice_pCount+=2;
+
+		}
+
+		while(elasticLayers<=2)//this number defines number of radial muscle layers. can be 1, 2, 3 or more
+		{
+			if((elasticLayers==2)&&(j==jmin))
+			{
+				if(stage==1)
+				{
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					positionVector[ 0 ] = xc;
+					positionVector[ 1 ] = yc;
+					positionVector[ 2 ] = zc + r0*(j-1);
+					positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+				}
+				pCount++;
+				currSlice_pCount++;
+			}
+
+			if(wormBodyRadius>0)
+			if(elasticLayers>=2)
+			{
+				if(wormBodyRadius>r0*(1.00))
+				{
+					if(stage==1)
+					{
+						positionVector = position_cpp + 4 * (pCount+i_start);
+						positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0);
+						positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0);
+						positionVector[ 2 ] = zc + r0*j;
+						positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+
+						positionVector = position_cpp + 4 * (pCount+1+i_start);
+						positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0);
+						positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0);
+						positionVector[ 2 ] = zc + r0*j;
+						positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+					}
+					pCount+=2;
+					currSlice_pCount+=2;
+				}
+				else
+				if(wormBodyRadius<r0*(1.00-0.707))
+				{
+					if(stage==1)
+					{
+						positionVector = position_cpp + 4 * (pCount+i_start);
+						positionVector[ 0 ] = xc;
+						positionVector[ 1 ] = yc;
+						positionVector[ 2 ] = zc + r0*j;
+						positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+					}
+					pCount++;
+					currSlice_pCount++;
+				}
+			}
+
+			if(wormBodyRadius<r0*0.707) break;
+			alpha = 2*asin(0.5*r0/wormBodyRadius);//in radians//recalculate -- wormBodyRadius changed
+			angle = alpha;
+
+			while(angle<0.89/*radians = less or equal to 51 degrees*/)
+			{
+				if(stage==1)
+				{	
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					positionVector[ 0 ] = xc + wormBodyRadius*cos(angle);
+					positionVector[ 1 ] = yc + wormBodyRadius*sin(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green */ 
+
+					positionVector = position_cpp + 4 * (pCount+1+i_start);
+					positionVector[ 0 ] = xc + wormBodyRadius*cos(angle);
+					positionVector[ 1 ] = yc - wormBodyRadius*sin(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green*/ 
+
+					positionVector = position_cpp + 4 * (pCount+2+i_start);
+					positionVector[ 0 ] = xc - wormBodyRadius*cos(angle);
+					positionVector[ 1 ] = yc + wormBodyRadius*sin(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green */ 
+
+					positionVector = position_cpp + 4 * (pCount+3+i_start);
+					positionVector[ 0 ] = xc - wormBodyRadius*cos(angle);
+					positionVector[ 1 ] = yc - wormBodyRadius*sin(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 2.2f;/* 2 = elastic matter, green*/ 
+				}
+				pCount += 4;
+				currSlice_pCount +=4;
+				angle+= alpha;
+			}
+
+			//if(elasticLayers==1)
+			{
+				angle-= alpha;//step back for 1 radial segment
+				float non_muscle_angle = PI - 2.f*angle;
+				int n_non_muscle_particles = floor(non_muscle_angle / alpha)-1;// distance between each 2 radially adjacent particles will be r0 or more (not less); alpha corresponds to r0
+				if(n_non_muscle_particles>0)
+				{
+					float beta = non_muscle_angle / (n_non_muscle_particles+1);
+					int nmp_counter = 0;//non muscle particles counter
+
+					for(i=0;i<(n_non_muscle_particles+1)/2;i++)
+					{
+						angle+= beta;
+
+						if(stage==1)
+						{	
+							positionVector = position_cpp + 4 * (pCount+i_start);
+							positionVector[ 0 ] = xc + wormBodyRadius*cos(angle);
+							positionVector[ 1 ] = yc + wormBodyRadius*sin(angle);
+							positionVector[ 2 ] = zc + r0*j;
+							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+						
+							positionVector = position_cpp + 4 * (pCount+1+i_start);
+							positionVector[ 0 ] = xc + wormBodyRadius*cos(angle);
+							positionVector[ 1 ] = yc - wormBodyRadius*sin(angle);
+							positionVector[ 2 ] = zc + r0*j;
+							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+						}
+
+						pCount += 2;
+						currSlice_pCount += 2;
+						nmp_counter += 2;
+
+						if(nmp_counter/2==n_non_muscle_particles)
+						{
+							break;
+						}
+
+						if(stage==1)
+						{	
+							positionVector = position_cpp + 4 * (pCount+i_start);
+							positionVector[ 0 ] = xc - wormBodyRadius*cos(angle);
+							positionVector[ 1 ] = yc + wormBodyRadius*sin(angle);
+							positionVector[ 2 ] = zc + r0*j;
+							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+						
+							positionVector = position_cpp + 4 * (pCount+1+i_start);
+							positionVector[ 0 ] = xc - wormBodyRadius*cos(angle);
+							positionVector[ 1 ] = yc - wormBodyRadius*sin(angle);
+							positionVector[ 2 ] = zc + r0*j;
+							positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
+						}
+
+						pCount += 2;
+						currSlice_pCount += 2;
+						nmp_counter += 2;
+					}
+				}
+
+				//1-st, outer layer (outer worm shell) was just created (I mean mass points composing it)
+				//now it's time for membrane
+
+				if(elasticLayers==1)
+				{///////////
+					if(stage==0)
+					{
+						if((j==jmin)||(j==jmax))
+						{
+							numOfMembranes+= currSlice_pCount;//currently we plan to build membrane over only outer worm shell surface
+							if((j==jmin)&&(currSlice_pCount==4)) numOfMembranes+=2;
+							if((j==jmax)&&(currSlice_pCount==6)) numOfMembranes+=6;
+						}
+						else
+							numOfMembranes+= currSlice_pCount*2;//all inner structures of the worm will not be covered by membranes in actual version
+					}
+					else
+					{
+						//here, at stage = 1, memory for membraneData_cpp (numOfMembranes) is already allocated,
+						//and we fill it with i-j-k indexes of membranes which we build here:
+						if((j==jmin)&&(currSlice_pCount==4))
+						{
+							membraneData_cpp [mc*3+0] = 0+i_start;
+							membraneData_cpp [mc*3+1] = 1+i_start;
+							membraneData_cpp [mc*3+2] = 2+i_start;
+							mc++;
+							membraneData_cpp [mc*3+0] = 0+i_start;
+							membraneData_cpp [mc*3+1] = 1+i_start;
+							membraneData_cpp [mc*3+2] = 3+i_start;
+							mc++;
+						}
+
+						if((j==jmax)&&(currSlice_pCount==6))
+						{
+							membraneData_cpp [mc*3+0] = currSlice_start+0+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+2+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+							membraneData_cpp [mc*3+0] = currSlice_start+0+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+3+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+
+							membraneData_cpp [mc*3+0] = currSlice_start+2+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+4+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+							membraneData_cpp [mc*3+0] = currSlice_start+3+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+5+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+
+							membraneData_cpp [mc*3+0] = currSlice_start+1+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+4+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+							membraneData_cpp [mc*3+0] = currSlice_start+1+i_start;
+							membraneData_cpp [mc*3+1] = currSlice_start+5+i_start;
+							membraneData_cpp [mc*3+2] = currSlice_start+6+i_start;
+							mc++;
+						}
+
+						if(j>jmin)
+						{
+							int ii,jj,kk=0;
+							float middle_pos_x;
+							float middle_pos_y;
+							float middle_pos_z;
+							float dist;//distance between middle of [ii]-[jj] and [kk]
+							float dist_min;
+							int q,w;
+							float *pii;
+							float *pjj;
+							float *pkk;
+
+							// ii and jj on prevSlice, kk - on currSlice
+							// 11111111111111111111111111111111111111111111111111111111111111111
+							for(q=0;q<prevSlice_pCount;q++)
+							{
+								if(q==0) { ii=prevSlice_start+0; jj=prevSlice_start+2; } else
+								if(q==1) { ii=prevSlice_start+0; jj=prevSlice_start+3; } else
+								if(q==2) { ii=prevSlice_start+1; jj=prevSlice_start+4; } else
+								if(q==3) { ii=prevSlice_start+1; jj=prevSlice_start+5; } else
+										 { ii=prevSlice_start+q-2; jj=prevSlice_start+q+2*(q+2<prevSlice_pCount); }
+
+								if(prevSlice_pCount==4)//head or tail tip
+								{
+									if(q==0) { ii=prevSlice_start+0; jj=prevSlice_start+2; } else
+									if(q==1) { ii=prevSlice_start+0; jj=prevSlice_start+3; } else
+									if(q==2) { ii=prevSlice_start+1; jj=prevSlice_start+2; } else
+									if(q==3) { ii=prevSlice_start+1; jj=prevSlice_start+3; }
+								}
+
+								ii+= i_start;
+								jj+= i_start;
+								
+								pii = position_cpp + 4 * (ii);
+								pjj = position_cpp + 4 * (jj);
+
+								middle_pos_x = (pii[0]+pjj[0])/2.f;
+								middle_pos_y = (pii[1]+pjj[1])/2.f;
+								middle_pos_z = (pii[2]+pjj[2])/2.f;
+
+								dist_min = 10*r0;
+									
+								for(w=0;w<currSlice_pCount;w++)
+								{
+									pkk = position_cpp + 4 * (currSlice_start+w+i_start);
+									dist = sqrt( (middle_pos_x - pkk[0])*(middle_pos_x - pkk[0])+
+												 (middle_pos_y - pkk[1])*(middle_pos_y - pkk[1])+
+												 (middle_pos_z - pkk[2])*(middle_pos_z - pkk[2]) );
+									if(dist<=dist_min)//!!! "<=" here and "<" at the similar place below is necessary
+									{
+										dist_min = dist;
+										kk = currSlice_start+w+i_start;
+									}
+								}
+
+								membraneData_cpp [mc*3+0] = ii;//i;
+								membraneData_cpp [mc*3+1] = jj;//array_j[j];
+								membraneData_cpp [mc*3+2] = kk;//array_j[k];
+								mc++;
+							}
+							// 11111111111111111111111111111111111111111111111111111111111111111
+
+							
+							// ii and jj on currSlice, kk - on prevSlice
+							// 22222222222222222222222222222222222222222222222222222222222222222
+							for(q=0;q<currSlice_pCount;q++)
+							{
+								if(q==0) { ii=currSlice_start+0; jj=currSlice_start+2; } else
+								if(q==1) { ii=currSlice_start+0; jj=currSlice_start+3; } else
+								if(q==2) { ii=currSlice_start+1; jj=currSlice_start+4; } else
+								if(q==3) { ii=currSlice_start+1; jj=currSlice_start+5; } else
+										 { ii=currSlice_start+q-2; jj=currSlice_start+q+2*(q+2<currSlice_pCount); }
+
+								if(currSlice_pCount==4)//head or tail tip
+								{
+									if(q==0) { ii=currSlice_start+0; jj=currSlice_start+2; } else
+									if(q==1) { ii=currSlice_start+0; jj=currSlice_start+3; } else
+									if(q==2) { ii=currSlice_start+1; jj=currSlice_start+2; } else
+									if(q==3) { ii=currSlice_start+1; jj=currSlice_start+3; }
+								}
+
+								ii+= i_start;
+								jj+= i_start;
+								
+								pii = position_cpp + 4 * (ii);
+								pjj = position_cpp + 4 * (jj);
+
+								middle_pos_x = (pii[0]+pjj[0])/2.f;
+								middle_pos_y = (pii[1]+pjj[1])/2.f;
+								middle_pos_z = (pii[2]+pjj[2])/2.f;
+
+								dist_min = 10*r0;
+									
+								for(w=0;w<prevSlice_pCount;w++)
+								{
+									pkk = position_cpp + 4 * (prevSlice_start+w+i_start);
+									dist = sqrt( (middle_pos_x - pkk[0])*(middle_pos_x - pkk[0])+
+												 (middle_pos_y - pkk[1])*(middle_pos_y - pkk[1])+
+												 (middle_pos_z - pkk[2])*(middle_pos_z - pkk[2]) );
+									if(dist<dist_min)//!!! 
+									{
+										dist_min = dist;
+										kk = prevSlice_start+w+i_start;
+									}
+								}
+
+								membraneData_cpp [mc*3+0] = ii;//i;
+								membraneData_cpp [mc*3+1] = jj;//array_j[j];
+								membraneData_cpp [mc*3+2] = kk;//array_j[k];
+								mc++;
+							}
+							// 22222222222222222222222222222222222222222222222222222222222222222
+						}
+					}
+
+					prevSlice_pCount = currSlice_pCount;
+					prevSlice_start = currSlice_start;
+				}//////////
+			}
+
+			wormBodyRadius -= r0;
+			elasticLayers++;
+		}
+	}////////////////////////////////////////////////////
+
+	if(stage==1)
+	{
+		for(i=0;i<pCount;i++)
+		{
+			velocityVector = velocity_cpp + 4 * (i+i_start);	
+			velocityVector[ 0 ] = 0;
+			velocityVector[ 1 ] = 0;
+			velocityVector[ 2 ] = 0;
+			velocityVector[ 3 ] = 0;
+		}
+	}
+
+	//if(stage==0) numOfMembranes /= 2;//remove this line when development of this function is complete
+
+	return pCount;
+
+	// makeworm
+}
+
+int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp)
+{
+	//return 0;
+	int segmentsCount;// = 10;
+	float alpha;// = 2.f*3.14159f/segmentsCount;
+	float coeff = 0.23f;
+	float wormBodyRadius;// = h*coeff / sin(alpha/2);
+	int pCount = 0;//particle counter
+	int i;
+
+	float *positionVector;
+	float *velocityVector;
+	float value;
+	int elasticLayers;//starting from 2, because 1 is for outer shell and doesn't contain liquid particles
+	float xc = XMAX*0.5f;
+	float yc = YMAX*0.3f;
+	float zc = ZMAX*0.5f;
+	float PI = 3.1415926536f;
+	float beta;
+	float angle;
+	float x,y,z;
+
+	// makeworm
+	// outer worm shell elastic cylinder generation
+
+	pCount = 0;
+	
+	float jmin=-100.f,jmax=100.f;
+	//float jmin=-10.f,jmax=10.f;
+
+	float j;
+
+
+	for(j=jmin;j<=jmax;j+=0.85f)	// number of cross-slices of the worm, in direction from head to tail. -
+							// 1..-1 for example will give 3 slices in the middle of the worm
+	{////////////////////////////////////////////////////
+
+		elasticLayers = 2;
+		wormBodyRadius = 6.0f*r0*sqrt(max(1.f-(1.0e-4f)*j*j,0.f)) - r0*(1+0.85);
+
+		while(1)
+		{
+			if(wormBodyRadius>0.707*r0)
+			{
+				if(stage==1)
+				{
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0);
+					positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 1.1f;// liquid
+
+					positionVector = position_cpp + 4 * (pCount+1+i_start);
+					positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0);
+					positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 1.1f;// liquid
+				}
+				pCount+=2;
+			}
+			else 
+			{
+				/*
+				if(wormBodyRadius>0.3*r0)
+				{
+					if(stage==1)
+					{
+						positionVector = position_cpp + 4 * (pCount+i_start);
+						positionVector[ 0 ] = xc;
+						positionVector[ 1 ] = yc;
+						positionVector[ 2 ] = zc + r0*j;
+						positionVector[ 3 ] = 1.1f;// liquid
+					}
+					pCount++;
+				}*/
+				break;
+			}
+
+			alpha = 2*asin(0.5*r0/wormBodyRadius);//in radians//recalculate -- wormBodyRadius changed
+			
+			angle = 0;
+
+			if(elasticLayers == 1) 
+			{
+				angle = alpha;
+
+				if(alpha>0)
+				while(angle<0.89)
+				{
+					angle+= alpha;
+				}
+				angle-= alpha;//step back for 1 radial segment
+			}
+
+			float non_muscle_angle = PI - 2.f*angle;
+			int n_non_muscle_particles = floor(non_muscle_angle / (alpha*0.85) )-1;
+			float beta = non_muscle_angle / (n_non_muscle_particles+1);
+
+			for(i=0;i<n_non_muscle_particles;i++)
+			{
+				angle+= beta;
+
+				if(stage==1)
+				{	
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					positionVector[ 0 ] = xc + wormBodyRadius*sin(angle);
+					positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 1.1f;// liquid
+				
+					positionVector = position_cpp + 4 * (pCount+1+i_start);
+					positionVector[ 0 ] = xc - wormBodyRadius*sin(angle);
+					positionVector[ 1 ] = yc + wormBodyRadius*cos(angle);
+					positionVector[ 2 ] = zc + r0*j;
+					positionVector[ 3 ] = 1.1f;// liquid
+				}
+
+				pCount += 2;
+			}
+			
+			elasticLayers++;
+			wormBodyRadius -= r0*0.85;
+		}
+	}
+
+	//and here we add outer liquid for worm swimming
+	for(x=3*r0;x<XMAX-3*r0;x+=r0)
+	{
+		for(y=3*r0;y<YMAX*0.15/*-r0*/;y+=r0)
+		{
+			for(z=3*r0;z<ZMAX-3*r0;z+=r0)
+			{
+				if(stage==1)
+				{	
+					positionVector = position_cpp + 4 * (pCount+i_start);
+					positionVector[ 0 ] = x;
+					positionVector[ 1 ] = y;
+					positionVector[ 2 ] = z;
+					positionVector[ 3 ] = 1.1f;// liquid
+				}
+
+				pCount++;
+			}
+		}
+	}
+
+	if(stage==1)
+	{
+		for(i=0;i<pCount;i++)
+		{
+			velocityVector = velocity_cpp + 4 * (i+i_start);	
+			velocityVector[ 0 ] = 0;
+			velocityVector[ 1 ] = 0;
+			velocityVector[ 2 ] = 0;
+			velocityVector[ 3 ] = 0;
+		}
+	}
+
+	return pCount;
+}
+
+
+void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp)
+{
 	float x,y,z;
 	float p_type = LIQUID_PARTICLE;
 	int i = 0;// particle counter
@@ -97,155 +695,55 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
 	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
 
-	int nEx = 7;//7
-	int nEy = 4;//3
-	int nEz = 25;//23
+	int nEx = 5*0;//7
+	int nEy = 3*0;//4
+	int nEz = 9*0;//25
 	int nMuscles = 5;
 	int nM,nMi,nMj;
+	int wormIndex_start,wormIndex_end;
+	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp);
 
 	if(stage==0)
 	{
-		numOfLiquidP = 0;
-		numOfElasticP = nEx*nEy*nEz * nMuscles;
+		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp);
+		numOfElasticP = numOfMembraneParticles;
 		numOfBoundaryP = 0;
 
-		elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
+		if(numOfElasticP<=0) elasticConnectionsData_cpp = NULL; else elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
 	}
 
-	//=============== create elastic particles ==================================================
+	//=============== create worm body (elastic parts) ==================================================
 	if(stage==1)
 	{
-		p_type = ELASTIC_PARTICLE;
-
-		for(nM=0;nM<nMuscles;nM++)
-		for(x=0;x<nEx;x+=1.f)
-		for(y=0;y<nEy;y+=1.f)
-		for(z=0;z<nEz;z+=1.f)
-		{
-			//write particle coordinates to corresponding arrays
-			position_cpp[ 4 * i + 0 ] = XMAX/2+x*r0-nEx*r0/2 - r0*(nEx)/2 + r0*(nEx+0.4)*(nM>2);
-			position_cpp[ 4 * i + 1 ] = YMAX/2+y*r0-nEy*r0/2 - 0*YMAX/4;
-			position_cpp[ 4 * i + 2 ] = ZMAX/2+z*r0-nEz*r0/2 - (nM<=2)*(nM-1)*(nEz*r0) - (nM>2)*(r0/2+(nM-4)*r0)*nEz - (nM==1)*r0/2.5 - (nM==2)*r0*2/2.5 + (nM==4)*r0/2.5;
-			position_cpp[ 4 * i + 3 ] = p_type;
-
-			velocity_cpp[ 4 * i + 0 ] = 0;
-			velocity_cpp[ 4 * i + 1 ] = 0;
-			velocity_cpp[ 4 * i + 2 ] = 0;
-			velocity_cpp[ 4 * i + 3 ] = p_type;
-
-			i++;
-		}
-
-		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
-		for(int i_ec = 0; i_ec < numOfElasticP * NEIGHBOR_COUNT; i_ec++)
-		{
-			elasticConnectionsData_cpp[ 4 * i_ec + 0 ] = NO_PARTICLE_ID;
-			elasticConnectionsData_cpp[ 4 * i_ec + 1 ] = 0;
-			elasticConnectionsData_cpp[ 4 * i_ec + 2 ] = 0;
-			elasticConnectionsData_cpp[ 4 * i_ec + 3 ] = 0; 
-		}
+		wormIndex_start = i;
+		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp);
+		wormIndex_end = i;
 
 		float r2ij;
 		float dx2,dy2,dz2;
 
-		for(int i_ec = 0; i_ec < numOfElasticP; i_ec++)
+		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
+		for(int ii = 0; ii < numOfElasticP * MAX_NEIGHBOR_COUNT; ii++)
 		{
 			ecc = 0;
-			float test;
-			nMi = i_ec*nMuscles/numOfElasticP;
 
-			for(int j_ec = 0; j_ec < numOfElasticP; j_ec++)
-			{
-				nMj = j_ec*nMuscles/numOfElasticP;
-
-				if(i_ec!=j_ec)
-				{
-					dx2 = (position_cpp[ 4 * i_ec + 0 ] - position_cpp[ 4 * j_ec + 0 ]);
-					dy2 = (position_cpp[ 4 * i_ec + 1 ] - position_cpp[ 4 * j_ec + 1 ]);
-					dz2 = (position_cpp[ 4 * i_ec + 2 ] - position_cpp[ 4 * j_ec + 2 ]);
-					dx2 *= dx2;
-					dy2 *= dy2;
-					dz2 *= dz2;
-					r2ij = dx2 + dy2 + dz2;
-
-					if(r2ij<=r0*r0*3.05f)
-					{
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 0 ] = ((float)j_ec) + 0.1f;				// index of j-th particle in a pair connected with spring
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 1 ] = (float)sqrt(r2ij)*simulationScale;	// resting density; that's why we use float type for elasticConnectionsData_cpp
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0;							// type of connection; 0 - ordinary spring, 1 - muscle
-						if(nMi==nMj)
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 2 ] = test = 0 + (1.1f+nMi)*((dz2>100*dx2)&&(dz2>100*dy2));// this line is for muscles
-						elasticConnectionsData_cpp[ 4 * ( NEIGHBOR_COUNT * i_ec + ecc) + 3 ] = 0;									// not in use yet
-						ecc++;
-					}
-
-					if(ecc>=NEIGHBOR_COUNT) break;
-				}
-			}
+			elasticConnectionsData_cpp[ 4 * ii + 0 ] = NO_PARTICLE_ID;
+			elasticConnectionsData_cpp[ 4 * ii + 1 ] = 0;
+			elasticConnectionsData_cpp[ 4 * ii + 2 ] = 0;
+			elasticConnectionsData_cpp[ 4 * ii + 3 ] = 0; 
 		}
-
-		//and connections between them
-		/*
-		elasticConnections[ 4 * 0 + 0 ] = 1.1f;//connect elastic particles 0 and 1
-		elasticConnections[ 4 * 0 + 1 ] = r0*simulationScale;
-		elasticConnections[ 4 * 0 + 2 ] = 0;
-		elasticConnections[ 4 * 0 + 3 ] = 0;
-
-		
-		elasticConnections[ 4 * NEIGHBOR_COUNT + 0 ] = 0.1f;//connect elastic particles 0 and 1
-		elasticConnections[ 4 * NEIGHBOR_COUNT + 1 ] = r0*simulationScale;
-		elasticConnections[ 4 * NEIGHBOR_COUNT + 2 ] = 0;
-		elasticConnections[ 4 * NEIGHBOR_COUNT + 3 ] = 0;
-		*/
 	}
 
-	//============= create volume of liquid =========================================================================
 
-	p_type = LIQUID_PARTICLE;
-	//int first_liquid_particle = 1;
-	//float h_fall;
-	for(x = r0*23;x<(XMAX-XMIN)-r0*23;x += r0)
-	for(y = r0*3;y<(YMAX-YMIN)*0.0+9.0*r0;y += r0)
-	for(z = r0*23;z<(ZMAX-ZMIN)-r0*23;z += r0)
+	//=============== create worm body (inner liquid) ==================================================
+	if(stage==1)
 	{
-						// stage==0 - preliminary run
-		if(stage==1)	// stage==1 - final run
-		{
-			if(i>=numOfLiquidP+numOfElasticP) 
-			{
-				printf("\nWarning! Final particle count >= preliminary particle count!\n");
-				exit(-3);
-			}
-			//write particle coordinates to corresponding arrays
-			position_cpp[ 4 * i + 0 ] = x;
-			position_cpp[ 4 * i + 1 ] = y;
-			position_cpp[ 4 * i + 2 ] = z;
-
-			position_cpp[ 4 * i + 3 ] = p_type;
-
-			velocity_cpp[ 4 * i + 0 ] = 0;
-			velocity_cpp[ 4 * i + 1 ] = 0;
-			velocity_cpp[ 4 * i + 2 ] = 0;
-			velocity_cpp[ 4 * i + 3 ] = p_type;//if particle type is already defined in 'position', we don't need its duplicate here, right?
-			
-			/*//just for debug
-			if(first_liquid_particle)
-			{
-				first_liquid_particle = 0;
-				position[ 4 * i + 0 ] = (XMAX-XMIN)*0.35f;
-				position[ 4 * i + 1 ] = (YMAX-YMIN)*0.454f;
-				position[ 4 * i + 2 ] = (ZMAX-ZMIN)*0.5f;
-			}*/
-		}
-
-		i++; // necessary for both stages
+		i += generateInnerWormLiquid(stage,i,position_cpp,velocity_cpp);
 	}
-	// end
 
 
 	if(stage==0) 
 	{
-		numOfLiquidP = i;// - numOfElasticP;
 		numOfBoundaryP = 2 * ( nx*ny + (nx+ny-2)*(nz-2) ); 
 	}
 	else
@@ -425,41 +923,488 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 			printf("\nWarning! Preliminary [%d] and final [%d] particle count are different\n",PARTICLE_COUNT,i);
 			exit(-4);
 		}
-		//loadConfigToFile(position, velocity, elasticConnections, numOfElasticP*NEIGHBOR_COUNT);
-	}
-	
-	return;
-}
-void owHelper::loadConfigToFile(float * position, float * velocity, float * elasticConnection, int numofEC, const char * file_name)
-{
-	try
-	{
-		ofstream out_f (file_name);
-		if( out_f.is_open() )
+
+		
+		for(int mli = 0/*membrane list index*/; mli<numOfElasticP; mli++)
 		{
-			out_f << "Position\n";
-			for(int i = 0; i < PARTICLE_COUNT; i++)
+			for(int sli = 0 /*sublist index*/; sli<MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; sli++)
 			{
-				out_f << position[ 4 * i + 0 ] << "\t" << position[ 4 * i + 1 ] << "\t" << position[ 4 * i + 2 ] << "\t" << position[ 4 * i + 3 ] << "\n";
-			}
-			out_f << "Velocity\n";
-			for(int i = 0; i < PARTICLE_COUNT; i++)
-			{
-				out_f << velocity[ 4 * i + 0 ] << "\t" << velocity[ 4 * i + 1 ] << "\t" << velocity[ 4 * i + 2 ] << "\t" << velocity[ 4 * i + 3 ] << "\n";
-			}
-			out_f << "ElasticConnection\n";
-			for(int i = 0; i < numofEC; i++)
-			{
-				out_f << elasticConnection[ 4 * i + 0 ] << "\t" << elasticConnection[ 4 * i + 1 ] << "\t" << elasticConnection[ 4 * i + 2 ] << "\t" << elasticConnection[ 4 * i + 3 ] << "\n";
+				particleMembranesList_cpp [mli*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE + sli] = -1;// no membranes connected with current particle
 			}
 		}
-		out_f.close();
+
+		///////////////debug////////////
+		int j;
+		int ecc_total = 0;
+		int array_j[MAX_NEIGHBOR_COUNT];
+		//float ix,iy,iz,jx,jy,jz;
+		//int j_count=0;
+		int muscleCounter = 0;
+		int m_index[10640];
+		float m_number[10640];
+		float WXC = XMAX*0.5f;
+		float WYC = YMAX*0.3f;
+		float WZC = ZMAX*0.5f;
+		//int sm_cnt = 0;
+		//int array_k[MAX_NEIGHBOR_COUNT];
+		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
+		{
+			float dx2,dy2,dz2,r2_ij,r_ij;
+			int k;
+			int q_i_start;
+			int dq;//dorsal quadrant - "+1"=right, "-1"=left
+			float muscle_color = 0.1f;
+			ecc = 0;//!important!
+			//        _____1_______      2       _____3________       
+			for(j=0;j<numOfElasticP+numOfLiquidP+numOfBoundaryP;j++)
+			{
+				if(i!=j)
+				{
+					if(j==numOfElasticP) j+= numOfLiquidP;//skip liquid particles (they are located in the middle of memory) as candidates to spring connections
+
+
+					dx2 = (position_cpp[ 4 * i + 0 ] - position_cpp[ 4 * j + 0 ]); dx2 *= dx2;
+					dy2 = (position_cpp[ 4 * i + 1 ] - position_cpp[ 4 * j + 1 ]); dy2 *= dy2;
+					dz2 = (position_cpp[ 4 * i + 2 ] - position_cpp[ 4 * j + 2 ]); dz2 *= dz2;
+					r2_ij = dx2 + dy2 + dz2;
+					r_ij = (float)sqrt(r2_ij);
+
+					//if(r_ij<=r0*2*sqrt(/*3.2*/1.7))//grid = 1.5*r0
+					if(r_ij<=r0*sqrt(/*2.3*/2.7/*2.7*/))//grid = 1.0*r0
+					{
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.95;	// resting distance; that's why we use float type for elasticConnectionsData_cpp
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
+
+						//define muscles
+						if((position_cpp[ 4 * i + 2 ]<WZC+r0*95)&&(position_cpp[ 4 * j + 2 ]<WZC+r0*95))
+						if((position_cpp[ 4 * i + 2 ]>WZC-r0*92)&&(position_cpp[ 4 * j + 2 ]>WZC-r0*92))
+						if( (fabs(position_cpp[4*i+3]-2.2f)<=0.05) && (fabs(position_cpp[4*j+3]-2.2f)<=0.05) )//both points - i and j - are green
+						if((dz2>4*dx2)&&(dz2>4*dy2)&&(dx2>4*dy2))
+						{
+							if(position_cpp[ 4 * i + 0 ]>WXC)
+							{
+								muscle_color = 1.1f;
+
+								//DR and DL quadrant (dorsal) muscles mapping
+								for(dq=-1;dq<=1;dq+=2)//dorsal quadrant - "-1"=right, "+1"=left
+								{
+									if(dq==1) q_i_start = 0; else q_i_start = 24*3; //muscle quadrant starting index
+									
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*97)&&(position_cpp[4*j+2]<WZC+r0*97)) //MDR01 || MDL01
+									if((position_cpp[4*i+2]>WZC+r0*85.9)&&(position_cpp[4*j+2]>WZC+r0*85.9)) muscle_color = q_i_start + 1.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*95.0)&&(position_cpp[4*j+2]<WZC+r0*95.0)) //MDR02 || MDL02
+									if((position_cpp[4*i+2]>WZC+r0*83.5)&&(position_cpp[4*j+2]>WZC+r0*83.5)) muscle_color = q_i_start + 2.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*86.5)&&(position_cpp[4*j+2]<WZC+r0*86.5)) //MDR03 || MDL03
+									if((position_cpp[4*i+2]>WZC+r0*77.5)&&(position_cpp[4*j+2]>WZC+r0*77.5)) muscle_color = q_i_start + 3.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*84.5)&&(position_cpp[4*j+2]<WZC+r0*84.5)) //MDR04 || MDL04
+									if((position_cpp[4*i+2]>WZC+r0*76.5)&&(position_cpp[4*j+2]>WZC+r0*76.5)) muscle_color = q_i_start + 4.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*82.5)&&(position_cpp[4*j+2]<WZC+r0*82.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*72.5)&&(position_cpp[4*j+2]>WZC+r0*72.5)) muscle_color = q_i_start + 4.5f;//x.5 = violet
+								
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*78.5)&&(position_cpp[4*j+2]<WZC+r0*78.5)) //MDR05 || MDL05
+									if((position_cpp[4*i+2]>WZC+r0*66.9)&&(position_cpp[4*j+2]>WZC+r0*66.9)) muscle_color = q_i_start + 5.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*77.5)&&(position_cpp[4*j+2]<WZC+r0*77.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*65.9)&&(position_cpp[4*j+2]>WZC+r0*65.9)) muscle_color = q_i_start + 5.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) //MDR06 || MDL06
+									if((position_cpp[4*i+2]>WZC+r0*55.0)&&(position_cpp[4*j+2]>WZC+r0*55.0)) muscle_color = q_i_start + 6.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*54.5)&&(position_cpp[4*j+2]>WZC+r0*54.5)) muscle_color = q_i_start + 6.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*68.5)&&(position_cpp[4*j+2]<WZC+r0*68.5)) //MDR07 || MDL07
+									if((position_cpp[4*i+2]>WZC+r0*51.0)&&(position_cpp[4*j+2]>WZC+r0*51.0)) muscle_color = q_i_start + 7.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*66.5)&&(position_cpp[4*j+2]<WZC+r0*66.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*49.5)&&(position_cpp[4*j+2]>WZC+r0*49.5)) muscle_color = q_i_start + 7.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*56.5)&&(position_cpp[4*j+2]<WZC+r0*56.5)) //MDR08 || MDL08
+									if((position_cpp[4*i+2]>WZC+r0*40.0)&&(position_cpp[4*j+2]>WZC+r0*40.0)) muscle_color = q_i_start + 8.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*55.5)&&(position_cpp[4*j+2]<WZC+r0*55.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*38.5)&&(position_cpp[4*j+2]>WZC+r0*38.5)) muscle_color = q_i_start + 8.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*52.1)&&(position_cpp[4*j+2]<WZC+r0*52.1)) //MDR09 || MDL09
+									if((position_cpp[4*i+2]>WZC+r0*33.5)&&(position_cpp[4*j+2]>WZC+r0*33.5)) muscle_color = q_i_start + 9.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*50.5)&&(position_cpp[4*j+2]<WZC+r0*50.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*32.5)&&(position_cpp[4*j+2]>WZC+r0*32.5)) muscle_color = q_i_start + 9.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*41.1)&&(position_cpp[4*j+2]<WZC+r0*41.1)) //MDR10 || MDL10
+									if((position_cpp[4*i+2]>WZC+r0*22.5)&&(position_cpp[4*j+2]>WZC+r0*22.5)) muscle_color = q_i_start + 10.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*21.5)&&(position_cpp[4*j+2]>WZC+r0*21.5)) muscle_color = q_i_start + 10.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*20.5)&&(position_cpp[4*j+2]>WZC+r0*20.5)) muscle_color = q_i_start + 10.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)        &&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*34.5)&&(position_cpp[4*j+2]<WZC+r0*34.5)) //MDR11 || MDL11
+									if((position_cpp[4*i+2]>WZC+r0*15.5)&&(position_cpp[4*j+2]>WZC+r0*15.5)) muscle_color = q_i_start + 11.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)   &&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*33.5)&&(position_cpp[4*j+2]<WZC+r0*33.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*14.5)&&(position_cpp[4*j+2]>WZC+r0*14.5)) muscle_color = q_i_start + 11.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*23.5)&&(position_cpp[4*j+2]<WZC+r0*23.5)) //MDR12 || MDL12
+									if((position_cpp[4*i+2]>WZC+r0* 8.5)&&(position_cpp[4*j+2]>WZC+r0* 8.5)) muscle_color = q_i_start + 12.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*22.5)&&(position_cpp[4*j+2]<WZC+r0*22.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 7.5)&&(position_cpp[4*j+2]>WZC+r0* 7.5)) muscle_color = q_i_start + 12.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*21.5)&&(position_cpp[4*j+2]<WZC+r0*21.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 6.5)&&(position_cpp[4*j+2]>WZC+r0* 6.5)) muscle_color = q_i_start + 12.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*16.5)&&(position_cpp[4*j+2]<WZC+r0*16.5)) //MDR13 || MDL13
+									if((position_cpp[4*i+2]>WZC+r0* 1.5)&&(position_cpp[4*j+2]>WZC+r0* 1.5)) muscle_color = q_i_start + 13.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*15.5)&&(position_cpp[4*j+2]<WZC+r0*15.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 0.5)&&(position_cpp[4*j+2]>WZC+r0* 0.5)) muscle_color = q_i_start + 13.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 9.0)&&(position_cpp[4*j+2]<WZC+r0* 9.0)) //MDR14 || MDL14
+									if((position_cpp[4*i+2]>WZC-r0* 2.5)&&(position_cpp[4*j+2]>WZC-r0* 2.5)) muscle_color = q_i_start + 14.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 8.5)&&(position_cpp[4*j+2]<WZC+r0* 8.5)) 
+									if((position_cpp[4*i+2]>WZC-r0* 3.5)&&(position_cpp[4*j+2]>WZC-r0* 3.5)) muscle_color = q_i_start + 14.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 7.5)&&(position_cpp[4*j+2]<WZC+r0* 7.5)) 
+									if((position_cpp[4*i+2]>WZC-r0* 4.5)&&(position_cpp[4*j+2]>WZC-r0* 4.5)) muscle_color = q_i_start + 14.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 2.0)&&(position_cpp[4*j+2]<WZC+r0* 2.0)) //MDR15 || MDL15
+									if((position_cpp[4*i+2]>WZC-r0*14.5)&&(position_cpp[4*j+2]>WZC-r0*14.5)) muscle_color = q_i_start + 15.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)   &&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 1.5)&&(position_cpp[4*j+2]<WZC+r0* 1.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*15.5)&&(position_cpp[4*j+2]>WZC-r0*15.5)) muscle_color = q_i_start + 15.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 1.5)&&(position_cpp[4*j+2]<WZC-r0* 1.5)) //MDR16 || MDL16
+									if((position_cpp[4*i+2]>WZC-r0*21.5)&&(position_cpp[4*j+2]>WZC-r0*21.5)) muscle_color = q_i_start + 16.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 2.5)&&(position_cpp[4*j+2]<WZC-r0* 2.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*22.5)&&(position_cpp[4*j+2]>WZC-r0*22.5)) muscle_color = q_i_start + 16.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 3.5)&&(position_cpp[4*j+2]<WZC-r0* 3.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*23.5)&&(position_cpp[4*j+2]>WZC-r0*23.5)) muscle_color = q_i_start + 16.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*14.0)&&(position_cpp[4*j+2]<WZC-r0*14.0)) //MDR17 || MDL17
+									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = q_i_start + 17.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*14.7)&&(position_cpp[4*j+2]<WZC-r0*14.7)) 
+									if((position_cpp[4*i+2]>WZC-r0*35.5)&&(position_cpp[4*j+2]>WZC-r0*35.5)) muscle_color = q_i_start + 17.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*20.0)&&(position_cpp[4*j+2]<WZC-r0*20.0)) //MDR18 || MDL18
+									if((position_cpp[4*i+2]>WZC-r0*40.5)&&(position_cpp[4*j+2]>WZC-r0*40.5)) muscle_color = q_i_start + 18.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*21.5)&&(position_cpp[4*j+2]<WZC-r0*21.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*41.5)&&(position_cpp[4*j+2]>WZC-r0*41.5)) muscle_color = q_i_start + 18.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*22.5)&&(position_cpp[4*j+2]<WZC-r0*22.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = q_i_start + 18.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*34.0)&&(position_cpp[4*j+2]<WZC-r0*34.0)) //MDR19 || MDL19
+									if((position_cpp[4*i+2]>WZC-r0*54.5)&&(position_cpp[4*j+2]>WZC-r0*54.5)) muscle_color = q_i_start + 19.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*34.5)&&(position_cpp[4*j+2]<WZC-r0*34.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*55.5)&&(position_cpp[4*j+2]>WZC-r0*55.5)) muscle_color = q_i_start + 19.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*39.5)&&(position_cpp[4*j+2]<WZC-r0*39.5)) //MDR20 || MDL20
+									if((position_cpp[4*i+2]>WZC-r0*50.5)&&(position_cpp[4*j+2]>WZC-r0*50.5)) muscle_color = q_i_start + 20.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*40.5)&&(position_cpp[4*j+2]<WZC-r0*40.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*51.5)&&(position_cpp[4*j+2]>WZC-r0*51.5)) muscle_color = q_i_start + 20.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*53.0)&&(position_cpp[4*j+2]<WZC-r0*53.0)) //MDR21 || MDL21
+									if((position_cpp[4*i+2]>WZC-r0*71.5)&&(position_cpp[4*j+2]>WZC-r0*71.5)) muscle_color = q_i_start + 21.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*54.0)&&(position_cpp[4*j+2]<WZC-r0*54.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*72.5)&&(position_cpp[4*j+2]>WZC-r0*72.5)) muscle_color = q_i_start + 21.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*50.0)&&(position_cpp[4*j+2]<WZC-r0*50.0)) //MDR22 || MDL22
+									if((position_cpp[4*i+2]>WZC-r0*63.5)&&(position_cpp[4*j+2]>WZC-r0*63.5)) muscle_color = q_i_start + 22.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*50.5)&&(position_cpp[4*j+2]<WZC-r0*50.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*64.5)&&(position_cpp[4*j+2]>WZC-r0*64.5)) muscle_color = q_i_start + 22.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*70.0)&&(position_cpp[4*j+2]<WZC-r0*70.0)) //MDR23 || MDL23
+									if((position_cpp[4*i+2]>WZC-r0*92.0)&&(position_cpp[4*j+2]>WZC-r0*92.0)) muscle_color = q_i_start + 23.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*71.5)&&(position_cpp[4*j+2]<WZC-r0*71.5)) //MDR24 || MDL24
+									if((position_cpp[4*i+2]>WZC-r0*92.0)&&(position_cpp[4*j+2]>WZC-r0*92.0)) muscle_color = q_i_start + 24.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*62.5)&&(position_cpp[4*j+2]<WZC-r0*62.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*82.5)&&(position_cpp[4*j+2]>WZC-r0*82.5)) muscle_color = q_i_start + 24.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*63.5)&&(position_cpp[4*j+2]<WZC-r0*63.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*66.5)&&(position_cpp[4*j+2]>WZC-r0*66.5)) muscle_color = q_i_start + 24.5f;//x.5 = violet
+								}
+
+								elasticConnectionsData_cpp[ m_index[muscleCounter] = 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = muscle_color;// type of connection; 0 - ordinary spring, 1 or more - muscle
+								muscleCounter++;
+							}
+							else
+							{
+								muscle_color = 1.1f;
+
+								//VR and VL quadrant (ventral) muscles mapping
+								for(dq=-1;dq<=1;dq+=2)//dorsal quadrant - "-1"=right, "+1"=left
+								{
+									if(dq==1) q_i_start = 24; else q_i_start = 24*2; //muscle quadrant starting index
+									
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*97)&&(position_cpp[4*j+2]<WZC+r0*97)) //MVR01 || MVL01
+									if((position_cpp[4*i+2]>WZC+r0*85.9)&&(position_cpp[4*j+2]>WZC+r0*85.9)) muscle_color = q_i_start + 1.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*95.0)&&(position_cpp[4*j+2]<WZC+r0*95.0)) //MVR02 || MVL02
+									if((position_cpp[4*i+2]>WZC+r0*83.5)&&(position_cpp[4*j+2]>WZC+r0*83.5)) muscle_color = q_i_start + 2.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*86.5)&&(position_cpp[4*j+2]<WZC+r0*86.5)) //MVR03 || MVL03
+									if((position_cpp[4*i+2]>WZC+r0*77.5)&&(position_cpp[4*j+2]>WZC+r0*77.5)) muscle_color = q_i_start + 3.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*84.5)&&(position_cpp[4*j+2]<WZC+r0*84.5)) //MVR04 || MVL04
+									if((position_cpp[4*i+2]>WZC+r0*76.5)&&(position_cpp[4*j+2]>WZC+r0*76.5)) muscle_color = q_i_start + 4.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*82.5)&&(position_cpp[4*j+2]<WZC+r0*82.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*72.5)&&(position_cpp[4*j+2]>WZC+r0*72.5)) muscle_color = q_i_start + 4.5f;//x.5 = violet
+								
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*78)&&(position_cpp[4*j+2]<WZC+r0*78)) //MVR05 || MVL05
+									if((position_cpp[4*i+2]>WZC+r0*66.9)&&(position_cpp[4*j+2]>WZC+r0*66.9)) muscle_color = q_i_start + 5.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*77.5)&&(position_cpp[4*j+2]<WZC+r0*77.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*65.9)&&(position_cpp[4*j+2]>WZC+r0*65.9)) muscle_color = q_i_start + 5.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) //MVR06 || MVL06
+									if((position_cpp[4*i+2]>WZC+r0*55.0)&&(position_cpp[4*j+2]>WZC+r0*55.0)) muscle_color = q_i_start + 6.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*74.0)&&(position_cpp[4*j+2]<WZC+r0*74.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*54.5)&&(position_cpp[4*j+2]>WZC+r0*54.5)) muscle_color = q_i_start + 6.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*68.5)&&(position_cpp[4*j+2]<WZC+r0*68.5)) //MVR07 || MVL07
+									if((position_cpp[4*i+2]>WZC+r0*51.0)&&(position_cpp[4*j+2]>WZC+r0*51.0)) muscle_color = q_i_start + 7.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*66.5)&&(position_cpp[4*j+2]<WZC+r0*66.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*49.5)&&(position_cpp[4*j+2]>WZC+r0*49.5)) muscle_color = q_i_start + 7.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*56.5)&&(position_cpp[4*j+2]<WZC+r0*56.5)) //MVR08 || MVL08
+									if((position_cpp[4*i+2]>WZC+r0*40.0)&&(position_cpp[4*j+2]>WZC+r0*40.0)) muscle_color = q_i_start + 8.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*55.5)&&(position_cpp[4*j+2]<WZC+r0*55.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*38.5)&&(position_cpp[4*j+2]>WZC+r0*38.5)) muscle_color = q_i_start + 8.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*51.5)&&(position_cpp[4*j+2]<WZC+r0*51.5)) //MVR09 || MVL09
+									if((position_cpp[4*i+2]>WZC+r0*33.5)&&(position_cpp[4*j+2]>WZC+r0*33.5)) muscle_color = q_i_start + 9.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*50.0)&&(position_cpp[4*j+2]<WZC+r0*50.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*33.0)&&(position_cpp[4*j+2]>WZC+r0*33.0)) muscle_color = q_i_start + 9.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.5)&&(position_cpp[4*j+2]<WZC+r0*40.5)) //MVR10 || MVL10
+									if((position_cpp[4*i+2]>WZC+r0*22.5)&&(position_cpp[4*j+2]>WZC+r0*22.5)) muscle_color = q_i_start + 10.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*21.5)&&(position_cpp[4*j+2]>WZC+r0*21.5)) muscle_color = q_i_start + 10.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
+									if((position_cpp[4*i+2]>WZC+r0*20.5)&&(position_cpp[4*j+2]>WZC+r0*20.5)) muscle_color = q_i_start + 10.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)        &&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*34.5)&&(position_cpp[4*j+2]<WZC+r0*34.5)) //MVR11 || MVL11
+									if((position_cpp[4*i+2]>WZC+r0*15.5)&&(position_cpp[4*j+2]>WZC+r0*15.5)) muscle_color = q_i_start + 11.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)   &&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*33.5)&&(position_cpp[4*j+2]<WZC+r0*33.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*14.5)&&(position_cpp[4*j+2]>WZC+r0*14.5)) muscle_color = q_i_start + 11.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*23.5)&&(position_cpp[4*j+2]<WZC+r0*23.5)) //MVR12 || MVL12
+									if((position_cpp[4*i+2]>WZC+r0* 8.5)&&(position_cpp[4*j+2]>WZC+r0* 8.5)) muscle_color = q_i_start + 12.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*22.5)&&(position_cpp[4*j+2]<WZC+r0*22.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 7.5)&&(position_cpp[4*j+2]>WZC+r0* 7.5)) muscle_color = q_i_start + 12.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*21.5)&&(position_cpp[4*j+2]<WZC+r0*21.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 6.5)&&(position_cpp[4*j+2]>WZC+r0* 6.5)) muscle_color = q_i_start + 12.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*16.0)&&(position_cpp[4*j+2]<WZC+r0*16.0)) //MVR13 || MVL13
+									if((position_cpp[4*i+2]>WZC+r0* 1.5)&&(position_cpp[4*j+2]>WZC+r0* 1.5)) muscle_color = q_i_start + 13.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0*15.5)&&(position_cpp[4*j+2]<WZC+r0*15.5)) 
+									if((position_cpp[4*i+2]>WZC+r0* 0.5)&&(position_cpp[4*j+2]>WZC+r0* 0.5)) muscle_color = q_i_start + 13.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 9.0)&&(position_cpp[4*j+2]<WZC+r0* 9.0)) //MVR14 || MVL14
+									if((position_cpp[4*i+2]>WZC-r0* 2.5)&&(position_cpp[4*j+2]>WZC-r0* 2.5)) muscle_color = q_i_start + 14.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 8.5)&&(position_cpp[4*j+2]<WZC+r0* 8.5)) 
+									if((position_cpp[4*i+2]>WZC-r0* 3.5)&&(position_cpp[4*j+2]>WZC-r0* 3.5)) muscle_color = q_i_start + 14.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 7.5)&&(position_cpp[4*j+2]<WZC+r0* 7.5)) 
+									if((position_cpp[4*i+2]>WZC-r0* 4.5)&&(position_cpp[4*j+2]>WZC-r0* 4.5)) muscle_color = q_i_start + 14.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 2.0)&&(position_cpp[4*j+2]<WZC+r0* 2.0)) //MVR15 || MVL15
+									if((position_cpp[4*i+2]>WZC-r0*14.5)&&(position_cpp[4*j+2]>WZC-r0*14.5)) muscle_color = q_i_start + 15.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)   &&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 1.0)&&(position_cpp[4*j+2]<WZC+r0* 1.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*15.5)&&(position_cpp[4*j+2]>WZC-r0*15.5)) muscle_color = q_i_start + 15.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 1.5)&&(position_cpp[4*j+2]<WZC-r0* 1.5)) //MVR16 || MVL16
+									if((position_cpp[4*i+2]>WZC-r0*21.5)&&(position_cpp[4*j+2]>WZC-r0*21.5)) muscle_color = q_i_start + 16.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 2.5)&&(position_cpp[4*j+2]<WZC-r0* 2.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*22.5)&&(position_cpp[4*j+2]>WZC-r0*22.5)) muscle_color = q_i_start + 16.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0* 3.5)&&(position_cpp[4*j+2]<WZC-r0* 3.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*23.5)&&(position_cpp[4*j+2]>WZC-r0*23.5)) muscle_color = q_i_start + 16.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*14.0)&&(position_cpp[4*j+2]<WZC-r0*14.0)) //MVR17 || MVL17
+									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = q_i_start + 17.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*15.0)&&(position_cpp[4*j+2]<WZC-r0*15.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*35.5)&&(position_cpp[4*j+2]>WZC-r0*35.5)) muscle_color = q_i_start + 17.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*20.0)&&(position_cpp[4*j+2]<WZC-r0*20.0)) //MVR18 || MVL18
+									if((position_cpp[4*i+2]>WZC-r0*40.5)&&(position_cpp[4*j+2]>WZC-r0*40.5)) muscle_color = q_i_start + 18.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*21.5)&&(position_cpp[4*j+2]<WZC-r0*21.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*41.5)&&(position_cpp[4*j+2]>WZC-r0*41.5)) muscle_color = q_i_start + 18.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-4*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-5*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*22.5)&&(position_cpp[4*j+2]<WZC-r0*22.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = q_i_start + 18.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*34.0)&&(position_cpp[4*j+2]<WZC-r0*34.0)) //MVR19 || MVL19
+									if((position_cpp[4*i+2]>WZC-r0*54.5)&&(position_cpp[4*j+2]>WZC-r0*54.5)) muscle_color = q_i_start + 19.3f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*34.5)&&(position_cpp[4*j+2]<WZC-r0*34.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*55.5)&&(position_cpp[4*j+2]>WZC-r0*55.5)) muscle_color = q_i_start + 19.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*39.5)&&(position_cpp[4*j+2]<WZC-r0*39.5)) //MVR20 || MVL20
+									if((position_cpp[4*i+2]>WZC-r0*50.5)&&(position_cpp[4*j+2]>WZC-r0*50.5)) muscle_color = q_i_start + 20.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*40.5)&&(position_cpp[4*j+2]<WZC-r0*40.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*51.5)&&(position_cpp[4*j+2]>WZC-r0*51.5)) muscle_color = q_i_start + 20.5f;//x.5 = violet
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*53.0)&&(position_cpp[4*j+2]<WZC-r0*53.0)) //MVR21 || MVL21
+									if((position_cpp[4*i+2]>WZC-r0*71.5)&&(position_cpp[4*j+2]>WZC-r0*71.5)) muscle_color = q_i_start + 21.2f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*54.0)&&(position_cpp[4*j+2]<WZC-r0*54.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*72.5)&&(position_cpp[4*j+2]>WZC-r0*72.5)) muscle_color = q_i_start + 21.2f;//x.2 = red
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*50.0)&&(position_cpp[4*j+2]<WZC-r0*50.0)) //MVR22 || MVL22
+									if((position_cpp[4*i+2]>WZC-r0*63.5)&&(position_cpp[4*j+2]>WZC-r0*63.5)) muscle_color = q_i_start + 22.4f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*51.0)&&(position_cpp[4*j+2]<WZC-r0*51.0)) 
+									if((position_cpp[4*i+2]>WZC-r0*64.5)&&(position_cpp[4*j+2]>WZC-r0*64.5)) muscle_color = q_i_start + 22.4f;//x.4 = magenta
+
+									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*70.0)&&(position_cpp[4*j+2]<WZC-r0*70.0)) //MVR23 || MVL23
+									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = q_i_start + 23.3f;//x.3 = orange
+
+									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*71.5)&&(position_cpp[4*j+2]<WZC-r0*71.5)) //MVR24 || MVL24
+									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = q_i_start + 24.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*62.5)&&(position_cpp[4*j+2]<WZC-r0*62.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*82.5)&&(position_cpp[4*j+2]>WZC-r0*82.5)) muscle_color = q_i_start + 24.5f;
+									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
+									if((position_cpp[4*i+2]<WZC-r0*63.5)&&(position_cpp[4*j+2]<WZC-r0*63.5)) 
+									if((position_cpp[4*i+2]>WZC-r0*66.0)&&(position_cpp[4*j+2]>WZC-r0*66.0)) muscle_color = q_i_start + 24.5f;//x.5 = violet								
+								}
+
+								elasticConnectionsData_cpp[ m_index[muscleCounter] = 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = muscle_color;// type of connection; 0 - ordinary spring, 1 or more - muscle
+								muscleCounter++;
+		
+							}
+						}
+						array_j[ecc] = j;
+						ecc++;
+						ecc_total++;
+					}
+				}
+			}
+		}
+
+		
+		/*
+		if(muscleCounter==10408)
+		{
+			//for(i=0;i<muscleCounter;i++)
+
+			//m_number[m_index[0]] = 1.2f;
+			elasticConnectionsData_cpp[m_index[3]] = 1.2f;
+
+		}*/
+
+
+		//membraneData - the list containing triplets of indexes of particles forming triangular membranes; size: numOfMembranes*3
+		//particleMembranesList - the list containing for each particle(involved in membranes) its list of these membranes indexes (which are stored in membraneData array)
+
+		for(int _mc = 0; _mc < numOfMembranes*3; _mc++)
+		{
+			int particle_index;
+			for(int sli=0/*sublist index*/;sli<MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; sli++)
+			{//search for the not filled yet cell (-1) in the list and fill it; 
+				if(/**/particleMembranesList_cpp [particle_index = membraneData_cpp [_mc]*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE+sli]/**/==-1)
+				{
+					particleMembranesList_cpp [particle_index] = _mc/3;
+					break;//if there are no free cells, break, because we are limited with MAX_MEMBRANES_INCLUDING_SAME_PARTICLE per particle
+				} 
+				else
+				{
+					_mc = _mc;
+				}
+			}		
+		}
 	}
-	catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
-	}
+
+
+
+	return;
 }
+
 void owHelper::preLoadConfiguration()
 {
 	try
@@ -478,8 +1423,9 @@ void owHelper::preLoadConfiguration()
 				else break;//end of file
 			}
 		}
-		positionFile.close();
+
 		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+
 		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
 	}
 	catch(std::exception &e){
@@ -488,7 +1434,7 @@ void owHelper::preLoadConfiguration()
 	}
 }
 
-void owHelper::loadConfiguration(float *position, float *velocity, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
+void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
 {
 
 	try
@@ -501,10 +1447,10 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 			while( positionFile.good() && i < PARTICLE_COUNT )
 			{
 				positionFile >> x >> y >> z >> p_type;
-				position[ 4 * i + 0 ] = x;
-				position[ 4 * i + 1 ] = y;
-				position[ 4 * i + 2 ] = z;
-				position[ 4 * i + 3 ] = p_type;
+				position_cpp[ 4 * i + 0 ] = x;
+				position_cpp[ 4 * i + 1 ] = y;
+				position_cpp[ 4 * i + 2 ] = z;
+				position_cpp[ 4 * i + 3 ] = p_type;
 				switch((int)p_type){
 					case LIQUID_PARTICLE:
 						numOfLiquidP++;
@@ -529,10 +1475,10 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 			while( velocityFile.good() && i < PARTICLE_COUNT )
 			{
 				velocityFile >> x >> y >> z >> p_type;
-				velocity[ 4 * i + 0 ] = x;
-				velocity[ 4 * i + 1 ] = y;
-				velocity[ 4 * i + 2 ] = z;
-				velocity[ 4 * i + 3 ] = p_type;
+				velocity_cpp[ 4 * i + 0 ] = x;
+				velocity_cpp[ 4 * i + 1 ] = y;
+				velocity_cpp[ 4 * i + 2 ] = z;
+				velocity_cpp[ 4 * i + 3 ] = p_type;
 				i++;
 			}
 			velocityFile.close();
@@ -542,9 +1488,9 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 		//TODO NEXT BLOCK WILL BE new load of elastic connections
 		if(numOfElasticP != 0){
 			ifstream elasticConectionsFile ("./configuration/elasticconnections.txt");
-			elasticConnections = new float[ 4 * numOfElasticP * NEIGHBOR_COUNT ];
+			elasticConnections = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
 			/*int numElasticConnections = 0;
-			for(i=0;i<numOfElasticP * NEIGHBOR_COUNT;i++)
+			for(i=0;i<numOfElasticP * MAX_NEIGHBOR_COUNT;i++)
 			{
 				elasticConnections[ 4 * i + 0 ] = NO_PARTICLE_ID;
 			}*/
@@ -575,7 +1521,7 @@ void owHelper::loadConfiguration(float *position, float *velocity, float *& elas
 	}
 }
 //This Function is currently on testing stage
-void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, float *&elasticConnections, int &numOfLiquidP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
+void owHelper::loadConfigurationFromOneFile(float *position_cpp, float *velocity_cpp, float *&elasticConnections, int &numOfLiquidP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
 {
 	try
 	{
@@ -616,10 +1562,10 @@ void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, fl
 				} if(isNotString){
 					switch(block){
 						case isPositionBlock: {
-							position[ 4 * i + 0 ] = x;
-							position[ 4 * i + 1 ] = y;
-							position[ 4 * i + 2 ] = z;
-							position[ 4 * i + 3 ] = p_type;
+							position_cpp[ 4 * i + 0 ] = x;
+							position_cpp[ 4 * i + 1 ] = y;
+							position_cpp[ 4 * i + 2 ] = z;
+							position_cpp[ 4 * i + 3 ] = p_type;
 							switch((int)p_type){
 								case LIQUID_PARTICLE:
 									numOfLiquidP++;
@@ -635,10 +1581,10 @@ void owHelper::loadConfigurationFromOneFile(float *position, float *velocity, fl
 							break;
 						}
 						case isVelocityBlock: {
-							velocity[ 4 * i + 0 ] = x;
-							velocity[ 4 * i + 1 ] = y;
-							velocity[ 4 * i + 2 ] = z;
-							velocity[ 4 * i + 3 ] = p_type;
+							velocity_cpp[ 4 * i + 0 ] = x;
+							velocity_cpp[ 4 * i + 1 ] = y;
+							velocity_cpp[ 4 * i + 2 ] = z;
+							velocity_cpp[ 4 * i + 3 ] = p_type;
 							i++;
 							break;
 						}

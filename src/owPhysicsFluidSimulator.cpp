@@ -2,19 +2,19 @@
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
-#include <sstream>
 
 float calcDelta();
 extern const float delta = calcDelta();
 int iterationCount = 0;
-extern int numOfElasticConnections = 0;
-extern int numOfLiquidP = 0;
-extern int numOfElasticP = 0;
-extern int numOfBoundaryP = 0;
+/*extern*/ int numOfElasticConnections = 0;
+/*extern*/ int numOfLiquidP = 0;
+/*extern*/ int numOfElasticP = 0;
+/*extern*/ int numOfBoundaryP = 0;
+int numOfMembranes = 0;
 int * _particleIndex;
 unsigned int * gridNextNonEmptyCellBuffer;
 extern int gridCellCount;
-extern float * muscle_activation_signal_buffer;
+extern float * muscle_activation_signal_cpp;
 
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
@@ -23,21 +23,24 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 	try{
 		if(generateInitialConfiguration)
 		// GENERATE THE SCENE
-		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections);	
+		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp);	
 		else								
 		// LOAD FROM FILE
 		owHelper::preLoadConfiguration();	
 											//=======================
 
-		position_cpp = new float[ 8 * PARTICLE_COUNT ];
+		position_cpp = new float[ 4 * PARTICLE_COUNT ];
 		velocity_cpp = new float[ 4 * PARTICLE_COUNT ];
 		_particleIndex = new   int[ 2 * PARTICLE_COUNT ];
 		gridNextNonEmptyCellBuffer = new unsigned int[gridCellCount+1];
-		muscle_activation_signal_buffer = new float [MUSCLE_COUNT];
-		loadConfigStep = -1;
+		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
+		if(numOfMembranes<=0) membraneData_cpp = NULL; else membraneData_cpp = new int [numOfMembranes*3];
+		if(numOfElasticP<=0) particleMembranesList_cpp = NULL; 
+			else particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
+
 		for(int i=0;i<MUSCLE_COUNT;i++)
 		{
-			muscle_activation_signal_buffer[i] = 0.f;
+			muscle_activation_signal_cpp[i] = 0.f;
 		}
 
 		//The buffers listed below are only for usability and debug
@@ -47,13 +50,13 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		
 		if(generateInitialConfiguration)	
 		// GENERATE THE SCENE
-		owHelper::generateConfiguration(1,position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections );	
+		owHelper::generateConfiguration(1,position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp );	
 		else 
 		// LOAD FROM FILE	
 		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections );		//Load configuration from file to buffer
 											
 		if(numOfElasticP != 0){
-			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, elasticConnectionsData_cpp );	//Create new openCLsolver instance
+			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
 			ocl_solver = new owOpenCLSolver(position_cpp,velocity_cpp);	//Create new openCLsolver instance
 		this->helper = helper;
@@ -66,7 +69,8 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 double owPhysicsFluidSimulator::simulationStep()
 {
 	//PCISPH algorithm
-	int iter = 0;
+	int iter = 0;//PCISPH prediction-correction iterations conter
+	//if(iterationCount!=0) return 0.0;//uncomment this line to stop movement of the scene
 	helper->refreshTime();
 	printf("\n[[ Step %d ]]\n",iterationCount);
 	try{
@@ -83,30 +87,34 @@ double owPhysicsFluidSimulator::simulationStep()
 		ocl_solver->_run_pcisph_computeForcesAndInitPressure();		
 		ocl_solver->_run_pcisph_computeElasticForces();				
 		do{
+			printf("\n^^^^ iter %d ^^^^\n",iter);
 			ocl_solver->_run_pcisph_predictPositions();				
 			ocl_solver->_run_pcisph_predictDensity();				
 			ocl_solver->_run_pcisph_correctPressure();				
 			ocl_solver->_run_pcisph_computePressureForceAcceleration();
 			iter++;
 		}while( iter < maxIteration );
-		ocl_solver->_run_pcisph_integrate();						helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+
+		ocl_solver->_run_pcisph_integrate(iterationCount);			helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+
+		/**/ocl_solver->_run_clearMembraneBuffers();
+		/**/ocl_solver->_run_computeInteractionWithMembranes();
+		/**/// compute change of coordinates due to interactions with membranes
+		/**/ocl_solver->_run_computeInteractionWithMembranes_finalize();
+
 		ocl_solver->read_position_buffer(position_cpp);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n"); 
+
 		//END PCISPH algorithm
 		printf("------------------------------------\n");
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
 		printf("------------------------------------\n");
-		if(loadConfigStep == iterationCount){
-			std::stringstream ss;//create a stringstream
-			ss << iterationCount;//add number to the stream
-			std::string file_name = "./configuration/out_config_step_";
-			file_name += ss.str() + ".txt";
-			owHelper::loadConfigToFile(position_cpp,velocity_cpp,elasticConnectionsData_cpp,numOfElasticP * NEIGHBOR_COUNT, file_name.c_str());
-		}
 		iterationCount++;
-		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_buffer[i] *= 0.9f; }
-		ocl_solver->updateMuscleActivityData(muscle_activation_signal_buffer);
+		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
+		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp);
 		return helper->get_elapsedTime();
-	}catch(std::exception &e){
+	}
+	catch(std::exception &e)
+	{
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
 	}
@@ -119,7 +127,9 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 	delete [] velocity_cpp;
 	delete [] density_cpp;
 	delete [] particleIndex_cpp;
-	delete [] muscle_activation_signal_buffer;
+	delete [] muscle_activation_signal_cpp;
+	if(membraneData_cpp) delete [] membraneData_cpp;
+	//if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;
 	ocl_solver->~owOpenCLSolver();
 }
 
