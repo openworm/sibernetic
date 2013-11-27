@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
+#include "PyramidalSimulation.h"
 
 float calcDelta();
 extern const float delta = calcDelta();
@@ -16,6 +17,11 @@ unsigned int * gridNextNonEmptyCellBuffer;
 extern int gridCellCount;
 extern float * muscle_activation_signal_cpp;
 
+//mv
+//need to find a more elegant design for this - at the moment the use of a global
+//is pretty ugly:
+PyramidalSimulation simulation;
+
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
 	//int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
@@ -26,7 +32,9 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp);	
 		else								
 		// LOAD FROM FILE
-		owHelper::preLoadConfiguration();	
+		owHelper::preLoadConfiguration();
+		 //mv
+		simulation.setup();
 											//=======================
 
 		position_cpp = new float[ 4 * PARTICLE_COUNT ];
@@ -110,6 +118,15 @@ double owPhysicsFluidSimulator::simulationStep()
 		printf("------------------------------------\n");
 		iterationCount++;
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
+
+        //mv
+        vector<float> muscle_vector = simulation.run();
+        for(int i=0; i<MUSCLE_COUNT; i++){
+        	for (long index = 0; index < muscle_vector.size(); index++){
+        		muscle_activation_signal_cpp[index] = muscle_vector[index];
+        	}
+        }
+
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp);
 		return helper->get_elapsedTime();
 	}
