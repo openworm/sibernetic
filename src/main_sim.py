@@ -36,6 +36,6 @@ class muscle_simulation():
     def run(self,do_plot = True):
         self.contraction_array =  parallel_waves(time = self.t)
         self.t += self.increment
-        return list(np.concatenate([np.ones(12),np.zeros(12),np.ones(12),np.zeros(12),np.ones(24),np.zeros(24)]))
+        return list(np.concatenate([np.zeros(24),np.ones(24),np.ones(24),np.zeros(24)]))
         #return(self.contraction_array)
         
