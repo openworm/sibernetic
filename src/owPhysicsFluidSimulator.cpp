@@ -5,16 +5,18 @@
 
 float calcDelta();
 extern const float delta = calcDelta();
-int iterationCount = 0;
-/*extern*/ int numOfElasticConnections = 0;
-/*extern*/ int numOfLiquidP = 0;
-/*extern*/ int numOfElasticP = 0;
+extern int iterationCount = 0;
+extern int numOfElasticConnections = 0;
+extern int numOfLiquidP = 0;
+extern int numOfElasticP = 0;
 /*extern*/ int numOfBoundaryP = 0;
-int numOfMembranes = 0;
+extern int numOfMembranes = 0;
 int * _particleIndex;
 unsigned int * gridNextNonEmptyCellBuffer;
 extern int gridCellCount;
 extern float * muscle_activation_signal_cpp;
+extern bool load_to_file;
+int iter_step = 10;
 
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
@@ -87,7 +89,7 @@ double owPhysicsFluidSimulator::simulationStep()
 		ocl_solver->_run_pcisph_computeForcesAndInitPressure();		
 		ocl_solver->_run_pcisph_computeElasticForces();				
 		do{
-			printf("\n^^^^ iter %d ^^^^\n",iter);
+			//printf("\n^^^^ iter %d ^^^^\n",iter);
 			ocl_solver->_run_pcisph_predictPositions();				
 			ocl_solver->_run_pcisph_predictDensity();				
 			ocl_solver->_run_pcisph_correctPressure();				
@@ -108,6 +110,14 @@ double owPhysicsFluidSimulator::simulationStep()
 		printf("------------------------------------\n");
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
 		printf("------------------------------------\n");
+		if(load_to_file){
+			if(iterationCount == 0){
+				owHelper::loadConfigurationToFile(position_cpp,elasticConnectionsData_cpp,membraneData_cpp);
+			}else{
+				if(iterationCount % iter_step == 0)
+					owHelper::loadConfigurationToFile(position_cpp, NULL, NULL, false);
+			}
+		}
 		iterationCount++;
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp);
