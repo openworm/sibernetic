@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-def parallel_waves(n=36, #26 for our first test?
+def parallel_waves(n=48, #26 for our first test?
                    time=0, 
                    phi=math.pi,
                    amplitude=1,
@@ -25,7 +25,7 @@ def parallel_waves(n=36, #26 for our first test?
     wave_1 = map(normalize_sine, wave_1)
     wave_2 = map(normalize_sine, wave_2)
 
-    return wave_1 + wave_2
+    return (wave_1,wave_2)
 
 class muscle_simulation():
 
@@ -36,6 +36,6 @@ class muscle_simulation():
     def run(self,do_plot = True):
         self.contraction_array =  parallel_waves(time = self.t)
         self.t += self.increment
-        return list(np.concatenate([np.zeros(24),np.ones(24),np.ones(24),np.zeros(24)]))
+        return list(np.concatenate([self.contraction_array[0],self.contraction_array[1],self.contraction_array[1],self.contraction_array[0]]))
         #return(self.contraction_array)
         
