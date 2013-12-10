@@ -16,3 +16,19 @@ want to store than bigger output file is.
 
 For view result you should run simulation with key -l_from - it get positions from position_buffer.txt file and 
 draw evolution of system in time
+
+Making videos
+-------------
+
+Making videos is a bit tricky because they need to be speeded up, so far I have found the following two commands do a decent job (change folder names accordingly) after you have used a screen record program:
+
+
+```
+#make images from video
+ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
+```
+
+```
+#re-encode into video
+ffmpeg -r 100 -i output-%06d.jpg -r 100 -pix_fmt yuv420p speeded_worm.mp4
+```
