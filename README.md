@@ -47,7 +47,7 @@ ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
 
 ```
 #re-encode into video
-ffmpeg -r 100 -i output-%06d.jpg -r 100 -pix_fmt yuv420p speeded_worm.mp4
+ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 ```
 
 Compiling/ running (Linux/mac)
