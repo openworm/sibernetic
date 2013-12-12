@@ -26,7 +26,7 @@ all: Smoothed-Particle-Hydrodynamics
 Smoothed-Particle-Hydrodynamics: $(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: clang C++ Linker'
-	g++ -L/usr/lib -L/usr/local/lib/python2.7 -o Smoothed-Particle-Hydrodynamics $(OBJECTS) $(LIBS)
+	g++ -L/usr/lib -L/usr/local/lib/python2.7 -o $(BUILDDIR)/Smoothed-Particle-Hydrodynamics $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -42,7 +42,7 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 
 # Other Targets
 clean:
-	-$(RM) $(OBJECTS)$(CPP_DEPS) Smoothed-Particle-Hydrodynamics
+	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/Smoothed-Particle-Hydrodynamics
 	-@echo ' '
 
 .PHONY: all clean dependents

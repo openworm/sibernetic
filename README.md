@@ -53,11 +53,18 @@ ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 Compiling/ running (Linux/mac)
 ------------------------------
 
-Navigate to the `Release` folder and run:
+Linux: navigate to the `Release` folder and run:
 
 ```
 make clean
 make all
+```
+
+Mac: stay in the top-level folder and run:
+
+```
+make clean -f makefile.OSX
+make all -f makefile.OSX
 ```
 
 You should see an output which looks something like this:
@@ -84,8 +91,13 @@ export PYTHONPATH=$PYTHONPATH:'./src'
 
 Finally, to run, run the command:
 
+Linux:
 ```
 ./Release/Smoothed-Particle-Hydrodynamics
+```
+Mac:
+```
+./build/Smoothed-Particle-Hydrodynamics
 ```
 
 You may need to make `./Release/Smoothed-Particle-Hydrodynamics` executable like so:
