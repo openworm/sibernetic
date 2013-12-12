@@ -155,26 +155,31 @@ void owOpenCLSolver::initializeOpenCL()
 	}
 	if(!findDevice) plList = 0;
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
-	context = cl::Context( CL_DEVICE_TYPE_ALL, cprops, NULL, NULL, &err );
+	context = cl::Context( device_type[preferable_device_type], cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
 	if( devices.size() < 1 ){
 		throw std::runtime_error( "No OpenCL devices found" );
 	}
 	//Print some information about chosen platform
 	int value;
-	result = devices[0].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;		
-	if(result == CL_SUCCESS) printf("CL_PLATFORM_VERSION [%d]: CL_DEVICE_NAME [%d]: \t%s\n",plList, 0, cBuffer);
+    unsigned long val2;
+    size_t val3;
+    uint deviceNum = 0;
+	result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
+	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_NAME [%d]: \t%s\n",plList, deviceNum, cBuffer);
 	if(strlen(cBuffer)<1000) strcpy(device_full_name,cBuffer);
-	result = devices[0].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&value);
-	if(result == CL_SUCCESS) printf("CL_PLATFORM_VERSION [%d]: CL_DEVICE_MAX_WORK_GROUP_SIZE [%d]: \t%d\n",plList, 0, value);
-	result = devices[0].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&value);
-	if(result == CL_SUCCESS) printf("CL_PLATFORM_VERSION [%d]: CL_DEVICE_MAX_COMPUTE_UNITS [%d]: \t%d\n",plList, 0, value);
-	result = devices[0].getInfo(CL_DEVICE_GLOBAL_MEM_SIZE,&value);
-	if(result == CL_SUCCESS) printf("CL_PLATFORM_VERSION [%d]: CL_DEVICE_GLOBAL_MEM_SIZE [%d]: \t%d\n",plList, 0, value);
-	result = devices[0].getInfo(CL_DEVICE_GLOBAL_MEM_CACHE_SIZE,&value);
-	if(result == CL_SUCCESS) printf("CL_PLATFORM_VERSION [%d]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE [%d]: \t%d\n",plList, 0, value);
-
-	queue = cl::CommandQueue( context, devices[ 0 ], 0, &err );
+	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&val3);
+	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_MAX_WORK_GROUP_SIZE [%d]: \t%d\n",plList, deviceNum, val3);
+	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&value);
+	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_MAX_COMPUTE_UNITS [%d]: \t%d\n",plList, deviceNum, value);
+	result = devices[deviceNum].getInfo(CL_DEVICE_GLOBAL_MEM_SIZE,&val2);
+	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_GLOBAL_MEM_SIZE [%d]: \t%d\n",plList, deviceNum, val2);
+	result = devices[deviceNum].getInfo(CL_DEVICE_GLOBAL_MEM_CACHE_SIZE,&val2);
+	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE [%d]: \t%d\n",plList, deviceNum, val2);
+	result = devices[deviceNum].getInfo(CL_DEVICE_LOCAL_MEM_SIZE,&val2);
+	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_LOCAL_MEM_SIZE [%d]: \t%d\n",plList, deviceNum, val2);
+	
+	queue = cl::CommandQueue( context, devices[ deviceNum ], 0, &err );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "failed to create command queue" );
 	}

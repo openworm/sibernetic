@@ -1,0 +1,49 @@
+
+RM := rm -rf
+
+# All of the sources participating in the build are defined here
+SOURCES = src/PyramidalSimulation.cpp \
+src/main.cpp \
+src/owHelper.cpp \
+src/owOpenCLSolver.cpp \
+src/owPhysicsFluidSimulator.cpp \
+src/owWorldSimulation.cpp
+
+SRCEXT := cpp
+SRCDIR := src
+BUILDDIR := build
+OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
+
+CPP_DEPS = $(OBJECTS:.o=.d)
+
+LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
+
+
+# All Target
+all: Smoothed-Particle-Hydrodynamics
+
+# Tool invocations
+Smoothed-Particle-Hydrodynamics: $(OBJECTS)
+	@echo 'Building target: $@'
+	@echo 'Invoking: clang C++ Linker'
+	g++ -L/usr/lib -L/usr/local/lib/python2.7 -o Smoothed-Particle-Hydrodynamics $(OBJECTS) $(LIBS)
+	@echo 'Finished building target: $@'
+	@echo ' '
+
+$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
+	@mkdir -p $(BUILDDIR)
+	@echo 'Building file: $<'
+	@echo 'Invoking: clang C++ Compiler'
+#### use this to compile against homebrew installed python
+#### change version number as necessary (2.7.n)
+	g++ -O1 -Wall -c -I/usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/ -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+# Other Targets
+clean:
+	-$(RM) $(OBJECTS)$(CPP_DEPS) Smoothed-Particle-Hydrodynamics
+	-@echo ' '
+
+.PHONY: all clean dependents
+.SECONDARY:
