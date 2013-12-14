@@ -4,8 +4,8 @@
 #pragma comment( lib, "opencl.lib" )							// opencl.lib
 
 #if defined(__APPLE__) || defined(__MACOSX)
-	#include <OpenCL/cl.hpp>
-	#include <OpenCL/cl_d3d10.h>
+	#include "../inc/OpenCL/cl.hpp"
+//	#include <OpenCL/cl_d3d10.h>
 #else
 	#include <CL/cl.hpp>
 #endif

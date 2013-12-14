@@ -8,6 +8,10 @@
 	#include <time.h>
 #endif
 
+#if defined(__APPLE__)
+    #include <stddef.h>
+#endif
+
 class owHelper
 {
 public:
@@ -34,6 +38,8 @@ private:
 	timespec t0, t1, t2;
 	timespec t3,t4;
 	double us;
+#elif defined(__APPLE__)
+    unsigned long t0, t1, t2;
 #endif
 };
 #endif // #ifndef OW_HELPER_H
