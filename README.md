@@ -5,8 +5,6 @@ This is a C++ implementation of the [Smoothed Particle Hydrodynamics](http://en.
 
 There is also a separate effort to port this code to Java, as part of the Geppetto simulation framework. 
 
-This branch includes development on electrophysiology integration. It should currently be considered unstable.
-
 For record configuraton into file you need to run simulation with key -l_to - it create 3 new files 
 at the folder ./buffers:
 - connection_buffers.txt - it need to store information about conection among of elastic partciles
