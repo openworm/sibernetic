@@ -8,12 +8,31 @@
 #include <stdexcept>
 #include <sstream>
 #include <string>
+#include <vector>
+
+#if defined(__APPLE__) || defined (__MACOSX)
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+#endif
+
 using namespace std;
 
 extern int PARTICLE_COUNT;
 extern int PARTICLE_COUNT_RoundedUp;
 extern int local_NDRange_size;
+extern int numOfElasticConnections;
+extern int numOfMembranes;
+extern int numOfElasticP;
+extern int numOfLiquidP;
+extern int iterationCount;
 
+struct pos{
+	float x;
+	float y;
+	float z;
+	float p_type;
+};
+std::vector<pos> f_data;
 owHelper::owHelper(void)
 {
 	refreshTime();
@@ -31,6 +50,9 @@ void owHelper::refreshTime()
 #elif defined(__linux__)
 	clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
 	t0 = t1;
+#elif defined(__APPLE__)
+    t1 = mach_absolute_time();
+    t0 = t1;
 #endif
 }
 //For output float buffer
@@ -56,6 +78,7 @@ void owHelper::log_bufferf(const float * buffer, const int element_size, const i
 		exit( -1 );
 	}
 }
+
 //For output int buffer
 void owHelper::log_bufferi(const int * buffer, const int element_size, const int global_size, const char * fileName)
 {
@@ -1614,6 +1637,105 @@ void owHelper::loadConfigurationFromOneFile(float *position_cpp, float *velocity
 		exit( -1 );
 	}
 }
+void owHelper::loadConfigurationToFile(float * position, float * connections, int * membranes, bool firstIteration){
+	try{
+		ofstream positionFile;
+		if(firstIteration){
+			positionFile.open("./buffers/position_buffer.txt", std::ofstream::trunc);
+			positionFile << numOfElasticP << "\n";
+			positionFile << numOfLiquidP << "\n";
+		}else{
+			positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
+		}
+		for(int i=0;i < PARTICLE_COUNT; i++){
+			if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
+				positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+			}
+		}
+		positionFile.close();
+		if(firstIteration){
+			ofstream connectionFile("./buffers/connection_buffer.txt", std::ofstream::trunc);
+			int con_num = MAX_NEIGHBOR_COUNT * numOfElasticP;
+			for(int i = 0; i < con_num; i++)
+				connectionFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
+			connectionFile.close();
+			ofstream membranesFile("./buffers/membranes_buffer.txt", std::ofstream::trunc);
+			membranesFile << numOfMembranes << "\n";
+			for(int i = 0; i < numOfMembranes; i++)
+				membranesFile << membranes[4 * i + 0] << "\t" << membranes[4 * i + 1] << "\t" << membranes[4 * i + 2] << "\t" << membranes[4 * i + 3] << "\n";
+			membranesFile.close();
+		}
+	}catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
+void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration){
+	try{
+		if(iteration == 0){
+			ifstream positionFile("./buffers/position_buffer.txt");
+			int i = 0;
+			float x, y, z, p_type;
+			if( positionFile.is_open() )
+			{
+				positionFile >> numOfElasticP;
+				positionFile >> numOfLiquidP;
+				while( positionFile.good() )
+				{
+					positionFile >> x >> y >> z >> p_type;
+					pos p = { x, y, z, p_type };
+					f_data.push_back(p);
+				}
+			}
+			std::cout << f_data[0].x << "\t" << f_data[0].y << "\t" << f_data[0].z << "\t" << f_data[0].p_type << "\n";
+
+			positionFile.close();
+			PARTICLE_COUNT = (numOfElasticP + numOfLiquidP);
+			iterationCount = f_data.size() / PARTICLE_COUNT;
+			position = new float[4 * PARTICLE_COUNT];
+		}
+		for(int i=0;i < PARTICLE_COUNT; i++){
+			position[i * 4 + 0] = f_data[ i + PARTICLE_COUNT * iteration].x;
+			position[i * 4 + 1] = f_data[ i + PARTICLE_COUNT * iteration].y;
+			position[i * 4 + 2] = f_data[ i + PARTICLE_COUNT * iteration].z;
+			position[i * 4 + 3] = f_data[ i + PARTICLE_COUNT * iteration].p_type;
+		}
+		if(iteration == 0){
+
+			ifstream connectionFile("./buffers/connection_buffer.txt");
+			connections = new float[MAX_NEIGHBOR_COUNT * numOfElasticP * 4];
+			if( connectionFile.is_open() )
+			{
+				int i = 0;
+				float jd, rij0, val1, val2;
+				while(connectionFile.good() && i < MAX_NEIGHBOR_COUNT * numOfElasticP){
+					connectionFile >> jd >> rij0 >> val1 >> val2;
+					connections[ 4 * i + 0 ] = jd;
+					connections[ 4 * i + 1 ] = rij0;
+					connections[ 4 * i + 2 ] = val1;
+					connections[ 4 * i + 3 ] = val2;
+					i++;
+				}
+			}
+			connectionFile.close();
+			ifstream membranesFile("./buffers/membranes_buffer.txt");
+			if(membranesFile.is_open()){
+				int m_count = 0;
+				membranesFile >> m_count;
+				int i = 0;
+				membranes = new int[4 * m_count];
+				while(membranesFile.good() && i < m_count){
+					membranesFile >> membranes[4 * i + 0] >> membranes[4 * i + 1] >> membranes[4 * i + 2] >> membranes[4 * i + 3];
+					i++;
+				}
+			}
+			membranesFile.close();
+		}
+	}catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
 void owHelper::watch_report( const char * str )
 {
 #if defined(_WIN32) || defined(_WIN64)
@@ -1634,5 +1756,19 @@ void owHelper::watch_report( const char * str )
 	printf(str,(float)sec * 1000.f + (float)nsec/1000000.f);
 	t1 = t2;
 	elapsedTime =  (float)(t2.tv_sec - t0.tv_sec) * 1000.f + (float)(t2.tv_nsec - t0.tv_nsec)/1000000.f;
+#elif defined(__APPLE__)
+    uint64_t elapsedNano;
+    static mach_timebase_info_data_t    sTimebaseInfo;
+    
+    if ( sTimebaseInfo.denom == 0 ) {
+        (void) mach_timebase_info(&sTimebaseInfo);
+    }
+    
+    t2 = mach_absolute_time();
+    elapsedNano = (t2-t1) * sTimebaseInfo.numer / sTimebaseInfo.denom;
+    printf(str, (float)elapsedNano/1000000.f );
+    t1=t2;
+    elapsedNano = (t2-t0) * sTimebaseInfo.numer / sTimebaseInfo.denom;
+    elapsedTime = (float)elapsedNano/1000000.f;
 #endif
 }

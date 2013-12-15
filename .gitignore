@@ -2,6 +2,7 @@
 *.slo
 *.lo
 *.o
+*.d
 
 # Compiled Dynamic libraries
 *.so
@@ -23,3 +24,7 @@
 *.obj
 *.pdb
 *.res
+
+#Apple stuff
+.DS_Store
+build
