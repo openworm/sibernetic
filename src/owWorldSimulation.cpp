@@ -868,15 +868,15 @@ void idle (void)
 void Timer(int value)
 {
 	if(load_from_file){
-		owHelper::loadConfigurationFromFile(p_cpp,ec_cpp,md_cpp,iteration);
+		owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp,iteration);
 		iteration++;
-		if(iteration >= iterationCount)
-			exit(0);
+		//if(iteration >= iterationCount)
+		//	exit(0);
 	}else{
 		calculationTime = fluid_simulation->simulationStep();
 	}
 	// Re-register for next callback
-    glutTimerFunc(TIMER_INTERVAL*5.1, Timer, 0);
+    glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);
 	glutPostRedisplay();
 }
 /*
@@ -992,7 +992,7 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutMouseFunc(respond_mouse);
 		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked, 
 		glutKeyboardFunc(respond_key_pressed);
-		glutTimerFunc(TIMER_INTERVAL * 5.1, Timer, 0);
+		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		if(!load_from_file)
 			fluid_simulation->~owPhysicsFluidSimulator();

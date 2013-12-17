@@ -1752,9 +1752,7 @@ void owHelper::loadConfigurationFromFile_experemental(float *& position, float *
 				positionFile >> numOfLiquidP;
 				PARTICLE_COUNT = (numOfElasticP + numOfLiquidP);
 				position = new float[4 * PARTICLE_COUNT];
-				//position_index = positionFile.tellg();
 			}
-			//positionFile.seekg(position_index, ios::beg);
 			while( positionFile.good() &&  i < PARTICLE_COUNT)
 			{
 				positionFile >> x >> y >> z >> p_type;
@@ -1765,11 +1763,10 @@ void owHelper::loadConfigurationFromFile_experemental(float *& position, float *
 				i++;
 			}
 		}
-		position_index = positionFile.tellg();
-		std::cout << position_index << std::endl;
-		if(!positionFile.good())
+		if(!positionFile.good()){
 			positionFile.close();
-		//iterationCount = f_data.size() / PARTICLE_COUNT;
+			exit(0);
+		}
 		if(iteration == 0){
 
 			ifstream connectionFile("./buffers/connection_buffer.txt");
