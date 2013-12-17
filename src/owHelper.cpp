@@ -1417,7 +1417,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 				} 
 				else
 				{
-					_mc = _mc;
+					//_mc = _mc; //https://github.com/openworm/OpenWorm/issues/152
 				}
 			}		
 		}
