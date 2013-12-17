@@ -361,20 +361,19 @@ __kernel void hashParticles(
 
 }
 
-
 __kernel void indexx(
 					 __global uint2 * particleIndex,
-					 int gridCellCount,
-					 __global uint * gridCellIndex,
-					 int PARTICLE_COUNT
-					 )
+			 		int gridCellCount,
+			 		__global uint * gridCellIndex,
+			 		int PARTICLE_COUNT
+			 		)
 {
 	//fill up gridCellIndex
 	int id = get_global_id( 0 );
 	if( id > gridCellCount  ){
 		return;
 	}
-
+ 
 	if( id == gridCellCount ){
 		// add the nth+1 index value
 		gridCellIndex[ id ] = PARTICLE_COUNT;
@@ -384,12 +383,12 @@ __kernel void indexx(
 		gridCellIndex[ id ] = 0;
 		return;
 	}
-
+ 
 	// binary search for the starting position in sortedParticleIndex
 	int low = 0;
 	int high = PARTICLE_COUNT - 1;
 	bool converged = false;
-
+ 
 	int cellIndex = NO_PARTICLE_ID;
 	while( !converged ){
 		if( low > high ){
@@ -397,31 +396,26 @@ __kernel void indexx(
 			cellIndex = NO_PARTICLE_ID;
 			continue;
 		}
-
-		int idx = ( high - low ) * 0.5f + low;
+ 
+		int idx = (( high - low )>>1) + low;
+		uint2 sampleMinus1 = particleIndex[ idx - 1 ];
 		uint2 sample = particleIndex[ idx ];
 		int sampleCellId = PI_CELL_ID( sample );
 		bool isHigh = ( sampleCellId > id );
-		high = SELECT( high, idx - 1, isHigh );
+		high = isHigh ? idx - 1 : high;
 		bool isLow = ( sampleCellId < id );
-		low = SELECT( low, idx + 1, isLow );
+		low = isLow ? idx + 1 : low;
 		bool isMiddle = !( isHigh || isLow );
-
-		uint2 zero2 = (uint2)( 0, 0 );
-		uint2 sampleMinus1;
-		int sampleM1CellId = 0;
-		bool zeroCase = ( idx == 0 && isMiddle ); //it means that we in middle or 
-		sampleMinus1 = SELECT( (uint2)particleIndex[ idx - 1 ], zero2, (uint2)zeroCase );//if we in middle this return zero2 else (uint2)particleIndex[ idx - 1 ]
-		sampleM1CellId = SELECT( PI_CELL_ID( sampleMinus1 ), (uint)(-1), zeroCase );//if we in middle this return (uint)(-1) else sampleMinus1.x (index of cell)
-		bool convergedCondition = isMiddle && ( zeroCase || sampleM1CellId < sampleCellId );
-		converged = convergedCondition;
-		cellIndex = SELECT( cellIndex, idx, convergedCondition );
-		high = SELECT( high, idx - 1, ( isMiddle && !convergedCondition ) );
+ 
+		bool zeroCase = ( idx == 0 && isMiddle );
+		int sampleM1CellId = zeroCase ? -1 : PI_CELL_ID( sampleMinus1 );
+		converged = isMiddle && ( zeroCase || sampleM1CellId < sampleCellId );
+		cellIndex = converged ? idx : cellIndex;
+		high = ( isMiddle && !converged ) ? idx - 1 : high;
 	}//while
-
-	gridCellIndex[ id ] = cellIndex;//
+ 
+	gridCellIndex[ id ] = cellIndex;
 }
-
 
 __kernel void sortPostPass(
 						   __global uint2 * particleIndex,

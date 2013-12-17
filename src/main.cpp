@@ -4,6 +4,7 @@
 
 extern bool load_to_file = false;
 extern bool load_from_file = false;
+
 int main(int argc, char **argv)
 {
 	if(argc == 1)
