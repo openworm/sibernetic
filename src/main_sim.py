@@ -5,7 +5,7 @@ def parallel_waves(n=24, #26 for our first test?
                    time=0, 
                    phi=math.pi,
                    amplitude=1,
-                   velocity=0.01):
+                   velocity=0.0001):
     """
     Array of two travelling waves, second one starts
     half way through the array

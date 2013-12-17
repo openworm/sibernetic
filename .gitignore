@@ -28,3 +28,5 @@
 #Apple stuff
 .DS_Store
 build
+/Build
+/debug
