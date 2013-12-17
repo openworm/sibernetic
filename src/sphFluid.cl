@@ -5,7 +5,28 @@
 // Eurographics/SIGGRAPH Symposium on Computer Animation (2003).
 //TODO: write all papers and dissertation what we use in work
 
-#include "src//owOpenCLConstant.h"
+//#include "src//owOpenCLConstant.h"
+
+#ifndef OW_OPENCL_CONSTANT_H
+#define OW_OPENCL_CONSTANT_H
+
+#define MAX_NEIGHBOR_COUNT 32
+
+#define MAX_MEMBRANES_INCLUDING_SAME_PARTICLE 7
+
+#define LIQUID_PARTICLE   1
+#define ELASTIC_PARTICLE  2
+#define BOUNDARY_PARTICLE 3
+
+#define NO_PARTICLE_ID -1
+#define NO_CELL_ID -1
+#define NO_DISTANCE -1.0f
+
+#define QUEUE_EACH_KERNEL 1
+
+#define INTEL_OPENCL_DEBUG 0
+
+#endif // #ifndef OW_OPENCL_CONSTANT_H
 
 #define POSITION_CELL_ID( i ) i.w
 
@@ -30,7 +51,7 @@
 #define SELECT( A, B, C ) C ? B : A
 #endif
 
-#pragma OPENCL EXTENSION cl_intel_printf : enable
+#pragma OPENCL EXTENSION cl_amd_printf : enable
 
 #ifdef cl_khr_fp64
     #pragma OPENCL EXTENSION cl_khr_fp64 : enable
@@ -1212,59 +1233,112 @@ float calcDeterminant3x3(float4 c1, float4 c2, float4 c3)
 //  [c3]: c31  c32  c33
 //  by the way, result for transposed matrix will be equal to the original one
 
-	return  c1[1]*c2[2]*c3[3] + c1[2]*c2[3]*c3[1] + c1[3]*c2[1]*c3[2]  
-		  - c1[3]*c2[2]*c3[1] - c1[1]*c2[3]*c3[2] - c1[2]*c2[1]*c3[3];
+//	return  c1[1]*c2[2]*c3[3] + c1[2]*c2[3]*c3[1] + c1[3]*c2[1]*c3[2]  
+//		  - c1[3]*c2[2]*c3[1] - c1[1]*c2[3]*c3[2] - c1[2]*c2[1]*c3[3];
 
-//	return  c1.x*c2.y*c3.z + c1.y*c2.z*c3.x + c1.z*c2.x*c3.y  
-//		  - c1.z*c2.y*c3.x - c1.x*c2.z*c3.y - c1.y*c2.x*c3.z;
+	return  c1.x*c2.y*c3.z + c1.y*c2.z*c3.x + c1.z*c2.x*c3.y  
+		  - c1.z*c2.y*c3.x - c1.x*c2.z*c3.y - c1.y*c2.x*c3.z;
 }
+
 
 float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4 pc)
 {// ps - point to project on the plane; pa-pb-pc - vertices of the triangle defining the plane
-	float4 a_1,a_2,a_3,b; 
-	float4 pm = (float4)(0,0,0,0);//projection of ps on pa-pb-pc plane
-	float denominator;
-	//  b  a_2 a_3   a_1
-	// |b1 a12 a13|  a11
-	// |b2 a22 a23|  a21
-	// |b3 a32 a33|  a31
 
-	b[1] = pa.x*((pb.y-pa.y)*(pc.z-pa.z)-(pb.z-pa.z)*(pc.y-pa.y))
-		 + pa.y*((pb.z-pa.z)*(pc.x-pa.x)-(pb.x-pa.x)*(pc.z-pa.z))
-		 + pa.z*((pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x));
-	b[2] = ps.x*(pb.x-pa.x)+ps.y*(pb.y-pa.y)+ps.z*(pb.z-pa.z);
-	b[3] = ps.x*(pc.x-pa.x)+ps.y*(pc.y-pa.y)+ps.z*(pc.z-pa.z);
+        float4 pm = (float4)(0,0,0,0);//projection of ps on pa-pb-pc plane
+        float denominator;
+        //  b  a_2 a_3   a_1
+        // |b1 a12 a13|  a11
+        // |b2 a22 a23|  a21
+        // |b3 a32 a33|  a31
 
-	a_1[1] = (pb.y-pa.y)*(pc.z-pa.z)-(pb.z-pa.z)*(pc.y-pa.y);
-	a_1[2] = pb.x - pa.x;
-	a_1[3] = pc.x - pa.x;
+        float b_1 = pa.x*((pb.y-pa.y)*(pc.z-pa.z)-(pb.z-pa.z)*(pc.y-pa.y))
+                 + pa.y*((pb.z-pa.z)*(pc.x-pa.x)-(pb.x-pa.x)*(pc.z-pa.z))
+                 + pa.z*((pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x));
+        float b_2 = ps.x*(pb.x-pa.x)+ps.y*(pb.y-pa.y)+ps.z*(pb.z-pa.z);
+        float b_3 = ps.x*(pc.x-pa.x)+ps.y*(pc.y-pa.y)+ps.z*(pc.z-pa.z);
 
-	a_2[1] = (pb.z-pa.z)*(pc.x-pa.x)-(pb.x-pa.x)*(pc.z-pa.z);
-	a_2[2] = pb.y - pa.y;
-	a_2[3] = pc.y - pa.y;
+        float a_1_1 = (pb.y-pa.y)*(pc.z-pa.z)-(pb.z-pa.z)*(pc.y-pa.y);
+        float a_1_2 = pb.x - pa.x;
+        float a_1_3 = pc.x - pa.x;
 
-	a_3[1] = (pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x);
-	a_3[2] = pb.z - pa.z;
-	a_3[3] = pc.z - pa.z;
+        float a_2_1 = (pb.z-pa.z)*(pc.x-pa.x)-(pb.x-pa.x)*(pc.z-pa.z);
+        float a_2_2 = pb.y - pa.y;
+        float a_2_3 = pc.y - pa.y;
 
-	denominator = calcDeterminant3x3(a_1,a_2,a_3);
+        float a_3_1 = (pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x);
+        float a_3_2 = pb.z - pa.z;
+        float a_3_3 = pc.z - pa.z;
 
-	if(denominator!=0)
-	{
-		pm.x = calcDeterminant3x3(b  ,a_2,a_3)/denominator;
-		pm.y = calcDeterminant3x3(a_1,b  ,a_3)/denominator;
-		pm.z = calcDeterminant3x3(a_1,a_2,b  )/denominator;
-	}
-	else pm.w = -1;//indicates error
+        float4 a_1 = (float4)(0, a_1_1, a_1_2, a_1_3);
+        float4 a_2 = (float4)(0, a_2_1, a_2_2, a_2_3);
+        float4 a_3 = (float4)(0, a_3_1, a_3_2, a_3_3);
+        float4 b = (float4)(0, b_1, b_2, b_3);
 
-	//printf("\npa=(%f,%f,%f)",pa.x,pa.y,pa.z);
-	//printf("\npb=(%f,%f,%f)",pb.x,pb.y,pb.z);
-	//printf("\npc=(%f,%f,%f)",pc.x,pc.y,pc.z);
-	//printf("\nps=(%f,%f,%f)",ps.x,ps.y,ps.z);
-	//printf("\npm=(%f,%f,%f)",pm.x,pm.y,pm.z);
+        denominator = calcDeterminant3x3(a_1,a_2,a_3);
 
-	return pm;
+        if(denominator!=0)
+        {
+                pm.x = calcDeterminant3x3(b  ,a_2,a_3)/denominator;
+                pm.y = calcDeterminant3x3(a_1,b  ,a_3)/denominator;
+                pm.z = calcDeterminant3x3(a_1,a_2,b  )/denominator;
+        }
+        else pm.w = -1;//indicates error
+
+        //printf("\npa=(%f,%f,%f)",pa.x,pa.y,pa.z);
+        //printf("\npb=(%f,%f,%f)",pb.x,pb.y,pb.z);
+        //printf("\npc=(%f,%f,%f)",pc.x,pc.y,pc.z);
+        //printf("\nps=(%f,%f,%f)",ps.x,ps.y,ps.z);
+        //printf("\npm=(%f,%f,%f)",pm.x,pm.y,pm.z);
+
+        return pm;
 }
+
+//float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4 pc)
+//{// ps - point to project on the plane; pa-pb-pc - vertices of the triangle defining the plane
+//	float4 a_1,a_2,a_3,b; 
+//	float4 pm = (float4)(0,0,0,0);//projection of ps on pa-pb-pc plane
+//	float denominator;
+//	//  b  a_2 a_3   a_1
+//	// |b1 a12 a13|  a11
+//	// |b2 a22 a23|  a21
+//	// |b3 a32 a33|  a31
+//
+//	b[1] = pa.x*((pb.y-pa.y)*(pc.z-pa.z)-(pb.z-pa.z)*(pc.y-pa.y))
+//		 + pa.y*((pb.z-pa.z)*(pc.x-pa.x)-(pb.x-pa.x)*(pc.z-pa.z))
+//		 + pa.z*((pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x));
+//	b[2] = ps.x*(pb.x-pa.x)+ps.y*(pb.y-pa.y)+ps.z*(pb.z-pa.z);
+//	b[3] = ps.x*(pc.x-pa.x)+ps.y*(pc.y-pa.y)+ps.z*(pc.z-pa.z);
+//
+//	a_1[1] = (pb.y-pa.y)*(pc.z-pa.z)-(pb.z-pa.z)*(pc.y-pa.y);
+//	a_1[2] = pb.x - pa.x;
+//	a_1[3] = pc.x - pa.x;
+//
+//	a_2[1] = (float4)(pb.z-pa.z)*(pc.x-pa.x)-(pb.x-pa.x)*(pc.z-pa.z);
+//	a_2[2] = pb.y - pa.y;
+//	a_2[3] = pc.y - pa.y;
+//
+//	a_3[1] = (pb.x-pa.x)*(pc.y-pa.y)-(pb.y-pa.y)*(pc.x-pa.x);
+//	a_3[2] = pb.z - pa.z;
+//	a_3[3] = pc.z - pa.z;
+//
+//	denominator = calcDeterminant3x3(a_1,a_2,a_3);
+//
+//	if(denominator!=0)
+//	{
+//		pm.x = calcDeterminant3x3(b  ,a_2,a_3)/denominator;
+//		pm.y = calcDeterminant3x3(a_1,b  ,a_3)/denominator;
+//		pm.z = calcDeterminant3x3(a_1,a_2,b  )/denominator;
+//	}
+//	else pm.w = -1;//indicates error
+//
+//	//printf("\npa=(%f,%f,%f)",pa.x,pa.y,pa.z);
+//	//printf("\npb=(%f,%f,%f)",pb.x,pb.y,pb.z);
+//	//printf("\npc=(%f,%f,%f)",pc.x,pc.y,pc.z);
+//	//printf("\nps=(%f,%f,%f)",ps.x,ps.y,ps.z);
+//	//printf("\npm=(%f,%f,%f)",pm.x,pm.y,pm.z);
+//
+//	return pm;
+//}
 
 float calculateTriangleSquare(float4 v1, float4 v2, float4 v3)
 {
@@ -1346,7 +1420,7 @@ __kernel void computeInteractionWithMembranes(
 			{																//matter particles can compose membranes
 				membrane_ijk_counter = 0;
 				vector_id_jd = position[id_source_particle] - position[jd_source_particle];
-				vector_id_jd[3] = 0;
+				vector_id_jd.z = 0; //mv change from subscripting
 				_distance_id_jd = sqrt(dot(vector_id_jd,vector_id_jd));
 				// elastic matter particles have no information 
 				// about participation in membrane composition
