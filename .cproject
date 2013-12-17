@@ -143,11 +143,11 @@
 		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.release.2025909945;cdt.managedbuild.config.gnu.exe.release.2025909945.;cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.37396283;cdt.managedbuild.tool.gnu.cpp.compiler.input.1448416343">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileCPP"/>
 		</scannerConfigBuildInfo>
-		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.cross.exe.release.1456821005;cdt.managedbuild.config.gnu.cross.exe.release.1456821005.;cdt.managedbuild.tool.gnu.cross.cpp.compiler.1917076731;cdt.managedbuild.tool.gnu.cpp.compiler.input.1889670210">
-			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileCPP"/>
-		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.release.2025909945;cdt.managedbuild.config.gnu.exe.release.2025909945.;cdt.managedbuild.tool.gnu.c.compiler.exe.release.1665591112;cdt.managedbuild.tool.gnu.c.compiler.input.1611269568">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileC"/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.cross.exe.release.1456821005;cdt.managedbuild.config.gnu.cross.exe.release.1456821005.;cdt.managedbuild.tool.gnu.cross.cpp.compiler.1917076731;cdt.managedbuild.tool.gnu.cpp.compiler.input.1889670210">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileCPP"/>
 		</scannerConfigBuildInfo>
 		<scannerConfigBuildInfo instanceId="cdt.managedbuild.config.gnu.exe.debug.333205532;cdt.managedbuild.config.gnu.exe.debug.333205532.;cdt.managedbuild.tool.gnu.c.compiler.exe.debug.745142970;cdt.managedbuild.tool.gnu.c.compiler.input.1706681846">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.managedbuilder.core.GCCManagedMakePerProjectProfileC"/>

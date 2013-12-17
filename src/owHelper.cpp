@@ -670,9 +670,9 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 	}
 
 	//and here we add outer liquid for worm swimming
-	for(x=3*r0;x<XMAX-3*r0;x+=r0)
+	/*for(x=3*r0;x<XMAX-3*r0;x+=r0)
 	{
-		for(y=3*r0;y<YMAX*0.15/*-r0*/;y+=r0)
+		for(y=3*r0;y<YMAX*0.15-r0;y+=r0)
 		{
 			for(z=3*r0;z<ZMAX-3*r0;z+=r0)
 			{
@@ -688,7 +688,7 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 				pCount++;
 			}
 		}
-	}
+	}*/
 
 	if(stage==1)
 	{
@@ -1670,6 +1670,7 @@ void owHelper::loadConfigurationToFile(float * position, float * connections, in
 		exit( -1 );
 	}
 }
+
 void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration){
 	try{
 		if(iteration == 0){
@@ -1700,6 +1701,75 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 			position[i * 4 + 2] = f_data[ i + PARTICLE_COUNT * iteration].z;
 			position[i * 4 + 3] = f_data[ i + PARTICLE_COUNT * iteration].p_type;
 		}
+		if(iteration == 0){
+
+			ifstream connectionFile("./buffers/connection_buffer.txt");
+			connections = new float[MAX_NEIGHBOR_COUNT * numOfElasticP * 4];
+			if( connectionFile.is_open() )
+			{
+				int i = 0;
+				float jd, rij0, val1, val2;
+				while(connectionFile.good() && i < MAX_NEIGHBOR_COUNT * numOfElasticP){
+					connectionFile >> jd >> rij0 >> val1 >> val2;
+					connections[ 4 * i + 0 ] = jd;
+					connections[ 4 * i + 1 ] = rij0;
+					connections[ 4 * i + 2 ] = val1;
+					connections[ 4 * i + 3 ] = val2;
+					i++;
+				}
+			}
+			connectionFile.close();
+			ifstream membranesFile("./buffers/membranes_buffer.txt");
+			if(membranesFile.is_open()){
+				int m_count = 0;
+				membranesFile >> m_count;
+				int i = 0;
+				membranes = new int[4 * m_count];
+				while(membranesFile.good() && i < m_count){
+					membranesFile >> membranes[4 * i + 0] >> membranes[4 * i + 1] >> membranes[4 * i + 2] >> membranes[4 * i + 3];
+					i++;
+				}
+			}
+			membranesFile.close();
+		}
+	}catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
+long position_index = 0;
+ifstream positionFile;
+void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, int iteration){
+	try{
+		if(iteration == 0)
+			positionFile.open("./buffers/position_buffer.txt");
+		int i = 0;
+		float x, y, z, p_type;
+		if( positionFile.is_open() )
+		{
+			if(iteration == 0){
+				positionFile >> numOfElasticP;
+				positionFile >> numOfLiquidP;
+				PARTICLE_COUNT = (numOfElasticP + numOfLiquidP);
+				position = new float[4 * PARTICLE_COUNT];
+				//position_index = positionFile.tellg();
+			}
+			//positionFile.seekg(position_index, ios::beg);
+			while( positionFile.good() &&  i < PARTICLE_COUNT)
+			{
+				positionFile >> x >> y >> z >> p_type;
+				position[i * 4 + 0] = x;
+				position[i * 4 + 1] = y;
+				position[i * 4 + 2] = z;
+				position[i * 4 + 3] = p_type;
+				i++;
+			}
+		}
+		position_index = positionFile.tellg();
+		std::cout << position_index << std::endl;
+		if(!positionFile.good())
+			positionFile.close();
+		//iterationCount = f_data.size() / PARTICLE_COUNT;
 		if(iteration == 0){
 
 			ifstream connectionFile("./buffers/connection_buffer.txt");

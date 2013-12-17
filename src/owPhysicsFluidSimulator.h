@@ -18,7 +18,7 @@ public:
 	//TODO helper functions delete after fix!!
 	float * getElasticConnectionsData_cpp() { return elasticConnectionsData_cpp; };
 	int   * getMembraneData_cpp() { return membraneData_cpp; };
-	double  simulationStep();
+	double  simulationStep(const bool load_to = false);
 
 private:
 	owOpenCLSolver * ocl_solver;

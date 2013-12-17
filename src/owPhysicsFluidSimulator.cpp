@@ -16,7 +16,7 @@ int * _particleIndex;
 unsigned int * gridNextNonEmptyCellBuffer;
 extern int gridCellCount;
 extern float * muscle_activation_signal_cpp;
-extern bool load_to_file;
+//extern bool load_to_file;
 int iter_step = 10;
 
 //mv
@@ -76,7 +76,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 	}
 }
 
-double owPhysicsFluidSimulator::simulationStep()
+double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 {
 	//PCISPH algorithm
 	int iter = 0;//PCISPH prediction-correction iterations conter
@@ -118,12 +118,13 @@ double owPhysicsFluidSimulator::simulationStep()
 		printf("------------------------------------\n");
 		printf("_Total_step_time:\t%9.3f ms\n",helper->get_elapsedTime());
 		printf("------------------------------------\n");
-		if(load_to_file){
+		if(load_to){
 			if(iterationCount == 0){
 				owHelper::loadConfigurationToFile(position_cpp,elasticConnectionsData_cpp,membraneData_cpp);
 			}else{
-				if(iterationCount % iter_step == 0)
+				if(iterationCount % iter_step == 0){
 					owHelper::loadConfigurationToFile(position_cpp, NULL, NULL, false);
+				}
 			}
 		}
 		iterationCount++;

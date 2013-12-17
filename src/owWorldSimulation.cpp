@@ -958,7 +958,7 @@ void draw(void)
 	glPopMatrix();
 }
 
-void run(int argc, char** argv, const bool with_graphics)
+void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
 	helper = new owHelper();
 	if(!load_from_file){
@@ -998,7 +998,7 @@ void run(int argc, char** argv, const bool with_graphics)
 			fluid_simulation->~owPhysicsFluidSimulator();
 	}else{
 		while(1){
-			fluid_simulation->simulationStep();
+			fluid_simulation->simulationStep(load_to);
 			helper->refreshTime();
 		}
 	}
