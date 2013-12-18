@@ -11,6 +11,15 @@
 *.lai
 *.la
 *.a
+
+#Simulation output
+buffers/connection_buffer.txt
+buffers/membranes_buffer.txt
+buffers/position_buffer.txt
+
+#Python bytecode
+*.pyc
+
 #MY OTHER FILTERS
 *.ncb
 *.suo
