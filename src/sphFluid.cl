@@ -153,7 +153,7 @@ int searchForNeighbors(
 			{
 				float4 d = position_ - sortedPosition[ neighborParticleId ];
 				d.w = 0.0f;
-				_distanceSquared = DOT( d, d );
+				_distanceSquared = d.x*d.x + d.y*d.y + d.z*d.z; // inlined openCL dot(d,d)
 				if( _distanceSquared <= r_thr_Squared )
 				{
 					_distance = SQRT( _distanceSquared );
