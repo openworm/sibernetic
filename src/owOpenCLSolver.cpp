@@ -193,12 +193,12 @@ void owOpenCLSolver::initializeOpenCL()
 	cl::Program::Sources source( 1, std::make_pair( programSource.c_str(), programSource.length()+1 ));
 	program = cl::Program( context, source );
 #if defined(__APPLE__)
-	err = program.build( devices, "-cl-opt-disable" );
+	err = program.build( devices, "-g -cl-opt-disable" );
 #else
 	#if INTEL_OPENCL_DEBUG
-		err = program.build( devices, OPENCL_DEBUG_PROGRAM_PATH +  " -cl-opt-disable");
+		err = program.build( devices, OPENCL_DEBUG_PROGRAM_PATH +  "-g -cl-opt-disable");
 	#else
-		err = program.build( devices, "-cl-opt-disable");
+		err = program.build( devices, "-g -cl-opt-disable");
 	#endif
 #endif
 	if( err != CL_SUCCESS ){
