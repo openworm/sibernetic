@@ -1233,11 +1233,17 @@ float calcDeterminant3x3(float4 c1, float4 c2, float4 c3)
 //  [c3]: c31  c32  c33
 //  by the way, result for transposed matrix will be equal to the original one
 
-//	return  c1[1]*c2[2]*c3[3] + c1[2]*c2[3]*c3[1] + c1[3]*c2[1]*c3[2]  
+//	return c1[1]*c2[2]*c3[3] + c1[2]*c2[3]*c3[1] + c1[3]*c2[1]*c3[2]  
 //		  - c1[3]*c2[2]*c3[1] - c1[1]*c2[3]*c3[2] - c1[2]*c2[1]*c3[3];
 
-	return  c1.x*c2.y*c3.z + c1.y*c2.z*c3.x + c1.z*c2.x*c3.y  
-		  - c1.z*c2.y*c3.x - c1.x*c2.z*c3.y - c1.y*c2.x*c3.z;
+//        printf("\nx %f",c1.x);
+//        printf("\ny %f",c1.y);
+//        printf("\nz %f",c1.z);
+//
+
+        return  c1.x*c2.y*c3.z + c1.y*c2.z*c3.x + c1.z*c2.x*c3.y  
+                  - c1.z*c2.y*c3.x - c1.x*c2.z*c3.y - c1.y*c2.x*c3.z;
+
 }
 
 
@@ -1269,20 +1275,28 @@ float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4
         float a_3_2 = pb.z - pa.z;
         float a_3_3 = pc.z - pa.z;
 
-        float4 a_1 = (float4)(0, a_1_1, a_1_2, a_1_3);
-        float4 a_2 = (float4)(0, a_2_1, a_2_2, a_2_3);
-        float4 a_3 = (float4)(0, a_3_1, a_3_2, a_3_3);
+        float4 a_1 = (float4)(a_1_1, a_1_2, a_1_3, 0);
+        float4 a_2 = (float4)(a_2_1, a_2_2, a_2_3, 0);
+        float4 a_3 = (float4)(a_3_1, a_3_2, a_3_3, 0);
         float4 b = (float4)(0, b_1, b_2, b_3);
 
         denominator = calcDeterminant3x3(a_1,a_2,a_3);
 
+//        printf("\na_1 = %2.2v4hlf", a_1);
+//        printf("\na_2 = %2.2v4hlf", a_2);
+//        printf("\na_3 = %2.2v4hlf", a_3);
+//        printf("\ndenominator = %f", denominator);
+//
         if(denominator!=0)
         {
                 pm.x = calcDeterminant3x3(b  ,a_2,a_3)/denominator;
                 pm.y = calcDeterminant3x3(a_1,b  ,a_3)/denominator;
                 pm.z = calcDeterminant3x3(a_1,a_2,b  )/denominator;
         }
-        else pm.w = -1;//indicates error
+        else {
+                printf("\ndenominator equal to zero\n");        
+                pm.w = -1;//indicates error       
+        }
 
         //printf("\npa=(%f,%f,%f)",pa.x,pa.y,pa.z);
         //printf("\npb=(%f,%f,%f)",pb.x,pb.y,pb.z);
@@ -1543,6 +1557,8 @@ __kernel void computeInteractionWithMembranes(
 		else break;
 	}//11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 
+//        barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+        //barrier(CLK_GLOBAL_MEM_FENCE);
 	if(membrane_jd_counter>0)
 	{
 		//normal_vector_final /= membrane_jd_counter;
