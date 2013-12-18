@@ -670,9 +670,9 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 	}
 
 	//and here we add outer liquid for worm swimming
-	/*for(x=3*r0;x<XMAX-3*r0;x+=r0)
+	for(x=3*r0;x<XMAX-3*r0;x+=r0)
 	{
-		for(y=3*r0;y<YMAX*0.15-r0;y+=r0)
+		for(y=3*r0;y<YMAX*0.15/*-r0*/;y+=r0)
 		{
 			for(z=3*r0;z<ZMAX-3*r0;z+=r0)
 			{
@@ -688,7 +688,7 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 				pCount++;
 			}
 		}
-	}*/
+	}
 
 	if(stage==1)
 	{
