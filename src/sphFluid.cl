@@ -1278,7 +1278,7 @@ float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4
         float4 a_1 = (float4)(a_1_1, a_1_2, a_1_3, 0);
         float4 a_2 = (float4)(a_2_1, a_2_2, a_2_3, 0);
         float4 a_3 = (float4)(a_3_1, a_3_2, a_3_3, 0);
-        float4 b = (float4)(0, b_1, b_2, b_3);
+        float4 b = (float4)(b_1, b_2, b_3, 0);
 
         denominator = calcDeterminant3x3(a_1,a_2,a_3);
 
