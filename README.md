@@ -46,11 +46,11 @@ export PYTHONPATH=$PYTHONPATH:'./src'
 
 Finally, to run, run the command:
 
-Linux:
+*Linux*:
 ```
 ./Release/Smoothed-Particle-Hydrodynamics
 ```
-Mac:
+*Mac*:
 ```
 ./build/Smoothed-Particle-Hydrodynamics
 ```
