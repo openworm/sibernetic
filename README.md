@@ -8,14 +8,14 @@ There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) t
 Compiling / running (Linux/mac)
 ------------------------------
 
-Linux: navigate to the `Release` folder and run:
+**Linux**: navigate to the `Release` folder and run:
 
 ```
 make clean
 make all
 ```
 
-Mac: stay in the top-level folder and run:
+**Mac**: stay in the top-level folder and run:
 
 ```
 make clean -f makefile.OSX
