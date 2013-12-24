@@ -1,7 +1,6 @@
-Smoothed-Particle-Hydrodynamics
-===============================
+![Sibernetic](http://i.imgur.com/Hbsw6Zs.png)
 
-This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion. Electrofluid is a modification of the [Smoothed Particle Hydrodynamics](http://en.wikipedia.org/wiki/Smoothed-particle_hydrodynamics) developed for the [OpenWorm](http://openworm.org) project by Andrey Palyanov, Sergey Khayrulin and Mike Vella.
+This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion. Electrofluid is a modification of [Smoothed Particle Hydrodynamics](http://en.wikipedia.org/wiki/Smoothed-particle_hydrodynamics) developed for the [OpenWorm](http://openworm.org) project by Andrey Palyanov, Sergey Khayrulin and Mike Vella.
 
 There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](https://github.com/openworm/OpenWorm/wiki/Geppetto--Overview). 
 
