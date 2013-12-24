@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Sibernetic : This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Sibernetic</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/openworm/Smoothed-Particle-Hydrodynamics">View on GitHub</a>
+
+          <h1 id="project_title">Sibernetic</h1>
+          <h2 id="project_tagline">This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/openworm/Smoothed-Particle-Hydrodynamics/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/openworm/Smoothed-Particle-Hydrodynamics/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="smoothed-particle-hydrodynamics" class="anchor" href="#smoothed-particle-hydrodynamics"><span class="octicon octicon-link"></span></a>Smoothed-Particle-Hydrodynamics</h1>
+
+<p>This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion. Electrofluid is a modification of the <a href="http://en.wikipedia.org/wiki/Smoothed-particle_hydrodynamics">Smoothed Particle Hydrodynamics</a> developed for the <a href="http://openworm.org">OpenWorm</a> project by Andrey Palyanov, Sergey Khayrulin and Mike Vella.</p>
+
+<p>There is a separate effort lead by <a href="https://github.com/gidili">Giovanni Idili</a> and <a href="https://github.com/skhayrulin">Sergey Khayrulin</a> to port this code to Java, as part of the <a href="https://github.com/openworm/OpenWorm/wiki/Geppetto--Overview">Geppetto simulation framework</a>. </p>
+
+<h2>
+<a name="compiling--running-linuxmac" class="anchor" href="#compiling--running-linuxmac"><span class="octicon octicon-link"></span></a>Compiling / running (Linux/mac)</h2>
+
+<p><strong>Linux</strong>: navigate to the <code>Release</code> folder and run:</p>
+
+<pre><code>make clean
+make all
+</code></pre>
+
+<p><strong>Mac</strong>: stay in the top-level folder and run:</p>
+
+<pre><code>make clean -f makefile.OSX
+make all -f makefile.OSX
+</code></pre>
+
+<p>You should see an output which looks something like this:</p>
+
+<pre><code>Building file: ../src/PyramidalSimulation.cpp
+Invoking: GCC C++ Compiler
+
+....
+more stuff...
+....
+
+Building target: Smoothed-Particle-Hydrodynamics
+Invoking: GCC C++ Linker
+g++ -L/usr/lib -L/usr/lib/python2.7 -o "Smoothed-Particle-Hydrodynamics"  ./src/PyramidalSimulation.o ./src/main.o ./src/owHelper.o ./src/owOpenCLSolver.o ./src/owPhysicsFluidSimulator.o ./src/owWorldSimulation.o   -lOpenCL -lpython2.7 -lrt -lglut -lGL -lGLU
+Finished building target: Smoothed-Particle-Hydrodynamics
+</code></pre>
+
+<p>Then navigate to the top-level folder in the hierarchy (e.g <code>Smoothed-Particle-Hydrodynamics</code>) and set your <code>PYTHONPATH</code>:</p>
+
+<pre><code>export PYTHONPATH=$PYTHONPATH:'./src'
+</code></pre>
+
+<p>Finally, to run, run the command:</p>
+
+<p><strong>Linux</strong>:</p>
+
+<pre><code>./Release/Smoothed-Particle-Hydrodynamics
+</code></pre>
+
+<p><strong>Mac</strong>:</p>
+
+<pre><code>./build/Smoothed-Particle-Hydrodynamics
+</code></pre>
+
+<p>You may need to make <code>./Release/Smoothed-Particle-Hydrodynamics</code> executable like so:</p>
+
+<pre><code>chmod +x ./Release/Smoothed-Particle-Hydrodynamics
+</code></pre>
+
+<p>If you do not run from the top-level folder you will see an error which looks something like this:</p>
+
+<pre><code>Compilation failed: 
+"/tmp/OCLQ1BaOw.cl", line 8: catastrophic error: cannot open source file
+"src//owOpenCLConstant.h"
+#include "src//owOpenCLConstant.h"
+</code></pre>
+
+<h2>
+<a name="saving-to-disk" class="anchor" href="#saving-to-disk"><span class="octicon octicon-link"></span></a>Saving to disk</h2>
+
+<p>You may wish to save simulations to disk rather than visualise them (<strong>WARNING</strong>: This is buggy)</p>
+
+<p>For record configuraton into file you need to run simulation with key -l_to - it create 3 new files 
+at the folder ./buffers:</p>
+
+<ul>
+<li>connection_buffers.txt - it need to store information about conection among of elastic partciles</li>
+<li>membranes_buffer.txt   - it need to store information about membranes </li>
+<li>position_buffer.txt    - it need to store information current position all of the non boundary particles it save information to this file every 10 steps of simulation. You shoulld remember that than more info you 
+want to store than bigger output file is. </li>
+</ul><p>For view result you should run simulation with key -l_from - it get positions from position_buffer.txt file and 
+draw evolution of system in time</p>
+
+<h2>
+<a name="making-videos" class="anchor" href="#making-videos"><span class="octicon octicon-link"></span></a>Making videos</h2>
+
+<p>If you run a simulation you may be interested in recording the graphical output. Making such videos is a bit tricky because they need to be speeded up, so far I have found the following two commands do a decent job (change folder names accordingly) after you have used a screen record program:</p>
+
+<pre><code>#If your video is in OGV  format (if you used recordmydesktop for instance), use the following script to convert to avi:
+
+#!/bin/bash
+ # ogv to avi
+ # Call this with multiple arguments
+ # for example : ls *.{ogv,OGV} | xargs ogv2avi
+ N=$#;
+ echo "Converting $N files !"
+ for ((i=0; i&lt;=(N-1); i++))
+ do
+ echo "converting" $1
+ filename=${1%.*}
+ mencoder "$1" -ovc xvid -oac mp3lame -xvidencopts pass=1 -o $filename.avi
+ shift 1
+ done
+</code></pre>
+
+<pre><code>#make images from video
+ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
+</code></pre>
+
+<pre><code>#re-encode into video
+ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
+</code></pre>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Sibernetic maintained by <a href="https://github.com/openworm">openworm</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
