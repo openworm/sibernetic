@@ -86,8 +86,8 @@ For view result you should run simulation with key -l_from - it get positions fr
 draw evolution of system in time
 
 
-Making videos
--------------
+Making videos (*nix)
+--------------------
 If you run a simulation you may be interested in recording the graphical output. Making such videos is a bit tricky because they need to be speeded up, so far I have found the following two commands do a decent job (change folder names accordingly) after you have used a screen record program:
 
 ```
