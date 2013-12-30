@@ -1,6 +1,6 @@
 ![Sibernetic](http://i.imgur.com/Hbsw6Zs.png)
 
-Sibernetic is a fluid mechanics simulator developed for simulations of C. elegans in the [OpenWorm project](http://www.openworm.org) developed for the [OpenWorm](http://openworm.org) project by Andrey Palyanov, Sergey Khayrulin and Mike Vella.. Sibernetic provides the first implementation of the PCISPH contractile matter algorithm for simulating muscle tissue and is applied to C. elegans locomotion.
+Sibernetic is a fluid mechanics simulator developed for simulations of C. elegans in the [OpenWorm project](http://www.openworm.org) developed for the [OpenWorm](http://openworm.org) project by Andrey Palyanov, Sergey Khayrulin and Mike Vella as part of the [OpenWorm team](http://www.openworm.org/people.html). Sibernetic provides an implementation of the PCISPH contractile matter algorithm for simulating muscle tissue and is applies to C. elegans locomotion.
 
 When driven by [Hodgkin Huxley dynamics](https://en.wikipedia.org/wiki/Hodgkin%E2%80%93Huxley_model) contractile matter is called Electrofluid.
 
