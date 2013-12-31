@@ -13,9 +13,6 @@ Compiling / running (Linux/mac)
 
 **Linux**
 
-Installation of OpenCL
-======================
-
 Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. these are rpms but install instructions for Ubuntu can be found [here](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues.
 
 
