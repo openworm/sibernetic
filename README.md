@@ -17,7 +17,7 @@ Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](
 
 
 
-navigate to the `Release` folder and run:
+Navigate to the `Release` folder and run:
 
 
 
