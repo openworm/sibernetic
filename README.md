@@ -11,7 +11,15 @@ There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) a
 Compiling / running (Linux/mac)
 ------------------------------
 
-**Linux**: navigate to the `Release` folder and run:
+**Linux**: You'll need Python development, freeglut and OpenCL libraries.
+
+In ubuntu, install the dependencies with:
+
+```
+sudo apt-get install g++ python-dev freeglut3-dev nvidia-opencl-dev
+```
+
+Next, navigate to the `Release` folder and run:
 
 ```
 make clean
