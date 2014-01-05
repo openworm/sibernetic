@@ -1,9 +1,13 @@
 #ifndef PYRAMIDALSIMULATION_H
 #define PYRAMIDALSIMULATION_H
-#include "/usr/include/python2.7/Python.h"  //need to fix
+//#include "/usr/include/python2.7/Python.h"  //need to fix
+//#define MS_NO_COREDLL
+#include "C:/Python27/include/Python.h"
 #include <vector>
 
 //#pragma comment( lib, "C:\\Python27\\libs\\python27.lib" )
+//#pragma comment( lib, "C:/Python26/libs/python26.lib" )
+//#pragma comment( lib, "C:/Python26/libs/python26.lib" )
 
 using namespace std;
 

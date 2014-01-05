@@ -8,7 +8,7 @@ extern int numOfElasticP;
 extern int numOfBoundaryP;
 extern int numOfMembranes;
 extern int iterationCount;
-extern int load_from_file;
+extern bool load_from_file;
 
 int old_x=0, old_y=0;	// Used for mouse event
 float camera_trans[] = {0, 0, -8.0};

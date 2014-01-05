@@ -670,9 +670,10 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 	}
 
 	//and here we add outer liquid for worm swimming
+/**/
 	for(x=3*r0;x<XMAX-3*r0;x+=r0)
 	{
-		for(y=3*r0;y<YMAX*0.15/*-r0*/;y+=r0)
+		for(y=3*r0;y<YMAX*0.15;y+=r0)
 		{
 			for(z=3*r0;z<ZMAX-3*r0;z+=r0)
 			{
@@ -689,6 +690,7 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 			}
 		}
 	}
+/**/
 
 	if(stage==1)
 	{
@@ -1222,7 +1224,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 									if((position_cpp[4*i+2]>WZC+r0*72.5)&&(position_cpp[4*j+2]>WZC+r0*72.5)) muscle_color = q_i_start + 4.5f;//x.5 = violet
 								
 									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*78)&&(position_cpp[4*j+2]<WZC+r0*78)) //MVR05 || MVL05
+									if((position_cpp[4*i+2]<WZC+r0*78.5)&&(position_cpp[4*j+2]<WZC+r0*78.5)) //MVR05 || MVL05
 									if((position_cpp[4*i+2]>WZC+r0*66.9)&&(position_cpp[4*j+2]>WZC+r0*66.9)) muscle_color = q_i_start + 5.2f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*77.5)&&(position_cpp[4*j+2]<WZC+r0*77.5)) 
@@ -1250,14 +1252,14 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 									if((position_cpp[4*i+2]>WZC+r0*38.5)&&(position_cpp[4*j+2]>WZC+r0*38.5)) muscle_color = q_i_start + 8.5f;//x.5 = violet
 
 									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*51.5)&&(position_cpp[4*j+2]<WZC+r0*51.5)) //MVR09 || MVL09
+									if((position_cpp[4*i+2]<WZC+r0*52.1)&&(position_cpp[4*j+2]<WZC+r0*52.1)) //MVR09 || MVL09
 									if((position_cpp[4*i+2]>WZC+r0*33.5)&&(position_cpp[4*j+2]>WZC+r0*33.5)) muscle_color = q_i_start + 9.2f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*50.0)&&(position_cpp[4*j+2]<WZC+r0*50.0)) 
-									if((position_cpp[4*i+2]>WZC+r0*33.0)&&(position_cpp[4*j+2]>WZC+r0*33.0)) muscle_color = q_i_start + 9.2f;//x.2 = red
+									if((position_cpp[4*i+2]<WZC+r0*50.5)&&(position_cpp[4*j+2]<WZC+r0*50.5)) 
+									if((position_cpp[4*i+2]>WZC+r0*32.5)&&(position_cpp[4*j+2]>WZC+r0*32.5)) muscle_color = q_i_start + 9.2f;//x.2 = red
 
 									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*40.5)&&(position_cpp[4*j+2]<WZC+r0*40.5)) //MVR10 || MVL10
+									if((position_cpp[4*i+2]<WZC+r0*41.1)&&(position_cpp[4*j+2]<WZC+r0*41.1)) //MVR10 || MVL10
 									if((position_cpp[4*i+2]>WZC+r0*22.5)&&(position_cpp[4*j+2]>WZC+r0*22.5)) muscle_color = q_i_start + 10.4f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*40.0)&&(position_cpp[4*j+2]<WZC+r0*40.0)) 
@@ -1284,7 +1286,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 									if((position_cpp[4*i+2]>WZC+r0* 6.5)&&(position_cpp[4*j+2]>WZC+r0* 6.5)) muscle_color = q_i_start + 12.5f;//x.5 = violet
 
 									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0*16.0)&&(position_cpp[4*j+2]<WZC+r0*16.0)) //MVR13 || MVL13
+									if((position_cpp[4*i+2]<WZC+r0*16.5)&&(position_cpp[4*j+2]<WZC+r0*16.5)) //MVR13 || MVL13
 									if((position_cpp[4*i+2]>WZC+r0* 1.5)&&(position_cpp[4*j+2]>WZC+r0* 1.5)) muscle_color = q_i_start + 13.2f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC+r0*15.5)&&(position_cpp[4*j+2]<WZC+r0*15.5)) 
@@ -1304,7 +1306,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 									if((position_cpp[4*i+2]<WZC+r0* 2.0)&&(position_cpp[4*j+2]<WZC+r0* 2.0)) //MVR15 || MVL15
 									if((position_cpp[4*i+2]>WZC-r0*14.5)&&(position_cpp[4*j+2]>WZC-r0*14.5)) muscle_color = q_i_start + 15.3f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)   &&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
-									if((position_cpp[4*i+2]<WZC+r0* 1.0)&&(position_cpp[4*j+2]<WZC+r0* 1.0)) 
+									if((position_cpp[4*i+2]<WZC+r0* 1.5)&&(position_cpp[4*j+2]<WZC+r0* 1.5)) 
 									if((position_cpp[4*i+2]>WZC-r0*15.5)&&(position_cpp[4*j+2]>WZC-r0*15.5)) muscle_color = q_i_start + 15.3f;//x.3 = orange
 
 									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0) &&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
@@ -1321,7 +1323,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 									if((position_cpp[4*i+2]<WZC-r0*14.0)&&(position_cpp[4*j+2]<WZC-r0*14.0)) //MVR17 || MVL17
 									if((position_cpp[4*i+2]>WZC-r0*34.5)&&(position_cpp[4*j+2]>WZC-r0*34.5)) muscle_color = q_i_start + 17.2f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*15.0)&&(position_cpp[4*j+2]<WZC-r0*15.0)) 
+									if((position_cpp[4*i+2]<WZC-r0*14.7)&&(position_cpp[4*j+2]<WZC-r0*14.7)) 
 									if((position_cpp[4*i+2]>WZC-r0*35.5)&&(position_cpp[4*j+2]>WZC-r0*35.5)) muscle_color = q_i_start + 17.2f;//x.2 = red
 
 									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
@@ -1359,22 +1361,22 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 									if((position_cpp[4*i+2]<WZC-r0*50.0)&&(position_cpp[4*j+2]<WZC-r0*50.0)) //MVR22 || MVL22
 									if((position_cpp[4*i+2]>WZC-r0*63.5)&&(position_cpp[4*j+2]>WZC-r0*63.5)) muscle_color = q_i_start + 22.4f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
-									if((position_cpp[4*i+2]<WZC-r0*51.0)&&(position_cpp[4*j+2]<WZC-r0*51.0)) 
+									if((position_cpp[4*i+2]<WZC-r0*50.5)&&(position_cpp[4*j+2]<WZC-r0*50.5)) 
 									if((position_cpp[4*i+2]>WZC-r0*64.5)&&(position_cpp[4*j+2]>WZC-r0*64.5)) muscle_color = q_i_start + 22.4f;//x.4 = magenta
 
 									if((position_cpp[4*i+1]*dq<WYC*dq)&&(position_cpp[4*i+1]*dq>WYC*dq-1*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*70.0)&&(position_cpp[4*j+2]<WZC-r0*70.0)) //MVR23 || MVL23
-									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = q_i_start + 23.3f;//x.3 = orange
+									if((position_cpp[4*i+2]>WZC-r0*92.0)&&(position_cpp[4*j+2]>WZC-r0*92.0)) muscle_color = q_i_start + 23.3f;//x.3 = orange
 
 									if((position_cpp[4*i+1]*dq<WYC*dq-1*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-2*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*71.5)&&(position_cpp[4*j+2]<WZC-r0*71.5)) //MVR24 || MVL24
-									if((position_cpp[4*i+2]>WZC-r0*91.5)&&(position_cpp[4*j+2]>WZC-r0*91.5)) muscle_color = q_i_start + 24.5f;
+									if((position_cpp[4*i+2]>WZC-r0*92.0)&&(position_cpp[4*j+2]>WZC-r0*92.0)) muscle_color = q_i_start + 24.5f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-2*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-3*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*62.5)&&(position_cpp[4*j+2]<WZC-r0*62.5)) 
 									if((position_cpp[4*i+2]>WZC-r0*82.5)&&(position_cpp[4*j+2]>WZC-r0*82.5)) muscle_color = q_i_start + 24.5f;
 									if((position_cpp[4*i+1]*dq<WYC*dq-3*r0)&&(position_cpp[4*i+1]*dq>WYC*dq-4*r0)) 
 									if((position_cpp[4*i+2]<WZC-r0*63.5)&&(position_cpp[4*j+2]<WZC-r0*63.5)) 
-									if((position_cpp[4*i+2]>WZC-r0*66.0)&&(position_cpp[4*j+2]>WZC-r0*66.0)) muscle_color = q_i_start + 24.5f;//x.5 = violet								
+									if((position_cpp[4*i+2]>WZC-r0*66.5)&&(position_cpp[4*j+2]>WZC-r0*66.5)) muscle_color = q_i_start + 24.5f;//x.5 = violet								
 								}
 
 								elasticConnectionsData_cpp[ m_index[muscleCounter] = 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = muscle_color;// type of connection; 0 - ordinary spring, 1 or more - muscle
@@ -1543,7 +1545,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		exit( -1 );
 	}
 }
-//This Function is currently on testing stage
+//This function is currently on testing stage
 void owHelper::loadConfigurationFromOneFile(float *position_cpp, float *velocity_cpp, float *&elasticConnections, int &numOfLiquidP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
 {
 	try
