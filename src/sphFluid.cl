@@ -119,10 +119,10 @@ int getMaxIndex(
 				float *d_array
 				)
 {
-	float max_d = -1.f;
 	int result;
+	float max_d = -1.f;
 	for(int i=0; i<MAX_NEIGHBOR_COUNT; i++){
-		if(d_array[i] > max_d){
+		if (d_array[i] > max_d){
 			max_d = d_array[i];
 			result = i;
 		}
@@ -140,7 +140,8 @@ int searchForNeighbors_b(
 						 __global float2 * neighborMap,
 						 int * closest_indexes,
 						 float * closest_distances,
-						 int last_farthest
+						 int last_farthest,
+						 int *found_count
 						 )
 {
 	int baseParticleId = gridCellIndex[ searchCell_ ];
@@ -164,7 +165,12 @@ int searchForNeighbors_b(
 			{
 				closest_distances[farthest_neighbor] = _distanceSquared;
 				closest_indexes[farthest_neighbor] = neighborParticleId;
-				farthest_neighbor = getMaxIndex(closest_distances);
+				if(*found_count < MAX_NEIGHBOR_COUNT-1){
+					(*found_count)++;
+					farthest_neighbor = *found_count;
+				} else{
+					farthest_neighbor = getMaxIndex(closest_distances);
+				}
 			}
 			
 			
@@ -222,6 +228,7 @@ __kernel void findNeighbors(
 	float r_thr2 = h * h;
 	float closest_distances[MAX_NEIGHBOR_COUNT];
 	int closest_indexes[MAX_NEIGHBOR_COUNT];
+	int found_count = 0;
 	
 	for(int k=0;k<MAX_NEIGHBOR_COUNT;k++){
 		closest_distances[k] = r_thr2;
@@ -263,35 +270,35 @@ __kernel void findNeighbors(
 	
 	last_farthest = searchForNeighbors_b( searchCells[0], gridCellIndex, position_,
 										 id, sortedPosition, neighborMap,
-										 closest_indexes, closest_distances, last_farthest );
+										 closest_indexes, closest_distances, last_farthest, &found_count );
 	
 	last_farthest = searchForNeighbors_b( searchCells[1], gridCellIndex, position_,
 										 id, sortedPosition, neighborMap,
-										 closest_indexes, closest_distances, last_farthest  );
+										 closest_indexes, closest_distances, last_farthest, &found_count  );
 	
 	last_farthest = searchForNeighbors_b( searchCells[2], gridCellIndex, position_,
 										 id, sortedPosition, neighborMap,
-										 closest_indexes, closest_distances, last_farthest  );
+										 closest_indexes, closest_distances, last_farthest, &found_count  );
 	
 	last_farthest = searchForNeighbors_b( searchCells[3], gridCellIndex, position_,
 										 id, sortedPosition, neighborMap,
-										 closest_indexes, closest_distances, last_farthest  );
+										 closest_indexes, closest_distances, last_farthest, &found_count  );
 	
 	last_farthest = searchForNeighbors_b( searchCells[4], gridCellIndex, position_,
 										 id, sortedPosition, neighborMap,
-										 closest_indexes, closest_distances, last_farthest  );
+										 closest_indexes, closest_distances, last_farthest, &found_count  );
 	
 	last_farthest = searchForNeighbors_b( searchCells[5], gridCellIndex, position_,
 										 id, sortedPosition, neighborMap,
-										 closest_indexes, closest_distances, last_farthest  );
+										 closest_indexes, closest_distances, last_farthest, &found_count  );
 	
 	last_farthest = searchForNeighbors_b( searchCells[6], gridCellIndex, position_,
 										 id, sortedPosition, neighborMap,
-										 closest_indexes, closest_distances, last_farthest  );
+										 closest_indexes, closest_distances, last_farthest, &found_count  );
 	
 	last_farthest = searchForNeighbors_b( searchCells[7], gridCellIndex, position_,
 										 id, sortedPosition, neighborMap,
-										 closest_indexes, closest_distances, last_farthest );
+										 closest_indexes, closest_distances, last_farthest, &found_count );
 	
 	for(int j=0; j<MAX_NEIGHBOR_COUNT; j++){
 		if(closest_indexes[j] >= 0){
