@@ -16,8 +16,10 @@ Compiling / running (Linux/mac)
 In ubuntu, install the dependencies with:
 
 ```
-sudo apt-get install g++ python-dev freeglut3-dev nvidia-opencl-dev
+sudo apt-get install g++ python-dev freeglut3-dev nvidia-opencl-dev libglu1-mesa-dev libglew-dev
 ```
+
+Next, install [AMD's OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/).  Or, you can try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html).  The AMD drivers include samples in /opt/AMDAPP/samples/opencl/bin which you can use to verify your OpenCL support is working.
 
 Next, navigate to the `Release` folder and run:
 
