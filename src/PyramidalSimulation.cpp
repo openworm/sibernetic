@@ -15,7 +15,6 @@
 #include <iterator>
 #include <vector>
 
-
 using namespace std;
 
 int PyramidalSimulation::setup(){
@@ -23,16 +22,24 @@ int PyramidalSimulation::setup(){
   char python_module[] = "main_sim";
   char pyClass[] = "muscle_simulation";
 
+  // Initialize the Python interpreter
   Py_Initialize();
   PyObject* pName;
+  // Convert the file name to a Python string.
   pName = PyString_FromString(python_module);
+  const char* s = PyString_AsString(pName);
+  printf("[debug] pName = \"%s\"\n",s);
+  const char* s2 = Py_GetPath();
+  printf("[debug] PyPath = \"%s\"\n",s2);
+  
+  // Import the file as a Python module.
   pModule = PyImport_Import(pName);
+  if( PyErr_Occurred() ) PyErr_Print();  
 
-  //printf("%s",PyGETENV("PYTHONPATH"));
-
-  //    // Build the name of a callable class
+  // Build the name of a callable class
   if (pModule != NULL){
     pClass = PyObject_GetAttrString(pModule,pyClass);
+	if( PyErr_Occurred() ) PyErr_Print();  
   }
   else {
     cout << "Module not loaded, have you set PYTHONPATH?" <<endl;
@@ -42,6 +49,7 @@ int PyramidalSimulation::setup(){
   if (PyCallable_Check(pClass))
     {
       pInstance = PyObject_CallObject(pClass, NULL);
+	  if( PyErr_Occurred() ) PyErr_Print(); 
       cout << "Pyramidal simulation class loaded!"<<endl;
     }
   else {

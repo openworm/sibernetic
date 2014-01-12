@@ -164,7 +164,8 @@ void owOpenCLSolver::initializeOpenCL()
 	int value;
     unsigned long val2;
     size_t val3;
-    uint deviceNum = 0;
+	//uint deviceNum = 0;// causes "error C2065: 'uint' : undeclared identifier"
+    unsigned int deviceNum = 0;
 	result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
 	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_NAME [%d]: \t%s\n",plList, deviceNum, cBuffer);
 	if(strlen(cBuffer)<1000) strcpy(device_full_name,cBuffer);

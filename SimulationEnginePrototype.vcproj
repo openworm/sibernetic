@@ -268,6 +268,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\PyramidalSimulation.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\sphFluid.cl"
 				>
 				<FileConfiguration
@@ -313,6 +317,10 @@
 			</File>
 			<File
 				RelativePath=".\src\owWorldSimulation.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\PyramidalSimulation.h"
 				>
 			</File>
 			<File

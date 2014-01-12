@@ -9,7 +9,7 @@ int main(int argc, char **argv)
 {
 	if(argc == 1)
 	{
-		std::cout << "No arguments, run method executing\n";
+		std::cout << "Sibernetic: no arguments, run method executing\n";
 		run( argc, argv);
 	}
 	else{

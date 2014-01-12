@@ -11,17 +11,17 @@ There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) a
 Compiling / running (Linux/mac)
 ------------------------------
 
-**Linux**: You'll need Python development, freeglut and OpenCL libraries.
+**Linux**
 
-In ubuntu, install the dependencies with:
+Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. You can also try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues. The AMD drivers include samples in /opt/AMDAPP/samples/opencl/bin which you can use to verify your OpenCL support is working.
+
+You'll also need Python development, freeglut and OpenCL libraries. In ubuntu, install the dependencies with:
 
 ```
 sudo apt-get install g++ python-dev freeglut3-dev nvidia-opencl-dev libglu1-mesa-dev libglew-dev
 ```
 
-Next, install [AMD's OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/).  Or, you can try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html).  The AMD drivers include samples in /opt/AMDAPP/samples/opencl/bin which you can use to verify your OpenCL support is working.
-
-Next, navigate to the `Release` folder and run:
+Navigate to the `Release` folder and run:
 
 ```
 make clean
