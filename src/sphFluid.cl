@@ -1603,7 +1603,7 @@ __kernel void computeInteractionWithMembranes(
 			position[PARTICLE_COUNT+id_source_particle].z += delta_pos.z;		//
 
 			velocity_membrane_average += velocity[PARTICLE_COUNT+id_source_particle];
-			velocity_membrane_average /= (membrane_jd_counter+1);
+			velocity_membrane_average /= (float)(membrane_jd_counter+1);
 			
 			//change of velocity for id_source_particle after interaction with membrane(s).
 			//will be applied in function computeInteractionWithMembranes_finalize
