@@ -61,6 +61,9 @@
     #error "Double precision floating point not supported by OpenCL implementation."
 #endif
 
+
+// FUNCTION DEPRECATED
+// neighborMap should have all values or defauls assigned in findNeighbors kernel
 __kernel void clearBuffers(
 							__global float2 * neighborMap,
 							int PARTICLE_COUNT
@@ -301,12 +304,14 @@ __kernel void findNeighbors(
 										 closest_indexes, closest_distances, last_farthest, &found_count );
 	
 	for(int j=0; j<MAX_NEIGHBOR_COUNT; j++){
+		float2 neighbor_data;
+		neighbor_data.x = closest_indexes[j];
 		if(closest_indexes[j] >= 0){
-			float2 neighbor_data;
-			neighbor_data.x = closest_indexes[j];
 			neighbor_data.y = SQRT( closest_distances[j] ) * simulationScale; // scaled, OK
-			neighborMap[ id*MAX_NEIGHBOR_COUNT + j ] = neighbor_data;
+		}else{
+			neighbor_data.y = -1.f;
 		}
+		neighborMap[ id*MAX_NEIGHBOR_COUNT + j ] = neighbor_data;
 	}
 	
 	
