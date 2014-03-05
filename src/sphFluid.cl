@@ -583,7 +583,8 @@ __kernel void pcisph_computeForcesAndInitPressure(
 								  __global float4 * sortedVelocity,
 								  __global float4 * acceleration,
 								  __global uint * particleIndexBack,
-								  /*float*/double Wpoly6Coefficient,
+								  float surfTensCoeff,
+								  // /*float*/double Wpoly6Coefficient,
 								  /*float*/double del2WviscosityCoefficient,
 								  float h,
 								  float mass,
@@ -648,7 +649,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				//0.09 for experiments with water drops
 				//-0.0133
 				// surface tension force
-				accel_surfTensForce += ( -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(hScaled2/2.0,3.0)) * simulationScale ) * (sortedPosition[id]-sortedPosition[jd]);
+				accel_surfTensForce += surfTensCoeff * (sortedPosition[id]-sortedPosition[jd]);
 			}
 		}
 		
@@ -991,15 +992,15 @@ __kernel void pcisph_predictDensity(
 	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
 	/*double*/double density = 0.0f;
+	float density_accum;
 	float4 r_ij;
 	float r_ij2;//squared r_ij
+	float h2 = h*h;
 	float hScaled = h * simulationScale;//scaled smoothing radius
 	float hScaled2 = hScaled*hScaled;//squared scaled smoothing radius
 	float hScaled6 = hScaled2*hScaled2*hScaled2;
-	//float2 nm;
 	int jd;
-	int real_nc = 0;
-
+	
 	//if((int)(sortedPosition[/*PARTICLE_COUNT+*/id].w) == LIQUID_PARTICLE)
 	/*for(int k = 0; k<PARTICLE_COUNT; k++)
 	{
@@ -1018,12 +1019,11 @@ __kernel void pcisph_predictDensity(
 		if( (jd = NEIGHBOR_MAP_ID( neighborMap[ idx + nc ])) != NO_PARTICLE_ID )
 		{
 			r_ij = sortedPosition[PARTICLE_COUNT+id]-sortedPosition[PARTICLE_COUNT+jd];
-			r_ij2 = (r_ij.x*r_ij.x+r_ij.y*r_ij.y+r_ij.z*r_ij.z)*simulationScale*simulationScale;
+			r_ij2 = (r_ij.x*r_ij.x+r_ij.y*r_ij.y+r_ij.z*r_ij.z);
 
-			if(r_ij2<hScaled2)
+			if(r_ij2<h2)
 			{
-				density += (hScaled2-r_ij2)*(hScaled2-r_ij2)*(hScaled2-r_ij2);
-				real_nc++;
+				density_accum += (h2-r_ij2)*(h2-r_ij2)*(h2-r_ij2);
 			}
 
 			if(r_ij2==0)
@@ -1035,6 +1035,7 @@ __kernel void pcisph_predictDensity(
 
 	}while( ++nc < MAX_NEIGHBOR_COUNT );
 	
+	density = (double)density_accum * simulationScale * simulationScale * simulationScale * simulationScale * simulationScale * simulationScale;
 	//if(density==0.f) 
 	if(density<hScaled6)
 	{
@@ -1151,14 +1152,13 @@ __kernel void pcisph_computePressureForceAcceleration(
 				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
 				vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
 
-				
-				if(r_ij<0.5*(hScaled/2))//hScaled/2 = r0 
+
+				if(r_ij<0.5*(hScaled/2))//hScaled/2 = r0
 				{
 					value = -(hScaled*0.25f-r_ij)*(hScaled*0.25f-r_ij)*0.5f*(rho0*delta)/rho[PARTICLE_COUNT+jd];
-					vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
+					//vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
 				}
-
-				if(r_ij==0.0f) 
+				if(r_ij==0.0f)
 				{
 					printf("\n> Error!: r_ij: %f ",r_ij);
 					printf("\n> sortedPosition[%d]	: %f , %f , %f ",id,sortedPosition[id].x,sortedPosition[id].y,sortedPosition[id].z);
