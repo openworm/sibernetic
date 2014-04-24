@@ -393,7 +393,8 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure()
 	pcisph_computeForcesAndInitPressure.setArg( 4, sortedVelocity );
 	pcisph_computeForcesAndInitPressure.setArg( 5, acceleration );
 	pcisph_computeForcesAndInitPressure.setArg( 6, particleIndexBack );
-	pcisph_computeForcesAndInitPressure.setArg( 7, Wpoly6Coefficient );
+	pcisph_computeForcesAndInitPressure.setArg( 7, surfTensCoeff );
+//	pcisph_computeForcesAndInitPressure.setArg( 7, Wpoly6Coefficient );
 	pcisph_computeForcesAndInitPressure.setArg( 8, del2WviscosityCoefficient );
 	pcisph_computeForcesAndInitPressure.setArg( 9, h );
 	pcisph_computeForcesAndInitPressure.setArg(10, mass );

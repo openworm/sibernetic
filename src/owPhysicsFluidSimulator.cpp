@@ -85,7 +85,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 	printf("\n[[ Step %d ]]\n",iterationCount);
 	try{
 		//SEARCH FOR NEIGHBOURS PART
-		ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
+//		ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
 		ocl_solver->_runHashParticles();							helper->watch_report("_runHashParticles: \t%9.3f ms\n");
 		ocl_solver->_runSort();										helper->watch_report("_runSort: \t\t%9.3f ms\n");
 		ocl_solver->_runSortPostPass();								helper->watch_report("_runSortPostPass: \t%9.3f ms\n");
