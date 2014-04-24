@@ -17,9 +17,9 @@ class owHelper
 public:
 	owHelper(void);
 	~owHelper(void);
-	static void generateConfiguration(int stage, float *position, float *velocity, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int * particleMembranesList_cpp);
-	static void preLoadConfiguration();
-	static void loadConfiguration( float * position, float  * velocity, float *& elasticConnectionsData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections );
+	static void generateConfiguration( int stage, float *position, float *velocity, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int * particleMembranesList_cpp );
+	static void preLoadConfiguration( int & numOfMembranes );
+	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp );
 	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *& elasticConnectionsData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
 	static void loadConfigurationToFile(float * position, float * connections=NULL, int * membranes=NULL, bool firstIteration = true);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration = 0);

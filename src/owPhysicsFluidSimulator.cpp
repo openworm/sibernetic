@@ -34,9 +34,9 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp);	
 		else								
 		// LOAD FROM FILE
-		owHelper::preLoadConfiguration();
+		owHelper::preLoadConfiguration(numOfMembranes);
 		 //mv
-		simulation.setup();
+		//simulation.setup();
 											//=======================
 
 		position_cpp = new float[ 4 * PARTICLE_COUNT ];
@@ -63,7 +63,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		owHelper::generateConfiguration(1,position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp );	
 		else 
 		// LOAD FROM FILE	
-		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections );		//Load configuration from file to buffer
+		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp );		//Load configuration from file to buffer
 											
 		if(numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
@@ -131,12 +131,12 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 
         //mv
-        vector<float> muscle_vector = simulation.run();
+       /* vector<float> muscle_vector = simulation.run();
         for(int i=0; i<MUSCLE_COUNT; i++){
         	for (long index = 0; index < muscle_vector.size(); index++){
         		muscle_activation_signal_cpp[index] = muscle_vector[index];
         	}
-        }
+        }*/
 
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp);
 		return helper->get_elapsedTime();

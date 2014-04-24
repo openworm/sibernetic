@@ -1,5 +1,36 @@
-// sphFluid.cl  OpenWorm Project   31/2/2013
-//
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2011, 2013 OpenWorm.
+ * http://openworm.org
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *
+ * Contributors:
+ *     	OpenWorm - http://openworm.org/people.html
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *******************************************************************************/
+
 // Equations referenced here are from:
 // "Particle-based fluid simulation for interactive applications", Muller, Charypar & Gross,
 // Eurographics/SIGGRAPH Symposium on Computer Animation (2003).
@@ -52,7 +83,7 @@
 #endif
 
 #pragma OPENCL EXTENSION cl_amd_printf : enable
-
+#pragma OPENCL EXTENSION cl_intel_printf : enable
 #ifdef cl_khr_fp64
     #pragma OPENCL EXTENSION cl_khr_fp64 : enable
 #elif defined(cl_amd_fp64)
@@ -722,7 +753,7 @@ __kernel void pcisph_computeElasticForces(
 	int id = particleIndexBack[index + offset];
 	int idx = index * MAX_NEIGHBOR_COUNT;
 	float r_ij_equilibrium, r_ij, delta_r_ij, v_i_cm_length;
-	float k = 600000000.f;// k - coefficient of elasticity
+	float k = 1.95e-05f;// k - coefficient of elasticity
 	float4 vect_r_ij;
 	float4 centerOfMassVelocity;
 	float4 velocity_i_cm;
@@ -756,7 +787,7 @@ __kernel void pcisph_computeElasticForces(
 
 			if(r_ij!=0.f)
 			{
-				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * k;
+				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * k / mass ;
 
 				for(i=0;i<MUSCLE_COUNT;i++)//check all muscles
 				{
@@ -896,70 +927,29 @@ __kernel void pcisph_predictPositions(
 						)
 {
 	int id = get_global_id( 0 );
-	if( id >= PARTICLE_COUNT ) return;
-	id = particleIndexBack[id];
-	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
-	float4 position_ = sortedPosition[ id ];
-	if((int)(position[ id_source_particle ].w) == 3){//stationary (boundary) particles, right?
-		sortedPosition[PARTICLE_COUNT+id] = position_;//this line was missing (absent) and this fact caused serions errors in program behavior
-		return;
-	}
-	//                     pressure force (dominant)            + all other forces  
-	float4 acceleration_ = acceleration[ PARTICLE_COUNT+id ];// + acceleration[ id ];
-	float4 velocity_ = sortedVelocity[ id ];
-	// Semi-implicit Euler integration 
-	float4 newVelocity_ = velocity_ + timeStep * acceleration_; //newVelocity_.w = 0.f;
-	float posTimeStep = timeStep * simulationScaleInv;			
-	float4 newPosition_ = position_ + posTimeStep * newVelocity_; //newPosition_.w = 0.f;
+		if( id >= PARTICLE_COUNT ) return;
+		id = particleIndexBack[id];
+		int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
+		float4 position_ = sortedPosition[ id ];
+		if((int)(position[ id_source_particle ].w) == 3){//stationary (boundary) particles, right?
+			sortedPosition[PARTICLE_COUNT+id] = position_;//this line was missing (absent) and this fact caused serions errors in program behavior
+			return;
+		}
+		//                     pressure force (dominant)            + all other forces  
+		float4 acceleration_ = acceleration[ PARTICLE_COUNT+id ];// + acceleration[ id ];
+		float4 velocity_ = sortedVelocity[ id ];
+		// Semi-implicit Euler integration 
+		float4 newVelocity_ = velocity_ + timeStep * acceleration_; //newVelocity_.w = 0.f;
+		float posTimeStep = timeStep * simulationScaleInv;			
+		float4 newPosition_ = position_ + posTimeStep * newVelocity_; //newPosition_.w = 0.f;
 
-	//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
+		//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
 
-	// temporarily switched off. By the way, this causes no visible effect
-	//computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_,PARTICLE_COUNT);
+		// temporarily switched off. By the way, this causes no visible effect
+		//computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_,PARTICLE_COUNT);
 
-	sortedPosition[PARTICLE_COUNT+id] = newPosition_;// in current version sortedPosition array has double size, 
-													 // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
-
-	/*
-	float4 dr = newPosition_ - position_;
-	float dr2 = (newPosition_.x - position_.x)*(newPosition_.x - position_.x)+
-				(newPosition_.y - position_.y)*(newPosition_.y - position_.y)+
-				(newPosition_.z - position_.z)*(newPosition_.z - position_.z);
-	dr2 = sqrt(dr2);*/
-
-	//if(dr2>0.08)
-	//	printf("\n~[%d]-(%f)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",id,dr2);
-
-/*	
-	int status = 0;
-
-	if(!(	(position_.x>=0)&&(position_.x<=xmax)&&
-			(position_.y>=0)&&(position_.y<=ymax)&&
-			(position_.z>=0)&&(position_.z<=zmax) ))
-	{
-		printf("\nError: position_[%d] coordinates: %f , %f , %f out of the world space\n",id,position_.x,position_.y,position_.z);
-		status=1;
-	}
-
-	if(!(	(newPosition_.x>=0)&&(newPosition_.x<=xmax)&&
-			(newPosition_.y>=0)&&(newPosition_.y<=ymax)&&
-			(newPosition_.z>=0)&&(newPosition_.z<=zmax) ))
-	{
-		printf("\n position_[%d]	: %f , %f , %f ",id,position_.x,position_.y,position_.z);
-		printf("\n velocity_[%d]	: %f , %f , %f ",id,velocity_.x,velocity_.y,velocity_.z);
-		printf("\n acceleration_[id]: %f , %f , %f ",acceleration[id].x,acceleration[id].y,acceleration[id].z);
-		printf("\n acceleration_[PARTICLE_COUNT+id]: %f , %f , %f ",acceleration[PARTICLE_COUNT+id].x,acceleration[PARTICLE_COUNT+id].y,acceleration[PARTICLE_COUNT+id].z);
-		printf("\nError: newPosition_[%d] coordinates: %f , %f , %f out of the world space\n",id,newPosition_.x,newPosition_.y,newPosition_.z);
-		status=1;
-	}
-*/
-
-	/*
-	if(status==1)
-	for(int i=0;i<10000;i++)
-	{
-		printf(":");
-	}*/
+		sortedPosition[PARTICLE_COUNT+id] = newPosition_;// in current version sortedPosition array has double size, 
+														 // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
 
 
@@ -1700,93 +1690,43 @@ __kernel void pcisph_integrate(
 	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE){
 		return;
 	}
-	float4  accelOld = acceleration[ id ];
-	float4  accelT = acceleration[ PARTICLE_COUNT+id ];
-	float4 acceleration_ = acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ]; acceleration_.w = 0.f;
-	float4 velocity_ = sortedVelocity[ id ];
-	//float4 acceleration_Fp;
-	//acceleration_Fp = acceleration[ PARTICLE_COUNT+id ]; acceleration_Fp.w = 0.f;
-	//acceleration_ += acceleration[ PARTICLE_COUNT+id ]; 
-	//float speedLimit = 100.f;
-
-	// Semi-implicit Euler integration 
-	//float nV_length;
-	//float vel_limit = 100.f;
-	float4 newVelocity_ = velocity_ + timeStep * acceleration_  ; //newVelocity_.w = 0.f;
-		
-	//newVelocity_[3] = 0;
-	//nV_length = SQRT(DOT(newVelocity_,newVelocity_));
-	//if(nV_length>vel_limit)
-	//	newVelocity_ = newVelocity_*vel_limit/nV_length;
-
-	float posTimeStep = timeStep * simulationScaleInv;			
-	float4 newPosition_ = position_ + posTimeStep * newVelocity_; //newPosition_.w = 0.f;
-
-	//if(mode==0)
-	/*{
-		//sortedVelocity[PARTICLE_COUNT+id] = newVelocity_;// sorted position, as well as velocity, in current version has double size, PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
-		sortedPosition[PARTICLE_COUNT+id] = newPosition_;
-	}*/
-	//else//if mode==1
-
+	float4 acceleration_t    = acceleration[ PARTICLE_COUNT*2+id_source_particle ];    acceleration_t.w    = 0.f;
+	float4 acceleration_t_dt = acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ]; acceleration_t_dt.w = 0.f;
+	float4 velocity_t = sortedVelocity[ id ];
+	float4 position_t = sortedPosition[ id ];
+	if(iterationCount==0) 
+		acceleration_t = (float4)(0.0,-9.8f,0.0,0.0); 
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	// The semi-implicit Euler is a first-order integrator, just as the standard Euler method.	 //
+	// This means that it commits a global error of the order of dt. However, the semi-implicit	 //
+	// Euler method is a symplectic integrator, unlike the standard method. As a consequence,	 //
+	// the semi-implicit Euler method almost conserves the energy (when the Hamiltonian is	 //
+	// time-independent).	 //	
+	// http://en.wikipedia.org/wiki/Semi-implicit_Euler	 //
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	// Semi-)Implicit Euler integrator. 1st order, symplectic (has a sort of "global" stability) //
+	// Most of the usual numerical methods, like the primitive Euler scheme	 //
+	// and the classical Runge-Kutta scheme, are not symplectic integrators.	 //
+	//!!//////////////////////////////////////////////////////////////////////////////////////////////////
+	/**/	float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*timeStep;	 //
+	/**/	float4 position_t_dt = position_t + (velocity_t_dt)*timeStep*simulationScaleInv;	 //
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	
 	// in Chao Fang realization here is also acceleration 'speed limit' applied
 
-	if(newPosition_.x<xmin) newPosition_.x = xmin;//A.Palyanov 30.08.2012
-	if(newPosition_.y<ymin) newPosition_.y = ymin;//A.Palyanov 30.08.2012
-	if(newPosition_.z<zmin) newPosition_.z = zmin;//A.Palyanov 30.08.2012
-	if(newPosition_.x>xmax-0.000001f) newPosition_.x = xmax-0.000001f;//A.Palyanov 30.08.2012
-	if(newPosition_.y>ymax-0.000001f) newPosition_.y = ymax-0.000001f;//A.Palyanov 30.08.2012
-	if(newPosition_.z>zmax-0.000001f) newPosition_.z = zmax-0.000001f;//A.Palyanov 30.08.2012
+	if(position_t_dt.x<xmin) position_t_dt.x = xmin;//A.Palyanov 30.08.2012
+	if(position_t_dt.y<ymin) position_t_dt.y = ymin;//A.Palyanov 30.08.2012
+	if(position_t_dt.z<zmin) position_t_dt.z = zmin;//A.Palyanov 30.08.2012
+	if(position_t_dt.x>xmax-0.000001f) position_t_dt.x = xmax-0.000001f;//A.Palyanov 30.08.2012
+	if(position_t_dt.y>ymax-0.000001f) position_t_dt.y = ymax-0.000001f;//A.Palyanov 30.08.2012
+	if(position_t_dt.z>zmax-0.000001f) position_t_dt.z = zmax-0.000001f;//A.Palyanov 30.08.2012
 	// better replace 0.0000001 with smoothingRadius*0.001 or smth like this 
 
 	float particleType = position[ id_source_particle ].w;
-	newVelocity_ = (velocity_ + newVelocity_) * 0.5f ;
-	computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_, true, &newVelocity_,PARTICLE_COUNT);
+	velocity[ id_source_particle ] = (float4)((float)velocity_t_dt.x, (float)velocity_t_dt.y, (float)velocity_t_dt.z, 0.f);
+	position[ id_source_particle ] = (float4)((float)position_t_dt.x, (float)position_t_dt.y, (float)position_t_dt.z, particleType);
 
-	velocity[ id_source_particle ] = newVelocity_;//newVelocity_;
-	position[ id_source_particle ] = newPosition_;
-	position[ id_source_particle ].w = particleType;
-
-	/*
-	if( (newPosition_.x>60.477958)&&(newPosition_.x<60.477960)&&
-		(newPosition_.y>104.181762)&&(newPosition_.y<104.181764)&&
-		(newPosition_.z>59.417441)&&(newPosition_.z<59.417443))
-	{
-		printf("!here it is! [ %d | %d | %d ]\n",get_global_id( 0 ),id,id_source_particle);
-		printf("*** position_: %f, %f, %f ***\n",position_.x,position_.y,position_.z);
-		printf("*** newVelocity_: %f, %f, %f ***\n",newVelocity_.x,newVelocity_.y,newVelocity_.z);
-	}
-
-	if( (newPosition_.x>60.486682)&&(newPosition_.x<60.486684)&&
-		(newPosition_.y>104.16377)&&(newPosition_.y<104.16379)&&
-		(newPosition_.z>59.418760)&&(newPosition_.z<59.418780))
-	{
-		printf("!here it is! [ %d | %d | %d ]\n",get_global_id( 0 ),id,id_source_particle);
-		printf("*** position_: %f, %f, %f ***\n",position_.x,position_.y,position_.z);
-		printf("*** newVelocity_: %f, %f, %f ***\n",newVelocity_.x,newVelocity_.y,newVelocity_.z);
-	}*/
-/*
-	if(id_source_particle==30)
-	printf(">>> %d <<<\n",iterationCount);
-	
-	if((id_source_particle==30)/||(id_source_particle==55)/)
-	{
-		printf("\n>>> position_[%d] %f, %f, %f",id_source_particle,position_.x,position_.y,position_.z);
-		if(id_source_particle==30)
-		{
-			//int jd_source_particle = PI_SERIAL_ID( particleIndex[55] );
-			
-			int jd = particleIndexBack[31];
-			printf("\n>>> position_[%d] %f, %f, %f",31,sortedPosition[ jd ].x,sortedPosition[ jd ].y,sortedPosition[ jd ].z);
-			float rij = sqrt(	(position_.x - sortedPosition[ jd ].x)*(position_.x - sortedPosition[ jd ].x) +
-								(position_.y - sortedPosition[ jd ].y)*(position_.y - sortedPosition[ jd ].y) + 
-								(position_.z - sortedPosition[ jd ].z)*(position_.z - sortedPosition[ jd ].z) );
-			printf("\n>>> r_ij = %f, r0 = %f (%f%%)\n",rij,r0,100.f*rij/r0);
-		}
-	
-		//printf("\n>>> newPosition_[%d] %f, %f, %f",id_source_particle,newPosition_.x,newPosition_.y,newPosition_.z);
-	}
-*/	
-	
-	// position[0..2] stores x,y,z; position[3] - for particle type
+	acceleration[PARTICLE_COUNT*2+id_source_particle] = acceleration_t_dt;
 }
+
+

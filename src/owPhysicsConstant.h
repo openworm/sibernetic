@@ -11,14 +11,12 @@
 
 const float rho0 = 1000.0f;
 const float mass = 3.25e-14f;// kg // we need 3.25e-14 kg
-//const float mass = 3.25e-08f;
 const float timeStep = 5.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
-//const float timeStep = 0.2e-04f;
-//const float timeStep = 1.0e-02f;
+
 
 const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);
 
-const float h = 3.34f;//pow((( 3 * mass * (float)MAX_NEIGHBOR_COUNT )/( 4 * M_PI * rho0 )), 1.f/3.f ) / simulationScale; //3.34f;
+const float h = 3.34f;
 const float hashGridCellSize = 2.0f * h;
 const float hashGridCellSizeInv = 1.0f / hashGridCellSize;
 const float simulationScaleInv = 1.0f / simulationScale;
@@ -30,11 +28,11 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 //Sizes of the box containing simulated 'world'
 //Sizes choice is realized this way because it should be proportional to smoothing radius h
 #define XMIN 0
-#define XMAX 30.0*h // horizontal 1
+#define XMAX 88.84//30.0*h // horizontal 1
 #define YMIN 0
-#define YMAX 20.0*h // vertical
+#define YMAX 88.84//20.0*h // vertical
 #define ZMIN 0
-#define ZMAX 250.0*h // horizontal 2 //142
+#define ZMAX 88.84//250.0*h // horizontal 2 //142
 
 //const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
 

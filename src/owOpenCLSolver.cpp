@@ -70,11 +70,10 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 			create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 3 ) );
 			copy_buffer_to_device( membraneData_cpp, membraneData, numOfMembranes * sizeof( int ) * 3 );
 
-			if(elasticConnectionsData_cpp != NULL) //in actual version I'm going to support only membrance built upon elastic matter particles (interconnected with springs -- highly recommended)
+			if(particleMembranesList_cpp != NULL) //in actual version I'm going to support only membrance built upon elastic matter particles (interconnected with springs -- highly recommended)
 			{
 				create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
-				int result = copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
-				result = result;
+				copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
 			}
 
 			if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;
@@ -433,7 +432,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 8, simulationScale );
 	pcisph_computeElasticForces.setArg( 9, numOfElasticP );
 	pcisph_computeElasticForces.setArg( 10, elasticConnectionsData );
-	pcisph_computeElasticForces.setArg( 11, numOfBoundaryP*(!generateInitialConfiguration) );
+	pcisph_computeElasticForces.setArg( 11, numOfBoundaryP );
 	pcisph_computeElasticForces.setArg( 12, PARTICLE_COUNT );
 	pcisph_computeElasticForces.setArg( 13, MUSCLE_COUNT );
 	pcisph_computeElasticForces.setArg( 14, muscle_activation_signal);

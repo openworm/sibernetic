@@ -2,7 +2,7 @@
 #define PYRAMIDALSIMULATION_H
 //#include "/usr/include/python2.7/Python.h"  //need to fix
 //#define MS_NO_COREDLL
-#if defined (__APPLE__)
+#if defined (__APPLE__) || defined (__linux)
   #include <Python.h>
 #else
   #include "C:/Python27/include/Python.h"

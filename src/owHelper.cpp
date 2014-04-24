@@ -1430,41 +1430,59 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	return;
 }
 
-void owHelper::preLoadConfiguration()
+std::string path = "/home/serg/git/ConfigurationGenerator/configurations/";
+std::string suffix = "";
+void owHelper::preLoadConfiguration(int & numOfMembranes)
 {
 	try
 	{
 		PARTICLE_COUNT = 0;
-		ifstream positionFile ("./configuration/position.txt");
+		std::string p_file_name = path + "position" + suffix + ".txt";
+		std::ifstream positionFile (p_file_name.c_str());
 		int i = 0;
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
 			while( positionFile.good() )
 			{
-				p_type = -1.1f;//reinitialize 
+				p_type = -1.1f;//reinitialize
 				positionFile >> x >> y >> z >> p_type;
 				if(p_type>=0) PARTICLE_COUNT++;//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
 				else break;//end of file
 			}
 		}
-
+		positionFile.close();
 		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 
 		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
+
+		numOfMembranes = 0;
+		std::ifstream membranesFile ("/home/serg/git/ConfigurationGenerator/configurations/membranes.txt");
+		i = 0;
+		int id, jd, kd;
+		if( membranesFile.is_open() )
+		{
+			while( membranesFile.good() )
+			{
+				kd = -1;
+				membranesFile >> id >> jd >> kd ;
+				if(kd>=0)numOfMembranes++;//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
+			}
+		}
+		membranesFile.close();
 	}
 	catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
 	}
 }
-
-void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections)
+void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp)
 {
 
 	try
 	{
-		ifstream positionFile ("./configuration/position.txt");
+		std::string p_file_name = path + "position" + suffix + ".txt";
+		std::ifstream positionFile (p_file_name.c_str());
 		int i = 0;
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
@@ -1491,9 +1509,10 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 			}
 			positionFile.close();
 		}
-		else 
+		else
 			throw std::runtime_error("Could not open file position.txt");
-		ifstream velocityFile ("./configuration/velocity.txt");
+		std::string v_file_name = path + "velocity" + suffix + ".txt";
+		std::ifstream velocityFile (v_file_name.c_str());
 		i = 0;
 		if( velocityFile.is_open() )
 		{
@@ -1508,21 +1527,17 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 			}
 			velocityFile.close();
 		}
-		else 
+		else
 			throw std::runtime_error("Could not open file velocity.txt");
 		//TODO NEXT BLOCK WILL BE new load of elastic connections
 		if(numOfElasticP != 0){
-			ifstream elasticConectionsFile ("./configuration/elasticconnections.txt");
+			std::string c_file_name = path + "connection" + suffix + ".txt";
+			std::ifstream elasticConectionsFile (c_file_name.c_str());
 			elasticConnections = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
-			/*int numElasticConnections = 0;
-			for(i=0;i<numOfElasticP * MAX_NEIGHBOR_COUNT;i++)
-			{
-				elasticConnections[ 4 * i + 0 ] = NO_PARTICLE_ID;
-			}*/
 			i = 0;
-			float  jd, rij0, val1, val2;// Elastic connection particle jd - jparticle rij0 - distance between i and j, val1, val2 - doesn't have any useful information yet
 			if( elasticConectionsFile.is_open() )
 			{
+				float  jd, rij0, val1, val2;// Elastic connection particle jd - jparticle rij0 - distance between i and j, val1, val2 - doesn't have any useful information yet
 				//elasticConectionsFile >> numElasticConnections;
 
 				while( elasticConectionsFile.good())
@@ -1539,6 +1554,42 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 					}
 				}
 			}
+			elasticConectionsFile.close();
+			//Import Membranes
+			//return;
+			std::ifstream membranesFile ("/home/serg/git/ConfigurationGenerator/configurations/membranes.txt");
+			i = 0;
+			if( membranesFile.is_open() )
+			{
+				int id, jd, kd;
+
+				while( membranesFile.good() && i < numOfMembranes)
+				{
+					membranesFile >> id >> jd >> kd;
+					membraneData_cpp[ 3 * i + 0 ] = id;
+					membraneData_cpp[ 3 * i + 1 ] = jd;
+					membraneData_cpp[ 3 * i + 2 ] = kd;
+					i++;
+				}
+			}
+			membranesFile.close();
+
+			//Import Membranes
+			std::ifstream membranesIndexFile ("/home/serg/git/ConfigurationGenerator/configurations/particleMembraneIndex.txt");
+			i = 0;
+			if( membranesIndexFile.is_open())
+			{
+				int id;
+				particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
+				while( membranesIndexFile.good() && i < numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
+				{
+					membranesIndexFile >> id ;
+					particleMembranesList_cpp[ i ] = id;
+					i++;
+				}
+			}
+			membranesIndexFile.close();
+
 		}
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
