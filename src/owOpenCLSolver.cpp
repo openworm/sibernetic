@@ -1,3 +1,36 @@
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2011, 2013 OpenWorm.
+ * http://openworm.org
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *
+ * Contributors:
+ *     	OpenWorm - http://openworm.org/people.html
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *******************************************************************************/
+
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
@@ -15,7 +48,6 @@ int gridCellsX = (int)( ( XMAX - XMIN ) / h ) + 1;
 int gridCellsY = (int)( ( YMAX - YMIN ) / h ) + 1;
 int gridCellsZ = (int)( ( ZMAX - ZMIN ) / h ) + 1;
 int gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
-extern int numOfLiquidP;
 extern int numOfElasticP;
 extern int numOfBoundaryP;
 extern int numOfMembranes;
@@ -100,7 +132,6 @@ void owOpenCLSolver::initializeOpenCL()
 		throw std::runtime_error( "No OpenCL platforms found" );
 	}
 	char cBuffer[1024];
-	cl_platform_id clSelectedPlatformID = NULL;
 	cl_platform_id cl_pl_id[10];
 	cl_uint n_pl;
 	clGetPlatformIDs(10,cl_pl_id,&n_pl);
@@ -166,18 +197,18 @@ void owOpenCLSolver::initializeOpenCL()
 	//uint deviceNum = 0;// causes "error C2065: 'uint' : undeclared identifier"
     unsigned int deviceNum = 0;
 	result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
-	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_NAME [%d]: \t%s\n",plList, deviceNum, cBuffer);
+	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_NAME [" << deviceNum << "]:\t" << cBuffer << "\n" << std::endl;
 	if(strlen(cBuffer)<1000) strcpy(device_full_name,cBuffer);
 	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&val3);
-	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_MAX_WORK_GROUP_SIZE [%d]: \t%d\n",plList, deviceNum, val3);
+	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_MAX_WORK_GROUP_SIZE [" <<  deviceNum <<"]: \t" << val3 <<std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&value);
-	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_MAX_COMPUTE_UNITS [%d]: \t%d\n",plList, deviceNum, value);
+	if(result == CL_SUCCESS) std::cout<<"CL_CONTEXT_PLATFORM [" << plList << "]: CL_DEVICE_MAX_COMPUTE_UNITS [" << deviceNum << "]: \t" << value  << std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_GLOBAL_MEM_SIZE,&val2);
-	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_GLOBAL_MEM_SIZE [%d]: \t%d\n",plList, deviceNum, val2);
+	if(result == CL_SUCCESS) std::cout<<"CL_CONTEXT_PLATFORM [" << plList <<"]: CL_DEVICE_GLOBAL_MEM_SIZE ["<< deviceNum <<"]: \t" << deviceNum <<std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_GLOBAL_MEM_CACHE_SIZE,&val2);
-	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE [%d]: \t%d\n",plList, deviceNum, val2);
+	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM [" << plList <<"]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE [" << deviceNum <<"]:\t" << val2 <<std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_LOCAL_MEM_SIZE,&val2);
-	if(result == CL_SUCCESS) printf("CL_CONTEXT_PLATFORM [%d]: CL_DEVICE_LOCAL_MEM_SIZE [%d]: \t%d\n",plList, deviceNum, val2);
+	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM " << plList <<": CL_DEVICE_LOCAL_MEM_SIZE ["<< deviceNum <<"]:\t" << val2 << std::endl;
 	
 	queue = cl::CommandQueue( context, devices[ deviceNum ], 0, &err );
 	if( err != CL_SUCCESS ){
@@ -310,7 +341,7 @@ unsigned int owOpenCLSolver::_runIndexPostPass()
 	int recentNonEmptyCell = gridCellCount;
 	for(int i=gridCellCount;i>=0;i--)
 	{
-		if(gridNextNonEmptyCellBuffer[i]==NO_CELL_ID)
+		if(gridNextNonEmptyCellBuffer[i] == NO_CELL_ID)
 			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell; 
 		else recentNonEmptyCell = gridNextNonEmptyCellBuffer[i];
 	}
@@ -438,6 +469,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 13, MUSCLE_COUNT );
 	pcisph_computeElasticForces.setArg( 14, muscle_activation_signal);
 	pcisph_computeElasticForces.setArg( 15, position);
+	pcisph_computeElasticForces.setArg( 16, elasticityCoefficient);
 	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( numOfElasticPCountRoundedUp ),

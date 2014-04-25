@@ -1,14 +1,44 @@
-#include "owHelper.h"
-#include "owPhysicsConstant.h"
-#include <iostream>
-#include <fstream>
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2011, 2013 OpenWorm.
+ * http://openworm.org
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *
+ * Contributors:
+ *     	OpenWorm - http://openworm.org/people.html
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *******************************************************************************/
+
 #include <string>
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdexcept>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "owHelper.h"
+#include "owPhysicsConstant.h"
 
 #if defined(__APPLE__) || defined (__MACOSX)
 #include <mach/mach.h>
@@ -20,19 +50,11 @@ using namespace std;
 extern int PARTICLE_COUNT;
 extern int PARTICLE_COUNT_RoundedUp;
 extern int local_NDRange_size;
-extern int numOfElasticConnections;
 extern int numOfMembranes;
 extern int numOfElasticP;
 extern int numOfLiquidP;
-extern int iterationCount;
 
-struct pos{
-	float x;
-	float y;
-	float z;
-	float p_type;
-};
-std::vector<pos> f_data;
+
 owHelper::owHelper(void)
 {
 	refreshTime();
@@ -55,51 +77,8 @@ void owHelper::refreshTime()
     t0 = t1;
 #endif
 }
-//For output float buffer
-//Create File in which line element_size elements forn buffer
-//global_size - size of buffer / element_size
-void owHelper::log_bufferf(const float * buffer, const int element_size, const int global_size, const char * fileName)
-{
-	try{
-		ofstream outFile (fileName);
-		for(int i = 0; i < global_size; i++)
-		{
-			for(int j = 0; j < element_size; j++)
-			{
-				if(j < element_size - 1 )
-					outFile << buffer[ i * element_size + j ] << "\t";
-				else
-					outFile << buffer[ i * element_size + j ] << "\n";
-			}
-		}
-		outFile.close();
-	}catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
-	}
-}
 
-//For output int buffer
-void owHelper::log_bufferi(const int * buffer, const int element_size, const int global_size, const char * fileName)
-{
-	try{
-		ofstream outFile (fileName);
-		for(int i = 0; i < global_size; i++)
-		{
-			for(int j = 0; j < element_size; j++)
-			{
-				if(j < element_size + 1 )
-					outFile << buffer[ i * element_size + j ] << "\t";
-				else
-					outFile << buffer[ i * element_size + j ] << "\n";
-			}
-		}
-		outFile.close();
-	}catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
-	}
-}
+
 
 int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp, int &numOfMembranes, int *membraneData_cpp)
 {
@@ -547,22 +526,18 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp)
 {
 	//return 0;
-	int segmentsCount;// = 10;
 	float alpha;// = 2.f*3.14159f/segmentsCount;
-	float coeff = 0.23f;
 	float wormBodyRadius;// = h*coeff / sin(alpha/2);
 	int pCount = 0;//particle counter
 	int i;
 
 	float *positionVector;
 	float *velocityVector;
-	float value;
 	int elasticLayers;//starting from 2, because 1 is for outer shell and doesn't contain liquid particles
 	float xc = XMAX*0.5f;
 	float yc = YMAX*0.3f;
 	float zc = ZMAX*0.5f;
 	float PI = 3.1415926536f;
-	float beta;
 	float angle;
 	float x,y,z;
 
@@ -710,7 +685,6 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 
 void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp)
 {
-	float x,y,z;
 	float p_type = LIQUID_PARTICLE;
 	int i = 0;// particle counter
 	int ix,iy,iz;
@@ -720,12 +694,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
 	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
 
-	int nEx = 5*0;//7
-	int nEy = 3*0;//4
-	int nEz = 9*0;//25
-	int nMuscles = 5;
-	int nM,nMi,nMj;
-	int wormIndex_start,wormIndex_end;
 	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp);
 
 	if(stage==0)
@@ -740,13 +708,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	//=============== create worm body (elastic parts) ==================================================
 	if(stage==1)
 	{
-		wormIndex_start = i;
 		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp);
-		wormIndex_end = i;
-
-		float r2ij;
-		float dx2,dy2,dz2;
-
 		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
 		for(int ii = 0; ii < numOfElasticP * MAX_NEIGHBOR_COUNT; ii++)
 		{
@@ -961,12 +923,10 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		///////////////debug////////////
 		int j;
 		int ecc_total = 0;
-		int array_j[MAX_NEIGHBOR_COUNT];
 		//float ix,iy,iz,jx,jy,jz;
 		//int j_count=0;
 		int muscleCounter = 0;
 		int m_index[10640];
-		float m_number[10640];
 		float WXC = XMAX*0.5f;
 		float WYC = YMAX*0.3f;
 		float WZC = ZMAX*0.5f;
@@ -975,7 +935,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
 		{
 			float dx2,dy2,dz2,r2_ij,r_ij;
-			int k;
 			int q_i_start;
 			int dq;//dorsal quadrant - "+1"=right, "-1"=left
 			float muscle_color = 0.1f;
@@ -1384,7 +1343,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		
 							}
 						}
-						array_j[ecc] = j;
 						ecc++;
 						ecc_total++;
 					}
@@ -1429,8 +1387,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 	return;
 }
-
-std::string path = "/home/serg/git/ConfigurationGenerator/configurations/";
+//READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER
+std::string path = "./configuration/";//"/home/serg/git/ConfigurationGenerator/configurations/"
 std::string suffix = "";
 void owHelper::preLoadConfiguration(int & numOfMembranes)
 {
@@ -1439,7 +1397,6 @@ void owHelper::preLoadConfiguration(int & numOfMembranes)
 		PARTICLE_COUNT = 0;
 		std::string p_file_name = path + "position" + suffix + ".txt";
 		std::ifstream positionFile (p_file_name.c_str());
-		int i = 0;
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
@@ -1458,7 +1415,6 @@ void owHelper::preLoadConfiguration(int & numOfMembranes)
 
 		numOfMembranes = 0;
 		std::ifstream membranesFile ("/home/serg/git/ConfigurationGenerator/configurations/membranes.txt");
-		i = 0;
 		int id, jd, kd;
 		if( membranesFile.is_open() )
 		{
@@ -1557,7 +1513,8 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 			elasticConectionsFile.close();
 			//Import Membranes
 			//return;
-			std::ifstream membranesFile ("/home/serg/git/ConfigurationGenerator/configurations/membranes.txt");
+			std::string m_file_name = path + "membranes" + suffix + ".txt";
+			std::ifstream membranesFile (m_file_name.c_str());
 			i = 0;
 			if( membranesFile.is_open() )
 			{
@@ -1575,7 +1532,8 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 			membranesFile.close();
 
 			//Import Membranes
-			std::ifstream membranesIndexFile ("/home/serg/git/ConfigurationGenerator/configurations/particleMembraneIndex.txt");
+			std::string mi_file_name = path + "particleMembraneIndex" + suffix + ".txt";
+			std::ifstream membranesIndexFile (mi_file_name.c_str());
 			i = 0;
 			if( membranesIndexFile.is_open())
 			{
@@ -1596,100 +1554,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		exit( -1 );
 	}
 }
-//This function is currently on testing stage
-void owHelper::loadConfigurationFromOneFile(float *position_cpp, float *velocity_cpp, float *&elasticConnections, int &numOfLiquidP, int &numOfElasticP, int &numOfBoundaryP, int &numOfElasticConnections)
-{
-	try
-	{
-		ifstream configurationFile ("./configuration/configuration.txt");
-		int i = 0;
-		float x, y, z, p_type = -1.f;
-		std::string line;
-		const int isPositionBlock = 1;
-		const int isVelocityBlock = 2;
-		const int isElasticConnectionsBlock = 3;
-		int block = 0;
-		bool isNotString = true;
-		if( configurationFile.is_open() )
-		{
-			bool firstString = true;
-			while( configurationFile.good() && i < PARTICLE_COUNT )
-			{
-				std::getline(configurationFile, line);
-				std::istringstream iss(line);
-				isNotString = true;
-				//iss >> numOfElasticConnections;
-				if (!(iss >> x >> y >> z >> p_type)) { 
-					if(line == "Position"){
-						block = isPositionBlock;
-						i = 0;
-						isNotString = false;
-					}
-					if( line == "Velocity"){
-						block = isVelocityBlock;
-						i = 0;
-						isNotString = false;
-					}
-					if( line =="ElasticConnection"){
-						block = isElasticConnectionsBlock;
-						i = 0;
-						isNotString = false;
-					}
-				} if(isNotString){
-					switch(block){
-						case isPositionBlock: {
-							position_cpp[ 4 * i + 0 ] = x;
-							position_cpp[ 4 * i + 1 ] = y;
-							position_cpp[ 4 * i + 2 ] = z;
-							position_cpp[ 4 * i + 3 ] = p_type;
-							switch((int)p_type){
-								case LIQUID_PARTICLE:
-									numOfLiquidP++;
-									break;
-								case ELASTIC_PARTICLE:
-									numOfElasticP++;
-									break;
-								case BOUNDARY_PARTICLE:
-									numOfBoundaryP++;
-									break;
-							}
-							i++;
-							break;
-						}
-						case isVelocityBlock: {
-							velocity_cpp[ 4 * i + 0 ] = x;
-							velocity_cpp[ 4 * i + 1 ] = y;
-							velocity_cpp[ 4 * i + 2 ] = z;
-							velocity_cpp[ 4 * i + 3 ] = p_type;
-							i++;
-							break;
-						}
-						case isElasticConnectionsBlock: {
-							if(firstString){
-								numOfElasticConnections = (int)x;//TODO write Comments here
-								elasticConnections = new float[ 4 * numOfElasticConnections ];
-								firstString = false;//on fist string we save count of all elastic connection
-							}else if (i < numOfElasticConnections){
-								elasticConnections[ 4 * i + 0 ] = x;//id;
-								elasticConnections[ 4 * i + 1 ] = y;//jd;
-								elasticConnections[ 4 * i + 2 ] = z;//rij0;
-								elasticConnections[ 4 * i + 3 ] = p_type;//val;
-								i++;
-							}
-							break;
-						}
-					}
-				}
-			}
-			configurationFile.close();
-		}
-		else 
-			throw std::runtime_error("Could not open file configuration.txt");
-	}catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
-	}
-}
+
 void owHelper::loadConfigurationToFile(float * position, float * connections, int * membranes, bool firstIteration){
 	try{
 		ofstream positionFile;
@@ -1723,73 +1588,7 @@ void owHelper::loadConfigurationToFile(float * position, float * connections, in
 		exit( -1 );
 	}
 }
-
-void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration){
-	try{
-		if(iteration == 0){
-			ifstream positionFile("./buffers/position_buffer.txt");
-			int i = 0;
-			float x, y, z, p_type;
-			if( positionFile.is_open() )
-			{
-				positionFile >> numOfElasticP;
-				positionFile >> numOfLiquidP;
-				while( positionFile.good() )
-				{
-					positionFile >> x >> y >> z >> p_type;
-					pos p = { x, y, z, p_type };
-					f_data.push_back(p);
-				}
-			}
-			std::cout << f_data[0].x << "\t" << f_data[0].y << "\t" << f_data[0].z << "\t" << f_data[0].p_type << "\n";
-
-			positionFile.close();
-			PARTICLE_COUNT = (numOfElasticP + numOfLiquidP);
-			iterationCount = f_data.size() / PARTICLE_COUNT;
-			position = new float[4 * PARTICLE_COUNT];
-		}
-		for(int i=0;i < PARTICLE_COUNT; i++){
-			position[i * 4 + 0] = f_data[ i + PARTICLE_COUNT * iteration].x;
-			position[i * 4 + 1] = f_data[ i + PARTICLE_COUNT * iteration].y;
-			position[i * 4 + 2] = f_data[ i + PARTICLE_COUNT * iteration].z;
-			position[i * 4 + 3] = f_data[ i + PARTICLE_COUNT * iteration].p_type;
-		}
-		if(iteration == 0){
-
-			ifstream connectionFile("./buffers/connection_buffer.txt");
-			connections = new float[MAX_NEIGHBOR_COUNT * numOfElasticP * 4];
-			if( connectionFile.is_open() )
-			{
-				int i = 0;
-				float jd, rij0, val1, val2;
-				while(connectionFile.good() && i < MAX_NEIGHBOR_COUNT * numOfElasticP){
-					connectionFile >> jd >> rij0 >> val1 >> val2;
-					connections[ 4 * i + 0 ] = jd;
-					connections[ 4 * i + 1 ] = rij0;
-					connections[ 4 * i + 2 ] = val1;
-					connections[ 4 * i + 3 ] = val2;
-					i++;
-				}
-			}
-			connectionFile.close();
-			ifstream membranesFile("./buffers/membranes_buffer.txt");
-			if(membranesFile.is_open()){
-				int m_count = 0;
-				membranesFile >> m_count;
-				int i = 0;
-				membranes = new int[4 * m_count];
-				while(membranesFile.good() && i < m_count){
-					membranesFile >> membranes[4 * i + 0] >> membranes[4 * i + 1] >> membranes[4 * i + 2] >> membranes[4 * i + 3];
-					i++;
-				}
-			}
-			membranesFile.close();
-		}
-	}catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
-	}
-}
+//This function needed for visualiazation buffered data
 long position_index = 0;
 ifstream positionFile;
 void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, int iteration){

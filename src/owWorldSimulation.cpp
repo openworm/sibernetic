@@ -1,3 +1,36 @@
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2011, 2013 OpenWorm.
+ * http://openworm.org
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *
+ * Contributors:
+ *     	OpenWorm - http://openworm.org/people.html
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *******************************************************************************/
+
 #include "owWorldSimulation.h"
 #include <stdio.h>
 
@@ -171,35 +204,6 @@ void display(void)
 			endWinCoords();
 			}
 		}
-		else
-		{
-			//printf("[%d]",i);
-		}
-
-		/*
-		float rij;
-		
-		for(j = 0; j<252; j++)
-		{
-			rij = sqrt(  (p_cpp[i*4+0]-p_cpp[j*4+0])*(p_cpp[i*4+0]-p_cpp[j*4+0])
-						+(p_cpp[i*4+1]-p_cpp[j*4+1])*(p_cpp[i*4+1]-p_cpp[j*4+1])
-						+(p_cpp[i*4+2]-p_cpp[j*4+2])*(p_cpp[i*4+2]-p_cpp[j*4+2]) );
-
-			if(i!=j)
-			if( rij < 0.2f*r0)
-			{
-				//glBegin(GL_LINES);
-				glColor4b(255/2, 0, 255/2,255/2);//red
-				glBegin(GL_POINTS);
-				glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
-				glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
-				glEnd();
-				//printf(">>[%d]-[%d]<<",i,j);
-				//printf(" x= %f, y= %f, z= %f \n",p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
-
-			}
-		}
-		/**/
 	}
 
 				
@@ -480,7 +484,6 @@ inline void drawScene()
 	s = "1E-" + ss.str() + "m";
 	glPrint3D( v8.x + 0.4f*sc , v8.y - 2.f * sc, v8.z, "0", m_font);
 	glPrint3D( v_s.x , v_s.y - 2.f * sc, v_s.z, s.c_str(), m_font);
-	int n = 1;
 	ss.str("");
 	while(v_s.x < XMAX/2*sc){
 		v_s.x += s_v * sc;
@@ -695,7 +698,7 @@ void calculateFPS()
         frames_counter = 0;
 		printf("FPS: \t\t%9.3f fps\n====================================\n",	fps );
     }
-}/**/
+}
 void respond_mouse(int button, int state, int x, int y)
 {
 	if (button == GLUT_LEFT_BUTTON)

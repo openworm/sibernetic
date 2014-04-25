@@ -1,3 +1,36 @@
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2011, 2013 OpenWorm.
+ * http://openworm.org
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *
+ * Contributors:
+ *     	OpenWorm - http://openworm.org/people.html
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *******************************************************************************/
+
 #include "owPhysicsFluidSimulator.h"
 #include <stdexcept>
 #include <iostream>
@@ -6,37 +39,39 @@
 
 float calcDelta();
 extern const float delta = calcDelta();
-extern int iterationCount = 0;
-extern int numOfElasticConnections = 0;
-extern int numOfLiquidP = 0;
-extern int numOfElasticP = 0;
-/*extern*/ int numOfBoundaryP = 0;
-extern int numOfMembranes = 0;
+int iterationCount = 0;
+int numOfElasticConnections = 0;
+int numOfLiquidP = 0;
+int numOfElasticP = 0;
+int numOfBoundaryP = 0;
+int numOfMembranes = 0;
 int * _particleIndex;
 unsigned int * gridNextNonEmptyCellBuffer;
 extern int gridCellCount;
 extern float * muscle_activation_signal_cpp;
-//extern bool load_to_file;
 int iter_step = 10;
 
 //mv
 //need to find a more elegant design for this - at the moment the use of a global
 //is pretty ugly:
+#ifdef PY_NETWORK_SIMULATION
 PyramidalSimulation simulation;
-
+#endif
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 {
 	//int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
 
 	try{
-		if(generateInitialConfiguration)
+		if(generateWormBodyConfiguration)
 		// GENERATE THE SCENE
 		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp);	
 		else								
 		// LOAD FROM FILE
 		owHelper::preLoadConfiguration(numOfMembranes);
-		 //mv
-		//simulation.setup();
+#ifdef PY_NETWORK_SIMULATION
+        //mv
+		simulation.setup();
+#endif
 											//=======================
 
 		position_cpp = new float[ 4 * PARTICLE_COUNT ];
@@ -58,7 +93,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		particleIndex_cpp = new unsigned int[PARTICLE_COUNT * 2];
 		acceleration_cpp = new float[PARTICLE_COUNT * 4];//TODO REMOVE IT AFTER FIXING
 		
-		if(generateInitialConfiguration)	
+		if(generateWormBodyConfiguration)
 		// GENERATE THE SCENE
 		owHelper::generateConfiguration(1,position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp );	
 		else 
@@ -106,12 +141,12 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		}while( iter < maxIteration );
 
 		ocl_solver->_run_pcisph_integrate(iterationCount);			helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
-
-		/**/ocl_solver->_run_clearMembraneBuffers();
-		/**/ocl_solver->_run_computeInteractionWithMembranes();
-		/**/// compute change of coordinates due to interactions with membranes
-		/**/ocl_solver->_run_computeInteractionWithMembranes_finalize();
-
+		//Handling of Interaction with membranes
+		ocl_solver->_run_clearMembraneBuffers();
+		ocl_solver->_run_computeInteractionWithMembranes();
+		// compute change of coordinates due to interactions with membranes
+		ocl_solver->_run_computeInteractionWithMembranes_finalize();
+		//END
 		ocl_solver->read_position_buffer(position_cpp);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n"); 
 
 		//END PCISPH algorithm
@@ -129,15 +164,15 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		}
 		iterationCount++;
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
-
+#ifdef PY_NETWORK_SIMULATION
         //mv
-       /* vector<float> muscle_vector = simulation.run();
+        vector<float> muscle_vector = simulation.run();
         for(int i=0; i<MUSCLE_COUNT; i++){
         	for (long index = 0; index < muscle_vector.size(); index++){
         		muscle_activation_signal_cpp[index] = muscle_vector[index];
         	}
-        }*/
-
+        }
+#endif
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp);
 		return helper->get_elapsedTime();
 	}

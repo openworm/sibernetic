@@ -743,7 +743,8 @@ __kernel void pcisph_computeElasticForces(
 								  int PARTICLE_COUNT,
 								  int MUSCLE_COUNT,
 								  __global float * muscle_activation_signal,
-								  __global float4 * position
+								  __global float4 * position,
+								  float elasticityCoefficient
 								  )
 {
 	int index = get_global_id( 0 );//it is the index of the elastic particle among all elastic particles but this isn't real id of particle
@@ -759,7 +760,6 @@ __kernel void pcisph_computeElasticForces(
 	int id = particleIndexBack[index + offset];
 	int idx = index * MAX_NEIGHBOR_COUNT;
 	float r_ij_equilibrium, r_ij, delta_r_ij, v_i_cm_length;
-	float k = 1.95e-05f;// k - coefficient of elasticity
 	float4 vect_r_ij;
 	float4 centerOfMassVelocity;
 	float4 velocity_i_cm;
@@ -793,7 +793,7 @@ __kernel void pcisph_computeElasticForces(
 
 			if(r_ij!=0.f)
 			{
-				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * k / mass ;
+				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * elasticityCoefficient ;
 
 				for(i=0;i<MUSCLE_COUNT;i++)//check all muscles
 				{
@@ -981,8 +981,8 @@ __kernel void pcisph_predictDensity(
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
-	/*double*/double density = 0.0f;
-	float density_accum;
+	/*double*/double density = 0.0;
+	float density_accum = 0.0f;
 	float4 r_ij;
 	float r_ij2;//squared r_ij
 	float h2 = h*h;
