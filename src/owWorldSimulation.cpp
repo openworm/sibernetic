@@ -646,7 +646,6 @@ void renderInfo(int x, int y)
 	if(showRuler){
 		glColor3ub(255, 0, 0);
 		float s_v = 1 * sc_scale * (1 /( accuracy * simulationScale));
-		float temp_v = (float)glutGet(GLUT_WINDOW_WIDTH)/2.f;
 		float s_v_10 = s_v / 10;
 		std::stringstream ss;
 		std::string s;
@@ -882,20 +881,7 @@ void Timer(int value)
     glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);
 	glutPostRedisplay();
 }
-/*
-void SetProjectionMatrix(void){
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();									// Current projection matrix is dropped to identity matrix 
-	glFrustum(-1, 1, -1, 1, 3, 15*3);						// Set up perspective projection
-}
-void SetModelviewMatrix(void){
-     glMatrixMode(GL_MODELVIEW);                                   
-     glLoadIdentity();                                             
-     glTranslatef(0.0, 0.0, -8.0);                              
-     glRotatef(0*10.0, 1.0, 0.0, 0.0);
-     glRotatef(0.0, 0.0, 1.0, 0.0);                              
-}
-*/
+
 GLvoid resize(GLsizei width, GLsizei height){
 
 	if(height == 0) { height = 1; }										 
@@ -910,20 +896,6 @@ GLvoid resize(GLsizei width, GLsizei height){
 		glFrustum(-1*aspectRatio, 1*aspectRatio, -1, 1, 3, 45);
 	else
 		glFrustum(-1, 1, -1/aspectRatio, 1/aspectRatio, 3, 45);
-	
-	
-
-	///// Model View ///////
-	//glMatrixMode(GL_MODELVIEW);
-	//glLoadIdentity();   
-    //glRotatef(0.0, 1.0, 0.0, 0.0);
-    //glRotatef(0.0, 0.0, 1.0, 0.0);
-	//gluPerspective(30.0f,  1/(width/height), 1.0f, 15.0f);
-	//glOrtho(0, width, 0, height, -1, 1);
-	//SetProjectionMatrix();
-	//SetModelviewMatrix();
-	//glMatrixMode(GL_MODELVIEW);
-	
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
@@ -936,8 +908,6 @@ GLvoid resize(GLsizei width, GLsizei height){
 	glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
-
-//==================
 }
 void init(void){
 	glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
@@ -993,7 +963,7 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutDisplayFunc(display);
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
-		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked, 
+		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked,
 		glutKeyboardFunc(respond_key_pressed);
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
@@ -1005,17 +975,4 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 			helper->refreshTime();
 		}
 	}
-/*	{
-		double step_time = 0, total_work_time = 0;
-		int steps_cnt = 0;
-		while(steps_cnt<100){
-			step_time = fluid_simulation->simulationStep();
-			total_work_time += step_time;
-			helper->refreshTime();
-			steps_cnt++;
-		}
-
-		printf("\ntotal calculation time (1000 steps) = %f ms\n",total_work_time);
-	}*/	
-	
 }

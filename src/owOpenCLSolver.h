@@ -34,7 +34,9 @@
 #ifndef OW_OPENCL_SOLVER_H
 #define OW_OPENCL_SOLVER_H
 
+#if defined(_WIN32) || defined (_WIN64)
 #pragma comment( lib, "opencl.lib" )							// opencl.lib
+#endif
 
 #if defined(__APPLE__) || defined(__MACOSX)
 	#include "../inc/OpenCL/cl.hpp"
@@ -55,6 +57,7 @@ extern int MUSCLE_COUNT;
 #endif
 
 #if INTEL_OPENCL_DEBUG
+//FOR DEBUGGING OPENCL CODE ON YOUR INTEL DEVICE PUT FULL PATH TO OPENCL FILE
 //#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\Users\\Serg\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program
 //#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\Users\\������\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program
 #define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program
