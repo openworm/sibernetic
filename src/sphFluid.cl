@@ -933,29 +933,32 @@ __kernel void pcisph_predictPositions(
 						)
 {
 	int id = get_global_id( 0 );
-		if( id >= PARTICLE_COUNT ) return;
-		id = particleIndexBack[id];
-		int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
-		float4 position_ = sortedPosition[ id ];
-		if((int)(position[ id_source_particle ].w) == 3){//stationary (boundary) particles, right?
-			sortedPosition[PARTICLE_COUNT+id] = position_;//this line was missing (absent) and this fact caused serions errors in program behavior
-			return;
-		}
-		//                     pressure force (dominant)            + all other forces  
-		float4 acceleration_ = acceleration[ PARTICLE_COUNT+id ];// + acceleration[ id ];
-		float4 velocity_ = sortedVelocity[ id ];
-		// Semi-implicit Euler integration 
-		float4 newVelocity_ = velocity_ + timeStep * acceleration_; //newVelocity_.w = 0.f;
-		float posTimeStep = timeStep * simulationScaleInv;			
-		float4 newPosition_ = position_ + posTimeStep * newVelocity_; //newPosition_.w = 0.f;
+	if( id >= PARTICLE_COUNT ) return;
+	id = particleIndexBack[id];
+	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
+	float4 position_t = sortedPosition[ id ];
+	if((int)(position[ id_source_particle ].w) == 3){//stationary (boundary) particles, right?
+		sortedPosition[PARTICLE_COUNT+id] = position_t;//this line was missing (absent) and this fact caused serions errors in program behavior
+		return;
+	}
+	//                     pressure force (dominant)            + all other forces  
+	float4 acceleration_t    = acceleration[ PARTICLE_COUNT*2+id_source_particle ];    acceleration_t.w    = 0.f;
+	float4 acceleration_t_dt = acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ]; acceleration_t_dt.w = 0.f;
+	float4 velocity_t = sortedVelocity[ id ];
+	
+	float4 acceleration_ = acceleration[ PARTICLE_COUNT+id ];// + acceleration[ id ];
+	// Semi-implicit Euler integration 
+	float4 velocity_t_dt = velocity_t + timeStep * acceleration_t_dt; //newVelocity_.w = 0.f;
+	float posTimeStep = timeStep * simulationScaleInv;			
+	float4 position_t_dt = position_t + posTimeStep * velocity_t_dt; //newPosition_.w = 0.f;
 
-		//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
+	//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
 
-		// temporarily switched off. By the way, this causes no visible effect
-		//computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&newPosition_,false, &newVelocity_,PARTICLE_COUNT);
+	// temporarily switched off. By the way, this causes no visible effect
+	computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt,false, &velocity_t_dt,PARTICLE_COUNT);
 
-		sortedPosition[PARTICLE_COUNT+id] = newPosition_;// in current version sortedPosition array has double size, 
-														 // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
+	sortedPosition[PARTICLE_COUNT+id] = position_t_dt;// in current version sortedPosition array has double size, 
+													 // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
 
 
@@ -1086,7 +1089,6 @@ __kernel void pcisph_computePressureForceAcceleration(
 								  __global float4 * sortedVelocity,
 								  __global uint * particleIndexBack,
 								  float delta,
-								  /*float*///float del2WviscosityCoefficient,
 								  /*float*/double gradWspikyCoefficient,
 								  float h,
 								  float mass,
@@ -1728,6 +1730,7 @@ __kernel void pcisph_integrate(
 	// better replace 0.0000001 with smoothingRadius*0.001 or smth like this 
 
 	float particleType = position[ id_source_particle ].w;
+	computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt, true, &velocity_t_dt,PARTICLE_COUNT);
 	velocity[ id_source_particle ] = (float4)((float)velocity_t_dt.x, (float)velocity_t_dt.y, (float)velocity_t_dt.z, 0.f);
 	position[ id_source_particle ] = (float4)((float)position_t_dt.x, (float)position_t_dt.y, (float)position_t_dt.z, particleType);
 
