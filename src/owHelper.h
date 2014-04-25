@@ -44,9 +44,7 @@
 	#include <windows.h>
 #elif defined(__linux__)
 	#include <time.h>
-#endif
-
-#if defined(__APPLE__)
+#elif defined(__APPLE__)
     #include <stddef.h>
 #endif
 
