@@ -37,6 +37,8 @@
 #include "owOpenCLConstant.h"
 #include <math.h>
 
+#define generateWormBodyConfiguration 0 //or load from file otherwise [0/1]
+
 #ifndef M_PI
 #define M_PI 3.1415927f
 #endif
@@ -61,13 +63,21 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 //Sizes of the box containing simulated 'world'
 //Sizes choice is realized this way because it should be proportional to smoothing radius h
 //TODO: replace this from const to variable
+#if generateWormBodyConfiguration
+#define XMIN 0
+#define XMAX 30.0*h // horizontal 1
+#define YMIN 0
+#define YMAX 20.0*h // vertical
+#define ZMIN 0
+#define ZMAX 250.0*h // horizontal 2 //142
+#else
 #define XMIN 0
 #define XMAX 88.84//30.0*h // horizontal 1
 #define YMIN 0
 #define YMAX 88.84//20.0*h // vertical
 #define ZMIN 0
 #define ZMAX 88.84//250.0*h // horizontal 2 //142
-
+#endif
 //const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
 
 // Some facts about C. elegans:

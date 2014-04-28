@@ -51,7 +51,7 @@ extern int PARTICLE_COUNT_RoundedUp;
 extern int local_NDRange_size;
 extern int MUSCLE_COUNT;
 
-#define generateWormBodyConfiguration 0 //or load from file otherwise [0/1]
+
 #if generateWormBodyConfiguration
 	#define PY_NETWORK_SIMULATION
 #endif

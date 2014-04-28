@@ -78,8 +78,6 @@ void owHelper::refreshTime()
 #endif
 }
 
-
-
 int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp, int &numOfMembranes, int *membraneData_cpp)
 {
 	//return 0;
@@ -526,18 +524,22 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp)
 {
 	//return 0;
+	int segmentsCount;// = 10;
 	float alpha;// = 2.f*3.14159f/segmentsCount;
+	float coeff = 0.23f;
 	float wormBodyRadius;// = h*coeff / sin(alpha/2);
 	int pCount = 0;//particle counter
 	int i;
 
 	float *positionVector;
 	float *velocityVector;
+	float value;
 	int elasticLayers;//starting from 2, because 1 is for outer shell and doesn't contain liquid particles
 	float xc = XMAX*0.5f;
 	float yc = YMAX*0.3f;
 	float zc = ZMAX*0.5f;
 	float PI = 3.1415926536f;
+	float beta;
 	float angle;
 	float x,y,z;
 
@@ -685,6 +687,7 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 
 void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp)
 {
+	float x,y,z;
 	float p_type = LIQUID_PARTICLE;
 	int i = 0;// particle counter
 	int ix,iy,iz;
@@ -694,6 +697,12 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
 	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
 
+	int nEx = 5*0;//7
+	int nEy = 3*0;//4
+	int nEz = 9*0;//25
+	int nMuscles = 5;
+	int nM,nMi,nMj;
+	int wormIndex_start,wormIndex_end;
 	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp);
 
 	if(stage==0)
@@ -708,7 +717,13 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	//=============== create worm body (elastic parts) ==================================================
 	if(stage==1)
 	{
+		wormIndex_start = i;
 		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp);
+		wormIndex_end = i;
+
+		float r2ij;
+		float dx2,dy2,dz2;
+
 		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
 		for(int ii = 0; ii < numOfElasticP * MAX_NEIGHBOR_COUNT; ii++)
 		{
@@ -923,10 +938,12 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		///////////////debug////////////
 		int j;
 		int ecc_total = 0;
+		int array_j[MAX_NEIGHBOR_COUNT];
 		//float ix,iy,iz,jx,jy,jz;
 		//int j_count=0;
 		int muscleCounter = 0;
 		int m_index[10640];
+		float m_number[10640];
 		float WXC = XMAX*0.5f;
 		float WYC = YMAX*0.3f;
 		float WZC = ZMAX*0.5f;
@@ -935,6 +952,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
 		{
 			float dx2,dy2,dz2,r2_ij,r_ij;
+			int k;
 			int q_i_start;
 			int dq;//dorsal quadrant - "+1"=right, "-1"=left
 			float muscle_color = 0.1f;
@@ -1343,6 +1361,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		
 							}
 						}
+						array_j[ecc] = j;
 						ecc++;
 						ecc_total++;
 					}
@@ -1387,6 +1406,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 	return;
 }
+
+
 //READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER
 std::string path = "./configuration/";//"/home/serg/git/ConfigurationGenerator/configurations/"
 std::string suffix = "";
