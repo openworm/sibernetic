@@ -657,7 +657,8 @@ __kernel void pcisph_computeForcesAndInitPressure(
 	//float4 normalVector = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
 	//float  nV_length;
 	//int neighbor_cnt = 0;
-
+	float not_bp;
+	int jd_source_particle;
 
 	do{
 		if( (jd = NEIGHBOR_MAP_ID(neighborMap[ idx + nc])) != NO_PARTICLE_ID )
@@ -671,7 +672,9 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				rho_j = rho[jd];
 				vi = sortedVelocity[id];
 				vj = sortedVelocity[jd];
-				sum += (sortedVelocity[jd]-sortedVelocity[id])*(hScaled-r_ij)/rho[jd];
+    			jd_source_particle = PI_SERIAL_ID( particleIndex[jd] );
+				not_bp = (float)((int)(position[ jd_source_particle ].w) != BOUNDARY_PARTICLE);
+				sum += (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/rho[jd];// formula 2.19 of B. Solenthaler's dissertation
 				//29aug_A.Palyanov_start_block
 				// M.Beckner & M.Teschner / Weakly compressible SPH for free surface flows. 2007.
 				//normalVector += sortedPosition[id]-sortedPosition[jd];
