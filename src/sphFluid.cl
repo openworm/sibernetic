@@ -739,7 +739,6 @@ __kernel void pcisph_computeElasticForces(
 								  float simulationScale,
 								  int numOfElasticP,
 								  __global float4 * elasticConnectionsData,
-								  int offset,
 								  int PARTICLE_COUNT,
 								  int MUSCLE_COUNT,
 								  __global float * muscle_activation_signal,
@@ -757,7 +756,7 @@ __kernel void pcisph_computeElasticForces(
 
 	float4 p_xyzw = position[index];
 
-	int id = particleIndexBack[index + offset];
+	int id = particleIndexBack[index];
 	int idx = index * MAX_NEIGHBOR_COUNT;
 	float r_ij_equilibrium, r_ij, delta_r_ij, v_i_cm_length;
 	float4 vect_r_ij;
@@ -794,7 +793,6 @@ __kernel void pcisph_computeElasticForces(
 			if(r_ij!=0.f)
 			{
 				acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * elasticityCoefficient ;
-
 				for(i=0;i<MUSCLE_COUNT;i++)//check all muscles
 				{
 					if((int)(elasticConnectionsData[idx+nc].z)==(i+1))//contractible spring, = muscle

@@ -130,7 +130,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		//PCISPH PART
 		ocl_solver->_run_pcisph_computeDensity();					
 		ocl_solver->_run_pcisph_computeForcesAndInitPressure();		
-		ocl_solver->_run_pcisph_computeElasticForces();				
+		ocl_solver->_run_pcisph_computeElasticForces();
 		do{
 			//printf("\n^^^^ iter %d ^^^^\n",iter);
 			ocl_solver->_run_pcisph_predictPositions();				

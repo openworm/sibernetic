@@ -61,7 +61,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 	try{
 		initializeOpenCL();
 		// Create OpenCL buffers
-		create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 2 ) );
+		create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 3 ) );
 		create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 		create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 		create_ocl_buffer( "neighborMap", neighborMap, CL_MEM_READ_WRITE, ( MAX_NEIGHBOR_COUNT * PARTICLE_COUNT * sizeof( float ) * 2 ) );
@@ -464,12 +464,11 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	pcisph_computeElasticForces.setArg( 8, simulationScale );
 	pcisph_computeElasticForces.setArg( 9, numOfElasticP );
 	pcisph_computeElasticForces.setArg( 10, elasticConnectionsData );
-	pcisph_computeElasticForces.setArg( 11, numOfBoundaryP );
-	pcisph_computeElasticForces.setArg( 12, PARTICLE_COUNT );
-	pcisph_computeElasticForces.setArg( 13, MUSCLE_COUNT );
-	pcisph_computeElasticForces.setArg( 14, muscle_activation_signal);
-	pcisph_computeElasticForces.setArg( 15, position);
-	pcisph_computeElasticForces.setArg( 16, elasticityCoefficient);
+	pcisph_computeElasticForces.setArg( 11, PARTICLE_COUNT );
+	pcisph_computeElasticForces.setArg( 12, MUSCLE_COUNT );
+	pcisph_computeElasticForces.setArg( 13, muscle_activation_signal);
+	pcisph_computeElasticForces.setArg( 14, position);
+	pcisph_computeElasticForces.setArg( 15, elasticityCoefficient);
 	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( numOfElasticPCountRoundedUp ),
