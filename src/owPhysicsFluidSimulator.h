@@ -52,7 +52,7 @@ public:
 	float * getElasticConnectionsData_cpp() { return elasticConnectionsData_cpp; };
 	int   * getMembraneData_cpp() { return membraneData_cpp; };
 	double  simulationStep(const bool load_to = false);
-
+	owConfigProrerty * getConfig(){ return config; };
 private:
 	owOpenCLSolver * ocl_solver;
 	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create 
@@ -60,11 +60,11 @@ private:
 	float * elasticConnectionsData_cpp; // copied later to OpenCL buffer %variableName% 
 	int	  * membraneData_cpp;
 	int   * particleMembranesList_cpp;
-
 	//Helper arrays
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;
 	float * acceleration_cpp;//TODO REMOVE after fixing
+	owConfigProrerty * config;
 	owHelper * helper;
 };
 

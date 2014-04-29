@@ -47,7 +47,6 @@ int numOfBoundaryP = 0;
 int numOfMembranes = 0;
 int * _particleIndex;
 unsigned int * gridNextNonEmptyCellBuffer;
-extern int gridCellCount;
 extern float * muscle_activation_signal_cpp;
 int iter_step = 10;
 
@@ -62,22 +61,33 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 	//int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
 
 	try{
+		config = new owConfigProrerty();
+#if generateWormBodyConfiguration
+		config->xmin = 0.f;
+		config->xmax = 30.0*h;
+		config->ymin = 0.f;
+		config->ymax = 20.0*h;
+		config->zmin = 0.f;
+		config->zmax = 250.0*h;
+#endif
 		if(generateWormBodyConfiguration)
 		// GENERATE THE SCENE
-		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp);	
+		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config);
 		else								
 		// LOAD FROM FILE
-		owHelper::preLoadConfiguration(numOfMembranes);
+		owHelper::preLoadConfiguration(numOfMembranes, config);
 #ifdef PY_NETWORK_SIMULATION
         //mv
 		simulation.setup();
 #endif
-											//=======================
-
+		config->gridCellsX = (int)( ( config->xmax - config->xmin ) / h ) + 1;
+		config->gridCellsY = (int)( ( config->ymax - config->ymin ) / h ) + 1;
+		config->gridCellsZ = (int)( ( config->zmax - config->zmin ) / h ) + 1;
+		config->gridCellCount = config->gridCellsX * config->gridCellsY * config->gridCellsZ;
 		position_cpp = new float[ 4 * PARTICLE_COUNT ];
 		velocity_cpp = new float[ 4 * PARTICLE_COUNT ];
 		_particleIndex = new   int[ 2 * PARTICLE_COUNT ];
-		gridNextNonEmptyCellBuffer = new unsigned int[gridCellCount+1];
+		gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
 		if(numOfMembranes<=0) membraneData_cpp = NULL; else membraneData_cpp = new int [numOfMembranes*3];
 		if(numOfElasticP<=0) particleMembranesList_cpp = NULL; 
@@ -95,15 +105,15 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		
 		if(generateWormBodyConfiguration)
 		// GENERATE THE SCENE
-		owHelper::generateConfiguration(1,position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp );	
+		owHelper::generateConfiguration(1,position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config );
 		else 
 		// LOAD FROM FILE	
 		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp );		//Load configuration from file to buffer
 											
 		if(numOfElasticP != 0){
-			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
+			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
-			ocl_solver = new owOpenCLSolver(position_cpp,velocity_cpp);	//Create new openCLsolver instance
+			ocl_solver = new owOpenCLSolver(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
 		this->helper = helper;
 	}catch( std::exception &e ){
 		std::cout << "ERROR: " << e.what() << std::endl;
@@ -121,26 +131,26 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 	try{
 		//SEARCH FOR NEIGHBOURS PART
 //		ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
-		ocl_solver->_runHashParticles();							helper->watch_report("_runHashParticles: \t%9.3f ms\n");
+		ocl_solver->_runHashParticles(config);							helper->watch_report("_runHashParticles: \t%9.3f ms\n");
 		ocl_solver->_runSort();										helper->watch_report("_runSort: \t\t%9.3f ms\n");
 		ocl_solver->_runSortPostPass();								helper->watch_report("_runSortPostPass: \t%9.3f ms\n");
-		ocl_solver->_runIndexx();									helper->watch_report("_runIndexx: \t\t%9.3f ms\n");
-		ocl_solver->_runIndexPostPass();							helper->watch_report("_runIndexPostPass: \t%9.3f ms\n");
-		ocl_solver->_runFindNeighbors();							helper->watch_report("_runFindNeighbors: \t%9.3f ms\n");
+		ocl_solver->_runIndexx(config);									helper->watch_report("_runIndexx: \t\t%9.3f ms\n");
+		ocl_solver->_runIndexPostPass(config);							helper->watch_report("_runIndexPostPass: \t%9.3f ms\n");
+		ocl_solver->_runFindNeighbors(config);							helper->watch_report("_runFindNeighbors: \t%9.3f ms\n");
 		//PCISPH PART
 		ocl_solver->_run_pcisph_computeDensity();					
 		ocl_solver->_run_pcisph_computeForcesAndInitPressure();		
 		ocl_solver->_run_pcisph_computeElasticForces();
 		do{
 			//printf("\n^^^^ iter %d ^^^^\n",iter);
-			ocl_solver->_run_pcisph_predictPositions();				
+			ocl_solver->_run_pcisph_predictPositions(config);
 			ocl_solver->_run_pcisph_predictDensity();				
 			ocl_solver->_run_pcisph_correctPressure();				
 			ocl_solver->_run_pcisph_computePressureForceAcceleration();
 			iter++;
 		}while( iter < maxIteration );
 
-		ocl_solver->_run_pcisph_integrate(iterationCount);			helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+		ocl_solver->_run_pcisph_integrate(iterationCount, config);			helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
 		//Handling of Interaction with membranes
 		ocl_solver->_run_clearMembraneBuffers();
 		ocl_solver->_run_computeInteractionWithMembranes();

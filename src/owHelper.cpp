@@ -38,7 +38,6 @@
 #include <vector>
 
 #include "owHelper.h"
-#include "owPhysicsConstant.h"
 
 #if defined(__APPLE__) || defined (__MACOSX)
 #include <mach/mach.h>
@@ -53,7 +52,6 @@ extern int local_NDRange_size;
 extern int numOfMembranes;
 extern int numOfElasticP;
 extern int numOfLiquidP;
-
 
 owHelper::owHelper(void)
 {
@@ -78,7 +76,7 @@ void owHelper::refreshTime()
 #endif
 }
 
-int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp, int &numOfMembranes, int *membraneData_cpp)
+int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp, int &numOfMembranes, int *membraneData_cpp, owConfigProrerty * config)
 {
 	//return 0;
 	if( !((stage==0)||(stage==1)) ) return 0;
@@ -89,9 +87,9 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 	int i,j;
 	float *positionVector;
 	float *velocityVector;
-	float xc = XMAX*0.5f;
-	float yc = YMAX*0.3f;
-	float zc = ZMAX*0.5f;
+	float xc = config->xmax*0.5f;
+	float yc = config->ymax*0.3f;
+	float zc = config->zmax*0.5f;
 	int elasticLayers = 1;//starting value
 	float PI = 3.1415926536f;
 	int currSlice_pCount;
@@ -521,7 +519,7 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 	// makeworm
 }
 
-int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp)
+int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp, owConfigProrerty * config)
 {
 	//return 0;
 	int segmentsCount;// = 10;
@@ -535,9 +533,9 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 	float *velocityVector;
 	float value;
 	int elasticLayers;//starting from 2, because 1 is for outer shell and doesn't contain liquid particles
-	float xc = XMAX*0.5f;
-	float yc = YMAX*0.3f;
-	float zc = ZMAX*0.5f;
+	float xc = config->xmax*0.5f;
+	float yc = config->ymax*0.3f;
+	float zc = config->zmax*0.5f;
 	float PI = 3.1415926536f;
 	float beta;
 	float angle;
@@ -648,11 +646,11 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 
 	//and here we add outer liquid for worm swimming
 /**/
-	for(x=3*r0;x<XMAX-3*r0;x+=r0)
+	for(x=3*r0;x<config->xmax-3*r0;x+=r0)
 	{
-		for(y=3*r0;y<YMAX*0.15;y+=r0)
+		for(y=3*r0;y<config->ymax*0.15;y+=r0)
 		{
-			for(z=3*r0;z<ZMAX-3*r0;z+=r0)
+			for(z=3*r0;z<config->zmax-3*r0;z+=r0)
 			{
 				if(stage==1)
 				{	
@@ -685,7 +683,7 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 }
 
 
-void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp)
+void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp, owConfigProrerty * config)
 {
 	float x,y,z;
 	float p_type = LIQUID_PARTICLE;
@@ -693,9 +691,9 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int ix,iy,iz;
 	int ecc = 0;//elastic connections counter
 
-	int nx = (int)( ( XMAX - XMIN ) / r0 ); //X
-	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
-	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
+	int nx = (int)( ( config->xmax - config->xmin ) / r0 ); //X
+	int ny = (int)( ( config->ymax - config->ymin ) / r0 ); //Y
+	int nz = (int)( ( config->zmax - config->zmin ) / r0 ); //Z
 
 	int nEx = 5*0;//7
 	int nEy = 3*0;//4
@@ -703,11 +701,11 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int nMuscles = 5;
 	int nM,nMi,nMj;
 	int wormIndex_start,wormIndex_end;
-	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp);
+	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp, config);
 
 	if(stage==0)
 	{
-		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp);
+		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp, config);
 		numOfElasticP = numOfMembraneParticles;
 		numOfBoundaryP = 0;
 
@@ -718,7 +716,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	if(stage==1)
 	{
 		wormIndex_start = i;
-		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp);
+		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp, config);
 		wormIndex_end = i;
 
 		float r2ij;
@@ -740,7 +738,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	//=============== create worm body (inner liquid) ==================================================
 	if(stage==1)
 	{
-		i += generateInnerWormLiquid(stage,i,position_cpp,velocity_cpp);
+		i += generateInnerWormLiquid(stage,i,position_cpp,velocity_cpp, config);
 	}
 
 
@@ -944,9 +942,9 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		int muscleCounter = 0;
 		int m_index[10640];
 		float m_number[10640];
-		float WXC = XMAX*0.5f;
-		float WYC = YMAX*0.3f;
-		float WZC = ZMAX*0.5f;
+		float WXC = config->xmax*0.5f;
+		float WYC = config->ymax*0.3f;
+		float WZC = config->zmax*0.5f;
 		//int sm_cnt = 0;
 		//int array_k[MAX_NEIGHBOR_COUNT];
 		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
@@ -1411,7 +1409,8 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 //READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER
 std::string path = "./configuration/";//"/home/serg/git/ConfigurationGenerator/configurations/"
 std::string suffix = "";
-void owHelper::preLoadConfiguration(int & numOfMembranes)
+int read_position = 0;
+void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config)
 {
 	try
 	{
@@ -1421,6 +1420,13 @@ void owHelper::preLoadConfiguration(int & numOfMembranes)
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
+			positionFile >> config->xmin;
+			positionFile >> config->xmax;
+			positionFile >> config->ymin;
+			positionFile >> config->ymax;
+			positionFile >> config->zmin;
+			positionFile >> config->zmax;
+			read_position = positionFile.tellg();
 			while( positionFile.good() )
 			{
 				p_type = -1.1f;//reinitialize
@@ -1464,6 +1470,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
+			positionFile.seekg(read_position);
 			while( positionFile.good() && i < PARTICLE_COUNT )
 			{
 				positionFile >> x >> y >> z >> p_type;

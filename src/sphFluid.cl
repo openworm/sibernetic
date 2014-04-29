@@ -265,7 +265,6 @@ __kernel void findNeighbors(
 	float closest_distances[MAX_NEIGHBOR_COUNT];
 	int closest_indexes[MAX_NEIGHBOR_COUNT];
 	int found_count = 0;
-	
 	for(int k=0;k<MAX_NEIGHBOR_COUNT;k++){
 		closest_distances[k] = r_thr2;
 		closest_indexes[k] = -1;

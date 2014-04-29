@@ -37,33 +37,23 @@
 
 #include "owOpenCLSolver.h"
 
-const float xmin = XMIN;
-const float xmax = XMAX;
-const float ymin = YMIN;
-const float ymax = YMAX;
-const float zmin = ZMIN;
-const float zmax = ZMAX;
-
-int gridCellsX = (int)( ( XMAX - XMIN ) / h ) + 1;
-int gridCellsY = (int)( ( YMAX - YMIN ) / h ) + 1;
-int gridCellsZ = (int)( ( ZMAX - ZMIN ) / h ) + 1;
-int gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
 extern int numOfElasticP;
 extern int numOfBoundaryP;
 extern int numOfMembranes;
 extern int * _particleIndex;
 extern unsigned int * gridNextNonEmptyCellBuffer;
 
+
 int myCompare( const void * v1, const void * v2 ); 
 
-owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp)
+owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp)
 {
 	try{
 		initializeOpenCL();
 		// Create OpenCL buffers
 		create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( float ) * 4 * 3 ) );
-		create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
-		create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
+		create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
+		create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 		create_ocl_buffer( "neighborMap", neighborMap, CL_MEM_READ_WRITE, ( MAX_NEIGHBOR_COUNT * PARTICLE_COUNT * sizeof( float ) * 2 ) );
 		create_ocl_buffer( "particleIndex", particleIndex, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( unsigned int ) * 2 ) );
 		create_ocl_buffer( "particleIndexBack", particleIndexBack, CL_MEM_READ_WRITE, ( PARTICLE_COUNT * sizeof( unsigned int ) ) );
@@ -257,17 +247,17 @@ unsigned int owOpenCLSolver::_runClearBuffers()
 #endif
 	return err;
 }
-unsigned int owOpenCLSolver::_runHashParticles()
+unsigned int owOpenCLSolver::_runHashParticles(owConfigProrerty * config)
 {
 	// Stage HashParticles
 	hashParticles.setArg( 0, position );
-	hashParticles.setArg( 1, gridCellsX );
-	hashParticles.setArg( 2, gridCellsY );
-	hashParticles.setArg( 3, gridCellsZ );
+	hashParticles.setArg( 1, config->gridCellsX );
+	hashParticles.setArg( 2, config->gridCellsY );
+	hashParticles.setArg( 3, config->gridCellsZ );
 	hashParticles.setArg( 4, hashGridCellSizeInv );
-	hashParticles.setArg( 5, xmin );
-	hashParticles.setArg( 6, ymin );
-	hashParticles.setArg( 7, zmin );
+	hashParticles.setArg( 5, config->xmin );
+	hashParticles.setArg( 6, config->ymin );
+	hashParticles.setArg( 7, config->zmin );
 	hashParticles.setArg( 8, particleIndex );
 	hashParticles.setArg( 9, PARTICLE_COUNT );
 	int err = queue.enqueueNDRangeKernel(
@@ -312,15 +302,14 @@ unsigned int owOpenCLSolver::_runSortPostPass()
 #endif
 	return err;
 }
-unsigned int owOpenCLSolver::_runIndexx()
+unsigned int owOpenCLSolver::_runIndexx(owConfigProrerty * config)
 {
 	// Stage Indexx
 	indexx.setArg( 0, particleIndex );
-	gridCellCount = ((gridCellsX) * (gridCellsY)) * (gridCellsZ);
-	indexx.setArg( 1, gridCellCount );
+	indexx.setArg( 1, config->gridCellCount );
 	indexx.setArg( 2, gridCellIndex );
 	indexx.setArg( 3, PARTICLE_COUNT );
-	int gridCellCountRoundedUp = ((( gridCellCount - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+	int gridCellCountRoundedUp = ((( config->gridCellCount - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		indexx, cl::NullRange, cl::NDRange( (int) ( /**/gridCellCountRoundedUp/**/ ) ),
 #if defined( __APPLE__ )
@@ -333,38 +322,37 @@ unsigned int owOpenCLSolver::_runIndexx()
 #endif
 	return err;
 }
-unsigned int owOpenCLSolver::_runIndexPostPass()
+unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
 {
 	// Stage IndexPostPass
 	//28aug_Palyanov_start_block
-	copy_buffer_from_device( gridNextNonEmptyCellBuffer, gridCellIndex,(gridCellCount+1) * sizeof( unsigned int ) * 1 );
-	int recentNonEmptyCell = gridCellCount;
-	for(int i=gridCellCount;i>=0;i--)
+	copy_buffer_from_device( gridNextNonEmptyCellBuffer, gridCellIndex,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
+	int recentNonEmptyCell = config->gridCellCount;
+	for(int i=config->gridCellCount;i>=0;i--)
 	{
 		if(gridNextNonEmptyCellBuffer[i] == NO_CELL_ID)
 			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell; 
 		else recentNonEmptyCell = gridNextNonEmptyCellBuffer[i];
 	}
-	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(gridCellCount+1) * sizeof( unsigned int ) * 1 );
+	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
 	return err;
 }
-unsigned int owOpenCLSolver::_runFindNeighbors()
+unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 {
 	// Stage FindNeighbors
 	findNeighbors.setArg( 0, gridCellIndexFixedUp );
 	findNeighbors.setArg( 1, sortedPosition );
-	gridCellCount = ((gridCellsX) * (gridCellsY)) * (gridCellsZ);
-	findNeighbors.setArg( 2, gridCellCount );
-	findNeighbors.setArg( 3, gridCellsX );
-	findNeighbors.setArg( 4, gridCellsY );
-	findNeighbors.setArg( 5, gridCellsZ );
+	findNeighbors.setArg( 2, config->gridCellCount );
+	findNeighbors.setArg( 3, config->gridCellsX );
+	findNeighbors.setArg( 4, config->gridCellsY );
+	findNeighbors.setArg( 5, config->gridCellsZ );
 	findNeighbors.setArg( 6, h );
 	findNeighbors.setArg( 7, hashGridCellSize );
 	findNeighbors.setArg( 8, hashGridCellSizeInv );
 	findNeighbors.setArg( 9, simulationScale );
-	findNeighbors.setArg( 10, xmin );
-	findNeighbors.setArg( 11, ymin );
-	findNeighbors.setArg( 12, zmin );
+	findNeighbors.setArg( 10, config->xmin );
+	findNeighbors.setArg( 11, config->ymin );
+	findNeighbors.setArg( 12, config->zmin );
 	findNeighbors.setArg( 13, neighborMap );
 	findNeighbors.setArg( 14, PARTICLE_COUNT );
 	int err = queue.enqueueNDRangeKernel(
@@ -483,7 +471,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces()
 	return err;
 }
 
-unsigned int owOpenCLSolver::_run_pcisph_predictPositions()
+unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * config)
 {
 	pcisph_predictPositions.setArg( 0, acceleration );
 	pcisph_predictPositions.setArg( 1, sortedPosition );
@@ -495,12 +483,12 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions()
 	pcisph_predictPositions.setArg( 7, gravity_z );
 	pcisph_predictPositions.setArg( 8, simulationScaleInv );
 	pcisph_predictPositions.setArg( 9, timeStep );
-	pcisph_predictPositions.setArg( 10, xmin );
-	pcisph_predictPositions.setArg( 11, xmax );
-	pcisph_predictPositions.setArg( 12, ymin );
-	pcisph_predictPositions.setArg( 13, ymax );
-	pcisph_predictPositions.setArg( 14, zmin );
-	pcisph_predictPositions.setArg( 15, zmax );
+	pcisph_predictPositions.setArg( 10, config->xmin );
+	pcisph_predictPositions.setArg( 11, config->xmax );
+	pcisph_predictPositions.setArg( 12, config->ymin );
+	pcisph_predictPositions.setArg( 13, config->ymax );
+	pcisph_predictPositions.setArg( 14, config->zmin );
+	pcisph_predictPositions.setArg( 15, config->zmax );
 	pcisph_predictPositions.setArg( 16, damping );
 	pcisph_predictPositions.setArg( 17, position );
 	pcisph_predictPositions.setArg( 18, velocity );
@@ -678,7 +666,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize()
 }
 
 
-unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount)
+unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigProrerty * config)
 {
 	// Stage Integrate
 	pcisph_integrate.setArg( 0, acceleration );
@@ -691,12 +679,12 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount)
 	pcisph_integrate.setArg( 7, gravity_z );
 	pcisph_integrate.setArg( 8, simulationScaleInv );
 	pcisph_integrate.setArg( 9, timeStep );
-	pcisph_integrate.setArg( 10, xmin );
-	pcisph_integrate.setArg( 11, xmax );
-	pcisph_integrate.setArg( 12, ymin );
-	pcisph_integrate.setArg( 13, ymax );
-	pcisph_integrate.setArg( 14, zmin );
-	pcisph_integrate.setArg( 15, zmax );
+	pcisph_integrate.setArg( 10, config->xmin );
+	pcisph_integrate.setArg( 11, config->xmax );
+	pcisph_integrate.setArg( 12, config->ymin );
+	pcisph_integrate.setArg( 13, config->ymax );
+	pcisph_integrate.setArg( 14, config->zmin );
+	pcisph_integrate.setArg( 15, config->zmax );
 	pcisph_integrate.setArg( 16, damping );
 	pcisph_integrate.setArg( 17, position );
 	pcisph_integrate.setArg( 18, velocity );

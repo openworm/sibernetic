@@ -67,28 +67,28 @@ extern int MUSCLE_COUNT;
 class owOpenCLSolver
 {
 public:
-	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL, const int * particleMembranesList_cpp = NULL);
+	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL, const int * particleMembranesList_cpp = NULL);
 	owOpenCLSolver(void);
 	~owOpenCLSolver(void);
 	// Initialize OPENCL device, context, queue, program...
 	void initializeOpenCL();
 	//PCISPH kernels for data structures support and management
 	unsigned int _runClearBuffers();
-	unsigned int _runHashParticles();
+	unsigned int _runHashParticles(owConfigProrerty * config);
 	unsigned int _runSort();
 	unsigned int _runSortPostPass();
-	unsigned int _runIndexx();
-	unsigned int _runIndexPostPass();
-	unsigned int _runFindNeighbors();
+	unsigned int _runIndexx(owConfigProrerty * config);
+	unsigned int _runIndexPostPass(owConfigProrerty * config);
+	unsigned int _runFindNeighbors(owConfigProrerty * config);
 	//PCISPH kernels for physics-related calculations
 	unsigned int _run_pcisph_computeDensity();
 	unsigned int _run_pcisph_computeForcesAndInitPressure();
 	unsigned int _run_pcisph_computeElasticForces();
-	unsigned int _run_pcisph_predictPositions();
+	unsigned int _run_pcisph_predictPositions(owConfigProrerty * config);
 	unsigned int _run_pcisph_predictDensity();
 	unsigned int _run_pcisph_correctPressure();
 	unsigned int _run_pcisph_computePressureForceAcceleration();
-	unsigned int _run_pcisph_integrate(int iterationCount);
+	unsigned int _run_pcisph_integrate(int iterationCount, owConfigProrerty * config);
 	//
 	unsigned int _run_clearMembraneBuffers();
 	unsigned int _run_computeInteractionWithMembranes();
