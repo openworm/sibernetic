@@ -81,9 +81,11 @@
 #else
 #define SELECT( A, B, C ) C ? B : A
 #endif
-
-#pragma OPENCL EXTENSION cl_amd_printf : enable
-#pragma OPENCL EXTENSION cl_intel_printf : enable
+#ifdef cl_amd_printf
+	#pragma OPENCL EXTENSION cl_amd_printf : enable
+#elif defined(cl_intel_printf)
+	#pragma OPENCL EXTENSION cl_intel_printf : enable
+#endif
 #ifdef cl_khr_fp64
     #pragma OPENCL EXTENSION cl_khr_fp64 : enable
 #elif defined(cl_amd_fp64)
