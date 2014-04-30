@@ -60,9 +60,6 @@ const float preliminaryWormLength = 311 * interParticleDistance;//should be 1 mm
 const float r0 = 0.5f * h; // distance between two boundary particle == equilibrium distance between 2 particles // Ihmsen et. al., 2010, page 4, line 3 
 						   // M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 
-//Sizes of the box containing simulated 'world'
-//Sizes choice is realized this way because it should be proportional to smoothing radius h
-
 //const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
 
 // Some facts about C. elegans:
@@ -106,6 +103,8 @@ const float elasticityCoefficient = 1.95e-05f / mass;
 
 struct owConfigProrerty{
 	//This value defines boundary of box in which simulation is
+	//Sizes of the box containing simulated 'world'
+	//Sizes choice is realized this way because it should be proportional to smoothing radius h
 	float xmin;
 	float xmax;
 	float ymin;

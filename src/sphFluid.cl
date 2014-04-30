@@ -83,8 +83,10 @@
 #endif
 #ifdef cl_amd_printf
 	#pragma OPENCL EXTENSION cl_amd_printf : enable
+#define PRINTF_ON
 #elif defined(cl_intel_printf)
 	#pragma OPENCL EXTENSION cl_intel_printf : enable
+#define PRINTF_ON
 #endif
 #ifdef cl_khr_fp64
     #pragma OPENCL EXTENSION cl_khr_fp64 : enable
@@ -1024,7 +1026,9 @@ __kernel void pcisph_predictDensity(
 			if(r_ij2==0)
 			{
 				//printf("\a\n");
+#ifdef PRINTF_ON
 				printf("@@@|>>[%d]-[%d]<<|@@@ %E @@@@ (%f) (%f) ####",id,jd,((double)r_ij2),sortedPosition[PARTICLE_COUNT+id].w,sortedPosition[PARTICLE_COUNT+jd].w );
+#endif
 			}
 		}
 
@@ -1154,9 +1158,11 @@ __kernel void pcisph_computePressureForceAcceleration(
 				}
 				if(r_ij==0.0f)
 				{
+#ifdef PRINTF_ON
 					printf("\n> Error!: r_ij: %f ",r_ij);
 					printf("\n> sortedPosition[%d]	: %f , %f , %f ",id,sortedPosition[id].x,sortedPosition[id].y,sortedPosition[id].z);
 					printf("\n> sortedPosition[%d]	: %f , %f , %f ",jd,sortedPosition[jd].x,sortedPosition[jd].y,sortedPosition[jd].z);
+#endif
 				}
 				result += value*vr_ij/r_ij;
 				//result = result;
@@ -1277,7 +1283,9 @@ float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4
                 pm.z = calcDeterminant3x3(a_1,a_2,b  )/denominator;
         }
         else {
-                printf("\ndenominator equal to zero\n");        
+#ifdef PRINTF_ON
+                printf("\ndenominator equal to zero\n");
+#endif
                 pm.w = -1;//indicates error       
         }
 
@@ -1450,7 +1458,9 @@ __kernel void computeInteractionWithMembranes(
 
 						if(pos_p.w==-1)
 						{
+#ifdef PRINTF_ON
 							printf("calculateProjectionOfPointToPlane() returned error");
+#endif
 							return;
 						}
 
@@ -1483,7 +1493,9 @@ __kernel void computeInteractionWithMembranes(
 						}
 						else
 						{
+#ifdef PRINTF_ON
 							printf("computeInteractionWithMembranes error #001");
+#endif
 							return;
 						}
 

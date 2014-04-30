@@ -1495,6 +1495,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		}
 		else
 			throw std::runtime_error("Could not open file position.txt");
+		std::cout << "Position is loaded" << std::endl;
 		std::string v_file_name = path + "velocity" + suffix + ".txt";
 		std::ifstream velocityFile (v_file_name.c_str());
 		i = 0;
@@ -1513,6 +1514,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		}
 		else
 			throw std::runtime_error("Could not open file velocity.txt");
+		std::cout << "Velocity is loaded" << std::endl;
 		//TODO NEXT BLOCK WILL BE new load of elastic connections
 		if(numOfElasticP != 0){
 			std::string c_file_name = path + "connection" + suffix + ".txt";
@@ -1537,8 +1539,11 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 						i++;
 					}
 				}
+				elasticConectionsFile.close();
 			}
-			elasticConectionsFile.close();
+			else
+				throw std::runtime_error("Could not open file connection.txt");
+			std::cout << "Elastic Connection is loaded" << std::endl;
 			//Import Membranes
 			//return;
 			std::string m_file_name = path + "membranes" + suffix + ".txt";
@@ -1556,9 +1561,11 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 					membraneData_cpp[ 3 * i + 2 ] = kd;
 					i++;
 				}
+				membranesFile.close();
 			}
-			membranesFile.close();
-
+			else
+				throw std::runtime_error("Could not open file membranes.txt");
+			std::cout << "Membranes is loaded" << std::endl;
 			//Import Membranes
 			std::string mi_file_name = path + "particleMembraneIndex" + suffix + ".txt";
 			std::ifstream membranesIndexFile (mi_file_name.c_str());
@@ -1573,9 +1580,11 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 					particleMembranesList_cpp[ i ] = id;
 					i++;
 				}
+				membranesIndexFile.close();
 			}
-			membranesIndexFile.close();
-
+			else
+				throw std::runtime_error("Could not open file particleMembraneIndex.txt");
+			std::cout << "ParticleMembraneIndex is loaded" << std::endl;
 		}
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
