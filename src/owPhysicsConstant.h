@@ -101,19 +101,4 @@ const int maxIteration = 3;
 const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale;
 const float elasticityCoefficient = 1.95e-05f / mass;
 
-struct owConfigProrerty{
-	//This value defines boundary of box in which simulation is
-	//Sizes of the box containing simulated 'world'
-	//Sizes choice is realized this way because it should be proportional to smoothing radius h
-	float xmin;
-	float xmax;
-	float ymin;
-	float ymax;
-	float zmin;
-	float zmax;
-	int gridCellsX;
-	int gridCellsY;
-	int gridCellsZ;
-	int gridCellCount;
-};
 #endif // #ifndef OW_PHYSICS_CONSTANT_H

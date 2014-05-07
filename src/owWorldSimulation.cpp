@@ -59,7 +59,6 @@ float sc_scale = 1.0f;
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
 GLsizei viewHeight, viewWidth;
 int winIdMain;
-int PARTICLE_COUNT = 0;
 int PARTICLE_COUNT_RoundedUp = 0;
 int MUSCLE_COUNT = 100;//increase this value and modify corresponding code if you plan to add more than 10 muscles
 double totalTime = 0;
@@ -77,7 +76,6 @@ float * muscle_activation_signal_cpp;
 int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
-int local_NDRange_size = 256;//256;
 float accuracy = 100;//what it it?
 bool flag = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
@@ -143,7 +141,7 @@ void display(void)
 	int pib;
 	int err_coord_cnt = 0;
 	if(!load_from_file)
-		for(i=0;i<PARTICLE_COUNT;i++)
+		for(i=0;i<fluid_simulation->getConfig()->getParticleCount();i++)
 		{
 			pib = p_indexb[2*i + 1];
 			p_indexb[2*pib + 0] = i;
@@ -155,7 +153,7 @@ void display(void)
 		d_cpp = fluid_simulation->getDensity_cpp();
 	}
 	float dc, rho;
-	for(i = 0; i<PARTICLE_COUNT; i++)
+	for(i = 0; i<fluid_simulation->getConfig()->getParticleCount(); i++)
 	{
 		//printf("[%d]",i);
 		if(!load_from_file){
@@ -510,7 +508,7 @@ void renderInfo(int x, int y)
 		glColor3f (0.5F, 1.0F, 1.0F);
 		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
 																													 numOfElasticP,
-																													 numOfBoundaryP,PARTICLE_COUNT); 
+																													 numOfBoundaryP,fluid_simulation->getConfig()->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F); 
 		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, iterationCount,((float)iterationCount)*timeStep); 
@@ -870,7 +868,7 @@ void idle (void)
 void Timer(int value)
 {
 	if(load_from_file){
-		owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp,iteration);
+		owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp, fluid_simulation->getConfig(),iteration);
 		iteration++;
 		//if(iteration >= iterationCount)
 		//	exit(0);

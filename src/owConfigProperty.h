@@ -30,42 +30,32 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
+/*
+ * This file contains definition for struct configuration
+ */
+#ifndef OWCONFIGURATION_H_
+#define OWCONFIGURATION_H_
 
-#ifndef OW_PHYSICS_SIMULATOR_H
-#define OW_PHYSICS_SIMULATOR_H
-
-#include "owPhysicsConstant.h"
-#include "owHelper.h"
-#include "owOpenCLSolver.h"
-
-class owPhysicsFluidSimulator
-{
+struct owConfigProrerty{
+	//This value defines boundary of box in which simulation is
+	//Sizes of the box containing simulated 'world'
+	//Sizes choice is realized this way because it should be proportional to smoothing radius h
 public:
-	owPhysicsFluidSimulator(void);
-	owPhysicsFluidSimulator(owHelper * helper);
-	~owPhysicsFluidSimulator(void);
-	float * getPosition_cpp() { return position_cpp; };
-	float * getvelocity_cpp() { return velocity_cpp; };
-	float * getDensity_cpp() { ocl_solver->read_density_buffer( density_cpp, config ); return density_cpp; };
-	unsigned int * getParticleIndex_cpp() { ocl_solver->read_particleIndex_buffer( particleIndex_cpp, config ); return particleIndex_cpp; };
-	//TODO helper functions delete after fix!!
-	float * getElasticConnectionsData_cpp() { return elasticConnectionsData_cpp; };
-	int   * getMembraneData_cpp() { return membraneData_cpp; };
-	double  simulationStep(const bool load_to = false);
-	owConfigProrerty * getConfig(){ return config; };
+	float xmin;
+	float xmax;
+	float ymin;
+	float ymax;
+	float zmin;
+	float zmax;
+	int gridCellsX;
+	int gridCellsY;
+	int gridCellsZ;
+	int gridCellCount;
+	const int getParticleCount(){ return PARTICLE_COUNT; };
+	void setParticleCount(int value){ PARTICLE_COUNT = value; };
 private:
-	owOpenCLSolver * ocl_solver;
-	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create 
-	float * velocity_cpp;				// and initialize in 'ordinary' memory some data, which will be 
-	float * elasticConnectionsData_cpp; // copied later to OpenCL buffer %variableName% 
-	int	  * membraneData_cpp;
-	int   * particleMembranesList_cpp;
-	//Helper arrays
-	float * density_cpp;
-	unsigned int * particleIndex_cpp;
-	float * acceleration_cpp;//TODO REMOVE after fixing
-	owConfigProrerty * config;
-	owHelper * helper;
+	int PARTICLE_COUNT;
 };
 
-#endif //OW_PHYSICS_SIMULATOR_H
+
+#endif /* OWCONFIGURATION_H_ */

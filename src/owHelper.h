@@ -39,8 +39,10 @@
 #include <iostream>
 #include <cstdlib>
 
+#include "owConfigProperty.h"
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
+
 #if defined(_WIN32) || defined (_WIN64)
 	#include <windows.h>
 #elif defined(__linux__)
@@ -56,11 +58,11 @@ public:
 	~owHelper(void);
 	static void generateConfiguration( int stage, float *position, float *velocity, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int * particleMembranesList_cpp, owConfigProrerty * config);
 	static void preLoadConfiguration( int & numOfMembranes, owConfigProrerty * config );
-	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp );
+	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config );
 	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *& elasticConnectionsData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
-	static void loadConfigurationToFile(float * position, float * connections=NULL, int * membranes=NULL, bool firstIteration = true);
+	static void loadConfigurationToFile(float * position, owConfigProrerty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration = 0);
-	static void loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, int iteration = 0);
+	static void loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, owConfigProrerty * config,int iteration = 0);
 	void watch_report(const char *str);
 	double get_elapsedTime() { return elapsedTime; };
 	void refreshTime();

@@ -46,7 +46,6 @@
 
 using namespace std;
 
-extern int PARTICLE_COUNT;
 extern int PARTICLE_COUNT_RoundedUp;
 extern int local_NDRange_size;
 extern int numOfMembranes;
@@ -906,21 +905,21 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 	if(stage==0)
 	{
-		PARTICLE_COUNT = numOfLiquidP + numOfBoundaryP + numOfElasticP;
-		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+		config->setParticleCount(numOfLiquidP + numOfBoundaryP + numOfElasticP);
+		PARTICLE_COUNT_RoundedUp = ((( config->getParticleCount() - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 
-		if(PARTICLE_COUNT<=0) 
+		if(config->getParticleCount()<=0)
 		{
-			printf("\nWarning! Generated scene contains %d particles!\n",PARTICLE_COUNT);
+			printf("\nWarning! Generated scene contains %d particles!\n",config->getParticleCount());
 			exit(-2);
 		}
 	}
 	else
 	if(stage==1)
 	{
-		if(PARTICLE_COUNT!=i) 
+		if(config->getParticleCount()!=i)
 		{
-			printf("\nWarning! Preliminary [%d] and final [%d] particle count are different\n",PARTICLE_COUNT,i);
+			printf("\nWarning! Preliminary [%d] and final [%d] particle count are different\n",config->getParticleCount(),i);
 			exit(-4);
 		}
 
@@ -1407,14 +1406,14 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 
 //READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER
-std::string path = "./configuration/";//"/home/serg/git/ConfigurationGenerator/configurations/"
+std::string path = "./configuration/";
 std::string suffix = "";
 int read_position = 0;
 void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config)
 {
 	try
 	{
-		PARTICLE_COUNT = 0;
+		int p_count = 0;
 		std::string p_file_name = path + "position" + suffix + ".txt";
 		std::ifstream positionFile (p_file_name.c_str());
 		float x, y, z, p_type;
@@ -1431,14 +1430,15 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 			{
 				p_type = -1.1f;//reinitialize
 				positionFile >> x >> y >> z >> p_type;
-				if(p_type>=0) PARTICLE_COUNT++;//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
+				if(p_type>=0){ p_count++; }//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
 				else break;//end of file
 			}
 		}
 		positionFile.close();
-		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+		config->setParticleCount(p_count);
+		PARTICLE_COUNT_RoundedUp = ((( config->getParticleCount() - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 
-		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
+		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",config->getParticleCount());
 
 		numOfMembranes = 0;
 		std::ifstream membranesFile ("/home/serg/git/ConfigurationGenerator/configurations/membranes.txt");
@@ -1459,7 +1459,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 		exit( -1 );
 	}
 }
-void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp)
+void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config)
 {
 
 	try
@@ -1471,7 +1471,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		if( positionFile.is_open() )
 		{
 			positionFile.seekg(read_position);
-			while( positionFile.good() && i < PARTICLE_COUNT )
+			while( positionFile.good() && i < config->getParticleCount() )
 			{
 				positionFile >> x >> y >> z >> p_type;
 				position_cpp[ 4 * i + 0 ] = x;
@@ -1501,7 +1501,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		i = 0;
 		if( velocityFile.is_open() )
 		{
-			while( velocityFile.good() && i < PARTICLE_COUNT )
+			while( velocityFile.good() && i < config->getParticleCount() )
 			{
 				velocityFile >> x >> y >> z >> p_type;
 				velocity_cpp[ 4 * i + 0 ] = x;
@@ -1592,7 +1592,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 	}
 }
 
-void owHelper::loadConfigurationToFile(float * position, float * connections, int * membranes, bool firstIteration){
+void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration ){
 	try{
 		ofstream positionFile;
 		if(firstIteration){
@@ -1602,7 +1602,7 @@ void owHelper::loadConfigurationToFile(float * position, float * connections, in
 		}else{
 			positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
 		}
-		for(int i=0;i < PARTICLE_COUNT; i++){
+		for(int i=0;i < config->getParticleCount(); i++){
 			if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
 				positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
 			}
@@ -1628,7 +1628,7 @@ void owHelper::loadConfigurationToFile(float * position, float * connections, in
 //This function needed for visualiazation buffered data
 long position_index = 0;
 ifstream positionFile;
-void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, int iteration){
+void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
 	try{
 		if(iteration == 0)
 			positionFile.open("./buffers/position_buffer.txt");
@@ -1639,10 +1639,10 @@ void owHelper::loadConfigurationFromFile_experemental(float *& position, float *
 			if(iteration == 0){
 				positionFile >> numOfElasticP;
 				positionFile >> numOfLiquidP;
-				PARTICLE_COUNT = (numOfElasticP + numOfLiquidP);
-				position = new float[4 * PARTICLE_COUNT];
+				config->setParticleCount(numOfElasticP + numOfLiquidP);
+				position = new float[4 * config->getParticleCount()];
 			}
-			while( positionFile.good() &&  i < PARTICLE_COUNT)
+			while( positionFile.good() &&  i < config->getParticleCount())
 			{
 				positionFile >> x >> y >> z >> p_type;
 				position[i * 4 + 0] = x;

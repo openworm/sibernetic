@@ -12,7 +12,8 @@ src/owWorldSimulation.cpp
 SRCEXT := cpp
 SRCDIR := src
 BUILDDIR = ./release
-OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
+BINARYDIR = $(BUILDDIR)/obj
+OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
@@ -28,8 +29,8 @@ $(TARGET):$(OBJECTS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
-	@mkdir -p $(BUILDDIR)
+$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
+	@mkdir -p $(BINARYDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
 	g++ -I/usr/include/python2.7 -O3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"

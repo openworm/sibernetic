@@ -44,11 +44,12 @@
 #else
 	#include <CL/cl.hpp>
 #endif
-#include "owPhysicsConstant.h"
 
-extern int PARTICLE_COUNT;
+#include "owPhysicsConstant.h"
+#include "owConfigProperty.h"
+
 extern int PARTICLE_COUNT_RoundedUp;
-extern int local_NDRange_size;
+extern const int local_NDRange_size;
 extern int MUSCLE_COUNT;
 
 
@@ -73,32 +74,33 @@ public:
 	// Initialize OPENCL device, context, queue, program...
 	void initializeOpenCL();
 	//PCISPH kernels for data structures support and management
-	unsigned int _runClearBuffers();
+	//Kernels functions definition
+	unsigned int _runClearBuffers(owConfigProrerty * config);
 	unsigned int _runHashParticles(owConfigProrerty * config);
-	unsigned int _runSort();
-	unsigned int _runSortPostPass();
+	unsigned int _runSort(owConfigProrerty * config);
+	unsigned int _runSortPostPass(owConfigProrerty * config);
 	unsigned int _runIndexx(owConfigProrerty * config);
 	unsigned int _runIndexPostPass(owConfigProrerty * config);
 	unsigned int _runFindNeighbors(owConfigProrerty * config);
 	//PCISPH kernels for physics-related calculations
-	unsigned int _run_pcisph_computeDensity();
-	unsigned int _run_pcisph_computeForcesAndInitPressure();
-	unsigned int _run_pcisph_computeElasticForces();
+	unsigned int _run_pcisph_computeDensity(owConfigProrerty * config);
+	unsigned int _run_pcisph_computeForcesAndInitPressure(owConfigProrerty * config);
+	unsigned int _run_pcisph_computeElasticForces(owConfigProrerty * config);
 	unsigned int _run_pcisph_predictPositions(owConfigProrerty * config);
-	unsigned int _run_pcisph_predictDensity();
-	unsigned int _run_pcisph_correctPressure();
-	unsigned int _run_pcisph_computePressureForceAcceleration();
+	unsigned int _run_pcisph_predictDensity(owConfigProrerty * config);
+	unsigned int _run_pcisph_correctPressure(owConfigProrerty * config);
+	unsigned int _run_pcisph_computePressureForceAcceleration(owConfigProrerty * config);
 	unsigned int _run_pcisph_integrate(int iterationCount, owConfigProrerty * config);
 	//
-	unsigned int _run_clearMembraneBuffers();
-	unsigned int _run_computeInteractionWithMembranes();
-	unsigned int _run_computeInteractionWithMembranes_finalize();
+	unsigned int _run_clearMembraneBuffers(owConfigProrerty * config);
+	unsigned int _run_computeInteractionWithMembranes(owConfigProrerty * config);
+	unsigned int _run_computeInteractionWithMembranes_finalize(owConfigProrerty * config);
 	//
 	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp);
 	
-	void read_position_buffer( float * position_cpp ) { copy_buffer_from_device( position_cpp, position, PARTICLE_COUNT * sizeof( float ) * 4 ); };
-	void read_density_buffer( float * density_cpp ) { copy_buffer_from_device( density_cpp, rho, PARTICLE_COUNT * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
-	void read_particleIndex_buffer( unsigned int * particleIndexBuffer ) { copy_buffer_from_device( particleIndexBuffer, particleIndex, PARTICLE_COUNT * sizeof( unsigned int ) * 2 ); }; // This need only for visualization current density of particle (graphic effect)
+	void read_position_buffer( float * position_cpp, owConfigProrerty * config) { copy_buffer_from_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 ); };
+	void read_density_buffer( float * density_cpp, owConfigProrerty * config ) { copy_buffer_from_device( density_cpp, rho, config->getParticleCount() * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
+	void read_particleIndex_buffer( unsigned int * particleIndexBuffer, owConfigProrerty * config ) { copy_buffer_from_device( particleIndexBuffer, particleIndex, config->getParticleCount() * sizeof( unsigned int ) * 2 ); }; // This need only for visualization current density of particle (graphic effect)
 private:
 	void create_ocl_kernel( const char *name, cl::Kernel &k );
 	void create_ocl_buffer(const char *name, cl::Buffer &b, const cl_mem_flags flags,const int size);

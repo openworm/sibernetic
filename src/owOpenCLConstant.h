@@ -50,4 +50,5 @@
 
 #define INTEL_OPENCL_DEBUG 0
 
+
 #endif // #ifndef OW_OPENCL_CONSTANT_H
