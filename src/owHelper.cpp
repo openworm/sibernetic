@@ -1435,7 +1435,8 @@ void owHelper::preLoadConfiguration(int & numOfMembranes)
 		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
 
 		numOfMembranes = 0;
-		std::ifstream membranesFile ("/home/serg/git/ConfigurationGenerator/configurations/membranes.txt");
+		std::string m_file_name = path + "membranes" + suffix + ".txt";
+		std::ifstream membranesFile (m_file_name.c_str());
 		int id, jd, kd;
 		if( membranesFile.is_open() )
 		{
