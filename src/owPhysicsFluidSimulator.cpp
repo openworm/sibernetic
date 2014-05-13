@@ -202,8 +202,10 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 	delete [] particleIndex_cpp;
 	delete [] muscle_activation_signal_cpp;
 	if(membraneData_cpp) delete [] membraneData_cpp;
-	//if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;
+	if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;
+	delete config;
 	ocl_solver->~owOpenCLSolver();
+	helper->~owHelper();
 }
 
 float calcDelta()

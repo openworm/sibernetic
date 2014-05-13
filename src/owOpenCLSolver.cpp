@@ -42,7 +42,6 @@ extern int numOfBoundaryP;
 extern int numOfMembranes;
 extern int * _particleIndex;
 extern unsigned int * gridNextNonEmptyCellBuffer;
-const int local_NDRange_size = 256;
 
 int myCompare( const void * v1, const void * v2 ); 
 
@@ -236,7 +235,7 @@ unsigned int owOpenCLSolver::_runClearBuffers(owConfigProrerty * config)
 	// Stage ClearBuffers
 	clearBuffers.setArg( 0, neighborMap );
 	clearBuffers.setArg( 1, config->getParticleCount() );
-	int err = queue.enqueueNDRangeKernel(clearBuffers, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+	int err = queue.enqueueNDRangeKernel(clearBuffers, cl::NullRange, cl::NDRange( (int) ( config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -261,7 +260,7 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProrerty * config)
 	hashParticles.setArg( 8, particleIndex );
 	hashParticles.setArg( 9, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		hashParticles, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		hashParticles, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -291,7 +290,7 @@ unsigned int owOpenCLSolver::_runSortPostPass(owConfigProrerty * config)
 	sortPostPass.setArg( 5, sortedVelocity );
 	sortPostPass.setArg( 6, config->getParticleCount()  );
 	int err = queue.enqueueNDRangeKernel(
-		sortPostPass, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		sortPostPass, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -356,7 +355,7 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 	findNeighbors.setArg( 13, neighborMap );
 	findNeighbors.setArg( 14, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		findNeighbors, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		findNeighbors, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );/* 
 		local_work_size can also be a NULL
@@ -391,7 +390,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeDensity(owConfigProrerty * confi
 	pcisph_computeDensity.setArg(11, delta );
 	pcisph_computeDensity.setArg(12, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_computeDensity, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		pcisph_computeDensity, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -425,7 +424,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
 	pcisph_computeForcesAndInitPressure.setArg(17, particleIndex );
 	pcisph_computeForcesAndInitPressure.setArg(18, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_computeForcesAndInitPressure, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		pcisph_computeForcesAndInitPressure, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -496,7 +495,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * con
 	pcisph_predictPositions.setArg( 20, neighborMap );
 	pcisph_predictPositions.setArg( 21, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_predictPositions, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		pcisph_predictPositions, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -525,7 +524,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * confi
 	pcisph_predictDensity.setArg(11, delta );
 	pcisph_predictDensity.setArg(12, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_predictDensity, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		pcisph_predictDensity, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -555,7 +554,7 @@ unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProrerty * conf
 	pcisph_correctPressure.setArg(12, particleIndex );
 	pcisph_correctPressure.setArg(13, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_correctPressure, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		pcisph_correctPressure, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -588,7 +587,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConf
 	pcisph_computePressureForceAcceleration.setArg( 15, particleIndex );
 	pcisph_computePressureForceAcceleration.setArg( 16, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_computePressureForceAcceleration, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		pcisph_computePressureForceAcceleration, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -607,7 +606,7 @@ unsigned int owOpenCLSolver::_run_clearMembraneBuffers(owConfigProrerty * config
 	clearMembraneBuffers.setArg( 2, sortedPosition );
 	clearMembraneBuffers.setArg( 3, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		clearMembraneBuffers, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		clearMembraneBuffers, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -633,7 +632,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrer
 	computeInteractionWithMembranes.setArg( 9, numOfElasticP );
 	computeInteractionWithMembranes.setArg(10, r0 );
 	int err = queue.enqueueNDRangeKernel(
-		computeInteractionWithMembranes, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		computeInteractionWithMembranes, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -653,7 +652,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owCon
 	computeInteractionWithMembranes_finalize.setArg( 3, particleIndexBack );
 	computeInteractionWithMembranes_finalize.setArg( 4, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
-		computeInteractionWithMembranes_finalize, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		computeInteractionWithMembranes_finalize, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else
@@ -694,7 +693,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigP
 	pcisph_integrate.setArg( 22, config->getParticleCount() );
 	pcisph_integrate.setArg( 23, iterationCount );
 	int err = queue.enqueueNDRangeKernel(
-		pcisph_integrate, cl::NullRange, cl::NDRange( (int) ( PARTICLE_COUNT_RoundedUp ) ),
+		pcisph_integrate, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
 		cl::NullRange, NULL, NULL );
 #else

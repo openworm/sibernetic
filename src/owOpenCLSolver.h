@@ -45,13 +45,11 @@
 	#include <CL/cl.hpp>
 #endif
 
+#include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
 #include "owConfigProperty.h"
 
-extern int PARTICLE_COUNT_RoundedUp;
-extern const int local_NDRange_size;
 extern int MUSCLE_COUNT;
-
 
 #if generateWormBodyConfiguration
 	#define PY_NETWORK_SIMULATION

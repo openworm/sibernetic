@@ -50,5 +50,6 @@
 
 #define INTEL_OPENCL_DEBUG 0
 
+const int local_NDRange_size = 256;
 
 #endif // #ifndef OW_OPENCL_CONSTANT_H

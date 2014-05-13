@@ -36,6 +36,8 @@
 #ifndef OWCONFIGURATION_H_
 #define OWCONFIGURATION_H_
 
+#include "owOpenCLConstant.h"
+
 struct owConfigProrerty{
 	//This value defines boundary of box in which simulation is
 	//Sizes of the box containing simulated 'world'
@@ -52,9 +54,14 @@ public:
 	int gridCellsZ;
 	int gridCellCount;
 	const int getParticleCount(){ return PARTICLE_COUNT; };
-	void setParticleCount(int value){ PARTICLE_COUNT = value; };
+	void setParticleCount(int value){
+		PARTICLE_COUNT = value;
+		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+	};
+	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; };
 private:
 	int PARTICLE_COUNT;
+	int PARTICLE_COUNT_RoundedUp;
 };
 
 

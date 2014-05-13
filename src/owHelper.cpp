@@ -46,8 +46,6 @@
 
 using namespace std;
 
-extern int PARTICLE_COUNT_RoundedUp;
-extern int local_NDRange_size;
 extern int numOfMembranes;
 extern int numOfElasticP;
 extern int numOfLiquidP;
@@ -906,7 +904,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	if(stage==0)
 	{
 		config->setParticleCount(numOfLiquidP + numOfBoundaryP + numOfElasticP);
-		PARTICLE_COUNT_RoundedUp = ((( config->getParticleCount() - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 
 		if(config->getParticleCount()<=0)
 		{
@@ -1436,12 +1433,12 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 		}
 		positionFile.close();
 		config->setParticleCount(p_count);
-		PARTICLE_COUNT_RoundedUp = ((( config->getParticleCount() - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 
 		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",config->getParticleCount());
 
 		numOfMembranes = 0;
-		std::ifstream membranesFile ("/home/serg/git/ConfigurationGenerator/configurations/membranes.txt");
+		std::string m_file_name = path + "membranes" + suffix + ".txt";
+		std::ifstream membranesFile (m_file_name.c_str());
 		int id, jd, kd;
 		if( membranesFile.is_open() )
 		{

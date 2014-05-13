@@ -31,10 +31,11 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include "owWorldSimulation.h"
 #include <stdio.h>
-
 #include <sstream>
+#include <csignal>
+
+#include "owWorldSimulation.h"
 
 extern int numOfLiquidP;
 extern int numOfElasticP;
@@ -59,7 +60,6 @@ float sc_scale = 1.0f;
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
 GLsizei viewHeight, viewWidth;
 int winIdMain;
-int PARTICLE_COUNT_RoundedUp = 0;
 int MUSCLE_COUNT = 100;//increase this value and modify corresponding code if you plan to add more than 10 muscles
 double totalTime = 0;
 int frames_counter = 0;
@@ -928,6 +928,11 @@ void draw(void)
 	glColor3f(1.0f, 1.0f, 1.0f);
 	glPopMatrix();
 }
+void sighandler(int s){
+  std::cerr << "Caught signal " << s << ".\n"; // this is undefined behaviour
+  fluid_simulation->~owPhysicsFluidSimulator();
+  exit(0);
+}
 
 void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
@@ -942,6 +947,7 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 			muscle_activation_signal_cpp[i] = 0.f;
 		}
 	}
+	std::signal(SIGINT,sighandler);
 	if(with_graphics){
 		glutInit(&argc, argv);
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
