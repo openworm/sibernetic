@@ -45,7 +45,7 @@ public:
 	owPhysicsFluidSimulator(owHelper * helper);
 	~owPhysicsFluidSimulator(void);
 	float * getPosition_cpp() { return position_cpp; };
-	float * getvelocity_cpp() { return velocity_cpp; };
+	float * getvelocity_cpp() { /*return velocity_cpp;*/ ocl_solver->read_velocity_buffer(velocity_cpp,config); return velocity_cpp; };
 	float * getDensity_cpp() { ocl_solver->read_density_buffer( density_cpp, config ); return density_cpp; };
 	unsigned int * getParticleIndex_cpp() { ocl_solver->read_particleIndex_buffer( particleIndex_cpp, config ); return particleIndex_cpp; };
 	//TODO helper functions delete after fix!!

@@ -1403,9 +1403,9 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 
 //READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER
-std::string path = "./configuration/";
-std::string suffix = "";
 int read_position = 0;
+std::string owHelper::path = "./configuration/";
+std::string owHelper::suffix = "";
 void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config)
 {
 	try

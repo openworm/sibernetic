@@ -89,6 +89,8 @@ public:
 			exit( -1 );
 		}
 	}
+	static std::string path;
+	static std::string suffix;
 private:
 	double elapsedTime;
 #if defined(_WIN32) || defined (_WIN64)
