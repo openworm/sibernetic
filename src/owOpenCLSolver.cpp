@@ -229,7 +229,7 @@ void owOpenCLSolver::initializeOpenCL()
 	#if INTEL_OPENCL_DEBUG
 		err = program.build( devices, OPENCL_DEBUG_PROGRAM_PATH +  "-g -cl-opt-disable");
 	#else
-		err = program.build( devices, "-g -cl-opt-disable");
+		err = program.build( devices, "");
 	#endif
 #endif
 	if( err != CL_SUCCESS ){
