@@ -34,8 +34,9 @@
 #ifndef OW_PHYSICS_CONSTANT_H
 #define OW_PHYSICS_CONSTANT_H
 
-#include "owOpenCLConstant.h"
 #include <math.h>
+
+#include "owOpenCLConstant.h"
 
 #define generateWormBodyConfiguration 0 //or load from file otherwise [0/1]
 
@@ -65,18 +66,18 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 //TODO: replace this from const to variable
 #if generateWormBodyConfiguration
 #define XMIN 0
-#define XMAX 30.0*h // horizontal 1
+#define XMAX 30.0f*h // horizontal 1
 #define YMIN 0
-#define YMAX 20.0*h // vertical
+#define YMAX 20.0f*h // vertical
 #define ZMIN 0
-#define ZMAX 250.0*h // horizontal 2 //142
+#define ZMAX 250.0f*h // horizontal 2 //142
 #else
 #define XMIN 0
-#define XMAX 88.84//30.0*h // horizontal 1
+#define XMAX 88.84f//30.0*h // horizontal 1
 #define YMIN 0
-#define YMAX 88.84//20.0*h // vertical
+#define YMAX 88.84f//20.0*h // vertical
 #define ZMIN 0
-#define ZMAX 88.84//250.0*h // horizontal 2 //142
+#define ZMAX 88.84f//250.0*h // horizontal 2 //142
 #endif
 //const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
 

@@ -31,10 +31,10 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include "owWorldSimulation.h"
 #include <stdio.h>
-
 #include <sstream>
+
+#include "owWorldSimulation.h"
 
 extern int numOfLiquidP;
 extern int numOfElasticP;
@@ -81,7 +81,7 @@ int local_NDRange_size = 256;//256;
 float accuracy = 100;//what it it?
 bool flag = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
-float iteration = 0;
+int iteration = 0;
 
 void calculateFPS();
 void drawScene();
@@ -197,9 +197,9 @@ void display(void)
 			glRasterPos2f (0.01F, 0.05F); 
 			if(err_coord_cnt<50){
 			sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
-			glPrint( 0, 50+err_coord_cnt*11, label, m_font);}
+			glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
 			if(err_coord_cnt==50) {
-			glPrint( 0, 50+err_coord_cnt*11, "............", m_font);}
+			glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
 			err_coord_cnt++;
 			endWinCoords();
 			}
@@ -482,8 +482,8 @@ inline void drawScene()
 	std::string s;
 	ss << order;
 	s = "1E-" + ss.str() + "m";
-	glPrint3D( v8.x + 0.4f*sc , v8.y - 2.f * sc, v8.z, "0", m_font);
-	glPrint3D( v_s.x , v_s.y - 2.f * sc, v_s.z, s.c_str(), m_font);
+	glPrint3D( (float)v8.x + 0.4f*sc , (float)v8.y - 2.f * sc, (float)v8.z, "0", m_font);
+	glPrint3D( (float)v_s.x , (float)v_s.y - 2.f * sc, (float)v_s.z, s.c_str(), m_font);
 	ss.str("");
 	while(v_s.x < XMAX/2*sc){
 		v_s.x += s_v * sc;

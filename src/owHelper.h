@@ -39,7 +39,6 @@
 #include <iostream>
 #include <cstdlib>
 
-#include "owOpenCLConstant.h"
 #if defined(_WIN32) || defined (_WIN64)
 	#include <windows.h>
 #elif defined(__linux__)
@@ -47,6 +46,8 @@
 #elif defined(__APPLE__)
     #include <stddef.h>
 #endif
+
+#include "owOpenCLConstant.h"
 
 class owHelper
 {

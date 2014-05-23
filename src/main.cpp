@@ -31,9 +31,10 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include "owWorldSimulation.h"
 #include <stdio.h>
 #include <iostream>
+
+#include "owWorldSimulation.h"
 
 //extern bool load_to_file = false;
 bool load_from_file = false;
