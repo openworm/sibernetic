@@ -204,8 +204,8 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 	if(membraneData_cpp) delete [] membraneData_cpp;
 	if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;
 	delete config;
-	ocl_solver->~owOpenCLSolver();
-	helper->~owHelper();
+	delete ocl_solver;
+	delete helper;
 }
 
 float calcDelta()
@@ -224,7 +224,7 @@ float calcDelta()
 	float particleRadius = pow(mass/rho0,1.f/3.f);  // the value is about 0.01 instead of 
 	float h_r_2;									// my previous estimate = simulationScale*h/2 = 0.0066
 
-    for (int i = 0; i < 32; i++)
+    for (int i = 0; i < MAX_NEIGHBOR_COUNT; i++)
     {
 		v_x = x[i] * 0.8f * particleRadius;
 		v_y = y[i] * 0.8f * particleRadius;

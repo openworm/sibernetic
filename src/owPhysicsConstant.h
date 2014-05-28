@@ -55,6 +55,7 @@ const float h = 3.34f;
 const float hashGridCellSize = 2.0f * h;
 const float hashGridCellSizeInv = 1.0f / hashGridCellSize;
 const float simulationScaleInv = 1.0f / simulationScale;
+//TODO delete next two VARIABLES
 const float interParticleDistance = 0.5f*h*simulationScale;// should be 1 mm / 311 = 0.0032 mm = 3.2e-6 m
 const float preliminaryWormLength = 311 * interParticleDistance;//should be 1 mm = 1e-3 m
 const float r0 = 0.5f * h; // distance between two boundary particle == equilibrium distance between 2 particles // Ihmsen et. al., 2010, page 4, line 3 
