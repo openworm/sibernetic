@@ -18,6 +18,11 @@ OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
 
 CPP_DEPS = $(OBJECTS:.o=.d)
+	
+# Change these to set the different python directories
+PYTHONHEADERDIR = /usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/
+PYTHONLIBDIR = /usr/local/lib/python2.7
+PYTHONFRAMEWORKDIR = /usr/local/Library/Frameworks
 
 LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
 
@@ -29,7 +34,7 @@ all: Smoothed-Particle-Hydrodynamics
 Smoothed-Particle-Hydrodynamics: $(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: clang C++ Linker'
-	g++ -L/usr/lib -L/usr/local/lib/python2.7 -o $(BUILDDIR)/Smoothed-Particle-Hydrodynamics $(OBJECTS) $(LIBS)
+	g++ -L/usr/lib -F$(PYTHONFRAMEWORKDIR) -L$(PYTHONLIBDIR) -o $(BUILDDIR)/Smoothed-Particle-Hydrodynamics $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -40,7 +45,7 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo 'Invoking: clang C++ Compiler'
 #### use this to compile against homebrew installed python
 #### change version number as necessary (2.7.n)
-	g++ -O1 -Wall -c -I/usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/ -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	g++ -O1 -Wall -c -I$(PYTHONHEADERDIR) -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

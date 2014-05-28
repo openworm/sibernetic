@@ -42,11 +42,12 @@
 
 #include <Python.h>
 #include <iostream>
-#include "PyramidalSimulation.h"
 #include <algorithm>
 #include <string>
 #include <iterator>
 #include <vector>
+
+#include "PyramidalSimulation.h"
 
 using namespace std;
 

@@ -31,11 +31,12 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include "owPhysicsFluidSimulator.h"
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
+
 #include "PyramidalSimulation.h"
+#include "owPhysicsFluidSimulator.h"
 
 float calcDelta();
 extern const float delta = calcDelta();

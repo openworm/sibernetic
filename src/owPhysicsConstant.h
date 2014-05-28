@@ -34,8 +34,9 @@
 #ifndef OW_PHYSICS_CONSTANT_H
 #define OW_PHYSICS_CONSTANT_H
 
-#include "owOpenCLConstant.h"
 #include <math.h>
+
+#include "owOpenCLConstant.h"
 
 #define generateWormBodyConfiguration 0 //or load from file otherwise [0/1]
 
