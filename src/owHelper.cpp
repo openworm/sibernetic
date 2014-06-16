@@ -1460,6 +1460,8 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
+			//TODO: In windows I didn't take into account \r symbol, so value of read_position isn't
+			//correct it should be fix before merge
 			positionFile.seekg(read_position);
 			while( positionFile.good() && i < config->getParticleCount() )
 			{

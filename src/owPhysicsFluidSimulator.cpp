@@ -34,6 +34,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
+//TODO REMOVE AFTER FIX GEPPETTO
+#include <sstream>
 
 #include "PyramidalSimulation.h"
 #include "owPhysicsFluidSimulator.h"
@@ -152,6 +154,11 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		}while( iter < maxIteration );
 
 		ocl_solver->_run_pcisph_integrate(iterationCount, config);			helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+		//TODO REMOVE AFTER FIX GEPPETTO create log files
+		stringstream ss;
+		ss << iterationCount+1;
+		owHelper::log_buffer(this->position_cpp,4,config->getParticleCount(),("./logs/position_integrate_" + ss.str() + ".txt").c_str());
+		//
 		//Handling of Interaction with membranes
 		ocl_solver->_run_clearMembraneBuffers(config);
 		ocl_solver->_run_computeInteractionWithMembranes(config);
@@ -174,6 +181,11 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 			}
 		}
 		iterationCount++;
+
+		//owHelper::log_buffer(this->velocity_cpp,4,config->getParticleCount(),("./logs/position_" + ss.str() + ".txt").c_str());
+		//owHelper::log_buffer(this->membraneData_cpp,3,numOfElasticP,("./logs/membraneData_" + ss.str() + ".txt").c_str());
+		//owHelper::log_buffer(this->particleMembranesList_cpp,1,numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE,("./logs/particleMembranesList_" + ss.str() + ".txt").c_str());
+		//
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 #ifdef PY_NETWORK_SIMULATION
         //mv

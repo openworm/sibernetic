@@ -876,6 +876,12 @@ void Timer(int value)
 		//	exit(0);
 	}else{
 		calculationTime = fluid_simulation->simulationStep();
+		//TODO REMOVE AFTER GEPPETTO FIX
+		if(iterationCount >= 10){
+			delete fluid_simulation;
+			exit(0);
+		}
+		//
 	}
 	// Re-register for next callback
     glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);
