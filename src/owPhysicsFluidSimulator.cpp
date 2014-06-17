@@ -116,7 +116,12 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 {
 	//PCISPH algorithm
 	int iter = 0;//PCISPH prediction-correction iterations conter
-	//if(iterationCount!=0) return 0.0;//uncomment this line to stop movement of the scene
+	// now we will implement sensory system of the c. elegans worm, mechanosensory one
+	// hrre we plan to imeplememtn the parto of openworm sensory sysmtem, which is still one of the grand chanllenges of this project
+	// 
+
+	//if(iterationCount==0) return 0.0;//uncomment this line to stop movement of the scene
+
 	helper->refreshTime();
 	printf("\n[[ Step %d ]]\n",iterationCount);
 	try{
