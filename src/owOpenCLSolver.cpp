@@ -48,7 +48,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 	try{
 		initializeOpenCL();
 		// Create OpenCL buffers
-		create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 3 ) );
+		create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 3 ) );// 4*2-->4*3; third part is to store acceleration[t], while first to are for acceleration[t+delta_t]
 		create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 		create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 		create_ocl_buffer( "neighborMap", neighborMap, CL_MEM_READ_WRITE, ( MAX_NEIGHBOR_COUNT * config->getParticleCount() * sizeof( float ) * 2 ) );
@@ -144,7 +144,7 @@ void owOpenCLSolver::initializeOpenCL()
 	// CL_DEVICE_TYPE
     cl_device_type type;
 	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
-	int preferable_device_type = 0;// 0-CPU, 1-GPU
+	int preferable_device_type = 1;// 0-CPU, 1-GPU
 	
 	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
 	//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
@@ -222,6 +222,7 @@ void owOpenCLSolver::initializeOpenCL()
 		err = program.build( devices, "");
 	#endif
 #endif
+	std::cout<<"OPENCL program was successfully build." << std::endl;
 	if( err != CL_SUCCESS ){
 		std::string compilationErrors;
 		compilationErrors = program.getBuildInfo< CL_PROGRAM_BUILD_LOG >( devices[ 0 ] );
@@ -377,19 +378,11 @@ unsigned int owOpenCLSolver::_run_pcisph_computeDensity(owConfigProrerty * confi
 {
 	// Stage ComputeDensityPressure
 	pcisph_computeDensity.setArg( 0, neighborMap );
-	pcisph_computeDensity.setArg( 1, Wpoly6Coefficient );
-	//pcisph_computeDensity.setArg( 2, gradWspikyCoefficient );
-	pcisph_computeDensity.setArg( 2, h );
-	pcisph_computeDensity.setArg( 3, mass );
-	pcisph_computeDensity.setArg( 4, rho0 );
-	pcisph_computeDensity.setArg( 5, simulationScale );
-	pcisph_computeDensity.setArg( 6, stiffness );
-	pcisph_computeDensity.setArg( 7, sortedPosition );
-	pcisph_computeDensity.setArg( 8, pressure );
-	pcisph_computeDensity.setArg( 9, rho );
-	pcisph_computeDensity.setArg(10, particleIndexBack );
-	pcisph_computeDensity.setArg(11, delta );
-	pcisph_computeDensity.setArg(12, config->getParticleCount() );
+	pcisph_computeDensity.setArg( 1, mass_mult_Wpoly6Coefficient );
+	pcisph_computeDensity.setArg( 2, _hScaled2 );
+	pcisph_computeDensity.setArg( 3, rho );
+	pcisph_computeDensity.setArg( 4, particleIndexBack );
+	pcisph_computeDensity.setArg( 5, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeDensity, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -412,18 +405,15 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
 	pcisph_computeForcesAndInitPressure.setArg( 5, acceleration );
 	pcisph_computeForcesAndInitPressure.setArg( 6, particleIndexBack );
 	pcisph_computeForcesAndInitPressure.setArg( 7, surfTensCoeff );
-//	pcisph_computeForcesAndInitPressure.setArg( 7, Wpoly6Coefficient );
-	pcisph_computeForcesAndInitPressure.setArg( 8, del2WviscosityCoefficient );
-	pcisph_computeForcesAndInitPressure.setArg( 9, h );
-	pcisph_computeForcesAndInitPressure.setArg(10, mass );
-	pcisph_computeForcesAndInitPressure.setArg(11, viscosity );
-	pcisph_computeForcesAndInitPressure.setArg(12, simulationScale );
-	pcisph_computeForcesAndInitPressure.setArg(13, gravity_x );
-	pcisph_computeForcesAndInitPressure.setArg(14, gravity_y );
-	pcisph_computeForcesAndInitPressure.setArg(15, gravity_z );
-	pcisph_computeForcesAndInitPressure.setArg(16, position );
-	pcisph_computeForcesAndInitPressure.setArg(17, particleIndex );
-	pcisph_computeForcesAndInitPressure.setArg(18, config->getParticleCount() );
+	pcisph_computeForcesAndInitPressure.setArg( 8, mass_mult_divgradWviscosityCoefficient );
+	pcisph_computeForcesAndInitPressure.setArg( 9, _hScaled );
+	pcisph_computeForcesAndInitPressure.setArg(10, viscosity );
+	pcisph_computeForcesAndInitPressure.setArg(11, gravity_x );
+	pcisph_computeForcesAndInitPressure.setArg(12, gravity_y );
+	pcisph_computeForcesAndInitPressure.setArg(13, gravity_z );
+	pcisph_computeForcesAndInitPressure.setArg(14, position );
+	pcisph_computeForcesAndInitPressure.setArg(15, particleIndex );
+	pcisph_computeForcesAndInitPressure.setArg(16, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeForcesAndInitPressure, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -483,18 +473,11 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * con
 	pcisph_predictPositions.setArg( 7, gravity_z );
 	pcisph_predictPositions.setArg( 8, simulationScaleInv );
 	pcisph_predictPositions.setArg( 9, timeStep );
-	pcisph_predictPositions.setArg( 10, config->xmin );
-	pcisph_predictPositions.setArg( 11, config->xmax );
-	pcisph_predictPositions.setArg( 12, config->ymin );
-	pcisph_predictPositions.setArg( 13, config->ymax );
-	pcisph_predictPositions.setArg( 14, config->zmin );
-	pcisph_predictPositions.setArg( 15, config->zmax );
-	pcisph_predictPositions.setArg( 16, damping );
-	pcisph_predictPositions.setArg( 17, position );
-	pcisph_predictPositions.setArg( 18, velocity );
-	pcisph_predictPositions.setArg( 19, r0 );
-	pcisph_predictPositions.setArg( 20, neighborMap );
-	pcisph_predictPositions.setArg( 21, config->getParticleCount() );
+	pcisph_predictPositions.setArg(10, position );
+	pcisph_predictPositions.setArg(11, velocity );
+	pcisph_predictPositions.setArg(12, r0 );
+	pcisph_predictPositions.setArg(13, neighborMap );
+	pcisph_predictPositions.setArg(14, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_predictPositions, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -512,18 +495,15 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * confi
 	// Stage ComputeDensityPressure
 	pcisph_predictDensity.setArg( 0, neighborMap );
 	pcisph_predictDensity.setArg( 1, particleIndexBack );
-	pcisph_predictDensity.setArg( 2, Wpoly6Coefficient );
-	//pcisph_predictDensity.setArg( 3, gradWspikyCoefficient );
+	pcisph_predictDensity.setArg( 2, mass_mult_Wpoly6Coefficient );
 	pcisph_predictDensity.setArg( 3, h );
-	pcisph_predictDensity.setArg( 4, mass );
-	pcisph_predictDensity.setArg( 5, rho0 );
-	pcisph_predictDensity.setArg( 6, simulationScale );
-	pcisph_predictDensity.setArg( 7, stiffness );
-	pcisph_predictDensity.setArg( 8, sortedPosition );
-	pcisph_predictDensity.setArg( 9, pressure );
-	pcisph_predictDensity.setArg(10, rho );
-	pcisph_predictDensity.setArg(11, delta );
-	pcisph_predictDensity.setArg(12, config->getParticleCount() );
+	pcisph_predictDensity.setArg( 4, rho0 );
+	pcisph_predictDensity.setArg( 5, simulationScale );
+	pcisph_predictDensity.setArg( 6, stiffness );
+	pcisph_predictDensity.setArg( 7, sortedPosition );
+	pcisph_predictDensity.setArg( 8, pressure );
+	pcisph_predictDensity.setArg( 9, rho );
+	pcisph_predictDensity.setArg(10, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_predictDensity, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -539,21 +519,12 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * confi
 unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProrerty * config)
 {
 	// Stage ComputeDensityPressure
-	pcisph_correctPressure.setArg( 0, neighborMap );
-	pcisph_correctPressure.setArg( 1, particleIndexBack );
-	//pcisph_correctPressure.setArg( 2, gradWspikyCoefficient );
-	pcisph_correctPressure.setArg( 2, h );
-	pcisph_correctPressure.setArg( 3, mass );
-	pcisph_correctPressure.setArg( 4, rho0 );
-	pcisph_correctPressure.setArg( 5, simulationScale );
-	pcisph_correctPressure.setArg( 6, stiffness );
-	pcisph_correctPressure.setArg( 7, sortedPosition );
-	pcisph_correctPressure.setArg( 8, pressure );
-	pcisph_correctPressure.setArg( 9, rho );
-	pcisph_correctPressure.setArg(10, delta );
-	pcisph_correctPressure.setArg(11, position );
-	pcisph_correctPressure.setArg(12, particleIndex );
-	pcisph_correctPressure.setArg(13, config->getParticleCount() );
+	pcisph_correctPressure.setArg( 0, particleIndexBack );
+	pcisph_correctPressure.setArg( 1, rho0 );
+	pcisph_correctPressure.setArg( 2, pressure );
+	pcisph_correctPressure.setArg( 3, rho );
+	pcisph_correctPressure.setArg( 4, delta );
+	pcisph_correctPressure.setArg( 5, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_correctPressure, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -576,17 +547,15 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConf
 	pcisph_computePressureForceAcceleration.setArg( 4, sortedVelocity );
 	pcisph_computePressureForceAcceleration.setArg( 5, particleIndexBack );
 	pcisph_computePressureForceAcceleration.setArg( 6, delta );
-	//pcisph_computePressureForceAcceleration.setArg( 7, del2WviscosityCoefficient );
-	pcisph_computePressureForceAcceleration.setArg( 7, gradWspikyCoefficient );
+	pcisph_computePressureForceAcceleration.setArg( 7, mass_mult_gradWspikyCoefficient );
 	pcisph_computePressureForceAcceleration.setArg( 8, h );
-	pcisph_computePressureForceAcceleration.setArg(  9, mass );
-	pcisph_computePressureForceAcceleration.setArg( 10, viscosity );
-	pcisph_computePressureForceAcceleration.setArg( 11, simulationScale );
-	pcisph_computePressureForceAcceleration.setArg( 12, acceleration );
-	pcisph_computePressureForceAcceleration.setArg( 13, rho0 );
-	pcisph_computePressureForceAcceleration.setArg( 14, position );
-	pcisph_computePressureForceAcceleration.setArg( 15, particleIndex );
-	pcisph_computePressureForceAcceleration.setArg( 16, config->getParticleCount() );
+	pcisph_computePressureForceAcceleration.setArg( 9, simulationScale );
+	pcisph_computePressureForceAcceleration.setArg(10, viscosity );
+	pcisph_computePressureForceAcceleration.setArg(11, acceleration );
+	pcisph_computePressureForceAcceleration.setArg(12, rho0 );
+	pcisph_computePressureForceAcceleration.setArg(13, position );
+	pcisph_computePressureForceAcceleration.setArg(14, particleIndex );
+	pcisph_computePressureForceAcceleration.setArg(15, config->getParticleCount());
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computePressureForceAcceleration, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )

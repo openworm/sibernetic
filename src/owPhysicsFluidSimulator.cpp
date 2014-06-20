@@ -121,7 +121,12 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 {
 	//PCISPH algorithm
 	int iter = 0;//PCISPH prediction-correction iterations conter
-	//if(iterationCount!=0) return 0.0;//uncomment this line to stop movement of the scene
+	// now we will implement sensory system of the c. elegans worm, mechanosensory one
+	// hrre we plan to imeplememtn the parto of openworm sensory sysmtem, which is still one of the grand chanllenges of this project
+	// 
+
+	//if(iterationCount==0) return 0.0;//uncomment this line to stop movement of the scene
+
 	helper->refreshTime();
 	printf("\n[[ Step %d ]]\n",iterationCount);
 	try{
@@ -148,9 +153,9 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 
 		ocl_solver->_run_pcisph_integrate(iterationCount, config);			helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
 		//TODO REMOVE AFTER FIX GEPPETTO create log files
-		stringstream ss;
-		ss << iterationCount+1;
-		owHelper::log_buffer(this->position_cpp,4,config->getParticleCount(),("./logs/position_integrate_" + ss.str() + ".txt").c_str());
+		//stringstream ss;
+		//ss << iterationCount+1;
+		//owHelper::log_buffer(this->position_cpp,4,config->getParticleCount(),("./logs/position_integrate_" + ss.str() + ".txt").c_str());
 		//
 		//Handling of Interaction with membranes
 		if(numOfMembranes > 0){

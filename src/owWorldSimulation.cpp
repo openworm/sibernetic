@@ -875,7 +875,7 @@ void Timer(int value)
 	}else{
 		calculationTime = fluid_simulation->simulationStep();
 		//TODO REMOVE AFTER GEPPETTO FIX
-		if(iterationCount >= 10){
+		if(iterationCount >= 10000){
 			delete fluid_simulation;
 			exit(0);
 		}

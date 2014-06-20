@@ -494,18 +494,10 @@ __kernel void sortPostPass(
 
 __kernel void pcisph_computeDensity(
 									 __global float2 * neighborMap,
-									 /*float*/double Wpoly6Coefficient,
-									 // double gradWspikyCoefficient,
-									 float h,
-									 float mass,
-									 float rho0,
-									 float simulationScale,
-									 float stiffness,
-									 __global float4 * sortedPosition,
-									 __global float * pressure,
+									 float mass_mult_Wpoly6Coefficient,
+									 float hScaled2,
 									 __global float * rho,
 									 __global uint * particleIndexBack,
-									 float delta,
 									 int PARTICLE_COUNT )
 {
 	int id = get_global_id( 0 );
@@ -513,12 +505,9 @@ __kernel void pcisph_computeDensity(
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
-	/*float*/double density = 0.0f;
+	float density = 0.0f;
 	float r_ij2;//squared r_ij
-	float hScaled = h * simulationScale;//scaled smoothing radius
-	float hScaled2 = hScaled*hScaled;//squared scaled smoothing radius
 	float hScaled6 = hScaled2*hScaled2*hScaled2;
-	float2 nm;
 	int real_nc = 0;
 
 	do// gather density contribution from all neighbors (if they exist)
@@ -527,87 +516,22 @@ __kernel void pcisph_computeDensity(
 		{
 			r_ij2= NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc ] );	// distance is already scaled here
 			r_ij2 *= r_ij2;
-			density += (hScaled2-r_ij2)*(hScaled2-r_ij2)*(hScaled2-r_ij2);
-			real_nc++;
+			if(r_ij2<hScaled2)
+			{
+				density += (hScaled2-r_ij2)*(hScaled2-r_ij2)*(hScaled2-r_ij2);
+				//if(r_ij2>hScaled2) printf("=Error: r_ij/h = %f\n", NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc ] ) / hScaled);
+				real_nc++;
+			}
 		}
 
 	}while( ++nc < MAX_NEIGHBOR_COUNT );
 	
-	//if(density==0.f) density = hScaled2*hScaled2*hScaled2;
 	if(density<hScaled6) density = hScaled6;
 
-	density *= ((double)mass)*Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
+	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 	rho[ id ] = density; 		
 }
-/*
-float4 calcBoundaryForceAcceleration(float4 position,
-									 float4 velocity,
-									 float xmin,
-									 float xmax,
-									 float ymin,
-									 float ymax,
-									 float zmin,
-									 float zmax,
-									 float h,
-									 float simulationScale)
-{
-    float4 acceleration = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
-	float hScaled = h*simulationScale;
-    float dist_iw; //i-th particle to wall distance
-    float diff;
-    float boundaryStiffness = 2000.0f;
-    float boundaryDampening = 256.0f;
 
-
-	float value = 32; //value
-    
-	//-----------------------------------------------
-	if ( ( diff = (position[0]-xmin)*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 1.f, 0.f, 0.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-
-	if ( ( diff = (xmax-position[0])*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)(-1.f, 0.f, 0.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-	//-----------------------------------------------
-	if ( ( diff = (position[1]-ymin)*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 0.f, 1.f, 0.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-
-	if ( ( diff = (ymax-position[1])*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 0.f,-1.f, 0.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-	//-----------------------------------------------
-	if ( ( diff = (position[2]-zmin)*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 0.f, 0.f, 1.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-
-	if ( ( diff = (zmax-position[2])*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 0.f, 0.f,-1.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-	//-----------------------------------------------
-
-    return acceleration;
-}
-*/
 
 __kernel void pcisph_computeForcesAndInitPressure(
 								  __global float2 * neighborMap,
@@ -618,12 +542,9 @@ __kernel void pcisph_computeForcesAndInitPressure(
 								  __global float4 * acceleration,
 								  __global uint * particleIndexBack,
 								  float surfTensCoeff,
-								  // /*float*/double Wpoly6Coefficient,
-								  /*float*/double del2WviscosityCoefficient,
-								  float h,
-								  float mass,
+								  float mass_mult_divgradWviscosityCoefficient,
+								  float hScaled,
 								  float mu,
-								  float simulationScale,
 								  float gravity_x,
 								  float gravity_y,
 								  float gravity_z,
@@ -645,7 +566,6 @@ __kernel void pcisph_computeForcesAndInitPressure(
 		return;
 	}
 	int idx = id * MAX_NEIGHBOR_COUNT;
-	float hScaled = h * simulationScale;
 	float hScaled2 = hScaled*hScaled;//29aug_A.Palyanov
 
 	float4 acceleration_i;// = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
@@ -712,7 +632,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 	//float viscosity = 0.3;//0.5f;//0.1f
 	// mu = viscosity
 
-	sum *= (float)(mass * mu) * (float)(del2WviscosityCoefficient/rho[id]);
+	sum *= mu * mass_mult_divgradWviscosityCoefficient / rho[id];
 
 	// apply external forces
 	acceleration_i = sum;
@@ -770,31 +690,34 @@ __kernel void pcisph_computeElasticForces(
 	float4 velocity_i_cm;
 	float check;
 	float4 proj_v_i_cm_on_r_ij;
-	float4 velocity_i = velocity[id];//velocity[ index + offset ];
-	float4 velocity_j;
+//	float4 velocity_i = velocity[id];//velocity[ index + offset ];
+//	float4 velocity_j;
 	int jd;
 	int i;
 	//float4 centerOfMassPosition = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );;
-	float4 iPos,jPos;
-	
-
-	iPos = sortedPosition[id];
+	//float4 iPos,jPos;
+	//iPos = sortedPosition[id];
 
 	do
 	{
 		if( (jd = (int)elasticConnectionsData[ idx + nc ].x) != NO_PARTICLE_ID )
 		{
 			jd = particleIndexBack[jd];
-			velocity_j = velocity[ jd ];
+//			velocity_j = velocity[ jd ];
 
-			jPos = sortedPosition[jd];
+			//jPos = sortedPosition[jd];
 
 			r_ij_equilibrium = elasticConnectionsData[ idx + nc ].y;//rij0
-			vect_r_ij = (sortedPosition[id] - sortedPosition[jd]) * simulationScale;
+			//printf("\n===[ r_ij_equilibrium = %f ]===\n",r_ij_equilibrium);
+			//printf("===[ simulationScale = %e ]===\n",simulationScale);
+			vect_r_ij = (sortedPosition[id] - sortedPosition[jd]) * simulationScale;//scale ok
 			vect_r_ij.w = 0;
 
-			r_ij = sqrt(DOT(vect_r_ij,vect_r_ij));
-			delta_r_ij = r_ij - r_ij_equilibrium;
+			r_ij = sqrt(DOT(vect_r_ij,vect_r_ij));//scale ok
+			delta_r_ij = r_ij - r_ij_equilibrium;//scale ok
+			//printf("\n===[ delta_r_ij = %f ]===\n",delta_r_ij);
+			//printf("===[ r_ij = %f ]===\n",r_ij);
+			//printf("===[ delta_r_ij = %e ]===\n",delta_r_ij);
 
 			if(r_ij!=0.f)
 			{
@@ -804,11 +727,12 @@ __kernel void pcisph_computeElasticForces(
 					if((int)(elasticConnectionsData[idx+nc].z)==(i+1))//contractible spring, = muscle
 					{
 						if(muscle_activation_signal[i]>0.f)
-							acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal[i] * 800.f;
+							acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal[i] * (1300.0f + 500.f) * 3.25e-14f / mass; // mass was forgotten here
 					}
 				}
 			}
 
+			/*
 			centerOfMassVelocity = (velocity_i + velocity_j)/2.f;
 			velocity_i_cm = velocity_i - centerOfMassVelocity;
 			velocity_i_cm.w = 0.f;
@@ -822,7 +746,7 @@ __kernel void pcisph_computeElasticForces(
 				//sortedVelocity[ id ] -= proj_v_i_cm_on_r_ij * 0.1f;
 			//	acceleration[ id ] += -30*proj_v_i_cm_on_r_ij;
 				
-			}
+			}*/
 		}
 		else
 			break;//once we meet NO_PARTICLE_ID in the list of neighbours, it means that all the rest till the end are also NO_PARTICLE_ID
@@ -922,13 +846,6 @@ __kernel void pcisph_predictPositions(
 						float gravity_z,
 						float simulationScaleInv,
 						float timeStep,
-						float xmin,
-						float xmax,
-						float ymin,
-						float ymax,
-						float zmin,
-						float zmax,
-						float damping,
 						__global float4 * position,
 						__global float4 * velocity,
 						float r0,
@@ -958,7 +875,6 @@ __kernel void pcisph_predictPositions(
 
 	//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
 
-	// temporarily switched off. By the way, this causes no visible effect
 	computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt,false, &velocity_t_dt,PARTICLE_COUNT);
 
 	sortedPosition[PARTICLE_COUNT+id] = position_t_dt;// in current version sortedPosition array has double size, 
@@ -969,17 +885,14 @@ __kernel void pcisph_predictPositions(
 __kernel void pcisph_predictDensity(
 									 __global float2 * neighborMap,
 									 __global uint * particleIndexBack,
-									 /*float*/double Wpoly6Coefficient,
-									 //float gradWspikyCoefficient,
+									 float mass_mult_Wpoly6Coefficient,
 									 float h,
-									 float mass,
 									 float rho0,
 									 float simulationScale,
 									 float stiffness,
 									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
-									 float delta,
 									 int PARTICLE_COUNT
 									 )
 {
@@ -988,7 +901,7 @@ __kernel void pcisph_predictDensity(
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
-	/*double*/double density = 0.0;
+	float density = 0.0;
 	float density_accum = 0.0f;
 	float4 r_ij;
 	float r_ij2;//squared r_ij
@@ -996,21 +909,10 @@ __kernel void pcisph_predictDensity(
 	float hScaled = h * simulationScale;//scaled smoothing radius
 	float hScaled2 = hScaled*hScaled;//squared scaled smoothing radius
 	float hScaled6 = hScaled2*hScaled2*hScaled2;
+	float simulationScale6 = simulationScale*simulationScale;
+		  simulationScale6 = simulationScale6*simulationScale6*simulationScale6;
 	int jd;
 	
-	//if((int)(sortedPosition[/*PARTICLE_COUNT+*/id].w) == LIQUID_PARTICLE)
-	/*for(int k = 0; k<PARTICLE_COUNT; k++)
-	{
-		if(id!=k)
-		if( (sortedPosition[PARTICLE_COUNT+id].x==sortedPosition[PARTICLE_COUNT+k].x)&&
-			(sortedPosition[PARTICLE_COUNT+id].y==sortedPosition[PARTICLE_COUNT+k].y)&&
-			(sortedPosition[PARTICLE_COUNT+id].z==sortedPosition[PARTICLE_COUNT+k].z)	)
-			{
-				printf("@@@@@@@@@@@@@@@@@@@@@@@|>>[%d]-[%d]<<|@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",id,k);
-
-			}
-	}*/
-
 	do// gather density contribution from all neighbors (if they exist)
 	{
 		if( (jd = NEIGHBOR_MAP_ID( neighborMap[ idx + nc ])) != NO_PARTICLE_ID )
@@ -1034,39 +936,29 @@ __kernel void pcisph_predictDensity(
 
 	}while( ++nc < MAX_NEIGHBOR_COUNT );
 	
-	density = (double)density_accum * simulationScale * simulationScale * simulationScale * simulationScale * simulationScale * simulationScale;
-	//if(density==0.f) 
+	density = density_accum * simulationScale6;
+
 	if(density<hScaled6)
 	{
 		//density += hScaled6;
 		density = hScaled6;
 	}
 
+	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 
-	density *= ((double)mass)*Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
-	rho[ PARTICLE_COUNT+id ] = (float)density; 
+	rho[ PARTICLE_COUNT+id ] = density; 
 }
 
 
 __kernel void pcisph_correctPressure(
-									 __global float2 * neighborMap,
 									  __global uint * particleIndexBack,
-									 //float gradWspikyCoefficient,
-									 float h,
-									 float mass,
 									 float rho0,
-									 float simulationScale,
-									 float stiffness,
-									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
 									 float delta,
-									 __global float4 * position,
-									 __global uint2 * particleIndex,
 									 int PARTICLE_COUNT
 									 )
 {
-	
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
@@ -1078,12 +970,10 @@ __kernel void pcisph_correctPressure(
 	float rho_err;
 	float p_corr;
 
-
 	rho_err = rho[PARTICLE_COUNT+id] - rho0;
 	p_corr = rho_err*delta;
 	if(p_corr < 0) p_corr = 0;//non-negative pressure
 	pressure[ id ] += p_corr;
-
 }
 
 
@@ -1095,11 +985,10 @@ __kernel void pcisph_computePressureForceAcceleration(
 								  __global float4 * sortedVelocity,
 								  __global uint * particleIndexBack,
 								  float delta,
-								  /*float*/double gradWspikyCoefficient,
+								  float mass_mult_gradWspikyCoefficient,
 								  float h,
-								  float mass,
-								  float mu,
 								  float simulationScale,
+								  float mu,
 								  __global float4 * acceleration,
 								  float rho0,
 								  __global float4 * position,
@@ -1124,7 +1013,6 @@ __kernel void pcisph_computePressureForceAcceleration(
 	float rho_i		  = rho[ PARTICLE_COUNT+id ];
 
 	float4 result = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
-	//float2 nm;
 
 	int nc=0;
 	float4 gradW_ij;
@@ -1144,18 +1032,26 @@ __kernel void pcisph_computePressureForceAcceleration(
 			r_ij = NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc] );
 
 			if(r_ij<hScaled)
-			{
-				value = -(hScaled-r_ij)*(hScaled-r_ij)*0.5f*(pressure[id]+pressure[jd])/rho[PARTICLE_COUNT+jd];
+			{	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				// Variant 1 corresponds to http://www.ifi.uzh.ch/vmml/publications/older-puclications/Solenthaler_sca08.pdf, formula (5) at page 3 
+				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				// Variant 2 corresponds http://www.ifi.uzh.ch/vmml/publications/older-puclications/Solenthaler_sca08.pdf, formula (6) at page 3 
+				// in more details here: http://www.ifi.uzh.ch/pax/uploads/pdf/publication/1299/Solenthaler.pdf, formula (3.3), end of page 29
+				// (B. Solenthaler's dissertation "Incompressible Fluid Simulation and Advanced Surface Handling with SPH")
+				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+				/*1*/value = -(hScaled-r_ij)*(hScaled-r_ij)*0.5f*(pressure[id]+pressure[jd])/rho[PARTICLE_COUNT+jd];
 				/*2*///value = -(hScaled-r_ij)*(hScaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
 				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
 				vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
 
-
-				if(r_ij<0.5*(hScaled/2))//hScaled/2 = r0
+				
+				if(r_ij<0.5*(hScaled/2))//hScaled/2 = r0 
 				{
 					value = -(hScaled*0.25f-r_ij)*(hScaled*0.25f-r_ij)*0.5f*(rho0*delta)/rho[PARTICLE_COUNT+jd];
-					//vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
+					vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
 				}
+
 				if(r_ij==0.0f)
 				{
 #ifdef PRINTF_ON
@@ -1170,8 +1066,8 @@ __kernel void pcisph_computePressureForceAcceleration(
 				// according to formula (3.3) in B. Solenthaler's dissertation "Incompressible Fluid Simulation and Advanced Surface Handling with SPH"
 				// http://www.ifi.uzh.ch/pax/uploads/pdf/publication/1299/Solenthaler.pdf
 
-				//result += -mass*(pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
-				//			   + pressure[jd]/(rho[PARTICLE_COUNT+jd]*rho[PARTICLE_COUNT+jd]))*gradW_ij;
+				/*2*///result += -mass*(pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
+				/*2*///			   + pressure[jd]/(rho[PARTICLE_COUNT+jd]*rho[PARTICLE_COUNT+jd]))*gradW_ij;
 				real_neighbors++;
 			}
 
@@ -1180,22 +1076,10 @@ __kernel void pcisph_computePressureForceAcceleration(
 
 	}while( ++nc < MAX_NEIGHBOR_COUNT );
 
-	/*1*/result *= (float)( ((double)mass)*gradWspikyCoefficient/((double)rho[PARTICLE_COUNT+id]) );
+	/*1*/result *= mass_mult_gradWspikyCoefficient / rho[PARTICLE_COUNT+id];
 	/*2*///result *= mass*gradWspikyCoefficient;
-	//
 	//result = -2.f*mass*pressure[id]*sum_gradW/(rho0*rho0);
-	//result.w = 0.0f;
-/*
-	if(!(	(result.x>=-10000)&&(result.x<=10000)&&
-			(result.y>=-10000)&&(result.y<=10000)&&
-			(result.z>=-10000)&&(result.z<=10000) ))
-	{
-		printf("\n Error!: acceleration_[PARTICLE_COUNT+id]: %f , %f , %f ",result.x,result.y,result.z);
-		printf("\n rho[PARTICLE_COUNT+id]: %f",rho[PARTICLE_COUNT+id]);
-		printf("\n mass: %E",((double)mass));
-		printf("\n gradWspikyCoefficient: %f",gradWspikyCoefficient);
-	}
-*/
+
 	acceleration[ PARTICLE_COUNT+id ] = result; // pressureForceAcceleration "=" or "+=" ???
 
 }
@@ -1707,32 +1591,137 @@ __kernel void pcisph_integrate(
 	if(id>=PARTICLE_COUNT) return;
 	id = particleIndexBack[id]; 
 	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
-	float4 position_ = sortedPosition[ id ];
-	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE){
+	//float4 position_ = sortedPosition[ id ];
+	
+	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE)
+	{
 		return;
 	}
+
+	//printf("\n===[ iterationCount= %d ]===",iterationCount);
+	//printf("\n===[ id= %d ]===[ id_source_particle= %d ]===",id,id_source_particle);
+
 	float4 acceleration_t    = acceleration[ PARTICLE_COUNT*2+id_source_particle ];    acceleration_t.w    = 0.f;
 	float4 acceleration_t_dt = acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ]; acceleration_t_dt.w = 0.f;
 	float4 velocity_t = sortedVelocity[ id ];
 	float4 position_t = sortedPosition[ id ];
+
+	//printf("\n===[ acceleration[ id ].x= %E ]===[ acceleration[ PARTICLE_COUNT+id ].x= %E ]===",acceleration[ id ].x,acceleration[ PARTICLE_COUNT+id ].x);
+	//printf("\n===[ acceleration[ id ].y= %E ]===[ acceleration[ PARTICLE_COUNT+id ].y= %E ]===",acceleration[ id ].y,acceleration[ PARTICLE_COUNT+id ].y);
+	//printf("\n===[ acceleration[ id ].z= %E ]===[ acceleration[ PARTICLE_COUNT+id ].z= %E ]===",acceleration[ id ].z,acceleration[ PARTICLE_COUNT+id ].z);
+	//printf("\n===[ acceleration_t.x= %E ]===[ acceletation_t_dt.x= %E ]===",acceleration_t.x,acceleration_t_dt.x);
+	//printf("\n===[ acceleration_t.y= %E ]===[ acceletation_t_dt.y= %E ]===",acceleration_t.y,acceleration_t_dt.y);
+	//printf("\n===[ acceleration_t.z= %E ]===[ acceletation_t_dt.z= %E ]===",acceleration_t.z,acceleration_t_dt.z);
+
 	if(iterationCount==0) 
-		acceleration_t = (float4)(0.0,-9.8f,0.0,0.0); 
-	//////////////////////////////////////////////////////////////////////////////////////////////////
-	// The semi-implicit Euler is a first-order integrator, just as the standard Euler method.	 //
-	// This means that it commits a global error of the order of dt. However, the semi-implicit	 //
-	// Euler method is a symplectic integrator, unlike the standard method. As a consequence,	 //
-	// the semi-implicit Euler method almost conserves the energy (when the Hamiltonian is	 //
-	// time-independent).	 //	
-	// http://en.wikipedia.org/wiki/Semi-implicit_Euler	 //
-	//////////////////////////////////////////////////////////////////////////////////////////////////
-	// Semi-)Implicit Euler integrator. 1st order, symplectic (has a sort of "global" stability) //
-	// Most of the usual numerical methods, like the primitive Euler scheme	 //
-	// and the classical Runge-Kutta scheme, are not symplectic integrators.	 //
-	//!!//////////////////////////////////////////////////////////////////////////////////////////////////
-	/**/	float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*timeStep;	 //
-	/**/	float4 position_t_dt = position_t + (velocity_t_dt)*timeStep*simulationScaleInv;	 //
-	//////////////////////////////////////////////////////////////////////////////////////////////////
+		acceleration_t = (float4)(0.0,-9.8,0.0,0.0); 
+
+	// acceleration[ id ] = visc.F. + surf.tens.F. + grav.F. + elast.F. + muscl.contr.F.
+	// acceleration[ PARTICLE_COUNT+id ] = pressure.F.
+
+	//////////////////////////////////////////////////////////////
+//!!///  so-called "Velocity Verlet" integration 
+	///  (similar to leapfrog method, except that the velocity and position are calculated 
+	///  at the same value of the time variable (Leapfrog does not, as the name suggests). 
+	///==========================================================
+	///  2-nd order of precision for the position: 
+	///  [ O(delta_t^2) global (cumulative) error over a constant interval of time ]
+	///  self-starting, minimizes roundoff errors
+	///  http://www.saylor.org/site/wp-content/uploads/2011/06/MA221-6.1.pdf, page 3
+	///  http://en.wikipedia.org/wiki/Verlet_integration, Velocity Verlet
+	//////////////////////////////////////////////////////////////
+//	float4 position_t_dt = position_t + (velocity_t*timeStep + acceleration_t*timeStep*timeStep/2.f)*simulationScaleInv;
+//	float4 velocity_t_dt = velocity_t + (acceleration_t + acceleration_t_dt)*timeStep/2.f;
+	//////////////////////////////////////////////////////////////
+
+	//http://lolengine.net/blog/2011/12/14/understanding-motion-in-games
+	// my variant, unknown method
+	//float4 velocity_t_dt = velocity_t + acceleration_t_dt*timeStep;
+	//float4 position_t_dt = position_t + (velocity_t+velocity_t_dt)*0.5f*timeStep*simulationScaleInv;
+
+	//http://www.richardlord.net/presentations/physics-for-flash-games
+	//float4 position_t_dt = position_t + (velocity_t + (velocity_t+acceleration_t*timeStep) )*0.5f*timeStep*simulationScaleInv;
+	//float4 velocity_t_dt = velocity_t + (acceleration_t+acceleration_t_dt)*0.5f*timeStep;
 	
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	// The semi-implicit Euler is a first-order integrator, just as the standard Euler method.		//
+	// This means that it commits a global error of the order of dt. However, the semi-implicit		//
+	// Euler method is a symplectic integrator, unlike the standard method. As a consequence,		//
+	// the semi-implicit Euler method almost conserves the energy (when the Hamiltonian is			//
+	// time-independent).																			//				
+	// http://en.wikipedia.org/wiki/Semi-implicit_Euler												//
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	// Semi-)Implicit Euler integrator. 1st order, symplectic (has a sort of "global" stability) 	//
+	// Most of the usual numerical methods, like the primitive Euler scheme							//
+	// and the classical Runge-Kutta scheme, are not symplectic integrators.						//
+//!!//////////////////////////////////////////////////////////////////////////////////////////////////
+	/**/	float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*timeStep;						//
+	/**/	float4 position_t_dt = position_t + (velocity_t_dt)*timeStep*simulationScaleInv;		//
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//printf("\n===[ timeStep= %5e ]===",timeStep);
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//	LEAPFROG METHOD		2-nd order(!)		symplectic(!)		obviously best choice			//
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	// leapfrog is also symplectic
+	// in the leapfrog method, the recipe changes a little bit.
+    //Find the forces.
+    //Find the new momentum based on the force and HALF of the small time step interval (not the whole time step)
+    //Find the new position.
+    //Find the next new momentum with the other half of the time step.
+	//A second way to write the leapfrog looks quite different at first sight. Defining all quantities only at integer times, we can write: 
+	/**///	float4 position_t_dt = position_t + (velocity_t*timeStep + acceleration_t*timeStep*timeStep/2.f)*simulationScaleInv;		
+	/**///	float4 velocity_t_dt = velocity_t + (acceleration_t + acceleration_t_dt)*timeStep/2.f;						
+	// for floats it works with a significant error, which neglects all advantages of this really nice method
+	// for example, at first time step we get 2.17819E-03 instead of 2.18000E-03, and such things occur at every step and accumulate.
+	// switching to doubles.
+	
+
+//	printf("\n===[ r_t_dt= %5e]===",position_t_dt.y-ymax/2);
+	//printf("\n===[ simulationScaleInv= %5e ]===",simulationScaleInv);
+//	printf("\n===[ r_t= %5e, v_t= %5e, a_t= %5e ]===",(position_t.y-0*ymax/2)/simulationScaleInv,velocity_t.y,acceleration_t.y);
+//	printf("\n===[ r_t_dt= %5e, v_t_dt= %5e, a_t_dt= %5e ]===",(position_t_dt.y-0*ymax/2)/simulationScaleInv,velocity_t_dt.y,acceleration_t_dt.y);
+
+//!!//Explicit  Euler (1st order)
+//	float4 velocity_t_dt = velocity_t + (acceleration_t)*timeStep;
+//	float4 position_t_dt = position_t + (velocity_t_dt+velocity_t)*0.5*timeStep*simulationScaleInv;
+
+//!!//Improved  Euler integrator | http://www.richardlord.net/presentations/physics-for-flash-games
+	/*float4 p2 = position_t+velocity_t*timeStep*simulationScaleInv;
+	float4 v2 = velocity_t+acceleration_t*timeStep;
+	float4 position_t_dt = position_t + (velocity_t+v2)*timeStep*simulationScaleInv/2.f;
+	float4 velocity_t_dt = velocity_t + (acceleration_t+acceleration_t_dt)*timeStep;*/
+	
+
+
+	//Runge - Kutta (2nd order)
+/*
+	float4 k1_p = velocity_t * (timeStep*simulationScaleInv);
+	float4 k1_v = acceleration_t * timeStep;
+	float4 k2_p = (  velocity_t + k1_v + acceleration_t_dt * timeStep ) * (timeStep*simulationScaleInv);
+	float4 k2_v = acceleration_t_dt * timeStep;
+	float4 velocity_t_dt = velocity_t + ( k1_v +  k2_v  ) * 1.0f/2.0f;
+	float4 position_t_dt = position_t + ( k1_p +  k2_p  ) * 1.0f/2.0f;
+*/
+
+	//float4 position_t_dt = position_t + velocity_t_dt*(timeStep*simulationScaleInv);// + acceleration_t*(timeStep*timeStep*simulationScaleInv/*simulationScaleInv*/)/2.f;
+	// was velocity_t instead of velocity_t_dt ^^^<---here
+
+	//printf("\n===[ velocity_t.x= %e ]===[ velocity_t_dt.x= %e ]===",velocity_t.x,velocity_t_dt.x);
+	//printf("\n*==[ position_t.x= %e ]===[ position_t_dt.x= %e ]===",position_t.x,position_t_dt.x);
+	
+	/*float position_t_dt_y = 0;//position_t_dt.y;
+	printf("\n*==[ position_t_dt_y= %e ]===",position_t_dt_y);
+	position_t_dt_y += -1.225000e-10;
+	printf("\n*==[ position_t_dt_y= %e ]===",position_t_dt_y);*/
+
+	//if(mode==0)
+	/*{
+		//sortedVelocity[PARTICLE_COUNT+id] = newVelocity_;
+		sortedPosition[PARTICLE_COUNT+id] = newPosition_;// sorted position, as well as velocity, in current version has double size, PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
+	}*/
+	//else//if mode==1
+
 	// in Chao Fang realization here is also acceleration 'speed limit' applied
 
 	if(position_t_dt.x<xmin) position_t_dt.x = xmin;//A.Palyanov 30.08.2012
@@ -1745,8 +1734,13 @@ __kernel void pcisph_integrate(
 
 	float particleType = position[ id_source_particle ].w;
 	computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt, true, &velocity_t_dt,PARTICLE_COUNT);
-	velocity[ id_source_particle ] = (float4)((float)velocity_t_dt.x, (float)velocity_t_dt.y, (float)velocity_t_dt.z, 0.f);
-	position[ id_source_particle ] = (float4)((float)position_t_dt.x, (float)position_t_dt.y, (float)position_t_dt.z, particleType);
+
+	
+	velocity[ id_source_particle ] = velocity_t_dt;
+	position[ id_source_particle ] = position_t_dt;
+	position[ id_source_particle ].w = particleType;
+	//velocity[ id_source_particle ] = (float4)((float)velocity_t_dt_x, (float)velocity_t_dt_y, (float)velocity_t_dt_z, 0.f);
+	//position[ id_source_particle ] = (float4)((float)position_t_dt_x, (float)position_t_dt_y, (float)position_t_dt_z, particleType);
 
 	acceleration[PARTICLE_COUNT*2+id_source_particle] = acceleration_t_dt;
 }
