@@ -1,5 +1,4 @@
-TARGET = Smoothed-Particle-Hydrodynamics
-
+TARGET = Sibernetic
 RM := rm -rf
 
 SOURCES = src/PyramidalSimulation.cpp \

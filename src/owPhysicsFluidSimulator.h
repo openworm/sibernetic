@@ -63,7 +63,6 @@ private:
 	//Helper arrays
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;
-	float * acceleration_cpp;//TODO REMOVE after fixing
 	owConfigProrerty * config;
 	owHelper * helper;
 };

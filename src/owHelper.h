@@ -57,7 +57,7 @@ public:
 	owHelper(void);
 	~owHelper(void);
 	static void generateConfiguration( int stage, float *position, float *velocity, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int * particleMembranesList_cpp, owConfigProrerty * config);
-	static void preLoadConfiguration( int & numOfMembranes, owConfigProrerty * config );
+	static void preLoadConfiguration( int & numOfMembranes, owConfigProrerty * config, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP );
 	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config );
 	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *& elasticConnectionsData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
 	static void loadConfigurationToFile(float * position, owConfigProrerty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true);

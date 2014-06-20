@@ -138,15 +138,11 @@ private:
 
 	// Kernels
 	cl::Kernel clearBuffers;
-	cl::Kernel computeAcceleration;
-	cl::Kernel computeDensityPressure;
 	cl::Kernel findNeighbors;
 	cl::Kernel hashParticles;
 	cl::Kernel indexx;
-	cl::Kernel integrate;
 	cl::Kernel sortPostPass;
-	// Additional kernels for PCISPH and for calculation elastic forces
-	//cl::Kernel preElasticMatterPass;
+
 	cl::Kernel pcisph_computeDensity;
 	cl::Kernel pcisph_computeForcesAndInitPressure;
 	cl::Kernel pcisph_integrate;
@@ -161,6 +157,9 @@ private:
 	cl::Kernel computeInteractionWithMembranes;
 	cl::Kernel computeInteractionWithMembranes_finalize;
 
+	//Needed for sorting stuff
+	int * _particleIndex;
+	unsigned int * gridNextNonEmptyCellBuffer;
 };
 
 #endif //OW_OPENCL_SOLVER_H

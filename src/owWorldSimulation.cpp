@@ -872,8 +872,6 @@ void Timer(int value)
 	if(load_from_file){
 		owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp, fluid_simulation->getConfig(),iteration);
 		iteration++;
-		//if(iteration >= iterationCount)
-		//	exit(0);
 	}else{
 		calculationTime = fluid_simulation->simulationStep();
 		//TODO REMOVE AFTER GEPPETTO FIX
@@ -937,8 +935,9 @@ void draw(void)
 	glPopMatrix();
 }
 void sighandler(int s){
-  std::cerr << "Caught signal " << s << ".\n"; // this is undefined behaviour
-  fluid_simulation->~owPhysicsFluidSimulator();
+  std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
+  delete fluid_simulation;
+  delete helper;
   exit(0);
 }
 

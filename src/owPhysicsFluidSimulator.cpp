@@ -48,8 +48,6 @@ int numOfLiquidP = 0;
 int numOfElasticP = 0;
 int numOfBoundaryP = 0;
 int numOfMembranes = 0;
-int * _particleIndex;
-unsigned int * gridNextNonEmptyCellBuffer;
 extern float * muscle_activation_signal_cpp;
 int iter_step = 10;
 
@@ -71,14 +69,14 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		config->ymin = 0.f;
 		config->ymax = 20.0*h;
 		config->zmin = 0.f;
-		config->zmax = 250.0*h;
+		config->zmax = 200.0*h;
 #endif
 		if(generateWormBodyConfiguration)
 		// GENERATE THE SCENE
 		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config);
 		else								
 		// LOAD FROM FILE
-		owHelper::preLoadConfiguration(numOfMembranes, config);
+		owHelper::preLoadConfiguration(numOfMembranes, config, numOfLiquidP, numOfElasticP, numOfBoundaryP);
 #ifdef PY_NETWORK_SIMULATION
         //mv
 		simulation.setup();
@@ -89,13 +87,9 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		config->gridCellCount = config->gridCellsX * config->gridCellsY * config->gridCellsZ;
 		position_cpp = new float[ 4 * config->getParticleCount() ];
 		velocity_cpp = new float[ 4 * config->getParticleCount() ];
-		_particleIndex = new   int[ 2 * config->getParticleCount() ];
-		gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
 		if(numOfMembranes<=0) membraneData_cpp = NULL; else membraneData_cpp = new int [numOfMembranes*3];
-		if(numOfElasticP<=0) particleMembranesList_cpp = NULL; 
-			else particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
-
+		if(numOfElasticP<=0)  particleMembranesList_cpp = NULL; else particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
 		for(int i=0;i<MUSCLE_COUNT;i++)
 		{
 			muscle_activation_signal_cpp[i] = 0.f;
@@ -104,7 +98,6 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		//The buffers listed below are only for usability and debug
 		density_cpp = new float[ 1 * config->getParticleCount() ];
 		particleIndex_cpp = new unsigned int[config->getParticleCount() * 2];
-		acceleration_cpp = new float[config->getParticleCount() * 4];//TODO REMOVE IT AFTER FIXING
 		
 		if(generateWormBodyConfiguration)
 		// GENERATE THE SCENE
@@ -160,10 +153,12 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		owHelper::log_buffer(this->position_cpp,4,config->getParticleCount(),("./logs/position_integrate_" + ss.str() + ".txt").c_str());
 		//
 		//Handling of Interaction with membranes
-		ocl_solver->_run_clearMembraneBuffers(config);
-		ocl_solver->_run_computeInteractionWithMembranes(config);
-		// compute change of coordinates due to interactions with membranes
-		ocl_solver->_run_computeInteractionWithMembranes_finalize(config);
+		if(numOfMembranes > 0){
+			ocl_solver->_run_clearMembraneBuffers(config);
+			ocl_solver->_run_computeInteractionWithMembranes(config);
+			// compute change of coordinates due to interactions with membranes
+			ocl_solver->_run_computeInteractionWithMembranes_finalize(config);
+		}
 		//END
 		ocl_solver->read_position_buffer(position_cpp, config);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n");
 
@@ -181,11 +176,6 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 			}
 		}
 		iterationCount++;
-
-		//owHelper::log_buffer(this->velocity_cpp,4,config->getParticleCount(),("./logs/position_" + ss.str() + ".txt").c_str());
-		//owHelper::log_buffer(this->membraneData_cpp,3,numOfElasticP,("./logs/membraneData_" + ss.str() + ".txt").c_str());
-		//owHelper::log_buffer(this->particleMembranesList_cpp,1,numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE,("./logs/particleMembranesList_" + ss.str() + ".txt").c_str());
-		//
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 #ifdef PY_NETWORK_SIMULATION
         //mv
@@ -214,11 +204,9 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 	delete [] density_cpp;
 	delete [] particleIndex_cpp;
 	delete [] muscle_activation_signal_cpp;
-	if(membraneData_cpp) delete [] membraneData_cpp;
-	if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;
+	if(membraneData_cpp != NULL) delete [] membraneData_cpp;
 	delete config;
 	delete ocl_solver;
-	delete helper;
 }
 
 float calcDelta()

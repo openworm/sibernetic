@@ -1399,7 +1399,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 int read_position = 0;
 std::string owHelper::path = "./configuration/";
 std::string owHelper::suffix = "";
-void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config)
+void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP)
 {
 	try
 	{
@@ -1420,7 +1420,20 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 			{
 				p_type = -1.1f;//reinitialize
 				positionFile >> x >> y >> z >> p_type;
-				if(p_type>=0){ p_count++; }//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
+				if(p_type>=0){
+					p_count++;
+					switch((int)p_type){
+						case LIQUID_PARTICLE:
+							numOfLiquidP++;
+							break;
+						case ELASTIC_PARTICLE:
+							numOfElasticP++;
+							break;
+						case BOUNDARY_PARTICLE:
+							numOfBoundaryP++;
+							break;
+					}
+				}//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
 				else break;//end of file
 			}
 		}
@@ -1470,17 +1483,6 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 				position_cpp[ 4 * i + 1 ] = y;
 				position_cpp[ 4 * i + 2 ] = z;
 				position_cpp[ 4 * i + 3 ] = p_type;
-				switch((int)p_type){
-					case LIQUID_PARTICLE:
-						numOfLiquidP++;
-						break;
-					case ELASTIC_PARTICLE:
-						numOfElasticP++;
-						break;
-					case BOUNDARY_PARTICLE:
-						numOfBoundaryP++;
-						break;
-				}
 				i++;
 			}
 			positionFile.close();
@@ -1565,7 +1567,6 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 			if( membranesIndexFile.is_open())
 			{
 				int id;
-				particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
 				while( membranesIndexFile.good() && i < numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
 				{
 					membranesIndexFile >> id ;

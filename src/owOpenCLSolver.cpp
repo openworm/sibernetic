@@ -40,8 +40,6 @@
 extern int numOfElasticP;
 extern int numOfBoundaryP;
 extern int numOfMembranes;
-extern int * _particleIndex;
-extern unsigned int * gridNextNonEmptyCellBuffer;
 
 int myCompare( const void * v1, const void * v2 ); 
 
@@ -86,6 +84,9 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		copy_buffer_to_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 );
 		copy_buffer_to_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 );
 		//membranes
+		//Needed for sortin stuff
+		_particleIndex = new   int[ 2 * config->getParticleCount() ];
+		gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
 		if(membraneData_cpp != NULL )
 		{
 			create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 3 ) );
@@ -97,7 +98,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 				copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
 			}
 
-			if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;
+			if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;//We delete it because we don't need it anymore
 		}
 		//elastic connections
 		if(elasticConnectionsData_cpp != NULL){
