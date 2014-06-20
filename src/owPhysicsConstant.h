@@ -38,7 +38,7 @@
 
 #include "owOpenCLConstant.h"
 
-#define generateWormBodyConfiguration 0 //or load from file otherwise [0/1]
+#define generateWormBodyConfiguration 1 //or load from file otherwise [0/1]
 
 #ifndef M_PI
 #define M_PI 3.1415927f
@@ -47,7 +47,7 @@
 
 const float rho0 = 1000.0f;
 const float mass = 3.25e-14f;// kg // we need 3.25e-14 kg
-const float timeStep = 1.0e-05f;//5.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
+const float timeStep = 5.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
 
 
 const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);
@@ -61,6 +61,10 @@ const float preliminaryWormLength = 311 * interParticleDistance;//should be 1 mm
 const float r0 = 0.5f * h; // distance between two boundary particle == equilibrium distance between 2 particles // Ihmsen et. al., 2010, page 4, line 3 
 						   // M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 
+const float _hScaled = h * simulationScale;//scaled smoothing radius
+const float _hScaled2 = _hScaled*_hScaled;//squared scaled smoothing radius
+
+
 //Sizes of the box containing simulated 'world'
 //Sizes choice is realized this way because it should be proportional to smoothing radius h
 //TODO: replace this from const to variable
@@ -70,7 +74,7 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 #define YMIN 0
 #define YMAX 20.0f*h // vertical
 #define ZMIN 0
-#define ZMAX 200.0f*h // horizontal 2 //142
+#define ZMAX 250.0f*h // horizontal 2 //142
 #else
 #define XMIN 0
 #define XMAX 88.84f//30.0*h // horizontal 1
@@ -103,7 +107,7 @@ const float r0 = 0.5f * h; // distance between two boundary particle == equilibr
 // and particle mass = 3.25e-14 kg
 
 const float stiffness = 0.75f;	//need description of this parameter
-const float viscosity = 1.0e-05f;//was recently 0.00005f; //0.00015f;	// liquid viscosity  //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
+const float viscosity = 0.00005f;//0.00015f;	// liquid viscosity  //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
 const float damping = 0.75f;	//need description of this parameter
 
 const float CFLLimit = 100.0f;
@@ -111,7 +115,7 @@ const float CFLLimit = 100.0f;
 const double beta = timeStep*timeStep*mass*mass*2/(rho0*rho0);// B. Solenthaler's dissertation, formula 3.6 (end of page 30)
 const double Wpoly6Coefficient = 315.0 / ( 64.0 * M_PI * pow( (double)(h*simulationScale), 9.0 ) );
 const double gradWspikyCoefficient= -45.0 / ( M_PI * pow( (double)(h*simulationScale), 6.0 ) );
-const double del2WviscosityCoefficient = - gradWspikyCoefficient;
+const double divgradWviscosityCoefficient = - gradWspikyCoefficient;
 const float gravity_x = 0.0f;
 const float gravity_y = -9.8f;
 const float gravity_z = 0.0f;
@@ -119,5 +123,10 @@ extern const float delta;
 const int maxIteration = 3;
 const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale;
 const float elasticityCoefficient = 1.95e-05f / mass;
+
+const float mass_mult_Wpoly6Coefficient = (float) ( (double)mass * Wpoly6Coefficient );
+const float mass_mult_gradWspikyCoefficient = (float) ( (double)mass * gradWspikyCoefficient );
+const float mass_mult_divgradWviscosityCoefficient = (float) ( (double)mass * divgradWviscosityCoefficient );
+
 
 #endif // #ifndef OW_PHYSICS_CONSTANT_H

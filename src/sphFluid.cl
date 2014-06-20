@@ -493,18 +493,10 @@ __kernel void sortPostPass(
 
 __kernel void pcisph_computeDensity(
 									 __global float2 * neighborMap,
-									 /*float*/double Wpoly6Coefficient,
-									 // double gradWspikyCoefficient,
-									 float h,
-									 float mass,
-									 float rho0,
-									 float simulationScale,
-									 float stiffness,
-									 __global float4 * sortedPosition,
-									 __global float * pressure,
+									 float mass_mult_Wpoly6Coefficient,
+									 float hScaled2,
 									 __global float * rho,
 									 __global uint * particleIndexBack,
-									 float delta,
 									 int PARTICLE_COUNT )
 {
 	int id = get_global_id( 0 );
@@ -512,12 +504,9 @@ __kernel void pcisph_computeDensity(
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
-	/*float*/double density = 0.0f;
+	float density = 0.0f;
 	float r_ij2;//squared r_ij
-	float hScaled = h * simulationScale;//scaled smoothing radius
-	float hScaled2 = hScaled*hScaled;//squared scaled smoothing radius
 	float hScaled6 = hScaled2*hScaled2*hScaled2;
-	float2 nm;
 	int real_nc = 0;
 
 	do// gather density contribution from all neighbors (if they exist)
@@ -536,81 +525,12 @@ __kernel void pcisph_computeDensity(
 
 	}while( ++nc < MAX_NEIGHBOR_COUNT );
 	
-	//if(density==0.f) density = hScaled2*hScaled2*hScaled2;
 	if(density<hScaled6) density = hScaled6;
 
-	density *= ((double)mass)*Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
+	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 	rho[ id ] = density; 		
 }
-/*
-float4 calcBoundaryForceAcceleration(float4 position,
-									 float4 velocity,
-									 float xmin,
-									 float xmax,
-									 float ymin,
-									 float ymax,
-									 float zmin,
-									 float zmax,
-									 float h,
-									 float simulationScale)
-{
-    float4 acceleration = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
-	float hScaled = h*simulationScale;
-    float dist_iw; //i-th particle to wall distance
-    float diff;
-    float boundaryStiffness = 2000.0f;
-    float boundaryDampening = 256.0f;
 
-
-	float value = 32; //value
-    
-	//-----------------------------------------------
-	if ( ( diff = (position[0]-xmin)*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 1.f, 0.f, 0.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-
-	if ( ( diff = (xmax-position[0])*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)(-1.f, 0.f, 0.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-	//-----------------------------------------------
-	if ( ( diff = (position[1]-ymin)*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 0.f, 1.f, 0.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-
-	if ( ( diff = (ymax-position[1])*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 0.f,-1.f, 0.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-	//-----------------------------------------------
-	if ( ( diff = (position[2]-zmin)*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 0.f, 0.f, 1.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-
-	if ( ( diff = (zmax-position[2])*simulationScale ) < hScaled)
-    {
-        float4 norm =  (float4)( 0.f, 0.f,-1.f, 0.f );
-        float adj = boundartStiffness * diff - boundaryDampening * DOT(norm, velocity);
-        acceleration +=  norm * adj;
-    }
-	//-----------------------------------------------
-
-    return acceleration;
-}
-*/
 
 __kernel void pcisph_computeForcesAndInitPressure(
 								  __global float2 * neighborMap,
@@ -621,12 +541,9 @@ __kernel void pcisph_computeForcesAndInitPressure(
 								  __global float4 * acceleration,
 								  __global uint * particleIndexBack,
 								  float surfTensCoeff,
-								  // /*float*/double Wpoly6Coefficient,
-								  /*float*/double del2WviscosityCoefficient,
-								  float h,
-								  float mass,
+								  float mass_mult_divgradWviscosityCoefficient,
+								  float hScaled,
 								  float mu,
-								  float simulationScale,
 								  float gravity_x,
 								  float gravity_y,
 								  float gravity_z,
@@ -648,7 +565,6 @@ __kernel void pcisph_computeForcesAndInitPressure(
 		return;
 	}
 	int idx = id * MAX_NEIGHBOR_COUNT;
-	float hScaled = h * simulationScale;
 	float hScaled2 = hScaled*hScaled;//29aug_A.Palyanov
 
 	float4 acceleration_i;// = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
@@ -715,7 +631,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 	//float viscosity = 0.3;//0.5f;//0.1f
 	// mu = viscosity
 
-	sum *= (float)(mass * mu) * (float)(del2WviscosityCoefficient/rho[id]);
+	sum *= mu * mass_mult_divgradWviscosityCoefficient / rho[id];
 
 	// apply external forces
 	acceleration_i = sum;
@@ -929,13 +845,6 @@ __kernel void pcisph_predictPositions(
 						float gravity_z,
 						float simulationScaleInv,
 						float timeStep,
-						float xmin,
-						float xmax,
-						float ymin,
-						float ymax,
-						float zmin,
-						float zmax,
-						float damping,
 						__global float4 * position,
 						__global float4 * velocity,
 						float r0,
@@ -965,7 +874,6 @@ __kernel void pcisph_predictPositions(
 
 	//sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity, 
 
-	// temporarily switched off. By the way, this causes no visible effect
 	computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt,false, &velocity_t_dt,PARTICLE_COUNT);
 
 	sortedPosition[PARTICLE_COUNT+id] = position_t_dt;// in current version sortedPosition array has double size, 
@@ -976,17 +884,14 @@ __kernel void pcisph_predictPositions(
 __kernel void pcisph_predictDensity(
 									 __global float2 * neighborMap,
 									 __global uint * particleIndexBack,
-									 /*float*/double Wpoly6Coefficient,
-									 //float gradWspikyCoefficient,
+									 float mass_mult_Wpoly6Coefficient,
 									 float h,
-									 float mass,
 									 float rho0,
 									 float simulationScale,
 									 float stiffness,
 									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
-									 float delta,
 									 int PARTICLE_COUNT
 									 )
 {
@@ -995,7 +900,7 @@ __kernel void pcisph_predictDensity(
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
-	/*double*/double density = 0.0;
+	float density = 0.0;
 	float density_accum = 0.0f;
 	float4 r_ij;
 	float r_ij2;//squared r_ij
@@ -1003,21 +908,10 @@ __kernel void pcisph_predictDensity(
 	float hScaled = h * simulationScale;//scaled smoothing radius
 	float hScaled2 = hScaled*hScaled;//squared scaled smoothing radius
 	float hScaled6 = hScaled2*hScaled2*hScaled2;
+	float simulationScale6 = simulationScale*simulationScale;
+		  simulationScale6 = simulationScale6*simulationScale6*simulationScale6;
 	int jd;
 	
-	//if((int)(sortedPosition[/*PARTICLE_COUNT+*/id].w) == LIQUID_PARTICLE)
-	/*for(int k = 0; k<PARTICLE_COUNT; k++)
-	{
-		if(id!=k)
-		if( (sortedPosition[PARTICLE_COUNT+id].x==sortedPosition[PARTICLE_COUNT+k].x)&&
-			(sortedPosition[PARTICLE_COUNT+id].y==sortedPosition[PARTICLE_COUNT+k].y)&&
-			(sortedPosition[PARTICLE_COUNT+id].z==sortedPosition[PARTICLE_COUNT+k].z)	)
-			{
-				printf("@@@@@@@@@@@@@@@@@@@@@@@|>>[%d]-[%d]<<|@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",id,k);
-
-			}
-	}*/
-
 	do// gather density contribution from all neighbors (if they exist)
 	{
 		if( (jd = NEIGHBOR_MAP_ID( neighborMap[ idx + nc ])) != NO_PARTICLE_ID )
@@ -1032,46 +926,36 @@ __kernel void pcisph_predictDensity(
 
 			if(r_ij2==0)
 			{
-				//printf("\a\n");
-				printf("@@@|>>[%d]-[%d]<<|@@@ %E @@@@ (%f) (%f) ####",id,jd,((double)r_ij2),sortedPosition[PARTICLE_COUNT+id].w,sortedPosition[PARTICLE_COUNT+jd].w );
+				//error
+				printf("@@@|>>[%d]-[%d]<<|@@@ %E @@@@ (%f) (%f) ####",id,jd,r_ij2,sortedPosition[PARTICLE_COUNT+id].w,sortedPosition[PARTICLE_COUNT+jd].w );
 			}
 		}
 
 	}while( ++nc < MAX_NEIGHBOR_COUNT );
 	
-	density = (double)density_accum * simulationScale * simulationScale * simulationScale * simulationScale * simulationScale * simulationScale;
-	//if(density==0.f) 
+	density = density_accum * simulationScale6;
+
 	if(density<hScaled6)
 	{
 		//density += hScaled6;
 		density = hScaled6;
 	}
 
+	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 
-	density *= ((double)mass)*Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
-	rho[ PARTICLE_COUNT+id ] = (float)density; 
+	rho[ PARTICLE_COUNT+id ] = density; 
 }
 
 
 __kernel void pcisph_correctPressure(
-									 __global float2 * neighborMap,
 									  __global uint * particleIndexBack,
-									 //float gradWspikyCoefficient,
-									 float h,
-									 float mass,
 									 float rho0,
-									 float simulationScale,
-									 float stiffness,
-									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
 									 float delta,
-									 __global float4 * position,
-									 __global uint2 * particleIndex,
 									 int PARTICLE_COUNT
 									 )
 {
-	
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
@@ -1083,12 +967,10 @@ __kernel void pcisph_correctPressure(
 	float rho_err;
 	float p_corr;
 
-
 	rho_err = rho[PARTICLE_COUNT+id] - rho0;
 	p_corr = rho_err*delta;
 	if(p_corr < 0) p_corr = 0;//non-negative pressure
 	pressure[ id ] += p_corr;
-
 }
 
 
@@ -1100,11 +982,10 @@ __kernel void pcisph_computePressureForceAcceleration(
 								  __global float4 * sortedVelocity,
 								  __global uint * particleIndexBack,
 								  float delta,
-								  /*float*/double gradWspikyCoefficient,
+								  float mass_mult_gradWspikyCoefficient,
 								  float h,
-								  float mass,
-								  float mu,
 								  float simulationScale,
+								  float mu,
 								  __global float4 * acceleration,
 								  float rho0,
 								  __global float4 * position,
@@ -1129,7 +1010,6 @@ __kernel void pcisph_computePressureForceAcceleration(
 	float rho_i		  = rho[ PARTICLE_COUNT+id ];
 
 	float4 result = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
-	//float2 nm;
 
 	int nc=0;
 	float4 gradW_ij;
@@ -1191,22 +1071,10 @@ __kernel void pcisph_computePressureForceAcceleration(
 
 	}while( ++nc < MAX_NEIGHBOR_COUNT );
 
-	/*1*/result *= (float)( ((double)mass)*gradWspikyCoefficient/((double)rho[PARTICLE_COUNT+id]) );
+	/*1*/result *= mass_mult_gradWspikyCoefficient / rho[PARTICLE_COUNT+id];
 	/*2*///result *= mass*gradWspikyCoefficient;
-	//
 	//result = -2.f*mass*pressure[id]*sum_gradW/(rho0*rho0);
-	//result.w = 0.0f;
-/*
-	if(!(	(result.x>=-10000)&&(result.x<=10000)&&
-			(result.y>=-10000)&&(result.y<=10000)&&
-			(result.z>=-10000)&&(result.z<=10000) ))
-	{
-		printf("\n Error!: acceleration_[PARTICLE_COUNT+id]: %f , %f , %f ",result.x,result.y,result.z);
-		printf("\n rho[PARTICLE_COUNT+id]: %f",rho[PARTICLE_COUNT+id]);
-		printf("\n mass: %E",((double)mass));
-		printf("\n gradWspikyCoefficient: %f",gradWspikyCoefficient);
-	}
-*/
+
 	acceleration[ PARTICLE_COUNT+id ] = result; // pressureForceAcceleration "=" or "+=" ???
 
 }
@@ -1780,7 +1648,6 @@ __kernel void pcisph_integrate(
 	/**/	float4 position_t_dt = position_t + (velocity_t_dt)*timeStep*simulationScaleInv;		//
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//printf("\n===[ timeStep= %5e ]===",timeStep);
-	//double4 pos2;
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//	LEAPFROG METHOD		2-nd order(!)		symplectic(!)		obviously best choice			//
@@ -1797,32 +1664,6 @@ __kernel void pcisph_integrate(
 	// for floats it works with a significant error, which neglects all advantages of this really nice method
 	// for example, at first time step we get 2.17819E-03 instead of 2.18000E-03, and such things occur at every step and accumulate.
 	// switching to doubles.
-	/*
-	double position_t_dt_x = (double)(position_t.x) + (double)((velocity_t.x*timeStep + acceleration_t.x*timeStep*timeStep/2.f)*simulationScaleInv);		
-	double position_t_dt_y = (double)(position_t.y) + (double)((velocity_t.y*timeStep + acceleration_t.y*timeStep*timeStep/2.f)*simulationScaleInv);		
-	double position_t_dt_z = (double)(position_t.z) + (double)((velocity_t.z*timeStep + acceleration_t.z*timeStep*timeStep/2.f)*simulationScaleInv);		
-	double velocity_t_dt_x = (double)(velocity_t.x) + (double)((acceleration_t.x + acceleration_t_dt.x)*timeStep/2.f);						
-	double velocity_t_dt_y = (double)(velocity_t.y) + (double)((acceleration_t.y + acceleration_t_dt.y)*timeStep/2.f);						
-	double velocity_t_dt_z = (double)(velocity_t.z) + (double)((acceleration_t.z + acceleration_t_dt.z)*timeStep/2.f);						
-
-	printf("\n===[ p_t_y= %12e, v_t_y= %12e]===",position_t.y,velocity_t.y);
-	printf("\n===[ p_t_dt_y= %5.10f, v_t_dt_y= %5.10f]===",position_t_dt_y,velocity_t_dt_y);
-	*/
-/*
-	double position_t_x = position_t.x;
-	double position_t_y = position_t.y;
-	double position_t_z = position_t.z;
-	position_t_dt_x += (double)position_t.x;
-	position_t_dt_y += (double)position_t.y;
-	position_t_dt_z += (double)position_t.z;
-	printf("\n===[ p_t_dt_y= %5e, p_t_y= %5e]===",position_t_dt_y,position_t_y);
-	printf("\n===[ v_t_dt_y= %5e, v_t_y= %5e]===",velocity_t_dt_y,velocity_t.y);
-	position_t_dt = (float4)((float)position_t_dt_x, (float)position_t_dt_y, (float)position_t_dt_z, 0.f);
-	printf("\n===[ p_t_dt.y= %5e, p_t.y= %5e]===",position_t_dt.y,position_t.y);
-	printf("\n===[ p_t_dt_y - p_t_y= %5e]===",position_t_dt_y-position_t_y);
-	printf("\n===[ p_t_dt.y - p_t.y= %5e]===",(double)position_t_dt.y-(double)position_t.y);
-	//printf("\n===[ a_t*dt*dt/2.f= %5e]===",(acceleration_t*timeStep*timeStep/2.f).y);
-*/	
 	
 
 //	printf("\n===[ r_t_dt= %5e]===",position_t_dt.y-ymax/2);
@@ -1850,7 +1691,7 @@ __kernel void pcisph_integrate(
 	float4 k2_v = acceleration_t_dt * timeStep;
 	float4 velocity_t_dt = velocity_t + ( k1_v +  k2_v  ) * 1.0f/2.0f;
 	float4 position_t_dt = position_t + ( k1_p +  k2_p  ) * 1.0f/2.0f;
-/**/
+*/
 
 	//float4 position_t_dt = position_t + velocity_t_dt*(timeStep*simulationScaleInv);// + acceleration_t*(timeStep*timeStep*simulationScaleInv/*simulationScaleInv*/)/2.f;
 	// was velocity_t instead of velocity_t_dt ^^^<---here
