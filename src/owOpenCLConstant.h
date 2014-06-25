@@ -52,4 +52,7 @@
 
 const int local_NDRange_size = 256;
 
+#define CPU 0
+#define GPU 1
+
 #endif // #ifndef OW_OPENCL_CONSTANT_H

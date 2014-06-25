@@ -55,7 +55,7 @@ int iter_step = 10;
 #ifdef PY_NETWORK_SIMULATION
 PyramidalSimulation simulation;
 #endif
-owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
+owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev_type)
 {
 	//int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
 
@@ -69,6 +69,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
 		config->zmin = 0.f;
 		config->zmax = 200.0*h;
 #endif
+		config->setDeviceType(dev_type);
 		if(generateWormBodyConfiguration)
 		// GENERATE THE SCENE
 		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config);
@@ -79,10 +80,12 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper)
         //mv
 		simulation.setup();
 #endif
+		//TODO move initialization to configuration class
 		config->gridCellsX = (int)( ( config->xmax - config->xmin ) / h ) + 1;
 		config->gridCellsY = (int)( ( config->ymax - config->ymin ) / h ) + 1;
 		config->gridCellsZ = (int)( ( config->zmax - config->zmin ) / h ) + 1;
 		config->gridCellCount = config->gridCellsX * config->gridCellsY * config->gridCellsZ;
+		//
 		position_cpp = new float[ 4 * config->getParticleCount() ];
 		velocity_cpp = new float[ 4 * config->getParticleCount() ];
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];

@@ -70,7 +70,7 @@ public:
 	owOpenCLSolver(void);
 	~owOpenCLSolver(void);
 	// Initialize OPENCL device, context, queue, program...
-	void initializeOpenCL();
+	void initializeOpenCL(owConfigProrerty * config);
 	//PCISPH kernels for data structures support and management
 	//Kernels functions definition
 	unsigned int _runClearBuffers(owConfigProrerty * config);

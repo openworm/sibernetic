@@ -38,7 +38,6 @@
 
 #include "owWorldSimulation.h"
 
-//extern bool load_to_file = false;
 bool load_from_file = false;
 int main(int argc, char **argv)
 {

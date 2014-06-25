@@ -46,7 +46,7 @@ int myCompare( const void * v1, const void * v2 );
 owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp)
 {
 	try{
-		initializeOpenCL();
+		initializeOpenCL(config);
 		// Create OpenCL buffers
 		create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 3 ) );// 4*2-->4*3; third part is to store acceleration[t], while first to are for acceleration[t+delta_t]
 		create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
@@ -113,7 +113,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 }
 
 extern char device_full_name [1000];
-void owOpenCLSolver::initializeOpenCL()
+void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 {
 	cl_int err;
 	std::vector< cl::Platform > platformList;
@@ -144,8 +144,7 @@ void owOpenCLSolver::initializeOpenCL()
 	// CL_DEVICE_TYPE
     cl_device_type type;
 	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
-	int preferable_device_type = 0;// 0-CPU, 1-GPU
-	
+
 	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
 	//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
 	cl_uint ciDeviceCount;
@@ -164,7 +163,7 @@ void owOpenCLSolver::initializeOpenCL()
 			if( result == CL_SUCCESS){
 				for( cl_uint i =0; i < ciDeviceCount; ++i ){
 					clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);		
-					if( type & device_type[preferable_device_type]){
+					if( type & device_type[config->getDeviceType()]){
 						plList = clSelectedPlatformID;
 						findDevice = true;
 						break;
@@ -175,7 +174,7 @@ void owOpenCLSolver::initializeOpenCL()
 	}
 	if(!findDevice) plList = 0;
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
-	context = cl::Context( device_type[preferable_device_type], cprops, NULL, NULL, &err );
+	context = cl::Context( device_type[config->getDeviceType()], cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
 	if( devices.size() < 1 ){
 		throw std::runtime_error( "No OpenCL devices found" );

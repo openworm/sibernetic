@@ -59,9 +59,12 @@ public:
 		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	};
 	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; };
+	void setDeviceType(int type){ preferable_device_type=type; };
+	const int getDeviceType(){ return preferable_device_type; };
 private:
 	int PARTICLE_COUNT;
 	int PARTICLE_COUNT_RoundedUp;
+	int preferable_device_type;// 0-CPU, 1-GPU
 };
 
 

@@ -940,7 +940,14 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
 	helper = new owHelper();
 	if(!load_from_file){
-		fluid_simulation = new owPhysicsFluidSimulator(helper);
+		int dev_type = CPU;
+		for(int i = 1; i<argc; i++){
+			if(strncmp(argv[i], "device=", 7) == 0){
+				if(strstr(argv[i], "gpu") != NULL || strstr(argv[i], "GPU") != NULL)
+					dev_type = GPU;
+			}
+		}
+		fluid_simulation = new owPhysicsFluidSimulator(helper, dev_type);
 		loacalConfig = fluid_simulation->getConfig();
 	}
 	else{
