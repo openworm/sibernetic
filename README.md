@@ -61,7 +61,7 @@ Finally, to run, run the command:
 
 **Linux**:
 ```
-./Release/Smoothed-Particle-Hydrodynamics
+./Release/Sibernetic
 ```
 **Mac**:
 ```
