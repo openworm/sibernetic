@@ -272,6 +272,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\test\owPhysicTest.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\sphFluid.cl"
 				>
 				<FileConfiguration
@@ -325,6 +329,10 @@
 			</File>
 			<File
 				RelativePath=".\src\VectorMath.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\test\owPhysicTest.h"
 				>
 			</File>
 		</Filter>

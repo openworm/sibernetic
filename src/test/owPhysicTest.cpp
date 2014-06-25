@@ -109,7 +109,7 @@ float calcKineticEnergy(owConfigProrerty * config, float * v_buffer, float * p_b
 	float e = 0.f;
 	for(int i=0;i < config->getParticleCount();i++){
 		if((int)(p_buffer[4 * i + 3]) != BOUNDARY_PARTICLE){
-			e += mass * pow(get_len(v_buffer + 4 * i + 0),2.0)/2.0f; //
+			e += mass * pow(get_len(v_buffer + 4 * i + 0),2.0f)/2.0f; //
 		}
 	}
 	return e;
@@ -118,5 +118,5 @@ float get_dist(float * from, float * to){
 	return sqrt ( pow(to[0] - from[0], 2.f) + pow(to[1] - from[1], 2.f) + pow(to[2] - from[2], 2.f) + pow(to[3] - from[3], 2.f) );
 }
 float get_len(float * v){
-	return sqrt( pow(v[0],2.0) + pow(v[1],2.0) + pow(v[2],2.0));
+	return sqrt( pow(v[0],2.0f) + pow(v[1],2.0f) + pow(v[2],2.0f));
 }
