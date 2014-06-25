@@ -144,7 +144,7 @@ void owOpenCLSolver::initializeOpenCL()
 	// CL_DEVICE_TYPE
     cl_device_type type;
 	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
-	int preferable_device_type = 1;// 0-CPU, 1-GPU
+	int preferable_device_type = 0;// 0-CPU, 1-GPU
 	
 	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
 	//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
@@ -222,13 +222,13 @@ void owOpenCLSolver::initializeOpenCL()
 		err = program.build( devices, "");
 	#endif
 #endif
-	std::cout<<"OPENCL program was successfully build." << std::endl;
 	if( err != CL_SUCCESS ){
 		std::string compilationErrors;
 		compilationErrors = program.getBuildInfo< CL_PROGRAM_BUILD_LOG >( devices[ 0 ] );
 		std::cerr << "Compilation failed: " << std::endl << compilationErrors << std::endl;
 		throw std::runtime_error( "failed to build program" );
 	}
+	std::cout<<"OPENCL program was successfully build." << std::endl;
 	return;
 }
 //Kernels functions definition

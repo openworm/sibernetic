@@ -34,8 +34,6 @@
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
-//TODO REMOVE AFTER FIX GEPPETTO
-#include <sstream>
 
 #include "PyramidalSimulation.h"
 #include "owPhysicsFluidSimulator.h"
@@ -133,8 +131,8 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		//SEARCH FOR NEIGHBOURS PART
 //		ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
 		ocl_solver->_runHashParticles(config);							helper->watch_report("_runHashParticles: \t%9.3f ms\n");
-		ocl_solver->_runSort(config);										helper->watch_report("_runSort: \t\t%9.3f ms\n");
-		ocl_solver->_runSortPostPass(config);								helper->watch_report("_runSortPostPass: \t%9.3f ms\n");
+		ocl_solver->_runSort(config);									helper->watch_report("_runSort: \t\t%9.3f ms\n");
+		ocl_solver->_runSortPostPass(config);							helper->watch_report("_runSortPostPass: \t%9.3f ms\n");
 		ocl_solver->_runIndexx(config);									helper->watch_report("_runIndexx: \t\t%9.3f ms\n");
 		ocl_solver->_runIndexPostPass(config);							helper->watch_report("_runIndexPostPass: \t%9.3f ms\n");
 		ocl_solver->_runFindNeighbors(config);							helper->watch_report("_runFindNeighbors: \t%9.3f ms\n");
@@ -151,18 +149,14 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 			iter++;
 		}while( iter < maxIteration );
 
-		ocl_solver->_run_pcisph_integrate(iterationCount, config);			helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
-		//TODO REMOVE AFTER FIX GEPPETTO create log files
-		//stringstream ss;
-		//ss << iterationCount+1;
-		//owHelper::log_buffer(this->position_cpp,4,config->getParticleCount(),("./logs/position_integrate_" + ss.str() + ".txt").c_str());
-		//
+		ocl_solver->_run_pcisph_integrate(iterationCount, config);		helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
 		//Handling of Interaction with membranes
 		if(numOfMembranes > 0){
 			ocl_solver->_run_clearMembraneBuffers(config);
 			ocl_solver->_run_computeInteractionWithMembranes(config);
 			// compute change of coordinates due to interactions with membranes
 			ocl_solver->_run_computeInteractionWithMembranes_finalize(config);
+																		helper->watch_report("membraneHadling: \t%9.3f ms\n");
 		}
 		//END
 		ocl_solver->read_position_buffer(position_cpp, config);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n");
@@ -173,7 +167,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		printf("------------------------------------\n");
 		if(load_to){
 			if(iterationCount == 0){
-				owHelper::loadConfigurationToFile(position_cpp,  config,elasticConnectionsData_cpp,membraneData_cpp);
+				owHelper::loadConfigurationToFile(position_cpp,  config,elasticConnectionsData_cpp,membraneData_cpp,true);
 			}else{
 				if(iterationCount % iter_step == 0){
 					owHelper::loadConfigurationToFile(position_cpp, config, NULL, NULL, false);

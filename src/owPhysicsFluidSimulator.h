@@ -48,7 +48,6 @@ public:
 	float * getvelocity_cpp() { /*return velocity_cpp;*/ ocl_solver->read_velocity_buffer(velocity_cpp,config); return velocity_cpp; };
 	float * getDensity_cpp() { ocl_solver->read_density_buffer( density_cpp, config ); return density_cpp; };
 	unsigned int * getParticleIndex_cpp() { ocl_solver->read_particleIndex_buffer( particleIndex_cpp, config ); return particleIndex_cpp; };
-	//TODO helper functions delete after fix!!
 	float * getElasticConnectionsData_cpp() { return elasticConnectionsData_cpp; };
 	int   * getMembraneData_cpp() { return membraneData_cpp; };
 	double  simulationStep(const bool load_to = false);

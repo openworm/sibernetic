@@ -1405,7 +1405,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 	{
 		int p_count = 0;
 		std::string p_file_name = path + "position" + suffix + ".txt";
-		std::ifstream positionFile (p_file_name.c_str());
+		std::ifstream positionFile (p_file_name.c_str(), std::ios_base::binary);
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
@@ -1473,8 +1473,6 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
-			//TODO: In windows I didn't take into account \r symbol, so value of read_position isn't
-			//correct it should be fix before merge
 			positionFile.seekg(read_position);
 			while( positionFile.good() && i < config->getParticleCount() )
 			{
@@ -1509,7 +1507,6 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		else
 			throw std::runtime_error("Could not open file velocity.txt");
 		std::cout << "Velocity is loaded" << std::endl;
-		//TODO NEXT BLOCK WILL BE new load of elastic connections
 		if(numOfElasticP != 0){
 			std::string c_file_name = path + "connection" + suffix + ".txt";
 			std::ifstream elasticConectionsFile (c_file_name.c_str());
@@ -1585,19 +1582,35 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 	}
 }
 
-void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration ){
+void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
 	try{
 		ofstream positionFile;
 		if(firstIteration){
 			positionFile.open("./buffers/position_buffer.txt", std::ofstream::trunc);
+			positionFile << config->xmin << "\n";
+			positionFile << config->xmax << "\n";
+			positionFile << config->ymin << "\n";
+			positionFile << config->ymax << "\n";
+			positionFile << config->zmin << "\n";
+			positionFile << config->zmax << "\n";
 			positionFile << numOfElasticP << "\n";
 			positionFile << numOfLiquidP << "\n";
 		}else{
 			positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
 		}
-		for(int i=0;i < config->getParticleCount(); i++){
-			if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
+		if(size==0){
+			for(int i=0;i < config->getParticleCount(); i++){
+				if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
+					positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+				}
+			}
+		}else{
+			int i = 0;
+			int index = 0;
+			while(index!=size){
+				i = filter_p[index];
 				positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+				index++;
 			}
 		}
 		positionFile.close();
@@ -1630,6 +1643,12 @@ void owHelper::loadConfigurationFromFile_experemental(float *& position, float *
 		if( positionFile.is_open() )
 		{
 			if(iteration == 0){
+				positionFile >> config->xmin;
+				positionFile >> config->xmax;
+				positionFile >> config->ymin;
+				positionFile >> config->ymax;
+				positionFile >> config->zmin;
+				positionFile >> config->zmax;
 				positionFile >> numOfElasticP;
 				positionFile >> numOfLiquidP;
 				config->setParticleCount(numOfElasticP + numOfLiquidP);

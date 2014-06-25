@@ -108,7 +108,7 @@ __kernel void clearBuffers(
 	if( id >= PARTICLE_COUNT )return;
 	__global float4 * nm = (__global float4 *)neighborMap;
 	int outIdx = ( id * MAX_NEIGHBOR_COUNT ) >> 1;//int4 versus int2 addressing
-	float4 fdata = (float4)( -1, -1, -1, -1 );
+	float4 fdata = (float4)( -1.0f, -1.0f, -1.0f, -1.0f );
 	int i,j,k,mnl;//mnl = membrane number in the list. 0..MAX_MEMBRANES_INCLUDING_SAME_PARTICLE-1
 
 	nm[ outIdx++ ] = fdata;
@@ -472,6 +472,7 @@ __kernel void sortPostPass(
 						   )
 {
 	int id = get_global_id( 0 );
+	//TODO remove
 	if(id==3500)
 	{
 		id = id;
@@ -711,7 +712,7 @@ __kernel void pcisph_computeElasticForces(
 			//printf("\n===[ r_ij_equilibrium = %f ]===\n",r_ij_equilibrium);
 			//printf("===[ simulationScale = %e ]===\n",simulationScale);
 			vect_r_ij = (sortedPosition[id] - sortedPosition[jd]) * simulationScale;//scale ok
-			vect_r_ij.w = 0;
+			vect_r_ij.w = 0.0f;
 
 			r_ij = sqrt(DOT(vect_r_ij,vect_r_ij));//scale ok
 			delta_r_ij = r_ij - r_ij_equilibrium;//scale ok
@@ -901,7 +902,7 @@ __kernel void pcisph_predictDensity(
 	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
 	int idx = id * MAX_NEIGHBOR_COUNT;
 	int nc=0;//neighbor counter
-	float density = 0.0;
+	float density = 0.0f;
 	float density_accum = 0.0f;
 	float4 r_ij;
 	float r_ij2;//squared r_ij
@@ -925,7 +926,7 @@ __kernel void pcisph_predictDensity(
 				density_accum += (h2-r_ij2)*(h2-r_ij2)*(h2-r_ij2);
 			}
 
-			if(r_ij2==0)
+			if(r_ij2==0.0f)
 			{
 				//printf("\a\n");
 #ifdef PRINTF_ON
@@ -972,7 +973,7 @@ __kernel void pcisph_correctPressure(
 
 	rho_err = rho[PARTICLE_COUNT+id] - rho0;
 	p_corr = rho_err*delta;
-	if(p_corr < 0) p_corr = 0;//non-negative pressure
+	if(p_corr < 0.0f) p_corr = 0.0f;//non-negative pressure
 	pressure[ id ] += p_corr;
 }
 
@@ -1043,13 +1044,13 @@ __kernel void pcisph_computePressureForceAcceleration(
 				/*1*/value = -(hScaled-r_ij)*(hScaled-r_ij)*0.5f*(pressure[id]+pressure[jd])/rho[PARTICLE_COUNT+jd];
 				/*2*///value = -(hScaled-r_ij)*(hScaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
 				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
-				vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
+				vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0.0f;
 
 				
-				if(r_ij<0.5*(hScaled/2))//hScaled/2 = r0 
+				if(r_ij<0.5f*(hScaled/2))//hScaled/2 = r0 
 				{
 					value = -(hScaled*0.25f-r_ij)*(hScaled*0.25f-r_ij)*0.5f*(rho0*delta)/rho[PARTICLE_COUNT+jd];
-					vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0;
+					vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0.0f;
 				}
 
 				if(r_ij==0.0f)
@@ -1094,8 +1095,8 @@ __kernel void clearMembraneBuffers(
 	int id = get_global_id( 0 ); 
 	if(id>=PARTICLE_COUNT) return;
 
-	position[PARTICLE_COUNT + id] = (float4)(0,0,0,0); //extra memory to store changes in considered particles's coordinates due to interaction with membranes. Need to make it zero every step.
-	velocity[PARTICLE_COUNT + id] = (float4)(0,0,0,0); //extra memory to store changes in considered particles's   velocity  due to interaction with membranes. Need to make it zero every step.
+	position[PARTICLE_COUNT + id] = (float4)(0.0f,0.0f,0.0f,0.0f); //extra memory to store changes in considered particles's coordinates due to interaction with membranes. Need to make it zero every step.
+	velocity[PARTICLE_COUNT + id] = (float4)(0.0f,0.0f,0.0f,0.0f); //extra memory to store changes in considered particles's   velocity  due to interaction with membranes. Need to make it zero every step.
 	//sortedPosition[PARTICLE_COUNT*2 + id] = (float4)(0,0,0,0); 
 }
 
@@ -1123,7 +1124,7 @@ float calcDeterminant3x3(float4 c1, float4 c2, float4 c3)
 float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4 pc)
 {// ps - point to project on the plane; pa-pb-pc - vertices of the triangle defining the plane
 
-        float4 pm = (float4)(0,0,0,0);//projection of ps on pa-pb-pc plane
+        float4 pm = (float4)(0.0f,0.0f,0.0f,0.0f);//projection of ps on pa-pb-pc plane
         float denominator;
         //  b  a_2 a_3   a_1
         // |b1 a12 a13|  a11
@@ -1148,10 +1149,10 @@ float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4
         float a_3_2 = pb.z - pa.z;
         float a_3_3 = pc.z - pa.z;
 
-        float4 a_1 = (float4)(a_1_1, a_1_2, a_1_3, 0);
-        float4 a_2 = (float4)(a_2_1, a_2_2, a_2_3, 0);
-        float4 a_3 = (float4)(a_3_1, a_3_2, a_3_3, 0);
-        float4 b = (float4)(b_1, b_2, b_3, 0);
+        float4 a_1 = (float4)(a_1_1, a_1_2, a_1_3, 0.0f);
+        float4 a_2 = (float4)(a_2_1, a_2_2, a_2_3, 0.0f);
+        float4 a_3 = (float4)(a_3_1, a_3_2, a_3_3, 0.0f);
+        float4 b = (float4)(b_1, b_2, b_3, 0.0f);
 
         denominator = calcDeterminant3x3(a_1,a_2,a_3);
 
@@ -1160,7 +1161,7 @@ float4 calculateProjectionOfPointToPlane(float4 ps, float4 pa, float4 pb, float4
 //        printf("\na_3 = %2.2v4hlf", a_3);
 //        printf("\ndenominator = %f", denominator);
 //
-        if(denominator!=0)
+        if(denominator!=0.0f)
         {
                 pm.x = calcDeterminant3x3(b  ,a_2,a_3)/denominator;
                 pm.y = calcDeterminant3x3(a_1,b  ,a_3)/denominator;
@@ -1237,7 +1238,7 @@ float calculateTriangleSquare(float4 v1, float4 v2, float4 v3)
 	float4 a = v2 - v1;//v21
 	float4 b = v3 - v1;//v31
 	//vector product of them
-	float4 ab = (float4)(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x, 0);
+	float4 ab = (float4)(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x, 0.0f);
 	return sqrt(ab.x*ab.x+ab.y*ab.y+ab.z*ab.z)/2.f;
 }
 
@@ -1279,7 +1280,7 @@ __kernel void computeInteractionWithMembranes(
 	float4 normal_to_ijk_plane;
 	float  normal_to_ijk_plane_length;
 	float4 vector_id_jd;
-	float4 normal_vector_final = (float4)(0,0,0,0);
+	float4 normal_vector_final = (float4)(0.0f,0.0f,0.0f,0.0f);
 	float4 membrane_jd_normal_vector [MAX_NEIGHBOR_COUNT];
 	float  _distance_id_jd;
 	float  distance_id_jd [MAX_NEIGHBOR_COUNT];
@@ -1289,7 +1290,7 @@ __kernel void computeInteractionWithMembranes(
 
 	for(i=0;i<MAX_NEIGHBOR_COUNT;i++)
 	{
-		membrane_jd_normal_vector[i] = (float4)(0,0,0,0);
+		membrane_jd_normal_vector[i] = (float4)(0.0f,0.0f,0.0f,0.0f);
 		//membrane_jd[i] = -1;
 	}
 
@@ -1309,7 +1310,7 @@ __kernel void computeInteractionWithMembranes(
 			{																//matter particles can compose membranes
 				membrane_ijk_counter = 0;
 				vector_id_jd = position[id_source_particle] - position[jd_source_particle];
-				vector_id_jd.z = 0; //mv change from subscripting
+				vector_id_jd.z = 0.0f; //mv change from subscripting
 				_distance_id_jd = sqrt(dot(vector_id_jd,vector_id_jd));
 				// elastic matter particles have no information 
 				// about participation in membrane composition
@@ -1340,7 +1341,7 @@ __kernel void computeInteractionWithMembranes(
 
 						pos_p = calculateProjectionOfPointToPlane(position[ id_source_particle ],pos_i,pos_j,pos_k);
 
-						if(pos_p.w==-1)
+						if(pos_p.w==-1.0f)
 						{
 #ifdef PRINTF_ON
 							printf("calculateProjectionOfPointToPlane() returned error");
@@ -1355,7 +1356,7 @@ __kernel void computeInteractionWithMembranes(
 						normal_to_ijk_plane_length =   sqrt(normal_to_ijk_plane.x*normal_to_ijk_plane.x + 
 															normal_to_ijk_plane.y*normal_to_ijk_plane.y +
 															normal_to_ijk_plane.z*normal_to_ijk_plane.z); 
-						if(normal_to_ijk_plane_length>0)
+						if(normal_to_ijk_plane_length>0.0f)
 						{
 							normal_to_ijk_plane /= normal_to_ijk_plane_length;// normalized now
 							//printf("\nid: %d | jd: %d | i-j-k: %d-%d-%d | dist.: %f | normal[%d] = %f,%f,%f",id_source_particle,jd_source_particle,i,j,k,distance_id_jd,normal_vector_final_entries_count,
@@ -1458,7 +1459,7 @@ __kernel void computeInteractionWithMembranes(
 		{
 			id_m_source_particle = membrane_jd[nc];
 			x_im_dist = distance_id_jd[nc];
-			w_c_im = max(0.f,(r0-x_im_dist)/r0);			//Ihmsen et. al., 2010, page 4, formula (10)
+			w_c_im = max(0.0f,(r0-x_im_dist)/r0);			//Ihmsen et. al., 2010, page 4, formula (10)
 			n_m = membrane_jd_normal_vector[nc];
 			n_c_i += n_m * w_c_im;							//Ihmsen et. al., 2010, page 4, formula (9)
 			w_c_im_sum += w_c_im;							//Ihmsen et. al., 2010, page 4, formula (11), sum #1
@@ -1469,14 +1470,14 @@ __kernel void computeInteractionWithMembranes(
 		}//333333333333333333333333333333333333333333333333333333333333333333333333
 		while( ++nc < membrane_jd_counter );
 
-		n_c_i.w = 0;
+		n_c_i.w = 0.0f;
 		n_c_i_length = DOT(n_c_i,n_c_i);
 
-		if(n_c_i_length != 0)
+		if(n_c_i_length != 0.0f)
 		{
 			//change of coordinates for id_source_particle
 			n_c_i_length = sqrt(n_c_i_length);
-			delta_pos = 1.0f*((n_c_i/n_c_i_length)*w_c_im_second_sum)/w_c_im_sum;	//
+			delta_pos = 1.0f*((n_c_i/(float)n_c_i_length)*w_c_im_second_sum)/(float)w_c_im_sum;	//
 			position[PARTICLE_COUNT+id_source_particle].x += delta_pos.x;		//
 			position[PARTICLE_COUNT+id_source_particle].y += delta_pos.y;		// Ihmsen et. al., 2010, page 4, formula (11)
 			position[PARTICLE_COUNT+id_source_particle].z += delta_pos.z;		//
@@ -1614,7 +1615,7 @@ __kernel void pcisph_integrate(
 	//printf("\n===[ acceleration_t.z= %E ]===[ acceletation_t_dt.z= %E ]===",acceleration_t.z,acceleration_t_dt.z);
 
 	if(iterationCount==0) 
-		acceleration_t = (float4)(0.0,-9.8,0.0,0.0); 
+		acceleration_t = (float4)(0.0f,-9.8f,0.0f,0.0f); 
 
 	// acceleration[ id ] = visc.F. + surf.tens.F. + grav.F. + elast.F. + muscl.contr.F.
 	// acceleration[ PARTICLE_COUNT+id ] = pressure.F.
