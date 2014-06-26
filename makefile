@@ -24,7 +24,7 @@ all : $(TARGET)
 $(TARGET):$(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++  -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
+	g++ -L/opt/AMDAPP/lib/x86_64/ -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
