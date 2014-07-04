@@ -43,7 +43,6 @@ extern int numOfLiquidP;
 extern int numOfElasticP;
 extern int numOfBoundaryP;
 extern int numOfMembranes;
-extern int iterationCount;
 extern bool load_from_file;
 
 int old_x=0, old_y=0;	// Used for mouse event
@@ -81,6 +80,7 @@ owHelper * helper;
 owConfigProrerty * loacalConfig;
 float accuracy = 100;//what it it?
 bool flag = false;
+bool sPause = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
 int iteration = 0;
 
@@ -133,7 +133,17 @@ void glPrint3D(float x, float y, float z, const char *s, void *font)
 
 void display(void)
 {
-	helper->refreshTime();
+	//Update Scene if not paused
+	if(!sPause){
+		if(load_from_file){
+			owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp, loacalConfig,iteration);
+			iteration++;
+		}else{
+			calculationTime = fluid_simulation->simulationStep();
+		}
+		helper->refreshTime();
+	}
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	drawScene();
 
@@ -514,7 +524,7 @@ void renderInfo(int x, int y)
 																													 numOfBoundaryP,loacalConfig->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F); 
-		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, iterationCount,((float)iterationCount)*timeStep); 
+		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
 		glPrint( 0 , 17 , label, m_font);
 
 
@@ -771,79 +781,20 @@ void mouse_motion (int x, int y)
 
 extern float *muscle_activation_signal_cpp;
 
-void respond_key_pressed(unsigned char key, int x, int y)
+void RespondKey(unsigned char key, int x, int y)
 {
-	int shift=0;
-	//for(shift=0;shift<=72;shift+=72)
+	switch(key)
 	{
-	
-		if(key=='1')
-		{
-			if(muscle_activation_signal_cpp[0+shift]<=0.5f)
-			muscle_activation_signal_cpp[0+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[0+shift] = 0.f;
-			//if(muscle_activation_signal_cpp[0]>1.f) muscle_activation_signal_cpp[0] = 1.f;
-		}
-
-		if(key=='2')
-		{
-			if(muscle_activation_signal_cpp[1+shift]<=0.5f)
-			muscle_activation_signal_cpp[1+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[1+shift] = 0.f;
-			//if(muscle_activation_signal_cpp[1]>1.f) muscle_activation_signal_cpp[1] = 1.f;
-		}
-
-		if(key=='3')
-		{
-			if(muscle_activation_signal_cpp[2+shift]<=0.5f)
-			muscle_activation_signal_cpp[2+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[2+shift] = 0.f;
-			//if(muscle_activation_signal_cpp[2]>1.f) muscle_activation_signal_cpp[2] = 1.f;
-		}
-
-		if(key=='4')
-		{
-			if(muscle_activation_signal_cpp[3+shift]<=0.5f)
-			muscle_activation_signal_cpp[3+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[3+shift] = 0.f;
-			//if(muscle_activation_signal_cpp[3]>1.f) muscle_activation_signal_cpp[3] = 1.f;
-		}
-
-		if(key=='5')
-		{
-			if(muscle_activation_signal_cpp[4+shift]<=0.5f)
-			muscle_activation_signal_cpp[4+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[4+shift] = 0.f;
-		}
-
-		if(key=='6')
-		{
-			if(muscle_activation_signal_cpp[5+shift]<=0.5f)
-			muscle_activation_signal_cpp[5+shift] = 1.f;
-			else muscle_activation_signal_cpp[5+shift] = 0.f;
-		}
-
-		if(key=='7')
-		{
-			if(muscle_activation_signal_cpp[6+shift]<=0.5f)
-			muscle_activation_signal_cpp[6+shift] = 1.f;
-			else muscle_activation_signal_cpp[6+shift] = 0.f;
-		}
-
-		if(key=='8')
-		{
-			if(muscle_activation_signal_cpp[7+shift]<=0.5f)
-			muscle_activation_signal_cpp[7+shift] = 1.f;
-			else muscle_activation_signal_cpp[7+shift] = 0.f;
-		}
-
-		if(key=='9')
-		{
-			if(muscle_activation_signal_cpp[8+shift]<=0.5f)
-			muscle_activation_signal_cpp[8+shift] = 1.f;
-			else muscle_activation_signal_cpp[8+shift] = 0.f;
-		}
-
+	case '1':
+		owHelper::suffix = "";
+		helper->refreshTime();
+		fluid_simulation->reset();
+		break;
+	case '2':
+		owHelper::suffix = "_membranes_demo";
+		helper->refreshTime();
+		fluid_simulation->reset();
+		break;
 	}
 
 	if(key == 'i')
@@ -854,7 +805,7 @@ void respond_key_pressed(unsigned char key, int x, int y)
 	{
 		showRuler = !showRuler;
 	}
-	return;
+	glutPostRedisplay();
 }
 
 //Auxiliary function
@@ -870,15 +821,9 @@ void idle (void)
 
 void Timer(int value)
 {
-	if(load_from_file){
-		owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp, loacalConfig,iteration);
-		iteration++;
-	}else{
-		calculationTime = fluid_simulation->simulationStep();
-	}
 	// Re-register for next callback
+    glutPostRedisplay();
     glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);
-	glutPostRedisplay();
 }
 
 GLvoid resize(GLsizei width, GLsizei height){
@@ -922,18 +867,11 @@ void init(void){
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 }
-void draw(void)
-{
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glPushMatrix();
-	glColor3f(1.0f, 1.0f, 1.0f);
-	glPopMatrix();
-}
 void sighandler(int s){
-  std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
-  delete fluid_simulation;
-  delete helper;
-  exit(0);
+	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
+	delete fluid_simulation;
+	delete helper;
+	exit(EXIT_SUCCESS);
 }
 
 void run(int argc, char** argv, const bool with_graphics, const bool load_to)
@@ -979,15 +917,18 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
 		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked,
-		glutKeyboardFunc(respond_key_pressed);
+		glutKeyboardFunc(RespondKey);
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
-		if(!load_from_file)
-			fluid_simulation->~owPhysicsFluidSimulator();
+		if(!load_from_file){
+			delete fluid_simulation;
+			delete helper;
+		}
 	}else{
 		while(1){
 			fluid_simulation->simulationStep(load_to);
 			helper->refreshTime();
 		}
 	}
+    exit(EXIT_SUCCESS);
 }
