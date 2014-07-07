@@ -9,10 +9,13 @@ src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \
 src/owWorldSimulation.cpp
 
+TEST_SOURCES = src/test/owPhysicTest.cpp
+
 SRCEXT := cpp
 SRCDIR := src
 BUILDDIR := build
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
+OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 	
@@ -37,6 +40,7 @@ Smoothed-Particle-Hydrodynamics: $(OBJECTS)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BUILDDIR)
+	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: clang C++ Compiler'
 #### use this to compile against homebrew installed python

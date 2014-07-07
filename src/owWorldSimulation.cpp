@@ -31,16 +31,18 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include "owWorldSimulation.h"
 #include <stdio.h>
-
 #include <sstream>
+#include <csignal>
+
+#include "owWorldSimulation.h"
+
+#include "owWorldSimulation.h"
 
 extern int numOfLiquidP;
 extern int numOfElasticP;
 extern int numOfBoundaryP;
 extern int numOfMembranes;
-extern int iterationCount;
 extern bool load_from_file;
 
 int old_x=0, old_y=0;	// Used for mouse event
@@ -59,8 +61,6 @@ float sc_scale = 1.0f;
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
 GLsizei viewHeight, viewWidth;
 int winIdMain;
-int PARTICLE_COUNT = 0;
-int PARTICLE_COUNT_RoundedUp = 0;
 int MUSCLE_COUNT = 100;//increase this value and modify corresponding code if you plan to add more than 10 muscles
 double totalTime = 0;
 int frames_counter = 0;
@@ -77,11 +77,12 @@ float * muscle_activation_signal_cpp;
 int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
-int local_NDRange_size = 256;//256;
+owConfigProrerty * loacalConfig;
 float accuracy = 100;//what it it?
 bool flag = false;
+bool sPause = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
-float iteration = 0;
+int iteration = 0;
 
 void calculateFPS();
 void drawScene();
@@ -132,7 +133,17 @@ void glPrint3D(float x, float y, float z, const char *s, void *font)
 
 void display(void)
 {
-	helper->refreshTime();
+	//Update Scene if not paused
+	if(!sPause){
+		if(load_from_file){
+			owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp, loacalConfig,iteration);
+			iteration++;
+		}else{
+			calculationTime = fluid_simulation->simulationStep();
+		}
+		helper->refreshTime();
+	}
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	drawScene();
 
@@ -143,7 +154,7 @@ void display(void)
 	int pib;
 	int err_coord_cnt = 0;
 	if(!load_from_file)
-		for(i=0;i<PARTICLE_COUNT;i++)
+		for(i=0;i<loacalConfig->getParticleCount();i++)
 		{
 			pib = p_indexb[2*i + 1];
 			p_indexb[2*pib + 0] = i;
@@ -155,7 +166,7 @@ void display(void)
 		d_cpp = fluid_simulation->getDensity_cpp();
 	}
 	float dc, rho;
-	for(i = 0; i<PARTICLE_COUNT; i++)
+	for(i = 0; i<loacalConfig->getParticleCount(); i++)
 	{
 		//printf("[%d]",i);
 		if(!load_from_file){
@@ -184,22 +195,22 @@ void display(void)
 				glColor4f(   0,   0,   0,  1.0f);// color of elastic particles
 				glPointSize(6.f);
 			}
-			glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+			glVertex3f( (p_cpp[i*4]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 			glPointSize(3.f);
 			glEnd();
 
-			if(!(	(p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=XMAX)&&
-					(p_cpp[i*4+1]>=0)&&(p_cpp[i*4+1]<=YMAX)&&
-					(p_cpp[i*4+2]>=0)&&(p_cpp[i*4+2]<=ZMAX) ))
-			{
+			if(!(	(p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=loacalConfig->xmax)&&
+						(p_cpp[i*4+1]>=0)&&(p_cpp[i*4+1]<=loacalConfig->ymax)&&
+						(p_cpp[i*4+2]>=0)&&(p_cpp[i*4+2]<=loacalConfig->zmax) ))
+				{
 			char label[50];
 			beginWinCoords();
 			glRasterPos2f (0.01F, 0.05F); 
 			if(err_coord_cnt<50){
 			sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
-			glPrint( 0, 50+err_coord_cnt*11, label, m_font);}
+			glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
 			if(err_coord_cnt==50) {
-			glPrint( 0, 50+err_coord_cnt*11, "............", m_font);}
+			glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
 			err_coord_cnt++;
 			endWinCoords();
 			}
@@ -235,9 +246,9 @@ void display(void)
 						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
 						glColor4b(127/2, 0, 255/2, 255/2);/* muscle_number+0.5 <--> violet*/  
 						glBegin(GL_LINES);
-						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 						glColor4b(255/2, 255/2, 255/2, 255/2);
-						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[j*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
 						glEnd();
 					}
 					else
@@ -247,9 +258,9 @@ void display(void)
 						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
 						glColor4b(255/2, 0, 255/2, 255/2);/* muscle_number+0.4 <--> magenta*/  
 						glBegin(GL_LINES);
-						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 						glColor4b(255/2, 255/2, 255/2, 255/2);
-						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[j*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
 						glEnd();
 					}
 					else
@@ -259,9 +270,9 @@ void display(void)
 						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
 						glColor4b(255/2, 127/2, 0, 255/2);/* muscle_number+0.3 <--> orange*/  
 						glBegin(GL_LINES);
-						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 						glColor4b(255/2, 255/2, 255/2, 255/2);
-						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[j*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
 						glEnd();
 					}
 					else
@@ -271,9 +282,9 @@ void display(void)
 						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
 						glColor4b(255/2, 0, 0, 255/2);/* muscle_number+0.2 <--> red*/  
 						glBegin(GL_LINES);
-						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 						glColor4b(255/2, 255/2, 255/2, 255/2);
-						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[j*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
 						glEnd();
 					}
 					else
@@ -281,8 +292,8 @@ void display(void)
 						glColor4b(255/2, 0,     0, 255/2);/* muscle_number+0.1 <--> red */
 
 						glBegin(GL_LINES);
-						glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
-						glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
+						glVertex3f( (p_cpp[j*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
 						glEnd();
 					}
 				}
@@ -292,10 +303,10 @@ void display(void)
 					glBegin(GL_LINES);
 											glColor4b(150/2, 125/2, 0, 100/2);
 					if(p_cpp[i*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2);
-					glVertex3f( (p_cpp[i*4+0]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+					glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 											glColor4b(150/2, 125/2, 0, 100/2);
 					if(p_cpp[j*4+3]>2.15)	glColor4b( 50/2, 125/2, 0, 100/2);
-					glVertex3f( (p_cpp[j*4+0]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+					glVertex3f( (p_cpp[j*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
 					glEnd();
 				}
 				
@@ -328,25 +339,25 @@ void display(void)
 
 		/*
 		glBegin(GL_LINES);
-		glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
-		glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[i*4]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
+		glVertex3f( (p_cpp[j*4]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
 
-		glVertex3f( (p_cpp[j*4]-XMAX/2)*sc , (p_cpp[j*4+1]-YMAX/2)*sc, (p_cpp[j*4+2]-ZMAX/2)*sc );
-		glVertex3f( (p_cpp[k*4]-XMAX/2)*sc , (p_cpp[k*4+1]-YMAX/2)*sc, (p_cpp[k*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[j*4]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
+		glVertex3f( (p_cpp[k*4]-loacalConfig->xmax/2)*sc , (p_cpp[k*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[k*4+2]-loacalConfig->zmax/2)*sc );
 
-		glVertex3f( (p_cpp[k*4]-XMAX/2)*sc , (p_cpp[k*4+1]-YMAX/2)*sc, (p_cpp[k*4+2]-ZMAX/2)*sc );
-		glVertex3f( (p_cpp[i*4]-XMAX/2)*sc , (p_cpp[i*4+1]-YMAX/2)*sc, (p_cpp[i*4+2]-ZMAX/2)*sc );
+		glVertex3f( (p_cpp[k*4]-loacalConfig->xmax/2)*sc , (p_cpp[k*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[k*4+2]-loacalConfig->zmax/2)*sc );
+		glVertex3f( (p_cpp[i*4]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 		glEnd();*/
 
 		glBegin(GL_LINES);
-		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-ZMAX/2)*sc );
-		glVertex3f( ((p_cpp[i*4]+p_cpp[k*4]+4*p_cpp[j*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[k*4+1]+4*p_cpp[j*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[k*4+2]+4*p_cpp[j*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-loacalConfig->zmax/2)*sc );
+		glVertex3f( ((p_cpp[i*4]+p_cpp[k*4]+4*p_cpp[j*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[i*4+1]+p_cpp[k*4+1]+4*p_cpp[j*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[i*4+2]+p_cpp[k*4+2]+4*p_cpp[j*4+2])/6-loacalConfig->zmax/2)*sc );
 
-		glVertex3f( ((p_cpp[i*4]+p_cpp[k*4]+4*p_cpp[j*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[k*4+1]+4*p_cpp[j*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[k*4+2]+4*p_cpp[j*4+2])/6-ZMAX/2)*sc );
-		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-XMAX/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-YMAX/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[i*4]+p_cpp[k*4]+4*p_cpp[j*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[i*4+1]+p_cpp[k*4+1]+4*p_cpp[j*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[i*4+2]+p_cpp[k*4+2]+4*p_cpp[j*4+2])/6-loacalConfig->zmax/2)*sc );
+		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-loacalConfig->zmax/2)*sc );
 
-		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-XMAX/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-YMAX/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-ZMAX/2)*sc );
-		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-XMAX/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-YMAX/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-ZMAX/2)*sc );
+		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-loacalConfig->zmax/2)*sc );
+		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-loacalConfig->zmax/2)*sc );
 		glEnd();
 	}/**/
 
@@ -382,14 +393,14 @@ inline void drawScene()
 		}
 		++order;
 	}
-	vbox[0] = Vector3D(XMIN,YMIN,ZMIN);
-	vbox[1] = Vector3D(XMAX,YMIN,ZMIN);
-	vbox[2] = Vector3D(XMAX,YMAX,ZMIN);
-	vbox[3] = Vector3D(XMIN,YMAX,ZMIN);
-	vbox[4] = Vector3D(XMIN,YMIN,ZMAX);
-	vbox[5] = Vector3D(XMAX,YMIN,ZMAX);
-	vbox[6] = Vector3D(XMAX,YMAX,ZMAX);
-	vbox[7] = Vector3D(XMIN,YMAX,ZMAX);
+	vbox[0] = Vector3D(loacalConfig->xmin,loacalConfig->ymin,loacalConfig->zmin);
+	vbox[1] = Vector3D(loacalConfig->xmax,loacalConfig->ymin,loacalConfig->zmin);
+	vbox[2] = Vector3D(loacalConfig->xmax,loacalConfig->ymax,loacalConfig->zmin);
+	vbox[3] = Vector3D(loacalConfig->xmin,loacalConfig->ymax,loacalConfig->zmin);
+	vbox[4] = Vector3D(loacalConfig->xmin,loacalConfig->ymin,loacalConfig->zmax);
+	vbox[5] = Vector3D(loacalConfig->xmax,loacalConfig->ymin,loacalConfig->zmax);
+	vbox[6] = Vector3D(loacalConfig->xmax,loacalConfig->ymax,loacalConfig->zmax);
+	vbox[7] = Vector3D(loacalConfig->xmin,loacalConfig->ymax,loacalConfig->zmax);
 	// Display user interface if enabled
 	bool displayInfos = true;
     if (displayInfos) 
@@ -413,17 +424,17 @@ inline void drawScene()
 	glVertex3d(vcenter.x,vcenter.y,vcenter.z);
 	glVertex3d(vcenter.x,vcenter.y,vcenter.z+sc);
 	sc /=10;
-	vcenter = Vector3D(-(XMIN+XMAX)/2,-(YMIN+YMAX)/2,-(ZMIN+ZMAX)/2);
+	vcenter = Vector3D(-(loacalConfig->xmin+loacalConfig->xmax)/2,-(loacalConfig->ymin+loacalConfig->ymax)/2,-(loacalConfig->zmin+loacalConfig->zmax)/2);
 	vcenter *= sc;
 	Vector3D v1,v2,v3,v4,v5,v6,v7,v8;
-	v1 = Vector3D( -XMAX/2, -YMAX/2, -ZMAX/2)*sc;
-	v2 = Vector3D(  XMAX/2, -YMAX/2, -ZMAX/2)*sc;
-	v3 = Vector3D(  XMAX/2,  YMAX/2, -ZMAX/2)*sc;
-	v4 = Vector3D( -XMAX/2,  YMAX/2, -ZMAX/2)*sc;
-	v5 = Vector3D( -XMAX/2, -YMAX/2,  ZMAX/2)*sc;
-	v6 = Vector3D(  XMAX/2, -YMAX/2,  ZMAX/2)*sc;
-	v7 = Vector3D(  XMAX/2,  YMAX/2,  ZMAX/2)*sc;
-	v8 = Vector3D( -XMAX/2,  YMAX/2,  ZMAX/2)*sc;
+	v1 = Vector3D( -loacalConfig->xmax/2, -loacalConfig->ymax/2, -loacalConfig->zmax/2)*sc;
+	v2 = Vector3D(  loacalConfig->xmax/2, -loacalConfig->ymax/2, -loacalConfig->zmax/2)*sc;
+	v3 = Vector3D(  loacalConfig->xmax/2,  loacalConfig->ymax/2, -loacalConfig->zmax/2)*sc;
+	v4 = Vector3D( -loacalConfig->xmax/2,  loacalConfig->ymax/2, -loacalConfig->zmax/2)*sc;
+	v5 = Vector3D( -loacalConfig->xmax/2, -loacalConfig->ymax/2,  loacalConfig->zmax/2)*sc;
+	v6 = Vector3D(  loacalConfig->xmax/2, -loacalConfig->ymax/2,  loacalConfig->zmax/2)*sc;
+	v7 = Vector3D(  loacalConfig->xmax/2,  loacalConfig->ymax/2,  loacalConfig->zmax/2)*sc;
+	v8 = Vector3D( -loacalConfig->xmax/2,  loacalConfig->ymax/2,  loacalConfig->zmax/2)*sc;
 	glColor3ub(255,255,255);//yellow
 	glVertex3d(v1.x,v1.y,v1.z); 
 	glVertex3d(v2.x,v2.y,v2.z);
@@ -469,7 +480,7 @@ inline void drawScene()
 	glColor3ub(0,0,0);//black
 	
 
-	Vector3D v_s = Vector3D(  -XMAX/2 + s_v,  YMAX/2,  ZMAX/2)*sc;
+	Vector3D v_s = Vector3D(  -loacalConfig->xmax/2 + s_v,  loacalConfig->ymax/2,  loacalConfig->zmax/2)*sc;
 	glVertex3d(v_s.x, v_s.y, v_s.z);
 	glVertex3d(v_s.x, v_s.y - 0.5f * sc , v_s.z);
 	glLineWidth((GLfloat)10.0);
@@ -482,12 +493,12 @@ inline void drawScene()
 	std::string s;
 	ss << order;
 	s = "1E-" + ss.str() + "m";
-	glPrint3D( v8.x + 0.4f*sc , v8.y - 2.f * sc, v8.z, "0", m_font);
-	glPrint3D( v_s.x , v_s.y - 2.f * sc, v_s.z, s.c_str(), m_font);
+	glPrint3D( (float)v8.x + 0.4f*sc , (float)v8.y - 2.f * sc, (float)v8.z, "0", m_font);
+	glPrint3D( (float)v_s.x , (float)v_s.y - 2.f * sc, (float)v_s.z, s.c_str(), m_font);
 	ss.str("");
-	while(v_s.x < XMAX/2*sc){
+	while(v_s.x < loacalConfig->xmax/2*sc){
 		v_s.x += s_v * sc;
-		if(v_s.x < XMAX/2*sc){
+		if(v_s.x < loacalConfig->xmax/2*sc){
 			glBegin(GL_LINES);
 				glVertex3d(v_s.x, v_s.y, v_s.z);
 				glVertex3d(v_s.x, v_s.y - 0.5f * sc , v_s.z);
@@ -510,10 +521,10 @@ void renderInfo(int x, int y)
 		glColor3f (0.5F, 1.0F, 1.0F);
 		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
 																													 numOfElasticP,
-																													 numOfBoundaryP,PARTICLE_COUNT); 
+																													 numOfBoundaryP,loacalConfig->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F); 
-		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, iterationCount,((float)iterationCount)*timeStep); 
+		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
 		glPrint( 0 , 17 , label, m_font);
 
 
@@ -770,79 +781,20 @@ void mouse_motion (int x, int y)
 
 extern float *muscle_activation_signal_cpp;
 
-void respond_key_pressed(unsigned char key, int x, int y)
+void RespondKey(unsigned char key, int x, int y)
 {
-	int shift=0;
-	//for(shift=0;shift<=72;shift+=72)
+	switch(key)
 	{
-	
-		if(key=='1')
-		{
-			if(muscle_activation_signal_cpp[0+shift]<=0.5f)
-			muscle_activation_signal_cpp[0+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[0+shift] = 0.f;
-			//if(muscle_activation_signal_cpp[0]>1.f) muscle_activation_signal_cpp[0] = 1.f;
-		}
-
-		if(key=='2')
-		{
-			if(muscle_activation_signal_cpp[1+shift]<=0.5f)
-			muscle_activation_signal_cpp[1+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[1+shift] = 0.f;
-			//if(muscle_activation_signal_cpp[1]>1.f) muscle_activation_signal_cpp[1] = 1.f;
-		}
-
-		if(key=='3')
-		{
-			if(muscle_activation_signal_cpp[2+shift]<=0.5f)
-			muscle_activation_signal_cpp[2+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[2+shift] = 0.f;
-			//if(muscle_activation_signal_cpp[2]>1.f) muscle_activation_signal_cpp[2] = 1.f;
-		}
-
-		if(key=='4')
-		{
-			if(muscle_activation_signal_cpp[3+shift]<=0.5f)
-			muscle_activation_signal_cpp[3+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[3+shift] = 0.f;
-			//if(muscle_activation_signal_cpp[3]>1.f) muscle_activation_signal_cpp[3] = 1.f;
-		}
-
-		if(key=='5')
-		{
-			if(muscle_activation_signal_cpp[4+shift]<=0.5f)
-			muscle_activation_signal_cpp[4+shift] = 1.f;//+= 0.1f;
-			else muscle_activation_signal_cpp[4+shift] = 0.f;
-		}
-
-		if(key=='6')
-		{
-			if(muscle_activation_signal_cpp[5+shift]<=0.5f)
-			muscle_activation_signal_cpp[5+shift] = 1.f;
-			else muscle_activation_signal_cpp[5+shift] = 0.f;
-		}
-
-		if(key=='7')
-		{
-			if(muscle_activation_signal_cpp[6+shift]<=0.5f)
-			muscle_activation_signal_cpp[6+shift] = 1.f;
-			else muscle_activation_signal_cpp[6+shift] = 0.f;
-		}
-
-		if(key=='8')
-		{
-			if(muscle_activation_signal_cpp[7+shift]<=0.5f)
-			muscle_activation_signal_cpp[7+shift] = 1.f;
-			else muscle_activation_signal_cpp[7+shift] = 0.f;
-		}
-
-		if(key=='9')
-		{
-			if(muscle_activation_signal_cpp[8+shift]<=0.5f)
-			muscle_activation_signal_cpp[8+shift] = 1.f;
-			else muscle_activation_signal_cpp[8+shift] = 0.f;
-		}
-
+	case '1':
+		owHelper::suffix = "";
+		helper->refreshTime();
+		fluid_simulation->reset();
+		break;
+	case '2':
+		owHelper::suffix = "_membranes_demo";
+		helper->refreshTime();
+		fluid_simulation->reset();
+		break;
 	}
 
 	if(key == 'i')
@@ -853,7 +805,7 @@ void respond_key_pressed(unsigned char key, int x, int y)
 	{
 		showRuler = !showRuler;
 	}
-	return;
+	glutPostRedisplay();
 }
 
 //Auxiliary function
@@ -869,17 +821,9 @@ void idle (void)
 
 void Timer(int value)
 {
-	if(load_from_file){
-		owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp,iteration);
-		iteration++;
-		//if(iteration >= iterationCount)
-		//	exit(0);
-	}else{
-		calculationTime = fluid_simulation->simulationStep();
-	}
 	// Re-register for next callback
+    glutPostRedisplay();
     glutTimerFunc(TIMER_INTERVAL*0, Timer, 0);
-	glutPostRedisplay();
 }
 
 GLvoid resize(GLsizei width, GLsizei height){
@@ -923,27 +867,36 @@ void init(void){
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 }
-void draw(void)
-{
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glPushMatrix();
-	glColor3f(1.0f, 1.0f, 1.0f);
-	glPopMatrix();
+void sighandler(int s){
+	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
+	delete fluid_simulation;
+	delete helper;
+	exit(EXIT_SUCCESS);
 }
 
 void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
 	helper = new owHelper();
 	if(!load_from_file){
-		fluid_simulation = new owPhysicsFluidSimulator(helper);
+		int dev_type = CPU;
+		for(int i = 1; i<argc; i++){
+			if(strncmp(argv[i], "device=", 7) == 0){
+				if(strstr(argv[i], "gpu") != NULL || strstr(argv[i], "GPU") != NULL)
+					dev_type = GPU;
+			}
+		}
+		fluid_simulation = new owPhysicsFluidSimulator(helper, dev_type);
+		loacalConfig = fluid_simulation->getConfig();
 	}
 	else{
+		loacalConfig = new owConfigProrerty();
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
 		for(int i=0;i<MUSCLE_COUNT;i++)
 		{
 			muscle_activation_signal_cpp[i] = 0.f;
 		}
 	}
+	std::signal(SIGINT,sighandler);
 	if(with_graphics){
 		glutInit(&argc, argv);
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
@@ -964,15 +917,18 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
 		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked,
-		glutKeyboardFunc(respond_key_pressed);
+		glutKeyboardFunc(RespondKey);
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
-		if(!load_from_file)
-			fluid_simulation->~owPhysicsFluidSimulator();
+		if(!load_from_file){
+			delete fluid_simulation;
+			delete helper;
+		}
 	}else{
 		while(1){
 			fluid_simulation->simulationStep(load_to);
 			helper->refreshTime();
 		}
 	}
+    exit(EXIT_SUCCESS);
 }

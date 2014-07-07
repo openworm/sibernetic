@@ -61,7 +61,7 @@ Finally, to run, run the command:
 
 **Linux**:
 ```
-./Release/Smoothed-Particle-Hydrodynamics
+./Release/Sibernetic
 ```
 **Mac**:
 ```
@@ -85,6 +85,7 @@ Compilation failed:
 
 Saving to disk
 --------------
+You can run Sibernetic on gpu for this you should start Sibernetic with key device=gpu.
 
 You may wish to save simulations to disk rather than visualise them (**WARNING**: This is buggy)
 

@@ -34,8 +34,9 @@
 #ifndef OW_PHYSICS_CONSTANT_H
 #define OW_PHYSICS_CONSTANT_H
 
-#include "owOpenCLConstant.h"
 #include <math.h>
+
+#include "owOpenCLConstant.h"
 
 #define generateWormBodyConfiguration 0 //or load from file otherwise [0/1]
 
@@ -55,29 +56,12 @@ const float h = 3.34f;
 const float hashGridCellSize = 2.0f * h;
 const float hashGridCellSizeInv = 1.0f / hashGridCellSize;
 const float simulationScaleInv = 1.0f / simulationScale;
-const float interParticleDistance = 0.5f*h*simulationScale;// should be 1 mm / 311 = 0.0032 mm = 3.2e-6 m
-const float preliminaryWormLength = 311 * interParticleDistance;//should be 1 mm = 1e-3 m
 const float r0 = 0.5f * h; // distance between two boundary particle == equilibrium distance between 2 particles // Ihmsen et. al., 2010, page 4, line 3 
 						   // M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 
-//Sizes of the box containing simulated 'world'
-//Sizes choice is realized this way because it should be proportional to smoothing radius h
-//TODO: replace this from const to variable
-#if generateWormBodyConfiguration
-#define XMIN 0
-#define XMAX 30.0*h // horizontal 1
-#define YMIN 0
-#define YMAX 20.0*h // vertical
-#define ZMIN 0
-#define ZMAX 250.0*h // horizontal 2 //142
-#else
-#define XMIN 0
-#define XMAX 88.84//30.0*h // horizontal 1
-#define YMIN 0
-#define YMAX 88.84//20.0*h // vertical
-#define ZMIN 0
-#define ZMAX 88.84//250.0*h // horizontal 2 //142
-#endif
+const float _hScaled = h * simulationScale;//scaled smoothing radius
+const float _hScaled2 = _hScaled*_hScaled;//squared scaled smoothing radius
+
 //const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
 
 // Some facts about C. elegans:
@@ -110,7 +94,7 @@ const float CFLLimit = 100.0f;
 const double beta = timeStep*timeStep*mass*mass*2/(rho0*rho0);// B. Solenthaler's dissertation, formula 3.6 (end of page 30)
 const double Wpoly6Coefficient = 315.0 / ( 64.0 * M_PI * pow( (double)(h*simulationScale), 9.0 ) );
 const double gradWspikyCoefficient= -45.0 / ( M_PI * pow( (double)(h*simulationScale), 6.0 ) );
-const double del2WviscosityCoefficient = - gradWspikyCoefficient;
+const double divgradWviscosityCoefficient = - gradWspikyCoefficient;
 const float gravity_x = 0.0f;
 const float gravity_y = -9.8f;
 const float gravity_z = 0.0f;
@@ -118,5 +102,10 @@ extern const float delta;
 const int maxIteration = 3;
 const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale;
 const float elasticityCoefficient = 1.95e-05f / mass;
+
+const float mass_mult_Wpoly6Coefficient = (float) ( (double)mass * Wpoly6Coefficient );
+const float mass_mult_gradWspikyCoefficient = (float) ( (double)mass * gradWspikyCoefficient );
+const float mass_mult_divgradWviscosityCoefficient = (float) ( (double)mass * divgradWviscosityCoefficient );
+
 
 #endif // #ifndef OW_PHYSICS_CONSTANT_H

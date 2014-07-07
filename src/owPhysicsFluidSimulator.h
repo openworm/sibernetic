@@ -42,17 +42,18 @@ class owPhysicsFluidSimulator
 {
 public:
 	owPhysicsFluidSimulator(void);
-	owPhysicsFluidSimulator(owHelper * helper);
+	owPhysicsFluidSimulator(owHelper * helper,const int dev_type=CPU);
 	~owPhysicsFluidSimulator(void);
 	float * getPosition_cpp() { return position_cpp; };
-	float * getvelocity_cpp() { return velocity_cpp; };
-	float * getDensity_cpp() { ocl_solver->read_density_buffer( density_cpp ); return density_cpp; };
-	unsigned int * getParticleIndex_cpp() { ocl_solver->read_particleIndex_buffer( particleIndex_cpp ); return particleIndex_cpp; };
-	//TODO helper functions delete after fix!!
+	float * getvelocity_cpp() { /*return velocity_cpp;*/ ocl_solver->read_velocity_buffer(velocity_cpp,config); return velocity_cpp; };
+	float * getDensity_cpp() { ocl_solver->read_density_buffer( density_cpp, config ); return density_cpp; };
+	unsigned int * getParticleIndex_cpp() { ocl_solver->read_particleIndex_buffer( particleIndex_cpp, config ); return particleIndex_cpp; };
 	float * getElasticConnectionsData_cpp() { return elasticConnectionsData_cpp; };
 	int   * getMembraneData_cpp() { return membraneData_cpp; };
 	double  simulationStep(const bool load_to = false);
-
+	owConfigProrerty * getConfig(){ return config; };
+	const int getIteration(){ return iterationCount; };
+	void reset();
 private:
 	owOpenCLSolver * ocl_solver;
 	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create 
@@ -60,12 +61,12 @@ private:
 	float * elasticConnectionsData_cpp; // copied later to OpenCL buffer %variableName% 
 	int	  * membraneData_cpp;
 	int   * particleMembranesList_cpp;
-
 	//Helper arrays
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;
-	float * acceleration_cpp;//TODO REMOVE after fixing
+	owConfigProrerty * config;
 	owHelper * helper;
+	int iterationCount;
 };
 
 #endif //OW_PHYSICS_SIMULATOR_H

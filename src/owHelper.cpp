@@ -37,23 +37,20 @@
 #include <string>
 #include <vector>
 
-#include "owHelper.h"
-#include "owPhysicsConstant.h"
 
 #if defined(__APPLE__) || defined (__MACOSX)
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #endif
 
+#include "owHelper.h"
+#include "owPhysicsConstant.h"
+
 using namespace std;
 
-extern int PARTICLE_COUNT;
-extern int PARTICLE_COUNT_RoundedUp;
-extern int local_NDRange_size;
 extern int numOfMembranes;
 extern int numOfElasticP;
 extern int numOfLiquidP;
-
 
 owHelper::owHelper(void)
 {
@@ -78,7 +75,7 @@ void owHelper::refreshTime()
 #endif
 }
 
-int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp, int &numOfMembranes, int *membraneData_cpp)
+int generateWormShell(int stage, int i_start,float *position_cpp, float *velocity_cpp, int &numOfMembranes, int *membraneData_cpp, owConfigProrerty * config)
 {
 	//return 0;
 	if( !((stage==0)||(stage==1)) ) return 0;
@@ -89,15 +86,15 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 	int i,j;
 	float *positionVector;
 	float *velocityVector;
-	float xc = XMAX*0.5f;
-	float yc = YMAX*0.3f;
-	float zc = ZMAX*0.5f;
+	float xc = config->xmax*0.5f;
+	float yc = config->ymax*0.3f;
+	float zc = config->zmax*0.5f;
 	int elasticLayers = 1;//starting value
 	float PI = 3.1415926536f;
 	int currSlice_pCount;
-	int prevSlice_pCount;
+	int prevSlice_pCount = 0;
 	int currSlice_start;
-	int prevSlice_start;
+	int prevSlice_start = 0;
 	int mc = 0;
 	float angle;
 	int tip = 0;
@@ -116,10 +113,10 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 		wormBodyRadius = 6.0f*r0*sqrt(max(1.f-(1.0e-4f)*j*j,0.f));
 		tip = 0;
 
-		if((wormBodyRadius>0.707*r0)&&
-		   (wormBodyRadius<1.000*r0)) wormBodyRadius = 1.000*r0;
+		if((wormBodyRadius>0.707f*r0)&&
+		   (wormBodyRadius<1.000f*r0)) wormBodyRadius = 1.000f*r0;
 
-		if(wormBodyRadius<0.707*r0) { tip = 1; wormBodyRadius = 0.707f*r0; }//0.707 = sqrt(2)/2
+		if(wormBodyRadius<0.707f*r0) { tip = 1; wormBodyRadius = 0.707f*r0; }//0.707 = sqrt(2)/2
 
 		//alpha = 2*asin(0.5*r0/wormBodyRadius);//in radians
 		//angle = alpha;
@@ -129,14 +126,14 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 		if(stage==1)
 		{
 			positionVector = position_cpp + 4 * (pCount+i_start);
-			positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0);
-			positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0);
+			positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0f);
+			positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0f);
 			positionVector[ 2 ] = zc + r0*j;
 			positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 
 			positionVector = position_cpp + 4 * (pCount+1+i_start);
-			positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0);
-			positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0);
+			positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0f);
+			positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0f);
 			positionVector[ 2 ] = zc + r0*j;
 			positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 		}
@@ -148,14 +145,14 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 			if(stage==1)
 			{
 				positionVector = position_cpp + 4 * (pCount+i_start);
-				positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0);
-				positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0);
+				positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0f);
+				positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0f);
 				positionVector[ 2 ] = zc + r0*j;
 				positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 
 				positionVector = position_cpp + 4 * (pCount+1+i_start);
-				positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0);
-				positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0);
+				positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0f);
+				positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0f);
 				positionVector[ 2 ] = zc + r0*j;
 				positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 			}
@@ -183,19 +180,19 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 			if(wormBodyRadius>0)
 			if(elasticLayers>=2)
 			{
-				if(wormBodyRadius>r0*(1.00))
+				if(wormBodyRadius>r0*(1.00f))
 				{
 					if(stage==1)
 					{
 						positionVector = position_cpp + 4 * (pCount+i_start);
-						positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0);
-						positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0);
+						positionVector[ 0 ] = xc + wormBodyRadius*cos(0.0f);
+						positionVector[ 1 ] = yc + wormBodyRadius*sin(0.0f);
 						positionVector[ 2 ] = zc + r0*j;
 						positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 
 						positionVector = position_cpp + 4 * (pCount+1+i_start);
-						positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0);
-						positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0);
+						positionVector[ 0 ] = xc - wormBodyRadius*cos(0.0f);
+						positionVector[ 1 ] = yc - wormBodyRadius*sin(0.0f);
 						positionVector[ 2 ] = zc + r0*j;
 						positionVector[ 3 ] = 2.1f;// 2 = elastic matter, yellow
 					}
@@ -218,8 +215,8 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 				}
 			}
 
-			if(wormBodyRadius<r0*0.707) break;
-			alpha = 2*asin(0.5*r0/wormBodyRadius);//in radians//recalculate -- wormBodyRadius changed
+			if(wormBodyRadius<r0*0.707f) break;
+			alpha = 2*asin(0.5f*r0/wormBodyRadius);//in radians//recalculate -- wormBodyRadius changed
 			angle = alpha;
 
 			while(angle<0.89/*radians = less or equal to 51 degrees*/)
@@ -259,7 +256,7 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 			{
 				angle-= alpha;//step back for 1 radial segment
 				float non_muscle_angle = PI - 2.f*angle;
-				int n_non_muscle_particles = floor(non_muscle_angle / alpha)-1;// distance between each 2 radially adjacent particles will be r0 or more (not less); alpha corresponds to r0
+				int n_non_muscle_particles = (int)(floor(non_muscle_angle / alpha)-1);// distance between each 2 radially adjacent particles will be r0 or more (not less); alpha corresponds to r0
 				if(n_non_muscle_particles>0)
 				{
 					float beta = non_muscle_angle / (n_non_muscle_particles+1);
@@ -521,25 +518,21 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 	// makeworm
 }
 
-int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp)
+int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *velocity_cpp, owConfigProrerty * config)
 {
 	//return 0;
-	int segmentsCount;// = 10;
 	float alpha;// = 2.f*3.14159f/segmentsCount;
-	float coeff = 0.23f;
 	float wormBodyRadius;// = h*coeff / sin(alpha/2);
 	int pCount = 0;//particle counter
 	int i;
 
 	float *positionVector;
 	float *velocityVector;
-	float value;
 	int elasticLayers;//starting from 2, because 1 is for outer shell and doesn't contain liquid particles
-	float xc = XMAX*0.5f;
-	float yc = YMAX*0.3f;
-	float zc = ZMAX*0.5f;
+	float xc = config->xmax*0.5f;
+	float yc = config->ymax*0.3f;
+	float zc = config->zmax*0.5f;
 	float PI = 3.1415926536f;
-	float beta;
 	float angle;
 	float x,y,z;
 
@@ -559,23 +552,23 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 	{////////////////////////////////////////////////////
 
 		elasticLayers = 2;
-		wormBodyRadius = 6.0f*r0*sqrt(max(1.f-(1.0e-4f)*j*j,0.f)) - r0*(1+0.85);
+		wormBodyRadius = 6.0f*r0*sqrt(max(1.f-(1.0e-4f)*j*j,0.f)) - r0*(1+0.85f);
 
 		while(1)
 		{
-			if(wormBodyRadius>0.707*r0)
+			if(wormBodyRadius>0.707f*r0)
 			{
 				if(stage==1)
 				{
 					positionVector = position_cpp + 4 * (pCount+i_start);
-					positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0);
-					positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0);
+					positionVector[ 0 ] = xc + wormBodyRadius*sin(0.0f);
+					positionVector[ 1 ] = yc + wormBodyRadius*cos(0.0f);
 					positionVector[ 2 ] = zc + r0*j;
 					positionVector[ 3 ] = 1.1f;// liquid
 
 					positionVector = position_cpp + 4 * (pCount+1+i_start);
-					positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0);
-					positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0);
+					positionVector[ 0 ] = xc - wormBodyRadius*sin(0.0f);
+					positionVector[ 1 ] = yc - wormBodyRadius*cos(0.0f);
 					positionVector[ 2 ] = zc + r0*j;
 					positionVector[ 3 ] = 1.1f;// liquid
 				}
@@ -599,7 +592,7 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 				break;
 			}
 
-			alpha = 2*asin(0.5*r0/wormBodyRadius);//in radians//recalculate -- wormBodyRadius changed
+			alpha = 2*asin(0.5f*r0/wormBodyRadius);//in radians//recalculate -- wormBodyRadius changed
 			
 			angle = 0;
 
@@ -616,7 +609,7 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 			}
 
 			float non_muscle_angle = PI - 2.f*angle;
-			int n_non_muscle_particles = floor(non_muscle_angle / (alpha*0.85) )-1;
+			int n_non_muscle_particles = (int)(floor(non_muscle_angle / (alpha*0.85f) )-1);
 			float beta = non_muscle_angle / (n_non_muscle_particles+1);
 
 			for(i=0;i<n_non_muscle_particles;i++)
@@ -642,17 +635,17 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 			}
 			
 			elasticLayers++;
-			wormBodyRadius -= r0*0.85;
+			wormBodyRadius -= r0*0.85f;
 		}
 	}
 
 	//and here we add outer liquid for worm swimming
 /**/
-	for(x=3*r0;x<XMAX-3*r0;x+=r0)
+	for(x=3*r0;x<config->xmax-3*r0;x+=r0)
 	{
-		for(y=3*r0;y<YMAX*0.15;y+=r0)
+		for(y=3*r0;y<config->ymax*0.15;y+=r0)
 		{
-			for(z=3*r0;z<ZMAX-3*r0;z+=r0)
+			for(z=3*r0;z<config->zmax-3*r0;z+=r0)
 			{
 				if(stage==1)
 				{	
@@ -685,29 +678,22 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 }
 
 
-void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp)
+void owHelper::generateConfiguration(int stage, float *position_cpp, float *velocity_cpp, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int *particleMembranesList_cpp, owConfigProrerty * config)
 {
-	float x,y,z;
 	float p_type = LIQUID_PARTICLE;
 	int i = 0;// particle counter
 	int ix,iy,iz;
 	int ecc = 0;//elastic connections counter
 
-	int nx = (int)( ( XMAX - XMIN ) / r0 ); //X
-	int ny = (int)( ( YMAX - YMIN ) / r0 ); //Y
-	int nz = (int)( ( ZMAX - ZMIN ) / r0 ); //Z
+	int nx = (int)( ( config->xmax - config->xmin ) / r0 ); //X
+	int ny = (int)( ( config->ymax - config->ymin ) / r0 ); //Y
+	int nz = (int)( ( config->zmax - config->zmin ) / r0 ); //Z
 
-	int nEx = 5*0;//7
-	int nEy = 3*0;//4
-	int nEz = 9*0;//25
-	int nMuscles = 5;
-	int nM,nMi,nMj;
-	int wormIndex_start,wormIndex_end;
-	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp);
+	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp, config);
 
 	if(stage==0)
 	{
-		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp);
+		numOfLiquidP = generateInnerWormLiquid(0,0,position_cpp,velocity_cpp, config);
 		numOfElasticP = numOfMembraneParticles;
 		numOfBoundaryP = 0;
 
@@ -717,13 +703,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	//=============== create worm body (elastic parts) ==================================================
 	if(stage==1)
 	{
-		wormIndex_start = i;
-		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp);
-		wormIndex_end = i;
-
-		float r2ij;
-		float dx2,dy2,dz2;
-
+		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp, config);
 		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
 		for(int ii = 0; ii < numOfElasticP * MAX_NEIGHBOR_COUNT; ii++)
 		{
@@ -740,7 +720,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	//=============== create worm body (inner liquid) ==================================================
 	if(stage==1)
 	{
-		i += generateInnerWormLiquid(stage,i,position_cpp,velocity_cpp);
+		i += generateInnerWormLiquid(stage,i,position_cpp,velocity_cpp, config);
 	}
 
 
@@ -908,21 +888,20 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 	if(stage==0)
 	{
-		PARTICLE_COUNT = numOfLiquidP + numOfBoundaryP + numOfElasticP;
-		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+		config->setParticleCount(numOfLiquidP + numOfBoundaryP + numOfElasticP);
 
-		if(PARTICLE_COUNT<=0) 
+		if(config->getParticleCount()<=0)
 		{
-			printf("\nWarning! Generated scene contains %d particles!\n",PARTICLE_COUNT);
+			printf("\nWarning! Generated scene contains %d particles!\n",config->getParticleCount());
 			exit(-2);
 		}
 	}
 	else
 	if(stage==1)
 	{
-		if(PARTICLE_COUNT!=i) 
+		if(config->getParticleCount()!=i)
 		{
-			printf("\nWarning! Preliminary [%d] and final [%d] particle count are different\n",PARTICLE_COUNT,i);
+			printf("\nWarning! Preliminary [%d] and final [%d] particle count are different\n",config->getParticleCount(),i);
 			exit(-4);
 		}
 
@@ -938,21 +917,18 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		///////////////debug////////////
 		int j;
 		int ecc_total = 0;
-		int array_j[MAX_NEIGHBOR_COUNT];
 		//float ix,iy,iz,jx,jy,jz;
 		//int j_count=0;
 		int muscleCounter = 0;
 		int m_index[10640];
-		float m_number[10640];
-		float WXC = XMAX*0.5f;
-		float WYC = YMAX*0.3f;
-		float WZC = ZMAX*0.5f;
+		float WXC = config->xmax*0.5f;
+		float WYC = config->ymax*0.3f;
+		float WZC = config->zmax*0.5f;
 		//int sm_cnt = 0;
 		//int array_k[MAX_NEIGHBOR_COUNT];
 		for(i=numOfElasticP-numOfMembraneParticles;i<numOfElasticP;i++)
 		{
 			float dx2,dy2,dz2,r2_ij,r_ij;
-			int k;
 			int q_i_start;
 			int dq;//dorsal quadrant - "+1"=right, "-1"=left
 			float muscle_color = 0.1f;
@@ -975,7 +951,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 					if(r_ij<=r0*sqrt(/*2.3*/2.7/*2.7*/))//grid = 1.0*r0
 					{
 						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 0 ] = ((float)j) + 0.1f;		// index of j-th particle in a pair connected with spring
-						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.95;	// resting distance; that's why we use float type for elasticConnectionsData_cpp
+						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 1 ] = r_ij*simulationScale*0.95f;	// resting distance; that's why we use float type for elasticConnectionsData_cpp
 						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 2 ] = 0;						// type of connection; 0 - ordinary spring, 1 - muscle
 						elasticConnectionsData_cpp[ 4 * ( MAX_NEIGHBOR_COUNT * i + ecc) + 3 ] = 0;						// not in use yet
 
@@ -1361,7 +1337,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		
 							}
 						}
-						array_j[ecc] = j;
 						ecc++;
 						ecc_total++;
 					}
@@ -1409,30 +1384,51 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 
 
 //READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER
-std::string path = "./configuration/";//"/home/serg/git/ConfigurationGenerator/configurations/"
-std::string suffix = "";
-void owHelper::preLoadConfiguration(int & numOfMembranes)
+int read_position = 0;
+std::string owHelper::path = "./configuration/";
+std::string owHelper::suffix = "";
+void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP)
 {
 	try
 	{
-		PARTICLE_COUNT = 0;
+		int p_count = 0;
 		std::string p_file_name = path + "position" + suffix + ".txt";
-		std::ifstream positionFile (p_file_name.c_str());
+		std::ifstream positionFile (p_file_name.c_str(), std::ios_base::binary);
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
+			positionFile >> config->xmin;
+			positionFile >> config->xmax;
+			positionFile >> config->ymin;
+			positionFile >> config->ymax;
+			positionFile >> config->zmin;
+			positionFile >> config->zmax;
+			read_position = positionFile.tellg();
 			while( positionFile.good() )
 			{
 				p_type = -1.1f;//reinitialize
 				positionFile >> x >> y >> z >> p_type;
-				if(p_type>=0) PARTICLE_COUNT++;//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
+				if(p_type>=0){
+					p_count++;
+					switch((int)p_type){
+						case LIQUID_PARTICLE:
+							numOfLiquidP++;
+							break;
+						case ELASTIC_PARTICLE:
+							numOfElasticP++;
+							break;
+						case BOUNDARY_PARTICLE:
+							numOfBoundaryP++;
+							break;
+					}
+				}//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
 				else break;//end of file
 			}
 		}
 		positionFile.close();
-		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+		config->setParticleCount(p_count);
 
-		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",PARTICLE_COUNT);
+		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",config->getParticleCount());
 
 		numOfMembranes = 0;
 		std::string m_file_name = path + "membranes" + suffix + ".txt";
@@ -1454,7 +1450,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes)
 		exit( -1 );
 	}
 }
-void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp)
+void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config)
 {
 
 	try
@@ -1465,36 +1461,27 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
-			while( positionFile.good() && i < PARTICLE_COUNT )
+			positionFile.seekg(read_position);
+			while( positionFile.good() && i < config->getParticleCount() )
 			{
 				positionFile >> x >> y >> z >> p_type;
 				position_cpp[ 4 * i + 0 ] = x;
 				position_cpp[ 4 * i + 1 ] = y;
 				position_cpp[ 4 * i + 2 ] = z;
 				position_cpp[ 4 * i + 3 ] = p_type;
-				switch((int)p_type){
-					case LIQUID_PARTICLE:
-						numOfLiquidP++;
-						break;
-					case ELASTIC_PARTICLE:
-						numOfElasticP++;
-						break;
-					case BOUNDARY_PARTICLE:
-						numOfBoundaryP++;
-						break;
-				}
 				i++;
 			}
 			positionFile.close();
 		}
 		else
 			throw std::runtime_error("Could not open file position.txt");
+		std::cout << "Position is loaded" << std::endl;
 		std::string v_file_name = path + "velocity" + suffix + ".txt";
 		std::ifstream velocityFile (v_file_name.c_str());
 		i = 0;
 		if( velocityFile.is_open() )
 		{
-			while( velocityFile.good() && i < PARTICLE_COUNT )
+			while( velocityFile.good() && i < config->getParticleCount() )
 			{
 				velocityFile >> x >> y >> z >> p_type;
 				velocity_cpp[ 4 * i + 0 ] = x;
@@ -1507,7 +1494,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		}
 		else
 			throw std::runtime_error("Could not open file velocity.txt");
-		//TODO NEXT BLOCK WILL BE new load of elastic connections
+		std::cout << "Velocity is loaded" << std::endl;
 		if(numOfElasticP != 0){
 			std::string c_file_name = path + "connection" + suffix + ".txt";
 			std::ifstream elasticConectionsFile (c_file_name.c_str());
@@ -1531,8 +1518,11 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 						i++;
 					}
 				}
+				elasticConectionsFile.close();
 			}
-			elasticConectionsFile.close();
+			else
+				throw std::runtime_error("Could not open file connection.txt");
+			std::cout << "Elastic Connection is loaded" << std::endl;
 			//Import Membranes
 			//return;
 			std::string m_file_name = path + "membranes" + suffix + ".txt";
@@ -1550,9 +1540,11 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 					membraneData_cpp[ 3 * i + 2 ] = kd;
 					i++;
 				}
+				membranesFile.close();
 			}
-			membranesFile.close();
-
+			else
+				throw std::runtime_error("Could not open file membranes.txt");
+			std::cout << "Membranes is loaded" << std::endl;
 			//Import Membranes
 			std::string mi_file_name = path + "particleMembraneIndex" + suffix + ".txt";
 			std::ifstream membranesIndexFile (mi_file_name.c_str());
@@ -1560,16 +1552,17 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 			if( membranesIndexFile.is_open())
 			{
 				int id;
-				particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
 				while( membranesIndexFile.good() && i < numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
 				{
 					membranesIndexFile >> id ;
 					particleMembranesList_cpp[ i ] = id;
 					i++;
 				}
+				membranesIndexFile.close();
 			}
-			membranesIndexFile.close();
-
+			else
+				throw std::runtime_error("Could not open file particleMembraneIndex.txt");
+			std::cout << "ParticleMembraneIndex is loaded" << std::endl;
 		}
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
@@ -1577,19 +1570,35 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 	}
 }
 
-void owHelper::loadConfigurationToFile(float * position, float * connections, int * membranes, bool firstIteration){
+void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
 	try{
 		ofstream positionFile;
 		if(firstIteration){
 			positionFile.open("./buffers/position_buffer.txt", std::ofstream::trunc);
+			positionFile << config->xmin << "\n";
+			positionFile << config->xmax << "\n";
+			positionFile << config->ymin << "\n";
+			positionFile << config->ymax << "\n";
+			positionFile << config->zmin << "\n";
+			positionFile << config->zmax << "\n";
 			positionFile << numOfElasticP << "\n";
 			positionFile << numOfLiquidP << "\n";
 		}else{
 			positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
 		}
-		for(int i=0;i < PARTICLE_COUNT; i++){
-			if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
+		if(size==0){
+			for(int i=0;i < config->getParticleCount(); i++){
+				if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
+					positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+				}
+			}
+		}else{
+			int i = 0;
+			int index = 0;
+			while(index!=size){
+				i = filter_p[index];
 				positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+				index++;
 			}
 		}
 		positionFile.close();
@@ -1613,7 +1622,7 @@ void owHelper::loadConfigurationToFile(float * position, float * connections, in
 //This function needed for visualiazation buffered data
 long position_index = 0;
 ifstream positionFile;
-void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, int iteration){
+void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
 	try{
 		if(iteration == 0)
 			positionFile.open("./buffers/position_buffer.txt");
@@ -1622,12 +1631,18 @@ void owHelper::loadConfigurationFromFile_experemental(float *& position, float *
 		if( positionFile.is_open() )
 		{
 			if(iteration == 0){
+				positionFile >> config->xmin;
+				positionFile >> config->xmax;
+				positionFile >> config->ymin;
+				positionFile >> config->ymax;
+				positionFile >> config->zmin;
+				positionFile >> config->zmax;
 				positionFile >> numOfElasticP;
 				positionFile >> numOfLiquidP;
-				PARTICLE_COUNT = (numOfElasticP + numOfLiquidP);
-				position = new float[4 * PARTICLE_COUNT];
+				config->setParticleCount(numOfElasticP + numOfLiquidP);
+				position = new float[4 * config->getParticleCount()];
 			}
-			while( positionFile.good() &&  i < PARTICLE_COUNT)
+			while( positionFile.good() &&  i < config->getParticleCount())
 			{
 				positionFile >> x >> y >> z >> p_type;
 				position[i * 4 + 0] = x;

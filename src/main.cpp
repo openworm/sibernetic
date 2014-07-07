@@ -31,11 +31,13 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include "owWorldSimulation.h"
 #include <stdio.h>
 #include <iostream>
+#include "owWorldSimulation.h"
+#include "./test/owPhysicTest.h"
 
-//extern bool load_to_file = false;
+#include "owWorldSimulation.h"
+
 bool load_from_file = false;
 int main(int argc, char **argv)
 {
@@ -47,6 +49,7 @@ int main(int argc, char **argv)
 	else{
 		bool graph = true;
 		bool load_to = false;
+		bool run_tests = false;
 		for(int i = 1; i<argc; i++){
 			if(strncmp(argv[i], "-no_g", 5) == 0)//run without graphics
 				graph = false;
@@ -59,8 +62,15 @@ int main(int argc, char **argv)
 				graph = true;
 				load_from_file = true;
 			}
+			if(strncmp(argv[i], "-test", 5) == 0){//run tests
+				run_tests = true;
+			}
 		}
-		run( argc, argv, graph, load_to);
+		if(run_tests){
+			test_energy_conservation();
+		}
+		else
+			run( argc, argv, graph, load_to );
 	}
 	return 0;
 }
