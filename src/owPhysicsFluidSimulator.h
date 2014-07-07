@@ -52,6 +52,8 @@ public:
 	int   * getMembraneData_cpp() { return membraneData_cpp; };
 	double  simulationStep(const bool load_to = false);
 	owConfigProrerty * getConfig(){ return config; };
+	const int getIteration(){ return iterationCount; };
+	void reset();
 private:
 	owOpenCLSolver * ocl_solver;
 	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create 
@@ -64,6 +66,7 @@ private:
 	unsigned int * particleIndex_cpp;
 	owConfigProrerty * config;
 	owHelper * helper;
+	int iterationCount;
 };
 
 #endif //OW_PHYSICS_SIMULATOR_H

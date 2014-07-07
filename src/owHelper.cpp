@@ -92,9 +92,9 @@ int generateWormShell(int stage, int i_start,float *position_cpp, float *velocit
 	int elasticLayers = 1;//starting value
 	float PI = 3.1415926536f;
 	int currSlice_pCount;
-	int prevSlice_pCount;
+	int prevSlice_pCount = 0;
 	int currSlice_start;
-	int prevSlice_start;
+	int prevSlice_start = 0;
 	int mc = 0;
 	float angle;
 	int tip = 0;
@@ -522,7 +522,6 @@ int generateInnerWormLiquid(int stage, int i_start,float *position_cpp, float *v
 {
 	//return 0;
 	float alpha;// = 2.f*3.14159f/segmentsCount;
-	float coeff = 0.23f;
 	float wormBodyRadius;// = h*coeff / sin(alpha/2);
 	int pCount = 0;//particle counter
 	int i;
@@ -690,11 +689,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	int ny = (int)( ( config->ymax - config->ymin ) / r0 ); //Y
 	int nz = (int)( ( config->zmax - config->zmin ) / r0 ); //Z
 
-	int nEx = 5*0;//7
-	int nEy = 3*0;//4
-	int nEz = 9*0;//25
-	int nMuscles = 5;
-	int wormIndex_start,wormIndex_end;
 	int numOfMembraneParticles = generateWormShell(0,0,position_cpp,velocity_cpp, numOfMembranes, membraneData_cpp, config);
 
 	if(stage==0)
@@ -709,10 +703,7 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 	//=============== create worm body (elastic parts) ==================================================
 	if(stage==1)
 	{
-		wormIndex_start = i;
 		i += generateWormShell(1/*stage*/,i,position_cpp,velocity_cpp, numOfMembranes,membraneData_cpp, config);
-		wormIndex_end = i;
-
 		//initialize elastic connections data structure (with NO_PARTICLE_ID values)
 		for(int ii = 0; ii < numOfElasticP * MAX_NEIGHBOR_COUNT; ii++)
 		{
@@ -926,12 +917,10 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		///////////////debug////////////
 		int j;
 		int ecc_total = 0;
-		int array_j[MAX_NEIGHBOR_COUNT];
 		//float ix,iy,iz,jx,jy,jz;
 		//int j_count=0;
 		int muscleCounter = 0;
 		int m_index[10640];
-		float m_number[10640];
 		float WXC = config->xmax*0.5f;
 		float WYC = config->ymax*0.3f;
 		float WZC = config->zmax*0.5f;
@@ -1348,7 +1337,6 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 		
 							}
 						}
-						array_j[ecc] = j;
 						ecc++;
 						ecc_total++;
 					}
