@@ -314,35 +314,6 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProrerty * config)
 	return err;
 }
 
-unsigned int owOpenCLSolver::_runSort(owConfigProrerty * config)
-{
-	copy_buffer_from_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
-	qsort( _particleIndex, config->getParticleCount(), 2 * sizeof( int ), myCompare );
-	copy_buffer_to_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
-	return 0;
-}
-unsigned int owOpenCLSolver::_runSortPostPass(owConfigProrerty * config)
-{
-	// Stage SortPostPass
-	sortPostPass.setArg( 0, particleIndex );
-	sortPostPass.setArg( 1, particleIndexBack );
-	sortPostPass.setArg( 2, position );
-	sortPostPass.setArg( 3, velocity );
-	sortPostPass.setArg( 4, sortedPosition );
-	sortPostPass.setArg( 5, sortedVelocity );
-	sortPostPass.setArg( 6, config->getParticleCount()  );
-	int err = queue.enqueueNDRangeKernel(
-		sortPostPass, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
-#if defined( __APPLE__ )
-		cl::NullRange, NULL, NULL );
-#else
-		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
-#endif
-#if QUEUE_EACH_KERNEL
-	queue.finish();
-#endif
-	return err;
-}
 unsigned int owOpenCLSolver::_runIndexx(owConfigProrerty * config)
 {
 	// Stage Indexx
@@ -378,6 +349,37 @@ unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
 	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
 	return err;
 }
+
+unsigned int owOpenCLSolver::_runSort(owConfigProrerty * config)
+{
+	copy_buffer_from_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
+	qsort( _particleIndex, config->getParticleCount(), 2 * sizeof( int ), myCompare );
+	copy_buffer_to_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
+	return 0;
+}
+unsigned int owOpenCLSolver::_runSortPostPass(owConfigProrerty * config)
+{
+	// Stage SortPostPass
+	sortPostPass.setArg( 0, particleIndex );
+	sortPostPass.setArg( 1, particleIndexBack );
+	sortPostPass.setArg( 2, position );
+	sortPostPass.setArg( 3, velocity );
+	sortPostPass.setArg( 4, sortedPosition );
+	sortPostPass.setArg( 5, sortedVelocity );
+	sortPostPass.setArg( 6, config->getParticleCount()  );
+	int err = queue.enqueueNDRangeKernel(
+		sortPostPass, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
+#if defined( __APPLE__ )
+		cl::NullRange, NULL, NULL );
+#else
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
+#endif
+#if QUEUE_EACH_KERNEL
+	queue.finish();
+#endif
+	return err;
+}
+
 unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 {
 	// Stage FindNeighbors
