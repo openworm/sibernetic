@@ -1,7 +1,12 @@
 import math
 import numpy as np
 
-def parallel_waves(n=24, #26 for our first test?
+import matplotlib.pyplot as plt
+from pylab import *
+
+muscle_row_count = 24
+
+def parallel_waves(n=muscle_row_count, #26 for our first test?
                    time=0, 
                    phi=math.pi,
                    amplitude=1,
@@ -53,3 +58,27 @@ class muscle_simulation():
                                     self.contraction_array[0]]))
         #return(self.contraction_array)
         
+
+
+
+if __name__ == '__main__':
+    
+    print("This script is used by the Sibernetic C++ application")
+    print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
+    
+    ms = muscle_simulation()
+    
+    num_plots = 8
+    steps = 1000
+    for t in range(num_plots*steps):
+        l = ms.run()
+        print "At t = %s"%(t)
+
+        if t==0 or t%steps == 0:
+            figV = plt.figure()
+            figV.suptitle("Muscle activation waves at t = %s"%t)
+            plV = figV.add_subplot(111, autoscale_on=True)
+            plV.plot(l[0:muscle_row_count], solid_joinstyle ='round', solid_capstyle ='round', color='#ff0000', linestyle='-', marker='o')
+            plV.plot(l[muscle_row_count:muscle_row_count*2], solid_joinstyle ='round', solid_capstyle ='round', color='#00ff00', linestyle='-', marker='o')
+
+    plt.show()
