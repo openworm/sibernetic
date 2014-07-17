@@ -87,7 +87,7 @@ int PyramidalSimulation::setup(){
       cout << "Pyramidal simulation class loaded!"<<endl;
     }
   else {
-    cout << "Pyramidal simulation class not callable!"<<endl;
+    cout << "Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src"<<endl;
   }
 
   return 0;
