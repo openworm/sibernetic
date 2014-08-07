@@ -14,6 +14,7 @@ TEST_SOURCES = src/test/owPhysicTest.cpp
 SRCEXT := cpp
 SRCDIR := src
 BUILDDIR := build
+BINARYTESTDIR = $(BUILDDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
 
