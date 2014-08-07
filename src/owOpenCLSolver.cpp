@@ -38,7 +38,6 @@
 #include "owOpenCLSolver.h"
 
 extern int numOfElasticP;
-extern int numOfBoundaryP;
 extern int numOfMembranes;
 
 int myCompare( const void * v1, const void * v2 ); 
@@ -113,7 +112,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 }
 
 extern char device_full_name [1000];
-void owOpenCLSolver::refresh(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
+void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
 	create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 3 ) );// 4*2-->4*3; third part is to store acceleration[t], while first to are for acceleration[t+delta_t]
 	create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 	create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
@@ -313,7 +312,6 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProrerty * config)
 #endif
 	return err;
 }
-
 unsigned int owOpenCLSolver::_runIndexx(owConfigProrerty * config)
 {
 	// Stage Indexx
@@ -349,7 +347,6 @@ unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
 	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
 	return err;
 }
-
 unsigned int owOpenCLSolver::_runSort(owConfigProrerty * config)
 {
 	copy_buffer_from_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
@@ -379,7 +376,6 @@ unsigned int owOpenCLSolver::_runSortPostPass(owConfigProrerty * config)
 #endif
 	return err;
 }
-
 unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 {
 	// Stage FindNeighbors
@@ -468,7 +464,6 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
 #endif
 	return err;
 }
-
 unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty * config)
 {
 	if(numOfElasticP == 0 )
@@ -502,7 +497,6 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty *
 #endif
 	return err;
 }
-
 unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * config)
 {
 	pcisph_predictPositions.setArg( 0, acceleration );
@@ -610,7 +604,6 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConf
 #endif
 	return err;
 }
-
 unsigned int owOpenCLSolver::_run_clearMembraneBuffers(owConfigProrerty * config)
 {
 	clearMembraneBuffers.setArg( 0, position );
@@ -629,7 +622,6 @@ unsigned int owOpenCLSolver::_run_clearMembraneBuffers(owConfigProrerty * config
 #endif
 	return err;
 }
-
 unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrerty * config)
 {
 	computeInteractionWithMembranes.setArg( 0, position );
@@ -655,7 +647,6 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrer
 #endif
 	return err;
 }
-
 unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owConfigProrerty * config)
 {
 	computeInteractionWithMembranes_finalize.setArg( 0, position );
@@ -675,8 +666,6 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owCon
 #endif
 	return err;
 }
-
-
 unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigProrerty * config)
 {
 	// Stage Integrate
