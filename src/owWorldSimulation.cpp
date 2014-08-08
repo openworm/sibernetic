@@ -928,6 +928,11 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		while(1){
 			fluid_simulation->simulationStep(load_to);
 			helper->refreshTime();
+			if(load_to && fluid_simulation->getIteration() == 40000){
+				delete fluid_simulation;
+				delete helper;
+				exit(EXIT_SUCCESS);
+			}
 		}
 	}
     exit(EXIT_SUCCESS);

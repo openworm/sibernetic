@@ -38,7 +38,7 @@
 
 #include "owOpenCLConstant.h"
 
-#define generateWormBodyConfiguration 0 //or load from file otherwise [0/1]
+#define generateWormBodyConfiguration 1 //or load from file otherwise [0/1]
 
 #ifndef M_PI
 #define M_PI 3.1415927f

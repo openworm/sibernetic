@@ -54,6 +54,15 @@ int iter_step = 10;
 #ifdef PY_NETWORK_SIMULATION
 PyramidalSimulation simulation;
 #endif
+std::vector<int> memParticle;
+void fillMemId(int * particleMembranesList_cpp){
+	for(int i=0;i < numOfElasticP ;i++){
+		if(particleMembranesList_cpp[MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * i + 0]!=-1){
+			memParticle.push_back(i);
+		}
+	}
+	std::cout << memParticle.size() << std::endl;
+}
 owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev_type)
 {
 	//int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
@@ -106,7 +115,6 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev
 		else 
 		// LOAD FROM FILE	
 		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
-											
 		if(numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
@@ -228,10 +236,10 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		printf("------------------------------------\n");
 		if(load_to){
 			if(iterationCount == 0){
-				owHelper::loadConfigurationToFile(position_cpp,  config,elasticConnectionsData_cpp,membraneData_cpp,true);
+				owHelper::loadConfigurationToFile(position_cpp, config, memParticle, elasticConnectionsData_cpp,membraneData_cpp,true);
 			}else{
 				if(iterationCount % iter_step == 0){
-					owHelper::loadConfigurationToFile(position_cpp, config, NULL, NULL, false);
+					owHelper::loadConfigurationToFile(position_cpp, config, memParticle, NULL, NULL, false);
 				}
 			}
 		}

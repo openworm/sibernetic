@@ -1569,24 +1569,44 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		exit( -1 );
 	}
 }
-
-void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
+template<typename T>
+std::ostream& binary_write(std::ostream& stream, const T& value){
+    return stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
+}
+void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, std::vector<int> & filter, float * connections, int * membranes, bool firstIteration){
 	try{
 		ofstream positionFile;
 		if(firstIteration){
-			positionFile.open("./buffers/position_buffer.txt", std::ofstream::trunc);
-			positionFile << config->xmin << "\n";
+			positionFile.open("./buffers/position_buffer_binary_hope_correct.txt", ios::trunc|ios::binary);
+			/*positionFile << config->xmin << "\n";
 			positionFile << config->xmax << "\n";
 			positionFile << config->ymin << "\n";
 			positionFile << config->ymax << "\n";
 			positionFile << config->zmin << "\n";
-			positionFile << config->zmax << "\n";
-			positionFile << numOfElasticP << "\n";
-			positionFile << numOfLiquidP << "\n";
+			positionFile << config->zmax << "\n";*/
+			binary_write(positionFile,config->xmin);
+			binary_write(positionFile,config->xmax);
+			binary_write(positionFile,config->ymin);
+			binary_write(positionFile,config->ymax);
+			binary_write(positionFile,config->zmin);
+			binary_write(positionFile,config->zmax);
+			binary_write(positionFile,40000.0f);
+			if(!filter.empty()){
+				//positionFile << filter.size() << "\n";
+				//positionFile << 0 << "\n";
+				binary_write(positionFile,(float)filter.size());
+				binary_write(positionFile,0.0f);
+			}
+			else{
+				//positionFile << numOfElasticP << "\n";
+				//positionFile << numOfLiquidP << "\n";
+				binary_write(positionFile,numOfElasticP);
+				binary_write(positionFile,numOfLiquidP);
+			}
 		}else{
-			positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
+			positionFile.open("./buffers/position_buffer_binary_hope_correct.txt", ios::app|ios::binary);
 		}
-		if(size==0){
+		if(filter.empty()){
 			for(int i=0;i < config->getParticleCount(); i++){
 				if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
 					positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
@@ -1594,11 +1614,13 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			}
 		}else{
 			int i = 0;
-			int index = 0;
-			while(index!=size){
-				i = filter_p[index];
-				positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
-				index++;
+			for(int index = 0; index<filter.size(); index++){
+				i = filter[index];
+				//positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+				binary_write(positionFile,position[i * 4 + 0]);
+				binary_write(positionFile,position[i * 4 + 1]);
+				binary_write(positionFile,position[i * 4 + 2]);
+				binary_write(positionFile,position[i * 4 + 3]);
 			}
 		}
 		positionFile.close();
