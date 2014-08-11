@@ -34,7 +34,7 @@
 #include <stdio.h>
 #include <iostream>
 #include "owWorldSimulation.h"
-#include "./test/owPhysicTest.h"
+#include "owPhysicTest.h"
 
 #include "owWorldSimulation.h"
 

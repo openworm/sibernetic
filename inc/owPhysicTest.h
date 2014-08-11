@@ -8,6 +8,8 @@
 #ifndef OWPHYSICTEST_H_
 #define OWPHYSICTEST_H_
 
+#include "owPhysicsFluidSimulator.h"
+
 void test_energy_conservation();
 
 
