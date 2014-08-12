@@ -1,8 +1,7 @@
 TARGET = Sibernetic
 RM := rm -rf
 
-SOURCES = src/PyramidalSimulation.cpp \
-src/main.cpp \
+SOURCES = src/main.cpp \
 src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \

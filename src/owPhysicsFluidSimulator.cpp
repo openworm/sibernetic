@@ -35,7 +35,6 @@
 #include <iostream>
 #include <fstream>
 
-#include "PyramidalSimulation.h"
 #include "owPhysicsFluidSimulator.h"
 
 float calcDelta();
@@ -82,7 +81,6 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev
 		// LOAD FROM FILE	
 		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
 
-		owHelper::log_buffer(membraneData_cpp,3,numOfMembranes,"./buffers/membranes.txt");
 		if(numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else

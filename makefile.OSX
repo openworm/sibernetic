@@ -2,8 +2,7 @@
 RM := rm -rf
 
 # All of the sources participating in the build are defined here
-SOURCES = src/PyramidalSimulation.cpp \
-src/main.cpp \
+SOURCES = src/main.cpp \
 src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \
