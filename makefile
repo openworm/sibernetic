@@ -12,6 +12,7 @@ TEST_SOURCES = src/test/owPhysicTest.cpp
 
 SRCEXT := cpp
 SRCDIR := src
+INCDIR := inc
 BUILDDIR = ./Release
 BINARYDIR = $(BUILDDIR)/obj
 BINARYTESTDIR = $(BINARYDIR)/test
@@ -32,12 +33,12 @@ $(TARGET):$(OBJECTS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
+$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp 
 	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	g++ -I/usr/include/python2.7 -O3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	g++ -I/usr/include/python2.7 -I$(INCDIR) -O3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

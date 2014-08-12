@@ -179,9 +179,9 @@ void owPhysicsFluidSimulator::reset(){
 	// LOAD FROM FILE
 	owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
 	if(numOfElasticP != 0){
-		ocl_solver->refresh(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
+		ocl_solver->reset(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 	}else
-		ocl_solver->refresh(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
+		ocl_solver->reset(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
 }
 
 double owPhysicsFluidSimulator::simulationStep(const bool load_to)
@@ -198,7 +198,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 	printf("\n[[ Step %d ]]\n",iterationCount);
 	try{
 		//SEARCH FOR NEIGHBOURS PART
-//		ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
+		//ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
 		ocl_solver->_runHashParticles(config);							helper->watch_report("_runHashParticles: \t%9.3f ms\n");
 		ocl_solver->_runSort(config);									helper->watch_report("_runSort: \t\t%9.3f ms\n");
 		ocl_solver->_runSortPostPass(config);							helper->watch_report("_runSortPostPass: \t%9.3f ms\n");

@@ -780,7 +780,11 @@ void mouse_motion (int x, int y)
 }
 
 extern float *muscle_activation_signal_cpp;
-
+void Cleanup(int exitCode){
+	delete fluid_simulation;
+	delete helper;
+	exit (exitCode);
+}
 void RespondKey(unsigned char key, int x, int y)
 {
 	switch(key)
@@ -789,11 +793,22 @@ void RespondKey(unsigned char key, int x, int y)
 		owHelper::suffix = "";
 		helper->refreshTime();
 		fluid_simulation->reset();
+		sPause = false;
 		break;
 	case '2':
 		owHelper::suffix = "_membranes_demo";
 		helper->refreshTime();
 		fluid_simulation->reset();
+		sPause = false;
+		break;
+	case '\033':// Escape quits
+	case 'Q':   // Q quits
+	case 'q':   // q quits
+		Cleanup(EXIT_SUCCESS);
+		break;
+	case ' ':
+		sPause = !sPause;
+		std::cout << "\nSimulation Is Paused" << std::endl;
 		break;
 	}
 
@@ -869,9 +884,7 @@ void init(void){
 }
 void sighandler(int s){
 	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
-	delete fluid_simulation;
-	delete helper;
-	exit(EXIT_SUCCESS);
+	Cleanup(EXIT_SUCCESS);
 }
 
 void run(int argc, char** argv, const bool with_graphics, const bool load_to)
@@ -921,8 +934,7 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		if(!load_from_file){
-			delete fluid_simulation;
-			delete helper;
+			Cleanup(EXIT_SUCCESS);
 		}
 	}else{
 		while(1){

@@ -13,6 +13,7 @@ TEST_SOURCES = src/test/owPhysicTest.cpp
 
 SRCEXT := cpp
 SRCDIR := src
+INCDIR := inc
 BUILDDIR := build
 BINARYTESTDIR = $(BUILDDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
@@ -46,7 +47,7 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo 'Invoking: clang C++ Compiler'
 #### use this to compile against homebrew installed python
 #### change version number as necessary (2.7.n)
-	g++ -O1 -Wall -c -I$(PYTHONHEADERDIR) -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	g++ -O1 -Wall -c -I$(PYTHONHEADERDIR) -I$(INCDIR) -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
