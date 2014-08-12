@@ -268,10 +268,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\PyramidalSimulation.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\test\owPhysicTest.cpp"
 				>
 			</File>
@@ -321,10 +317,6 @@
 			</File>
 			<File
 				RelativePath=".\inc\owWorldSimulation.h"
-				>
-			</File>
-			<File
-				RelativePath=".\inc\PyramidalSimulation.h"
 				>
 			</File>
 			<File
