@@ -1614,7 +1614,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			}
 		}else{
 			int i = 0;
-			for(int index = 0; index<filter.size(); index++){
+			for(unsigned int index = 0; index<filter.size(); index++){
 				i = filter[index];
 				//positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
 				binary_write(positionFile,position[i * 4 + 0]);

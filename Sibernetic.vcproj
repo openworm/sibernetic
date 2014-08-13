@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="windows-1251"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
-	Name="SimulationEnginePrototype"
+	Version="9,00"
+	Name="Sibernetic"
 	ProjectGUID="{01EA498F-06C1-4F67-8B98-E1105F9311A2}"
 	RootNamespace="SimulationEnginePrototype"
 	Keyword="Win32Proj"
@@ -61,6 +61,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				OutputFile="$(OutDir)\$(TargetName).exe"
+				Version="0.0.1"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="&quot;lib/$(PlatformName)&quot;"
 				GenerateDebugInformation="true"
@@ -135,6 +137,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				OutputFile="$(OutDir)\$(ProjectName).exe"
+				Version="0.0.1"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="C:\Python25\libs;&quot;lib/$(PlatformName)&quot;"
 				GenerateDebugInformation="true"
@@ -210,6 +214,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				OutputFile="$(OutDir)\$(TargetName).exe"
+				Version="0.0.1"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="&quot;lib/$(PlatformName)&quot;"
 				GenerateDebugInformation="true"
@@ -264,15 +270,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\test\owPhysicTest.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\owWorldSimulation.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\src\PyramidalSimulation.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\src\test\owPhysicTest.cpp"
 				>
 			</File>
 			<File
@@ -320,6 +326,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\inc\owPhysicTest.h"
+				>
+			</File>
+			<File
 				RelativePath=".\inc\owWorldSimulation.h"
 				>
 			</File>
@@ -329,10 +339,6 @@
 			</File>
 			<File
 				RelativePath=".\inc\VectorMath.h"
-				>
-			</File>
-			<File
-				RelativePath=".\inc\owPhysicTest.h"
 				>
 			</File>
 		</Filter>
