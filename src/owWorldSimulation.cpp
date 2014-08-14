@@ -526,133 +526,6 @@ void renderInfo(int x, int y)
 		glColor3f (1.0F, 1.0F, 1.0F); 
 		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
 		glPrint( 0 , 17 , label, m_font);
-
-
-		sprintf(label,"Muscle activation signals:          // demo: use keys '1' to '9' to activate/deactivate first nine muscles in array ");
-//		glRasterPos2f (0.01F, 0.05F); 
-		glPrint( 0 , 32 , label, m_font);
-
-		i_shift = 0;
-		sprintf(label,"MDR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +0",
-			muscle_activation_signal_cpp[ 0+i_shift],
-			muscle_activation_signal_cpp[ 2+i_shift],
-			muscle_activation_signal_cpp[ 4+i_shift],
-			muscle_activation_signal_cpp[ 6+i_shift],
-			muscle_activation_signal_cpp[ 8+i_shift],
-			muscle_activation_signal_cpp[10+i_shift],
-			muscle_activation_signal_cpp[12+i_shift],
-			muscle_activation_signal_cpp[14+i_shift],
-			muscle_activation_signal_cpp[16+i_shift],
-			muscle_activation_signal_cpp[18+i_shift],
-			muscle_activation_signal_cpp[20+i_shift],
-			muscle_activation_signal_cpp[22+i_shift]); 
-		glPrint( 0 , 45 , label, m_font);
-		sprintf(label,"MDR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +0",
-			muscle_activation_signal_cpp[ 1+i_shift],
-			muscle_activation_signal_cpp[ 3+i_shift],
-			muscle_activation_signal_cpp[ 5+i_shift],
-			muscle_activation_signal_cpp[ 7+i_shift],
-			muscle_activation_signal_cpp[ 9+i_shift],
-			muscle_activation_signal_cpp[11+i_shift],
-			muscle_activation_signal_cpp[13+i_shift],
-			muscle_activation_signal_cpp[15+i_shift],
-			muscle_activation_signal_cpp[17+i_shift],
-			muscle_activation_signal_cpp[19+i_shift],
-			muscle_activation_signal_cpp[21+i_shift],
-			muscle_activation_signal_cpp[23+i_shift]);
-		glPrint( 0 , 60 , label, m_font);
-
-		i_shift = 24;
-		sprintf(label,"MVR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +24",
-			muscle_activation_signal_cpp[ 0+i_shift],
-			muscle_activation_signal_cpp[ 2+i_shift],
-			muscle_activation_signal_cpp[ 4+i_shift],
-			muscle_activation_signal_cpp[ 6+i_shift],
-			muscle_activation_signal_cpp[ 8+i_shift],
-			muscle_activation_signal_cpp[10+i_shift],
-			muscle_activation_signal_cpp[12+i_shift],
-			muscle_activation_signal_cpp[14+i_shift],
-			muscle_activation_signal_cpp[16+i_shift],
-			muscle_activation_signal_cpp[18+i_shift],
-			muscle_activation_signal_cpp[20+i_shift],
-			muscle_activation_signal_cpp[22+i_shift]); 
-		glPrint( 0 , 62+15 , label, m_font);
-		sprintf(label,"MVR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +24",
-			muscle_activation_signal_cpp[ 1+i_shift],
-			muscle_activation_signal_cpp[ 3+i_shift],
-			muscle_activation_signal_cpp[ 5+i_shift],
-			muscle_activation_signal_cpp[ 7+i_shift],
-			muscle_activation_signal_cpp[ 9+i_shift],
-			muscle_activation_signal_cpp[11+i_shift],
-			muscle_activation_signal_cpp[13+i_shift],
-			muscle_activation_signal_cpp[15+i_shift],
-			muscle_activation_signal_cpp[17+i_shift],
-			muscle_activation_signal_cpp[19+i_shift],
-			muscle_activation_signal_cpp[21+i_shift],
-			muscle_activation_signal_cpp[23+i_shift]);
-		glPrint( 0 , 62+15+12 , label, m_font);
-		
-		i_shift = 24*2;
-		sprintf(label,"MVL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +48",
-			muscle_activation_signal_cpp[ 0+i_shift],
-			muscle_activation_signal_cpp[ 2+i_shift],
-			muscle_activation_signal_cpp[ 4+i_shift],
-			muscle_activation_signal_cpp[ 6+i_shift],
-			muscle_activation_signal_cpp[ 8+i_shift],
-			muscle_activation_signal_cpp[10+i_shift],
-			muscle_activation_signal_cpp[12+i_shift],
-			muscle_activation_signal_cpp[14+i_shift],
-			muscle_activation_signal_cpp[16+i_shift],
-			muscle_activation_signal_cpp[18+i_shift],
-			muscle_activation_signal_cpp[20+i_shift],
-			muscle_activation_signal_cpp[22+i_shift]); 
-		glPrint( 0 , 91+15 , label, m_font);
-		sprintf(label,"MVL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +48",
-			muscle_activation_signal_cpp[ 1+i_shift],
-			muscle_activation_signal_cpp[ 3+i_shift],
-			muscle_activation_signal_cpp[ 5+i_shift],
-			muscle_activation_signal_cpp[ 7+i_shift],
-			muscle_activation_signal_cpp[ 9+i_shift],
-			muscle_activation_signal_cpp[11+i_shift],
-			muscle_activation_signal_cpp[13+i_shift],
-			muscle_activation_signal_cpp[15+i_shift],
-			muscle_activation_signal_cpp[17+i_shift],
-			muscle_activation_signal_cpp[19+i_shift],
-			muscle_activation_signal_cpp[21+i_shift],
-			muscle_activation_signal_cpp[23+i_shift]);
-		glPrint( 0 , 91+15+12 , label, m_font);
-
-		i_shift = 24*3;
-		sprintf(label,"MDL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] %.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] %.2f[23] indexes: +72",
-			muscle_activation_signal_cpp[ 0+i_shift],
-			muscle_activation_signal_cpp[ 2+i_shift],
-			muscle_activation_signal_cpp[ 4+i_shift],
-			muscle_activation_signal_cpp[ 6+i_shift],
-			muscle_activation_signal_cpp[ 8+i_shift],
-			muscle_activation_signal_cpp[10+i_shift],
-			muscle_activation_signal_cpp[12+i_shift],
-			muscle_activation_signal_cpp[14+i_shift],
-			muscle_activation_signal_cpp[16+i_shift],
-			muscle_activation_signal_cpp[18+i_shift],
-			muscle_activation_signal_cpp[20+i_shift],
-			muscle_activation_signal_cpp[22+i_shift]); 
-		glPrint( 0 , 119+15 , label, m_font);
-		sprintf(label,"MDL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] %.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] %.2f[24] indexes: +72",
-			muscle_activation_signal_cpp[ 1+i_shift],
-			muscle_activation_signal_cpp[ 3+i_shift],
-			muscle_activation_signal_cpp[ 5+i_shift],
-			muscle_activation_signal_cpp[ 7+i_shift],
-			muscle_activation_signal_cpp[ 9+i_shift],
-			muscle_activation_signal_cpp[11+i_shift],
-			muscle_activation_signal_cpp[13+i_shift],
-			muscle_activation_signal_cpp[15+i_shift],
-			muscle_activation_signal_cpp[17+i_shift],
-			muscle_activation_signal_cpp[19+i_shift],
-			muscle_activation_signal_cpp[21+i_shift],
-			muscle_activation_signal_cpp[23+i_shift]);
-		glPrint( 0 , 119+15+12 , label, m_font);
-
-		y_m = 40;
 	}
 	if(showRuler){
 		glColor3ub(255, 0, 0);
@@ -780,7 +653,11 @@ void mouse_motion (int x, int y)
 }
 
 extern float *muscle_activation_signal_cpp;
-
+void Cleanup(int exitCode){
+	delete fluid_simulation;
+	delete helper;
+	exit (exitCode);
+}
 void RespondKey(unsigned char key, int x, int y)
 {
 	switch(key)
@@ -789,11 +666,22 @@ void RespondKey(unsigned char key, int x, int y)
 		owHelper::suffix = "";
 		helper->refreshTime();
 		fluid_simulation->reset();
+		sPause = false;
 		break;
 	case '2':
 		owHelper::suffix = "_membranes_demo";
 		helper->refreshTime();
 		fluid_simulation->reset();
+		sPause = false;
+		break;
+	case '\033':// Escape quits
+	case 'Q':   // Q quits
+	case 'q':   // q quits
+		Cleanup(EXIT_SUCCESS);
+		break;
+	case ' ':
+		sPause = !sPause;
+		std::cout << "\nSimulation Is Paused" << std::endl;
 		break;
 	}
 
@@ -869,9 +757,7 @@ void init(void){
 }
 void sighandler(int s){
 	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
-	delete fluid_simulation;
-	delete helper;
-	exit(EXIT_SUCCESS);
+	Cleanup(EXIT_SUCCESS);
 }
 
 void run(int argc, char** argv, const bool with_graphics, const bool load_to)
@@ -921,8 +807,7 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		if(!load_from_file){
-			delete fluid_simulation;
-			delete helper;
+			Cleanup(EXIT_SUCCESS);
 		}
 	}else{
 		while(1){

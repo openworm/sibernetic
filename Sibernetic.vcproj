@@ -268,10 +268,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\PyramidalSimulation.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\test\owPhysicTest.cpp"
 				>
 			</File>
@@ -300,39 +296,35 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\src\owHelper.h"
+				RelativePath=".\inc\owHelper.h"
 				>
 			</File>
 			<File
-				RelativePath=".\src\owOpenCLConstant.h"
+				RelativePath=".\inc\owOpenCLConstant.h"
 				>
 			</File>
 			<File
-				RelativePath=".\src\owOpenCLSolver.h"
+				RelativePath=".\inc\owOpenCLSolver.h"
 				>
 			</File>
 			<File
-				RelativePath=".\src\owPhysicsConstant.h"
+				RelativePath=".\inc\owPhysicsConstant.h"
 				>
 			</File>
 			<File
-				RelativePath=".\src\owPhysicsFluidSimulator.h"
+				RelativePath=".\inc\owPhysicsFluidSimulator.h"
 				>
 			</File>
 			<File
-				RelativePath=".\src\owWorldSimulation.h"
+				RelativePath=".\inc\owWorldSimulation.h"
 				>
 			</File>
 			<File
-				RelativePath=".\src\PyramidalSimulation.h"
+				RelativePath=".\inc\VectorMath.h"
 				>
 			</File>
 			<File
-				RelativePath=".\src\VectorMath.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\test\owPhysicTest.h"
+				RelativePath=".\inc\owPhysicTest.h"
 				>
 			</File>
 		</Filter>
