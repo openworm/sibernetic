@@ -43,6 +43,10 @@
 #include <mach/mach_time.h>
 #endif
 
+#define EXPEREMENTAL_WRITE 0
+#if EXPEREMENTAL_WRITE
+#define EXPEREMENTAL_READ
+#endif
 #include "owHelper.h"
 #include "owPhysicsConstant.h"
 
@@ -1577,13 +1581,16 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 	try{
 		ofstream positionFile;
 		if(firstIteration){
-			positionFile.open("./buffers/position_buffer_binary_hope_correct.txt", ios::trunc|ios::binary);
-			/*positionFile << config->xmin << "\n";
+#if !EXPEREMENTAL_WRITE
+			positionFile.open("./buffers/position_buffer.txt", ios::trunc);
+			positionFile << config->xmin << "\n";
 			positionFile << config->xmax << "\n";
 			positionFile << config->ymin << "\n";
 			positionFile << config->ymax << "\n";
 			positionFile << config->zmin << "\n";
-			positionFile << config->zmax << "\n";*/
+			positionFile << config->zmax << "\n";
+#else
+			positionFile.open("./buffers/position_buffer.txt", ios::trunc|ios::binary);
 			binary_write(positionFile,config->xmin);
 			binary_write(positionFile,config->xmax);
 			binary_write(positionFile,config->ymin);
@@ -1591,20 +1598,31 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			binary_write(positionFile,config->zmin);
 			binary_write(positionFile,config->zmax);
 			binary_write(positionFile,40000.0f);
+#endif
 			if(!filter.empty()){
-				//positionFile << filter.size() << "\n";
-				//positionFile << 0 << "\n";
+#if !EXPEREMENTAL_WRITE
+				positionFile << filter.size() << "\n";
+				positionFile << 0 << "\n";
+#else
 				binary_write(positionFile,(float)filter.size());
 				binary_write(positionFile,0.0f);
+#endif
 			}
 			else{
-				//positionFile << numOfElasticP << "\n";
-				//positionFile << numOfLiquidP << "\n";
+#if !EXPEREMENTAL_WRITE
+				positionFile << numOfElasticP << "\n";
+				positionFile << numOfLiquidP << "\n";
+#else
 				binary_write(positionFile,numOfElasticP);
 				binary_write(positionFile,numOfLiquidP);
+#endif
 			}
 		}else{
-			positionFile.open("./buffers/position_buffer_binary_hope_correct.txt", ios::app|ios::binary);
+#if !EXPEREMENTAL_WRITE
+			positionFile.open("./buffers/position_buffer.txt", ios::app);
+#else
+			positionFile.open("./buffers/position_buffer.txt", ios::app|ios::binary);
+#endif
 		}
 		if(filter.empty()){
 			for(int i=0;i < config->getParticleCount(); i++){
@@ -1614,7 +1632,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			}
 		}else{
 			int i = 0;
-			for(int index = 0; index<filter.size(); index++){
+			for(unsigned int index = 0; index<filter.size(); index++){
 				i = filter[index];
 				//positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
 				binary_write(positionFile,position[i * 4 + 0]);

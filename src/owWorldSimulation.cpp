@@ -524,7 +524,10 @@ void renderInfo(int x, int y)
 																													 numOfBoundaryP,loacalConfig->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F); 
-		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
+		if(!load_from_file)
+			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
+		else
+			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, iteration,((float)iteration)*timeStep);
 		glPrint( 0 , 17 , label, m_font);
 
 
