@@ -72,11 +72,11 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev
 		config = new owConfigProrerty();
 #if generateWormBodyConfiguration
 		config->xmin = 0.f;
-		config->xmax = 30.0*h;
+		config->xmax = 30.0f*h;
 		config->ymin = 0.f;
-		config->ymax = 20.0*h;
+		config->ymax = 20.0f*h;
 		config->zmin = 0.f;
-		config->zmax = 200.0*h;
+		config->zmax = 200.0f*h;
 #endif
 		config->setDeviceType(dev_type);
 		if(generateWormBodyConfiguration)
@@ -135,11 +135,11 @@ void owPhysicsFluidSimulator::reset(){
 	numOfElasticConnections = 0;
 #if generateWormBodyConfiguration
 		config->xmin = 0.f;
-		config->xmax = 30.0*h;
+		config->xmax = 30.0f*h;
 		config->ymin = 0.f;
-		config->ymax = 20.0*h;
+		config->ymax = 20.0f*h;
 		config->zmin = 0.f;
-		config->zmax = 200.0*h;
+		config->zmax = 200.0f*h;
 #endif
 	if(generateWormBodyConfiguration)
 	// GENERATE THE SCENE
@@ -248,8 +248,8 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 #ifdef PY_NETWORK_SIMULATION
         //mv
         vector<float> muscle_vector = simulation.run();
-        for(int i=0; i<MUSCLE_COUNT; i++){
-        	for (long index = 0; index < muscle_vector.size(); index++){
+        for(int i=0; i < MUSCLE_COUNT; i++){
+        	for (unsigned int index = 0; index < muscle_vector.size(); index++){
         		muscle_activation_signal_cpp[index] = muscle_vector[index];
         	}
         }

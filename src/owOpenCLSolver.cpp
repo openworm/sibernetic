@@ -191,9 +191,11 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	cl_device_id * devices_t;
 	bool bPassed = true, findDevice = false;
 	cl_int result;
+	cl_uint device_coumpute_unit_num;
+	cl_uint device_coumpute_unit_num_current = 0;
 	for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
-		if(findDevice)
-			break;
+		//if(findDevice)
+		//	break;
 		clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], CL_DEVICE_TYPE_ALL, 0, NULL, &ciDeviceCount);
 		if ((devices_t = (cl_device_id*)malloc(sizeof(cl_device_id) * ciDeviceCount)) == NULL){
 		   bPassed = false;
@@ -202,11 +204,15 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 			result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], CL_DEVICE_TYPE_ALL, ciDeviceCount, devices_t, &ciDeviceCount);
 			if( result == CL_SUCCESS){
 				for( cl_uint i =0; i < ciDeviceCount; ++i ){
-					clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);		
+					clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);
 					if( type & device_type[config->getDeviceType()]){
-						plList = clSelectedPlatformID;
-						findDevice = true;
-						break;
+						clGetDeviceInfo(devices_t[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(device_coumpute_unit_num), &device_coumpute_unit_num, NULL);
+						if(device_coumpute_unit_num_current <= device_coumpute_unit_num){
+							plList = clSelectedPlatformID;
+							device_coumpute_unit_num_current = device_coumpute_unit_num;
+							findDevice = true;
+						}
+						//break;
 					}
 				}
 			}

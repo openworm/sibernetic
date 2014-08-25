@@ -100,7 +100,7 @@ vector<float> PyramidalSimulation::unpackPythonList(PyObject* pValue){
 	printf("====\n");
 	for (Py_ssize_t i = 0; i < size; i++) {
 		float value;
-		value = PyFloat_AsDouble(PyList_GetItem(pValue, i));
+		value = (float)PyFloat_AsDouble(PyList_GetItem(pValue, i));
 		test[i]= value;
 	}
 
@@ -127,7 +127,7 @@ vector<float> PyramidalSimulation::run(){
 	else {
 	  printf("!!!checkpoint004.1!!!\n");
 	  vector<float> single_element_array(0);
-	  single_element_array[0] = PyFloat_AsDouble(pValue);
+	  single_element_array[0] = (float)PyFloat_AsDouble(pValue);
 	  printf("!!!checkpoint004!!!\n");
 	  return single_element_array;
 	}
