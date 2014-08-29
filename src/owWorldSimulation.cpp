@@ -78,7 +78,6 @@ int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 owConfigProrerty * loacalConfig;
-float accuracy = 100;//what it it?
 bool flag = false;
 bool sPause = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
@@ -134,37 +133,33 @@ void glPrint3D(float x, float y, float z, const char *s, void *font)
 void display(void)
 {
 	//Update Scene if not paused
+	int i,j,k;
+	int err_coord_cnt = 0;
 	if(!sPause){
 		if(load_from_file){
 			owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp, loacalConfig,iteration);
 			iteration++;
 		}else{
 			calculationTime = fluid_simulation->simulationStep();
+			int pib;
+			p_indexb = fluid_simulation->getParticleIndex_cpp();
+			for(i=0;i<loacalConfig->getParticleCount();i++)
+			{
+				pib = p_indexb[2*i + 1];
+				p_indexb[2*pib + 0] = i;
+			}
+			p_cpp = fluid_simulation->getPosition_cpp();
+			d_cpp = fluid_simulation->getDensity_cpp();
+			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
 		}
 		helper->refreshTime();
 	}
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	drawScene();
-
-	int i,j,k;
 	//glColor3ub(255,255,255);//yellow
-	if(!load_from_file)
-		p_indexb = fluid_simulation->getParticleIndex_cpp();
-	int pib;
-	int err_coord_cnt = 0;
-	if(!load_from_file)
-		for(i=0;i<loacalConfig->getParticleCount();i++)
-		{
-			pib = p_indexb[2*i + 1];
-			p_indexb[2*pib + 0] = i;
-		}
 	glPointSize(3.f);
 	glBegin(GL_POINTS);
-	if(!load_from_file){
-		p_cpp = fluid_simulation->getPosition_cpp();
-		d_cpp = fluid_simulation->getDensity_cpp();
-	}
 	float dc, rho;
 	for(i = 0; i<loacalConfig->getParticleCount(); i++)
 	{
@@ -218,9 +213,6 @@ void display(void)
 	}
 
 				
-	if(!load_from_file)
-		ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
-	
 	glLineWidth((GLfloat)0.1);
 
 	int ecc=0;//elastic connections counter;
@@ -315,15 +307,6 @@ void display(void)
 		}
 	}
 
-	/*beginWinCoords();
-	char label[300];
-	glRasterPos2f (0.01F, 0.05F); 
-	glColor4b(255/2, 255/2, 0, 255/2);
-	sprintf(label,"elastic connections count: %d, elementary membranes count: %d",ecc,numOfMembranes);
-	glPrint( 1, 50, label, m_font);
-	endWinCoords();*/
-
-
 	//draw membranes
 	if(!load_from_file)
 		md_cpp = fluid_simulation->getMembraneData_cpp();
@@ -336,18 +319,6 @@ void display(void)
 		i = md_cpp [i_m*3+0];
 		j = md_cpp [i_m*3+1];
 		k = md_cpp [i_m*3+2];
-
-		/*
-		glBegin(GL_LINES);
-		glVertex3f( (p_cpp[i*4]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
-		glVertex3f( (p_cpp[j*4]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
-
-		glVertex3f( (p_cpp[j*4]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
-		glVertex3f( (p_cpp[k*4]-loacalConfig->xmax/2)*sc , (p_cpp[k*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[k*4+2]-loacalConfig->zmax/2)*sc );
-
-		glVertex3f( (p_cpp[k*4]-loacalConfig->xmax/2)*sc , (p_cpp[k*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[k*4+2]-loacalConfig->zmax/2)*sc );
-		glVertex3f( (p_cpp[i*4]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
-		glEnd();*/
 
 		glBegin(GL_LINES);
 		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-loacalConfig->zmax/2)*sc );
@@ -529,6 +500,7 @@ void renderInfo(int x, int y)
 	}
 	if(showRuler){
 		glColor3ub(255, 0, 0);
+		float accuracy = 100;//what it it?
 		float s_v = 1 * sc_scale * (1 /( accuracy * simulationScale));
 		float s_v_10 = s_v / 10;
 		std::stringstream ss;

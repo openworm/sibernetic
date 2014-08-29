@@ -63,6 +63,7 @@ extern int MUSCLE_COUNT;
 #endif
 #define OPENCL_PROGRAM_PATH "src/sphFluid.cl"
 
+//OpenCL solver class
 class owOpenCLSolver
 {
 public:
@@ -71,8 +72,7 @@ public:
 	~owOpenCLSolver(void);
 	// Initialize OPENCL device, context, queue, program...
 	void initializeOpenCL(owConfigProrerty * config);
-	//PCISPH kernels for data structures support and management
-	//Kernels functions definition
+	//Kernels functions definition for neighbor search algorithm
 	unsigned int _runClearBuffers(owConfigProrerty * config);
 	unsigned int _runHashParticles(owConfigProrerty * config);
 	unsigned int _runSort(owConfigProrerty * config);
@@ -89,7 +89,7 @@ public:
 	unsigned int _run_pcisph_correctPressure(owConfigProrerty * config);
 	unsigned int _run_pcisph_computePressureForceAcceleration(owConfigProrerty * config);
 	unsigned int _run_pcisph_integrate(int iterationCount, owConfigProrerty * config);
-	//
+	//Kernels for membrane handling interaction
 	unsigned int _run_clearMembraneBuffers(owConfigProrerty * config);
 	unsigned int _run_computeInteractionWithMembranes(owConfigProrerty * config);
 	unsigned int _run_computeInteractionWithMembranes_finalize(owConfigProrerty * config);
@@ -143,7 +143,7 @@ private:
 	cl::Kernel hashParticles;
 	cl::Kernel indexx;
 	cl::Kernel sortPostPass;
-
+	//PCISPH kernels
 	cl::Kernel pcisph_computeDensity;
 	cl::Kernel pcisph_computeForcesAndInitPressure;
 	cl::Kernel pcisph_integrate;
