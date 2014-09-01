@@ -42,7 +42,7 @@ class owPhysicsFluidSimulator
 {
 public:
 	owPhysicsFluidSimulator(void);
-	owPhysicsFluidSimulator(owHelper * helper,const int dev_type=CPU);
+	owPhysicsFluidSimulator(owHelper * helper, DEVICE dev_type=CPU);
 	~owPhysicsFluidSimulator(void);
 	float * getPosition_cpp() { return position_cpp; };
 	float * getvelocity_cpp() { /*return velocity_cpp;*/ ocl_solver->read_velocity_buffer(velocity_cpp,config); return velocity_cpp; };

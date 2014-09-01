@@ -47,7 +47,14 @@ int numOfMembranes = 0;
 extern float * muscle_activation_signal_cpp;
 int iter_step = 10;
 
-owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev_type)
+/** Constructor method for owPhysicsFluidSimulator.
+ *
+ *  @param helper
+ *  pointer to owHelper object with helper function.
+ *  @param dev_type
+ *  defines preferable device type for current configuration
+ */
+owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,DEVICE dev_type)
 {
 	//int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
 
@@ -91,7 +98,12 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev
 		exit( -1 );
 	}
 }
-
+/** Reset simulation
+ *
+ *  Restart simulation with new or current simulation configuration.
+ *  It redefines all required data buffers and restart owOpenCLSolver
+ *  by run owOpenCLSolver::reset(...).
+ */
 void owPhysicsFluidSimulator::reset(){
 	iterationCount = 0;
 	numOfBoundaryP = 0;
@@ -129,7 +141,21 @@ void owPhysicsFluidSimulator::reset(){
 	}else
 		ocl_solver->reset(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
 }
-
+/** Run one simulation step
+ *
+ *  Run simulation step in pipeline manner.
+ *  It starts with neighbor search algorithm than
+ *  physic simulation algorithms: PCI SPH [1],
+ *  elastic matter simulation, boundary handling [2],
+ *  membranes handling and finally numerical integration.
+ *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
+ *  [2] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner,
+ *  	Boundary Handling and Adaptive Time-stepping for PCISPH
+ *  	Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
+ *
+ *  @param looad_to
+ *  If it's true than Sibernetic works load simulation data in file mode.
+ */
 double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 {
 	//PCISPH algorithm
@@ -213,7 +239,16 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 	delete config;
 	delete ocl_solver;
 }
-
+/** Calculating delta parameter.
+ *
+ *  In these situations,
+ *	the SPH equations result in falsified values. To circumvent that problem, we pre-
+ *	compute a single scaling factor δ according to the following formula [1, eq. 8] which is
+ *	evaluated for a prototype particle with a filled neighborhood. The resulting value
+ *	is then used for all particles. Finally, we end up with the following equations
+ *	which are used in the PCISPH method [1].
+ *	[1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
+ */
 float calcDelta()
 {
 	float x[] = { 1, 1, 0,-1,-1,-1, 0, 1, 1, 1, 0,-1,-1,-1, 0, 1, 1, 1, 0,-1,-1,-1, 0, 1, 2,-2, 0, 0, 0, 0, 0, 0 };

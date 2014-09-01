@@ -736,7 +736,7 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
 	helper = new owHelper();
 	if(!load_from_file){
-		int dev_type = CPU;
+		DEVICE dev_type = CPU;
 		for(int i = 1; i<argc; i++){
 			if(strncmp(argv[i], "device=", 7) == 0){
 				if(strstr(argv[i], "gpu") != NULL || strstr(argv[i], "GPU") != NULL)
