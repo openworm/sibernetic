@@ -194,44 +194,37 @@ void display(void)
 			glPointSize(3.f);
 			glEnd();
 
-			if(!(	(p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=loacalConfig->xmax)&&
-						(p_cpp[i*4+1]>=0)&&(p_cpp[i*4+1]<=loacalConfig->ymax)&&
-						(p_cpp[i*4+2]>=0)&&(p_cpp[i*4+2]<=loacalConfig->zmax) ))
-				{
-			char label[50];
-			beginWinCoords();
-			glRasterPos2f (0.01F, 0.05F); 
-			if(err_coord_cnt<50){
-			sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
-			glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
-			if(err_coord_cnt==50) {
-			glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
-			err_coord_cnt++;
-			endWinCoords();
+			if(!((p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=loacalConfig->xmax)&&
+				(p_cpp[i*4+1]>=0)&&(p_cpp[i*4+1]<=loacalConfig->ymax)&&
+				(p_cpp[i*4+2]>=0)&&(p_cpp[i*4+2]<=loacalConfig->zmax) ))
+			{
+				char label[50];
+				beginWinCoords();
+				glRasterPos2f (0.01F, 0.05F);
+				if(err_coord_cnt<50){
+				sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
+				glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
+				if(err_coord_cnt==50) {
+				glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
+				err_coord_cnt++;
+				endWinCoords();
 			}
 		}
 	}
-
-				
 	glLineWidth((GLfloat)0.1);
-
 	int ecc=0;//elastic connections counter;
-	//if(generateInitialConfiguration)
 	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
 	{
 		//offset = 0
 		if((j=(int)ec_cpp[ 4 * i_ec + 0 ])>=0)
 		{
 			i = (i_ec / MAX_NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
-
 			if(i<j)	
 			{
 				glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
-
 				if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
 				{
 					glLineWidth((GLfloat)1.0);
-
 					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.45f) 
 					{
 						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)

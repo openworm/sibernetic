@@ -154,15 +154,15 @@ void owPhysicsFluidSimulator::reset(){
  *  	Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
  *
  *  @param looad_to
- *  If it's true than Sibernetic works load simulation data in file mode.
+ *  If it's true than Sibernetic works "load simulation data in file" mode.
  */
 double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 {
-	//PCISPH algorithm
-	int iter = 0;//PCISPH prediction-correction iterations conter
+	int iter = 0;//PCISPH prediction-correction iterations counter
+				 //
 	// now we will implement sensory system of the c. elegans worm, mechanosensory one
-	// hrre we plan to imeplememtn the parto of openworm sensory sysmtem, which is still one of the grand chanllenges of this project
-	// 
+	// here we plan to implement the part of openworm sensory system, which is still
+	// one of the grand challenges of this project
 
 	//if(iterationCount==0) return 0.0;//uncomment this line to stop movement of the scene
 

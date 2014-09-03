@@ -37,51 +37,66 @@
 #include <math.h>
 
 #include "owOpenCLConstant.h"
+/** Main physical constants contain here
+ */
 
 #ifndef M_PI
 #define M_PI 3.1415927f
 #endif
 
 
-const float rho0 = 1000.0f;
-const float mass = 3.25e-14f;// kg // we need 3.25e-14 kg
-const float timeStep = 5.0e-06f;// s // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
+const float rho0 = 1000.0f;							// Standard value of liquid density for water (kg/m^3)
+
+const float mass = 3.25e-14f;                       // Mass for one particle (kg).
+													// Some facts about C. elegans:
+													// Adult worm mass = 3.25e-06 grams = 3.25e-09 kg
+													// worm density is around 1000 kg/m3
+													// Adult worm length =  1 mm =   1000 um =    1e-03 m
+													// Adult worm broad diameter = 60..80 um = 6..8e-05 m // we'll consider it to be equal 80 um (radius = 40 um)
+													// Adult worm volume = 0.0033 mm3
+													// 1000*40*40*Cw = 0.0033
+													// then Cw = 2.0625
+													// so, if we need a worm body model composed of, for example, 1e+05 particles
+													// each particle's mass should be 3.25e-09 / 1e+05 = 3.25e-14 kg
+													// and length of the worm will be (caculation follows):
+													// n - number of particles per 1 um
+													// (1000*n)*(40*n)*(40*n)*Cw = 1e+5 particles
+													// then n^3 = 0.303, n = 0.311
+													// then worm length = (1000*n) = 311 particles, radius = (40*n) = 12 particles
+													// So, in this case (1e+5 particles) we need r0 = 3.2 um = 3.2e-6 m
+													// and particle mass = 3.25e-14 kg
+													// NOTE: we use this value of mass because we are oriented on modeling of
+													// C. elegans's body model. But we you can use your own value of mass
+													// TODO: make it as an input parameter
+
+const float timeStep = 5.0e-06f;                    // Time step of simulation (s)
+													// NOTE: for simulation of liquid it should satisfy a CFL conditions
+													// for more info [1]
+													// NOTE: it depend on mass too for bigger value of mass it possible
+													// to use bigger value of time step
+													// TODO: find dependence and make choice automatically
+													// [1] Solenthaler (Dissertation) page 43
+													// ATTENTION! too large values can lead to 'explosion' of elastic matter objects
 
 
-const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);
 
-const float h = 3.34f;
-const float hashGridCellSize = 2.0f * h;
-const float hashGridCellSizeInv = 1.0f / hashGridCellSize;
+const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f); // Simulation scale coefficient. It means that 1m == 1 * simulationScale
+																			  // If you want to take real value of distance in meters you need multiple on simulation scale
+																			  // Calculates automatically from value of mass.
+
+const float h = 3.34f;								// Smoothed radius value. This is dimensionless constant parameter.
+													// For taken real value in meter you need multiple this on simulationScale.
+													// ???
+
+const float hashGridCellSize = 2.0f * h; 			// Size of side for one spatial cell
+													//
+const float hashGridCellSizeInv = 1.0f / hashGridCellSize; // Invariant value for hashGridCellSize
 const float simulationScaleInv = 1.0f / simulationScale;
-const float r0 = 0.5f * h; // distance between two boundary particle == equilibrium distance between 2 particles // Ihmsen et. al., 2010, page 4, line 3 
-						   // M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
+const float r0 = 0.5f * h; 							// Standard distance between two boundary particle == equilibrium distance between 2 particles [1]
+													// [1] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 
 const float _hScaled = h * simulationScale;//scaled smoothing radius
 const float _hScaled2 = _hScaled*_hScaled;//squared scaled smoothing radius
-
-//const float h_fall = simulationScale*(YMAX-YMIN)*0.454f;
-
-// Some facts about C. elegans:
-// Adult worm mass = 3.25e-06 grams = 3.25e-09 kg
-// worm density is around 1000 kg/m3
-// Adult worm length =  1 mm =   1000 um =    1e-03 m
-// Adult worm broad diameter = 60..80 um = 6..8e-05 m // we'll consider it to be equal 80 um (radius = 40 um)
-// Adult worm volume = 0.0033 mm3 
-//
-// 1000*40*40*Cw = 0.0033  
-// then Cw = 2.0625
-//
-// so, if we need a worm body model composed of, for example, 1e+05 particles
-// each particle's mass should be 3.25e-09 / 1e+05 = 3.25e-14 kg
-// and length of the worm will be (caculation follows): 
-// n - number of particles per 1 um
-// (1000*n)*(40*n)*(40*n)*Cw = 1e+5 particles
-// then n^3 = 0.303, n = 0.311
-// then worm length = (1000*n) = 311 particles, radius = (40*n) = 12 particles
-//
-// So, in this case (1e+5 particles) we need r0 = 3.2 um = 3.2e-6 m
-// and particle mass = 3.25e-14 kg
 
 const float stiffness = 0.75f;	//need description of this parameter
 const float viscosity = 0.00005f;//0.00015f;	// liquid viscosity  //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
@@ -89,13 +104,26 @@ const float damping = 0.75f;	//need description of this parameter
 
 const float CFLLimit = 100.0f;
 
-const double beta = timeStep*timeStep*mass*mass*2/(rho0*rho0);// B. Solenthaler's dissertation, formula 3.6 (end of page 30)
-const double Wpoly6Coefficient = 315.0 / ( 64.0 * M_PI * pow( (double)(h*simulationScale), 9.0 ) );
-const double gradWspikyCoefficient= -45.0 / ( M_PI * pow( (double)(h*simulationScale), 6.0 ) );
-const double divgradWviscosityCoefficient = - gradWspikyCoefficient;
-const float gravity_x = 0.0f;
-const float gravity_y = -9.8f;
-const float gravity_z = 0.0f;
+const double beta = timeStep*timeStep*mass*mass*2/(rho0*rho0); // B. Solenthaler's dissertation, formula 3.6 (end of page 30)
+const double Wpoly6Coefficient = 315.0 / ( 64.0 * M_PI * pow( (double)(h*simulationScale), 9.0 ) ); // Wpoly6Coefficient for kernel Wpoly6 [1]
+																									// [1] Solenthaler (Dissertation) page 17 eq. (2.20)
+
+const double gradWspikyCoefficient= -45.0 / ( M_PI * pow( (double)(h*simulationScale), 6.0 ) ); 	// gradWspikyCoefficient for kernel gradWspiky [1]
+																									// [1] Solenthaler (Dissertation) page 18 eq. (2.21)
+const double divgradWviscosityCoefficient = - gradWspikyCoefficient;								// divgradWviscosityCoefficient for kernel Viscous [1]
+																									// [1] Solenthaler (Dissertation) page 18 eq. (2.22)
+/* We' re using Cartesian coordinate system
+				y|
+				 |
+				 |
+				 |__________x
+				 /
+				/
+			  z/
+ */
+const float gravity_x = 0.0f;						// Value of vector Gravity component x
+const float gravity_y = -9.8f;						// Value of vector Gravity component y
+const float gravity_z = 0.0f;						// Value of vector Gravity component z
 extern const float delta;
 const int maxIteration = 3;
 const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale;
