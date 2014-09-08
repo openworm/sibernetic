@@ -166,7 +166,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 			{
 				kd = -1;
 				membranesFile >> id >> jd >> kd ;
-				if(kd>=0)numOfMembranes++;//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
+				if(kd>=0)numOfMembranes++;//last line of a file can contain only "\n", then kd thanks to reinitialization will indicate the problem via negative value
 			}
 		}
 		membranesFile.close();

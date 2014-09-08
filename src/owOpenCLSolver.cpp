@@ -723,11 +723,10 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * confi
 	pcisph_predictDensity.setArg( 3, h );
 	pcisph_predictDensity.setArg( 4, rho0 );
 	pcisph_predictDensity.setArg( 5, simulationScale );
-	pcisph_predictDensity.setArg( 6, stiffness );
-	pcisph_predictDensity.setArg( 7, sortedPosition );
-	pcisph_predictDensity.setArg( 8, pressure );
-	pcisph_predictDensity.setArg( 9, rho );
-	pcisph_predictDensity.setArg(10, config->getParticleCount() );
+	pcisph_predictDensity.setArg( 6, sortedPosition );
+	pcisph_predictDensity.setArg( 7, pressure );
+	pcisph_predictDensity.setArg( 8, rho );
+	pcisph_predictDensity.setArg( 9, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_predictDensity, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -934,14 +933,13 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigP
 	pcisph_integrate.setArg( 13, config->ymax );
 	pcisph_integrate.setArg( 14, config->zmin );
 	pcisph_integrate.setArg( 15, config->zmax );
-	pcisph_integrate.setArg( 16, damping );
-	pcisph_integrate.setArg( 17, position );
-	pcisph_integrate.setArg( 18, velocity );
-	pcisph_integrate.setArg( 19, rho );
-	pcisph_integrate.setArg( 20, r0 );
-	pcisph_integrate.setArg( 21, neighborMap );
-	pcisph_integrate.setArg( 22, config->getParticleCount() );
-	pcisph_integrate.setArg( 23, iterationCount );
+	pcisph_integrate.setArg( 16, position );
+	pcisph_integrate.setArg( 17, velocity );
+	pcisph_integrate.setArg( 18, rho );
+	pcisph_integrate.setArg( 19, r0 );
+	pcisph_integrate.setArg( 20, neighborMap );
+	pcisph_integrate.setArg( 21, config->getParticleCount() );
+	pcisph_integrate.setArg( 22, iterationCount );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_integrate, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )

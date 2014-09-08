@@ -74,8 +74,14 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,DEVICE dev_ty
 		position_cpp = new float[ 4 * config->getParticleCount() ];
 		velocity_cpp = new float[ 4 * config->getParticleCount() ];
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
-		if(numOfMembranes<=0) membraneData_cpp = NULL; else membraneData_cpp = new int [numOfMembranes*3];
-		if(numOfElasticP<=0)  particleMembranesList_cpp = NULL; else particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
+		if(numOfMembranes<=0)
+			membraneData_cpp = NULL;
+		else
+			membraneData_cpp = new int [numOfMembranes*3];
+		if(numOfElasticP<=0)
+			particleMembranesList_cpp = NULL;
+		else
+			particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
 		for(int i=0;i<MUSCLE_COUNT;i++)
 		{
 			muscle_activation_signal_cpp[i] = 0.f;
@@ -241,12 +247,12 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 }
 /** Calculating delta parameter.
  *
- *  In these situations,
+ *  "In these situations,
  *	the SPH equations result in falsified values. To circumvent that problem, we pre-
  *	compute a single scaling factor δ according to the following formula [1, eq. 8] which is
  *	evaluated for a prototype particle with a filled neighborhood. The resulting value
  *	is then used for all particles. Finally, we end up with the following equations
- *	which are used in the PCISPH method [1].
+ *	which are used in the PCISPH method" [1].
  *	[1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
  */
 float calcDelta()
@@ -267,9 +273,9 @@ float calcDelta()
 
     for (int i = 0; i < MAX_NEIGHBOR_COUNT; i++)
     {
-		v_x = x[i] * 0.8f * particleRadius;
-		v_y = y[i] * 0.8f * particleRadius;
-		v_z = z[i] * 0.8f * particleRadius;
+		v_x = x[i] * 1.f * particleRadius;
+		v_y = y[i] * 1.f * particleRadius;
+		v_z = z[i] * 1.f * particleRadius;
 
         dist = sqrt(v_x*v_x+v_y*v_y+v_z*v_z);//scaled, right?
 
