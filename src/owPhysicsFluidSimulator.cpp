@@ -268,8 +268,9 @@ float calcDelta()
 	float v_y = 0.f;
 	float v_z = 0.f;
 	float dist;
-	float particleRadius = pow(mass/rho0,1.f/3.f);  // the value is about 0.01 instead of 
-	float h_r_2;									// my previous estimate = simulationScale*h/2 = 0.0066
+	float particleRadius = pow(mass/rho0,1.f/3.f);  // It's equal to simulationScale
+													// TODO: replace it with simulation scale
+	float h_r_2;
 
     for (int i = 0; i < MAX_NEIGHBOR_COUNT; i++)
     {
