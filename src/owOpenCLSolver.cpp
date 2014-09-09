@@ -1019,8 +1019,8 @@ void owOpenCLSolver::create_ocl_buffer(const char *name, cl::Buffer &b, const cl
  *  OpenCL memory flags more info (https://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/enums.html)
  *  @param size
  *  buffer's size
- *	@return value taking after enqueue a command to write buffet to a device.
- *	More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueWriteBuffer.html)
+ *  @return value taking after enqueue a command to write buffet to a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueWriteBuffer.html)
  */
 int owOpenCLSolver::copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b, const int size )
 {
@@ -1041,8 +1041,8 @@ int owOpenCLSolver::copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,
  *  OpenCL memory flags more info (https://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/enums.html)
  *  @param size
  *  buffer's size
- *	@return value taking after enqueue a command to read buffet from a device.
- *	More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueReadBuffer.html)
+ *  @return value taking after enqueue a command to read buffet from a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueReadBuffer.html)
  */
 int owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b, const int size )
 {
