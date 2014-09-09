@@ -51,7 +51,8 @@
 #elif defined(__APPLE__)
     #include <stddef.h>
 #endif
-
+/** Helper class contains a number of helper methods.
+  */
 class owHelper
 {
 public:

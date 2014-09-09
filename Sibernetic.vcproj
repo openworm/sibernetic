@@ -282,6 +282,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\test\owPhysicTest.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\sphFluid.cl"
 				>
 				<FileConfiguration
