@@ -105,7 +105,8 @@ const float h = 3.34f;								// Smoothed radius value. This is dimensionless in
 													// h is a spatial distance, over which their properties are "smoothed" by a kernel function [1].
 													// [1] https://en.wikipedia.org/wiki/Smoothed-particle_hydrodynamics
 
-const float hashGridCellSize = 2.0f * h; 			// Size of side for one spatial cell
+const float hashGridCellSize = 2.0f * h; 			// All bounding box is divided on small spatial cells with size of side == h. Size of side for one spatial cell
+													// This require for spatial hashing and => searching a neighbors
 const float r0 = 0.5f * h; 							// Standard distance between two boundary particle == equilibrium distance between 2 particles [1]
 													// [1] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 

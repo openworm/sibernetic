@@ -114,18 +114,18 @@ private:
 	cl::Buffer  muscle_activation_signal;   // array storing data (activation signals) for an array of muscles. 
 											// now each can be activated by user independently
 
-	cl::Buffer acceleration;				// forceAcceleration and pressureForceAcceleration
-	cl::Buffer gridCellIndex;
-	cl::Buffer gridCellIndexFixedUp;
-	cl::Buffer neighborMap;
+	cl::Buffer acceleration;				// Acceleration buffer
+	cl::Buffer gridCellIndex;				// buffer with position of in particleIndex from which  located in the cell right now gridCellIndex[i] = someNumber, if cell has no particles it's equal -1
+	cl::Buffer gridCellIndexFixedUp;		// the same that gridCellIndex but without empty cells
+	cl::Buffer neighborMap;					// Contains information about neighbors for all particles size = PARTICLE_COUNT * MAX_NEIGHBOR_COUNT
 	cl::Buffer particleIndex;				// list of pairs [CellIndex, particleIndex]
 	cl::Buffer particleIndexBack;			// list of indexes of particles before sort 
-	cl::Buffer position;
-	cl::Buffer pressure;					// size * (1+1extra[for membrane handling])
-	cl::Buffer rho;							// size * 2
-	cl::Buffer sortedPosition;				// size * 2
-	cl::Buffer sortedVelocity;				
-	cl::Buffer velocity;					// size * (1+1extra[for membrane handling])
+	cl::Buffer position;					// Buffer with position
+	cl::Buffer pressure;					// Pressure buffer size * (1+1extra[for membrane handling])
+	cl::Buffer rho;							// density buffer size * 2
+	cl::Buffer sortedPosition;				// buffer with sorted position size * 2
+	cl::Buffer sortedVelocity;				// buffer with sorted velocity size * 2
+	cl::Buffer velocity;					// buffer with velocity size * (1+1extra[for membrane handling])
 	cl::Buffer elasticConnectionsData;		// list of particle pairs connected with springs and rest distance between them
 
 	cl::Buffer membraneData;				// elementary membrane is built on 3 adjacent particles (i,j,k) and should have a form of triangle
@@ -135,7 +135,7 @@ private:
 	cl::Buffer particleMembranesList;		// potentially any particle can be connected with others via membrane(s)
 											// this buffer contains MAX_MEMBRANES_INCLUDING_SAME_PARTICLE integer data cells per particle
 											// each cell can contain -1 in case when no or no more membranes are associated with this particle,
-											// or the index of corresponding membrane in membraneData list othewize
+											// or the index of corresponding membrane in membraneData list otherwise
 
 	// Kernels
 	cl::Kernel clearBuffers;

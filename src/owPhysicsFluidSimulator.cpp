@@ -39,13 +39,14 @@
 
 float calcDelta();
 extern const float delta = calcDelta();
-int numOfElasticConnections = 0;
-int numOfLiquidP = 0;
-int numOfElasticP = 0;
-int numOfBoundaryP = 0;
-int numOfMembranes = 0;
+int numOfElasticConnections = 0; // Number of elastic connection TODO: move this to owConfig class
+int numOfLiquidP = 0;			 // Number of liquid particles TODO: move this to owConfig class
+int numOfElasticP = 0;			 // Number of liquid particles TODO: move this to owConfig class
+int numOfBoundaryP = 0;			 // Number of boundary particles TODO: move this to owConfig class
+int numOfMembranes = 0;			 // Number of membranes TODO: move this to owConfig class
 extern float * muscle_activation_signal_cpp;
-int iter_step = 10;
+int iter_step = 10;				 // Count of iteration which will be skipped before logging configuration to file
+								 // NOTE: this using only in "load config to file" mode
 
 /** Constructor method for owPhysicsFluidSimulator.
  *

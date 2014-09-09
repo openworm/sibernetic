@@ -97,10 +97,10 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		//Copy position_cpp and velocity_cpp to the OpenCL Device
 		copy_buffer_to_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 );
 		copy_buffer_to_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 );
-		//membranes
-		//Needed for sortin stuff
+		//Needed for sorting stuff
 		_particleIndex = new   int[ 2 * config->getParticleCount() ];
 		gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
+		//Create membranes buffers if it's necessary
 		if(membraneData_cpp != NULL )
 		{
 			create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 3 ) );
@@ -114,7 +114,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 
 			if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;//We delete it because we don't need it anymore
 		}
-		//elastic connections
+		//elastic connections if it's necessary
 		if(elasticConnectionsData_cpp != NULL){
 			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
 			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
@@ -147,6 +147,7 @@ extern char device_full_name [1000];
  *  buffer with info about sets of membranes in which particular particle is including
  */
 void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
+	// Reinitializing all data buffer
 	create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 3 ) );// 4*2-->4*3; third part is to store acceleration[t], while first to are for acceleration[t+delta_t]
 	create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 	create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
@@ -164,7 +165,6 @@ void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cp
 	//Copy position_cpp and velocity_cpp to the OpenCL Device
 	copy_buffer_to_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 );
 	copy_buffer_to_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 );
-	//membranes
 	//Needed for sortin stuff
 	_particleIndex = new   int[ 2 * config->getParticleCount() ];
 	gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
@@ -227,13 +227,14 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
 
 	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
-	//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
+							//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
 	cl_uint ciDeviceCount;
 	cl_device_id * devices_t;
 	bool bPassed = true, findDevice = false;
 	cl_int result;
 	cl_uint device_coumpute_unit_num;
 	cl_uint device_coumpute_unit_num_current = 0;
+	//Selection of more appropriate device
 	for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
 		//if(findDevice)
 		//	break;
@@ -413,6 +414,9 @@ unsigned int owOpenCLSolver::_runIndexx(owConfigProrerty * config)
  *  Fill up all empty cell in gridCellIndex. If value in particular cell == -1
  *  it fills with value from last non empty cell. It need for optimization
  *  of neighbor search.
+ *  EXAMPLE: particleIndex after sorting [[1,1],[1,2],[2,3],[3,0],[3,7],[4,5],[6,8]...]
+ *							  				^			^	  ^			  ^		^
+ *  		 gridCellIndex 				 [  0,          2,    3,		  5,-1, 6, ...]
  *
  * 	@param config
  * 	Contain information about simulating configuration
@@ -623,7 +627,6 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
  *  contraction forces if particle has muscle connection
  *  acceleration[id] += (ElasticForces + MuscleForce)/mass.
  *  NOTE: this kernel works only with elastic particles
- *
  *
  *  @param config
  * 	Contain information about simulating configuration

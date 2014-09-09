@@ -129,7 +129,8 @@ void glPrint3D(float x, float y, float z, const char *s, void *font)
         glutBitmapCharacter(font, s[i]);
     }
 }
-
+/** Main displaying function
+ */
 void display(void)
 {
 	//Update Scene if not paused
@@ -140,7 +141,7 @@ void display(void)
 			owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp, loacalConfig,iteration);
 			iteration++;
 		}else{
-			calculationTime = fluid_simulation->simulationStep();
+			calculationTime = fluid_simulation->simulationStep(); // Run one simulation step
 			int pib;
 			p_indexb = fluid_simulation->getParticleIndex_cpp();
 			for(i=0;i<loacalConfig->getParticleCount();i++)
@@ -157,13 +158,12 @@ void display(void)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	drawScene();
-	//glColor3ub(255,255,255);//yellow
 	glPointSize(3.f);
 	glBegin(GL_POINTS);
 	float dc, rho;
+	//Display all particles
 	for(i = 0; i<loacalConfig->getParticleCount(); i++)
 	{
-		//printf("[%d]",i);
 		if(!load_from_file){
 			rho = d_cpp[ p_indexb[ i * 2 + 0 ] ];
 			if( rho < 0 ) rho = 0;
@@ -213,6 +213,7 @@ void display(void)
 	}
 	glLineWidth((GLfloat)0.1);
 	int ecc=0;//elastic connections counter;
+	//Display elastic connections
 	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
 	{
 		//offset = 0
@@ -299,14 +300,10 @@ void display(void)
 			}
 		}
 	}
-
-	//draw membranes
+	// Draw membranes
 	if(!load_from_file)
 		md_cpp = fluid_simulation->getMembraneData_cpp();
-
 	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
-
-	/**/
 	for(int i_m = 0; i_m < numOfMembranes; i_m++)
 	{
 		i = md_cpp [i_m*3+0];
@@ -323,19 +320,16 @@ void display(void)
 		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-loacalConfig->zmax/2)*sc );
 		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-loacalConfig->zmax/2)*sc );
 		glEnd();
-	}/**/
-
-
-	//glEnd();//???
-
+	}
 	glLineWidth((GLfloat)1.0);
-
 	glutSwapBuffers();
 	helper->watch_report("graphics: \t\t%9.3f ms\n====================================\n");
 	renderTime = helper->get_elapsedTime();
 	totalTime += calculationTime + renderTime;
 	calculateFPS();
 }
+/** Drawing main scene and bounding box
+ */
 inline void drawScene()
 {
 	//       [7]----[6]
@@ -476,11 +470,12 @@ float current_sv ;
 static char label[1000];                            /* Storage for current string   */
 bool showInfo = true;
 bool showRuler = false;
+/** Render addition test information
+ */
 void renderInfo(int x, int y)
 {
 	beginWinCoords();
 	int y_m = y;
-	int i_shift = 0;
 	if(showInfo){
 		glColor3f (0.5F, 1.0F, 1.0F);
 		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
@@ -534,6 +529,8 @@ void renderInfo(int x, int y)
 	}
 	endWinCoords();
 }
+/** Calculation of FPS
+ */
 void calculateFPS()
 {
     //  Increase frame count
@@ -563,15 +560,15 @@ void respond_mouse(int button, int state, int x, int y)
 		buttonState = 0;
 	old_x=x;
 	old_y=y;
-	if (button == 3)// mouse wheel up
+	if (button == 3)     // mouse wheel up
     {
-        sc *= 1.1f;// Zoom in
+        sc *= 1.1f;		 // Zoom in
 		sc_scale *= 1.1f;// Zoom in
     }
     else
-	if (button == 4)// mouse wheel down
+	if (button == 4)	 // mouse wheel down
     {
-        sc /= 1.1f;// Zoom out
+        sc /= 1.1f;		 // Zoom out
 		sc_scale /= 1.1f;// Zoom out
     }
 }
@@ -662,9 +659,10 @@ void RespondKey(unsigned char key, int x, int y)
 }
 
 //Auxiliary function
-/* There can be only one idle() callback function. In an 
-   animation, this idle() function must update not only the 
-   main window but also all derived subwindows */ 
+/** There can be only one idle() callback function. In an
+ *  animation, this idle() function must update not only the
+ *  main window but also all derived subwindows
+ */
 void idle (void) 
 { 
   glutSetWindow (winIdMain); 
@@ -724,7 +722,15 @@ void sighandler(int s){
 	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
 	Cleanup(EXIT_SUCCESS);
 }
-
+/** Init & start simulation and graphic component if with_graphics==true
+ *
+ * 	@param argc
+ * 	command line arguments going throw the main function
+ * 	@param with_graphics
+ * 	Flag indicates that simulation will be run with graphic or not
+ * 	@param load_to
+ * 	Flag indicates that simulation will in "load configuration to file" mode
+ */
 void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
 	helper = new owHelper();
