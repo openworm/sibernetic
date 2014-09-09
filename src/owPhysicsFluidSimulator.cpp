@@ -157,8 +157,8 @@ void owPhysicsFluidSimulator::reset(){
  *  membranes handling and finally numerical integration.
  *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
  *  [2] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner,
- *  	Boundary Handling and Adaptive Time-stepping for PCISPH
- *  	Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
+ *      Boundary Handling and Adaptive Time-stepping for PCISPH
+ *      Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
  *
  *  @param looad_to
  *  If it's true than Sibernetic works "load simulation data in file" mode.
@@ -249,12 +249,12 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 /** Calculating delta parameter.
  *
  *  "In these situations,
- *	the SPH equations result in falsified values. To circumvent that problem, we pre-
- *	compute a single scaling factor δ according to the following formula [1, eq. 8] which is
- *	evaluated for a prototype particle with a filled neighborhood. The resulting value
- *	is then used for all particles. Finally, we end up with the following equations
- *	which are used in the PCISPH method" [1].
- *	[1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
+ *  the SPH equations result in falsified values. To circumvent that problem, we pre-
+ *  compute a single scaling factor δ according to the following formula [1, eq. 8] which is
+ *  evaluated for a prototype particle with a filled neighborhood. The resulting value
+ *  is then used for all particles. Finally, we end up with the following equations
+ *  which are used in the PCISPH method" [1].
+ *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
  */
 float calcDelta()
 {

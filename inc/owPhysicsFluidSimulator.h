@@ -58,45 +58,45 @@ public:
 	float * getPosition_cpp() const { return position_cpp; };
 	/** Getter for velocity_cpp buffer
 	 *
-	 * 	When run this method information about new value of velocity
-	 * 	getting from OpenCL memory
-	 * 	it use owOpenCLSolver::read_velocity_buffer(...) method
+	 *  When run this method information about new value of velocity
+	 *  getting from OpenCL memory
+	 *  it use owOpenCLSolver::read_velocity_buffer(...) method
 	 *
 	 *  @return velocity_cpp
 	 */
 	float * getvelocity_cpp() { ocl_solver->read_velocity_buffer(velocity_cpp,config); return velocity_cpp; };
 	/** Getter for density_cpp buffer
 	 *
-	 * 	When run this method information about new values of density
-	 * 	getting from OpenCL memory
-	 * 	it use owOpenCLSolver::read_density_buffer(...) method
+	 *  When run this method information about new values of density
+	 *  getting from OpenCL memory
+	 *  it use owOpenCLSolver::read_density_buffer(...) method
 	 *
 	 *  @return density_cpp
 	 */
 	float * getDensity_cpp() { ocl_solver->read_density_buffer( density_cpp, config ); return density_cpp; };
 	/** Getter for particleIndex_cpp buffer
 	 *
-	 * 	When run this method information about new values of particleIndex
-	 * 	getting from OpenCL memory
-	 * 	it use owOpenCLSolver::read_particleIndex_buffer(...) method
+	 *  When run this method information about new values of particleIndex
+	 *  getting from OpenCL memory
+	 *  it use owOpenCLSolver::read_particleIndex_buffer(...) method
 	 *
 	 *  @return particleIndex_cpp
 	 */
 	unsigned int * getParticleIndex_cpp() { ocl_solver->read_particleIndex_buffer( particleIndex_cpp, config ); return particleIndex_cpp; };
 	/** Getter for elasticConnectionsData_cpp buffer
 	 *
-	 * 	Method doesn't need to request data from OpenCL device's memory
-	 * 	information about elastic connection defines once when
-	 * 	initialization of configuration.
+	 *  Method doesn't need to request data from OpenCL device's memory
+	 *  information about elastic connection defines once when
+	 *  initialization of configuration.
 	 *
 	 *  @return elasticConnectionsData_cpp
 	 */
 	float * getElasticConnectionsData_cpp() const { return elasticConnectionsData_cpp; };
 	/** Getter for membraneData_cpp buffer
 	 *
-	 * 	Method doesn't need to request data from OpenCL device's memory
-	 * 	information about elastic connection defines once when
-	 * 	initialization of configuration.
+	 *  Method doesn't need to request data from OpenCL device's memory
+	 *  information about elastic connection defines once when
+	 *  initialization of configuration.
 	 *
 	 *  @return membraneData_cpp
 	 */

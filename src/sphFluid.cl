@@ -34,15 +34,15 @@
 /* Equations referenced here are from [3].
  * Next literature was used during development Sibernnetic:
  * PCISPH - [1] Solenthaler (Dissertation)
- * 		  - [2]	http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
- * 		  - [3] Particle-based fluid simulation for interactive applications, Muller, Charypar & Gross,
- *			 	Eurographics/SIGGRAPH Symposium on Computer Animation (2003).
+ *        - [2] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
+ *        - [3] Particle-based fluid simulation for interactive applications, Muller, Charypar & Gross,
+ *              Eurographics/SIGGRAPH Symposium on Computer Animation (2003).
  * Boundary handling - [4] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner,
- *  					   Boundary Handling and Adaptive Time-stepping for PCISPH
- *  					   Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
+ *                            Boundary Handling and Adaptive Time-stepping for PCISPH
+ *                            Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
  * Surface Tension - [5] M. Becker, M. Teschner. Weakly compressible SPH for free surface flows 
- * 						// Proceedings of the 2007 ACM SIGGRAPH/Eurographics 
- * 						symposium on Computer animation, pages 209-217.
+ *                       // Proceedings of the 2007 ACM SIGGRAPH/Eurographics 
+ *                       symposium on Computer animation, pages 209-217.
  */
 
 #define MAX_NEIGHBOR_COUNT 32
@@ -80,7 +80,7 @@
 #ifdef cl_amd_printf
 	#pragma OPENCL EXTENSION cl_amd_printf : enable
 //#define PRINTF_ON // this comment because using printf leads to very slow work on Radeon r9 290x on my machine 
-					// don't know why
+                    // don't know why
 #elif defined(cl_intel_printf)
 	#pragma OPENCL EXTENSION cl_intel_printf : enable
 #define PRINTF_ON
@@ -184,9 +184,9 @@ __kernel void hashParticles(
  *  it's using special created buffers sortedPosition and sortedVelocity.
  *  NOTE: for tracking info about particular particle using particleIndexBack list
  *  which == particleIndex before sorting.
- *  EXAMPLE:  particleIndex list after sorting 	[[1,1],[1,2],[2,3],[3,0],..]
- *  		  position list						[ pos_0, pos_1, pos_2, pos_3, ...]
- *  		  sortingPosition list after sorting[ pos_1, pos_2, pos_3, pos_0, ...]
+ *  EXAMPLE:  particleIndex list after sorting  [[1,1],[1,2],[2,3],[3,0],..]
+ *            position list                     [ pos_0, pos_1, pos_2, pos_3, ...]
+ *            sortingPosition list after sorting[ pos_1, pos_2, pos_3, pos_0, ...]
  */
 __kernel void sortPostPass(
 						   __global uint2  * particleIndex,

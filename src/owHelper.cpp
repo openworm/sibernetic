@@ -108,9 +108,9 @@ std::string owHelper::suffix = "";
  *  boundary box dimensions
  *  @param numOfLiquidP
  *  reference to numOfLiquidP variable
- *	@param numOfElasticP
+ *  @param numOfElasticP
  *  reference to numOfElasticP variable
- *	@param numOfBoundaryP
+ *  @param numOfBoundaryP
  *  reference to numOfBoundaryP variable
  */
 void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP)
@@ -192,11 +192,11 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
  *  TODO: change it replace to owPhysicsFluidSimulator constructor.
  *  @param numOfLiquidP
  *  reference to numOfLiquidP variable
- *	@param numOfElasticP
+ *  @param numOfElasticP
  *  reference to numOfElasticP variable
- *	@param numOfBoundaryP
+ *  @param numOfBoundaryP
  *  reference to numOfBoundaryP variable
- *	@param numOfElasticConnections
+ *  @param numOfElasticConnections
  *  reference to numOfElasticConnections variable
  *  @param numOfMembranes
  *  reference to numOfMembranes variable
