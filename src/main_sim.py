@@ -70,17 +70,34 @@ if __name__ == '__main__':
     
     ms = muscle_simulation()
     
-    num_plots = 8
-    steps = 1000
+    num_plots = 5
+    steps = 20000
+    m0 = []
+    m1 = []
+    times = []
+    
+    
     for step in range(num_plots*steps):
+        t = step*time_per_step
         l = ms.run()
-        print "At step %s (%s ms)"%(step, step*time_per_step)
-
+        m0.append(l[0])
+        m1.append(l[muscle_row_count])
+        times.append(t)
         if step==0 or step%steps == 0:
+            print "At step %s (%s ms)"%(step, t)
             figV = plt.figure()
-            figV.suptitle("Muscle activation waves at step %s (%s ms)"%(step, step*time_per_step))
+            figV.suptitle("Muscle activation waves at step %s (%s ms)"%(step, t))
             plV = figV.add_subplot(111, autoscale_on=True)
             plV.plot(l[0:muscle_row_count], solid_joinstyle ='round', solid_capstyle ='round', color='#ff0000', linestyle='-', marker='o')
             plV.plot(l[muscle_row_count:muscle_row_count*2], solid_joinstyle ='round', solid_capstyle ='round', color='#00ff00', linestyle='-', marker='o')
+    
+    
+    fig0 = plt.figure()
+    fig0.suptitle("Muscle activation waves vs time")
+    pl0 = fig0.add_subplot(111, autoscale_on=True)
+    pl0.plot(times, m0,solid_joinstyle ='round', solid_capstyle ='round', color='#ff0000', linestyle='-')
+    pl0.plot(times, m1,solid_joinstyle ='round', solid_capstyle ='round', color='#ffff00', linestyle='-')
+    #print m0
+    #pl0.plot(m1.values(), m1.keys(), solid_joinstyle ='round', solid_capstyle ='round', color='#ffff00', linestyle='-')
 
     plt.show()
