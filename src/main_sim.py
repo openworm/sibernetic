@@ -58,9 +58,25 @@ class muscle_simulation():
                                     self.contraction_array[1],
                                     self.contraction_array[1],
                                     self.contraction_array[0]]))  
-        #return(self.contraction_array)
-        
+class c302_simulation():
+    
+    values = []
 
+    def __init__(self, activity_file):
+        self.step = 0
+        data = open(activity_file, 'r')
+        for line in data:
+            vv = []
+            vs = line.strip().split('\t')
+            for v in vs:
+                vv.append(float(v))
+            self.values.append(vv)
+
+    def run(self,do_plot = True):
+        v = self.values[self.step]
+        self.step += 1
+        return list(v)  
+        
 
 
 if __name__ == '__main__':
@@ -69,6 +85,7 @@ if __name__ == '__main__':
     print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
     
     ms = muscle_simulation()
+    #ms = c302_simulation('../configuration/test/c302/c302_B_Muscles.activity.dat')
     
     num_plots = 5
     steps = 20000
@@ -101,3 +118,4 @@ if __name__ == '__main__':
     #pl0.plot(m1.values(), m1.keys(), solid_joinstyle ='round', solid_capstyle ='round', color='#ffff00', linestyle='-')
 
     plt.show()
+    
