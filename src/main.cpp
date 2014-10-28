@@ -55,7 +55,6 @@ int main(int argc, char **argv)
 				graph = false;
 			if(strncmp(argv[i], "-l_to", 5) == 0){	// run load config to file mode
 				std::cout << "l_to flag, Sibernetic will save simulation results to disk\n";
-				graph = false;
 				load_to = true;
 			}
 			if(strncmp(argv[i], "-l_from", 7) == 0){ // run load config from file mode
