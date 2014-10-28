@@ -44,7 +44,7 @@
 #include <cmath>        // std::abs
 
 #include "owPhysicTest.h"
-#include "../owPhysicsFluidSimulator.h"
+
 
 float calcPotentialEnergy( owConfigProrerty *, float * );
 float calcKineticEnergy( owConfigProrerty *, float *, float * );

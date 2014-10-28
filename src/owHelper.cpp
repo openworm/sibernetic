@@ -43,6 +43,10 @@
 #include <mach/mach_time.h>
 #endif
 
+#define EXPEREMENTAL_WRITE 0
+#if EXPEREMENTAL_WRITE
+#define EXPEREMENTAL_READ
+#endif
 #include "owHelper.h"
 #include "owPhysicsConstant.h"
 
@@ -52,14 +56,26 @@ extern int numOfMembranes;
 extern int numOfElasticP;
 extern int numOfLiquidP;
 
+/** owHelpre class constructor
+ */
 owHelper::owHelper(void)
 {
 	refreshTime();
 }
-
+/** owHelpre class destructor
+ */
 owHelper::~owHelper(void)
 {
 }
+/** Update time variable
+ *
+ *  Using precision system functions for getting exact system time.
+ *  Initialization of start time value.
+ *  For more info:
+ *  Windows QueryPerformanceFrequency - http://msdn.microsoft.com/ru-ru/library/windows/desktop/ms644905(v=vs.85).aspx
+ *  Linux clock_gettime - http://man7.org/linux/man-pages/man2/clock_gettime.2.html
+ *  MacOS - https://developer.apple.com/library/mac/documentation/Darwin/Conceptual/KernelProgramming/services/services.html
+ */
 void owHelper::refreshTime()
 {
 #if defined(_WIN32) || defined (_WIN64)
@@ -1387,6 +1403,28 @@ void owHelper::generateConfiguration(int stage, float *position_cpp, float *velo
 int read_position = 0;
 std::string owHelper::path = "./configuration/";
 std::string owHelper::suffix = "";
+/** Preparing initial data before load full configuration
+ *
+ *  Before load configuration data from file (initial position and velocity,
+ *  connection data if is and membrane data if is) Sibernetic
+ *  should allocate a memory in RAM. Method starts with reading position file
+ *  first 6 lines in file correspond to dimensions of boundary box, than it reads all file
+ *  till the end an calculate numbers of elastic, liquid and boundary
+ *  particles and total number too. Also this read membranes file
+ *  for counting membranes numbers.
+ *
+ *  @param numOfMembranes
+ *  reference to numOfMembrane variable
+ *  @param config
+ *  pointer to owConfigProrerty object it includes information about
+ *  boundary box dimensions
+ *  @param numOfLiquidP
+ *  reference to numOfLiquidP variable
+ *  @param numOfElasticP
+ *  reference to numOfElasticP variable
+ *  @param numOfBoundaryP
+ *  reference to numOfBoundaryP variable
+ */
 void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP)
 {
 	try
@@ -1440,7 +1478,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 			{
 				kd = -1;
 				membranesFile >> id >> jd >> kd ;
-				if(kd>=0)numOfMembranes++;//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
+				if(kd>=0)numOfMembranes++;//last line of a file can contain only "\n", then kd thanks to reinitialization will indicate the problem via negative value
 			}
 		}
 		membranesFile.close();
@@ -1450,6 +1488,37 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 		exit( -1 );
 	}
 }
+/** Load full configuration
+ *
+ *  Load configuration data from file (initial position and velocity,
+ *  connection data if is and membrane data if is). Method starts with
+ *  reading position file than velocity elastic connection and membranes data files
+ *
+ *  @param position_cpp
+ *  pointer to position_cpp buffer
+ *  @param velocity_cpp
+ *  pointer to velocity_cpp buffer
+ *  @param elasticConnections
+ *  reference on pointer to elasticConnections buffer.
+ *  In this function we allocate memory for elasticConnections.
+ *  TODO: change it replace to owPhysicsFluidSimulator constructor.
+ *  @param numOfLiquidP
+ *  reference to numOfLiquidP variable
+ *  @param numOfElasticP
+ *  reference to numOfElasticP variable
+ *  @param numOfBoundaryP
+ *  reference to numOfBoundaryP variable
+ *  @param numOfElasticConnections
+ *  reference to numOfElasticConnections variable
+ *  @param numOfMembranes
+ *  reference to numOfMembranes variable
+ *  @param membraneData_cpp
+ *  pointer to membraneData_cpp buffer
+ *  @param particleMembranesList_cpp
+ *  pointer to particleMembranesList_cpp buffer
+ *  @param config
+ *  pointer to owConfigProrerty object it includes information about
+ */
 void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config)
 {
 
@@ -1569,24 +1638,85 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		exit( -1 );
 	}
 }
-
-void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
+template<typename T>
+std::ostream& binary_write(std::ostream& stream, const T& value){
+    return stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
+}
+/** Load configuration from simulation to files
+ *
+ *  This method is required for work with "load config to file" mode.
+ *  In this mode information about simulation's evolution is storing into a file
+ *  on every step (every time it reads data block with size = c).
+ *  If Sibernetic runs in this mode it means that
+ *  no calculation on OpenCL device runs.
+ *
+ *  @param position
+ *  pointer to position buffer
+ *  @param config
+ *  pointer to owConfigProrerty object it includes information about
+ *  @param connections
+ *  reference on pointer to elasticConnections buffer.
+ *  @param membranes
+ *  pointer to membranes buffer
+ *  @param firstIteration
+ *  if true it means that we first time record information
+ *  to a file and on first iteration it put to
+ *  the file info about dimensions of boundary box
+ *  NOTE: next 2 parameters are an experimental
+ *  @param filter_p
+ *  pointer to filter particle buffer, if you need storing only
+ *  a bunch of particles not all of them
+ *  @param size
+ *  size of filter_p array
+ */
+void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, std::vector<int> & filter, float * connections, int * membranes, bool firstIteration){
 	try{
 		ofstream positionFile;
 		if(firstIteration){
-			positionFile.open("./buffers/position_buffer.txt", std::ofstream::trunc);
+#if !EXPEREMENTAL_WRITE
+			positionFile.open("./buffers/position_buffer.txt", ios::trunc);
 			positionFile << config->xmin << "\n";
 			positionFile << config->xmax << "\n";
 			positionFile << config->ymin << "\n";
 			positionFile << config->ymax << "\n";
 			positionFile << config->zmin << "\n";
 			positionFile << config->zmax << "\n";
-			positionFile << numOfElasticP << "\n";
-			positionFile << numOfLiquidP << "\n";
+#else
+			positionFile.open("./buffers/position_buffer.txt", ios::trunc|ios::binary);
+			binary_write(positionFile,config->xmin);
+			binary_write(positionFile,config->xmax);
+			binary_write(positionFile,config->ymin);
+			binary_write(positionFile,config->ymax);
+			binary_write(positionFile,config->zmin);
+			binary_write(positionFile,config->zmax);
+			binary_write(positionFile,40000.0f);
+#endif
+			if(!filter.empty()){
+#if !EXPEREMENTAL_WRITE
+				positionFile << filter.size() << "\n";
+				positionFile << 0 << "\n";
+#else
+				binary_write(positionFile,(float)filter.size());
+				binary_write(positionFile,0.0f);
+#endif
+			}
+			else{
+#if !EXPEREMENTAL_WRITE
+				positionFile << numOfElasticP << "\n";
+				positionFile << numOfLiquidP << "\n";
+#else
+				binary_write(positionFile,numOfElasticP);
+				binary_write(positionFile,numOfLiquidP);
+#endif
+			}
 		}else{
-			positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
+#if !EXPEREMENTAL_WRITE
+			positionFile.open("./buffers/position_buffer.txt", ios::app);
+#else
+			positionFile.open("./buffers/position_buffer.txt", ios::app|ios::binary);
+#endif
 		}
-		if(size==0){
+		if(filter.empty()){
 			for(int i=0;i < config->getParticleCount(); i++){
 				if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
 					positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
@@ -1594,11 +1724,13 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			}
 		}else{
 			int i = 0;
-			int index = 0;
-			while(index!=size){
-				i = filter_p[index];
-				positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
-				index++;
+			for(unsigned int index = 0; index<filter.size(); index++){
+				i = filter[index];
+				//positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+				binary_write(positionFile,position[i * 4 + 0]);
+				binary_write(positionFile,position[i * 4 + 1]);
+				binary_write(positionFile,position[i * 4 + 2]);
+				binary_write(positionFile,position[i * 4 + 3]);
 			}
 		}
 		positionFile.close();
@@ -1622,6 +1754,27 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 //This function needed for visualiazation buffered data
 long position_index = 0;
 ifstream positionFile;
+/** Load configuration from file to simulation
+ *
+ *  This method is required for work with "load config from file" mode.
+ *  In this mode information about simulation's evolution is taking from file
+ *  on every step (every time it reads data block with size = PARTICLE_COUNT).
+ *  If Sibernetic runs in this mode it means that
+ *  no calculation on OpenCL device runs.
+ *
+ *  @param position
+ *  pointer to position buffer
+ *  @param connections
+ *  reference on pointer to elasticConnections buffer.
+ *  @param membranes
+ *  pointer to membranes buffer
+ *  @param config
+ *  pointer to owConfigProrerty object it includes information about
+ *  @param iteration
+ *  if iteration==0 it means that we first time record information
+ *  to a file and on first iteration it put to
+ *  the file info about dimensions of boundary box
+ */
 void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
 	try{
 		if(iteration == 0)
@@ -1692,6 +1845,13 @@ void owHelper::loadConfigurationFromFile_experemental(float *& position, float *
 		exit( -1 );
 	}
 }
+/** Print value of elapsed time from last handling to watch_report method.
+ *
+ *  This function is required for logging time consumption info.
+ *
+ *  @param str
+ *  represents output string format.
+ */
 void owHelper::watch_report( const char * str )
 {
 #if defined(_WIN32) || defined(_WIN64)

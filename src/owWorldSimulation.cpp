@@ -78,7 +78,6 @@ int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
 owConfigProrerty * loacalConfig;
-float accuracy = 100;//what it it?
 bool flag = false;
 bool sPause = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
@@ -130,45 +129,41 @@ void glPrint3D(float x, float y, float z, const char *s, void *font)
         glutBitmapCharacter(font, s[i]);
     }
 }
-
+/** Main displaying function
+ */
 void display(void)
 {
 	//Update Scene if not paused
+	int i,j,k;
+	int err_coord_cnt = 0;
 	if(!sPause){
 		if(load_from_file){
 			owHelper::loadConfigurationFromFile_experemental(p_cpp,ec_cpp,md_cpp, loacalConfig,iteration);
 			iteration++;
 		}else{
-			calculationTime = fluid_simulation->simulationStep();
+			calculationTime = fluid_simulation->simulationStep(); // Run one simulation step
+			int pib;
+			p_indexb = fluid_simulation->getParticleIndex_cpp();
+			for(i=0;i<loacalConfig->getParticleCount();i++)
+			{
+				pib = p_indexb[2*i + 1];
+				p_indexb[2*pib + 0] = i;
+			}
+			p_cpp = fluid_simulation->getPosition_cpp();
+			d_cpp = fluid_simulation->getDensity_cpp();
+			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
 		}
 		helper->refreshTime();
 	}
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	drawScene();
-
-	int i,j,k;
-	//glColor3ub(255,255,255);//yellow
-	if(!load_from_file)
-		p_indexb = fluid_simulation->getParticleIndex_cpp();
-	int pib;
-	int err_coord_cnt = 0;
-	if(!load_from_file)
-		for(i=0;i<loacalConfig->getParticleCount();i++)
-		{
-			pib = p_indexb[2*i + 1];
-			p_indexb[2*pib + 0] = i;
-		}
 	glPointSize(3.f);
 	glBegin(GL_POINTS);
-	if(!load_from_file){
-		p_cpp = fluid_simulation->getPosition_cpp();
-		d_cpp = fluid_simulation->getDensity_cpp();
-	}
 	float dc, rho;
+	//Display all particles
 	for(i = 0; i<loacalConfig->getParticleCount(); i++)
 	{
-		//printf("[%d]",i);
 		if(!load_from_file){
 			rho = d_cpp[ p_indexb[ i * 2 + 0 ] ];
 			if( rho < 0 ) rho = 0;
@@ -199,47 +194,38 @@ void display(void)
 			glPointSize(3.f);
 			glEnd();
 
-			if(!(	(p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=loacalConfig->xmax)&&
-						(p_cpp[i*4+1]>=0)&&(p_cpp[i*4+1]<=loacalConfig->ymax)&&
-						(p_cpp[i*4+2]>=0)&&(p_cpp[i*4+2]<=loacalConfig->zmax) ))
-				{
-			char label[50];
-			beginWinCoords();
-			glRasterPos2f (0.01F, 0.05F); 
-			if(err_coord_cnt<50){
-			sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
-			glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
-			if(err_coord_cnt==50) {
-			glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
-			err_coord_cnt++;
-			endWinCoords();
+			if(!((p_cpp[i*4  ]>=0)&&(p_cpp[i*4  ]<=loacalConfig->xmax)&&
+				(p_cpp[i*4+1]>=0)&&(p_cpp[i*4+1]<=loacalConfig->ymax)&&
+				(p_cpp[i*4+2]>=0)&&(p_cpp[i*4+2]<=loacalConfig->zmax) ))
+			{
+				char label[50];
+				beginWinCoords();
+				glRasterPos2f (0.01F, 0.05F);
+				if(err_coord_cnt<50){
+				sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4  ],p_cpp[i*4+1],p_cpp[i*4+2]);
+				glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
+				if(err_coord_cnt==50) {
+				glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
+				err_coord_cnt++;
+				endWinCoords();
 			}
 		}
 	}
-
-				
-	if(!load_from_file)
-		ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
-	
 	glLineWidth((GLfloat)0.1);
-
 	int ecc=0;//elastic connections counter;
-	//if(generateInitialConfiguration)
+	//Display elastic connections
 	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
 	{
 		//offset = 0
 		if((j=(int)ec_cpp[ 4 * i_ec + 0 ])>=0)
 		{
 			i = (i_ec / MAX_NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
-
 			if(i<j)	
 			{
 				glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
-
 				if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
 				{
 					glLineWidth((GLfloat)1.0);
-
 					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.45f) 
 					{
 						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
@@ -314,40 +300,15 @@ void display(void)
 			}
 		}
 	}
-
-	/*beginWinCoords();
-	char label[300];
-	glRasterPos2f (0.01F, 0.05F); 
-	glColor4b(255/2, 255/2, 0, 255/2);
-	sprintf(label,"elastic connections count: %d, elementary membranes count: %d",ecc,numOfMembranes);
-	glPrint( 1, 50, label, m_font);
-	endWinCoords();*/
-
-
-	//draw membranes
+	// Draw membranes
 	if(!load_from_file)
 		md_cpp = fluid_simulation->getMembraneData_cpp();
-
 	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
-
-	/**/
 	for(int i_m = 0; i_m < numOfMembranes; i_m++)
 	{
 		i = md_cpp [i_m*3+0];
 		j = md_cpp [i_m*3+1];
 		k = md_cpp [i_m*3+2];
-
-		/*
-		glBegin(GL_LINES);
-		glVertex3f( (p_cpp[i*4]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
-		glVertex3f( (p_cpp[j*4]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
-
-		glVertex3f( (p_cpp[j*4]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
-		glVertex3f( (p_cpp[k*4]-loacalConfig->xmax/2)*sc , (p_cpp[k*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[k*4+2]-loacalConfig->zmax/2)*sc );
-
-		glVertex3f( (p_cpp[k*4]-loacalConfig->xmax/2)*sc , (p_cpp[k*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[k*4+2]-loacalConfig->zmax/2)*sc );
-		glVertex3f( (p_cpp[i*4]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
-		glEnd();*/
 
 		glBegin(GL_LINES);
 		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-loacalConfig->zmax/2)*sc );
@@ -359,19 +320,16 @@ void display(void)
 		glVertex3f( ((p_cpp[j*4]+p_cpp[k*4]+4*p_cpp[i*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[j*4+1]+p_cpp[k*4+1]+4*p_cpp[i*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[j*4+2]+p_cpp[k*4+2]+4*p_cpp[i*4+2])/6-loacalConfig->zmax/2)*sc );
 		glVertex3f( ((p_cpp[i*4]+p_cpp[j*4]+4*p_cpp[k*4])/6-loacalConfig->xmax/2)*sc , ((p_cpp[i*4+1]+p_cpp[j*4+1]+4*p_cpp[k*4+1])/6-loacalConfig->ymax/2)*sc, ((p_cpp[i*4+2]+p_cpp[j*4+2]+4*p_cpp[k*4+2])/6-loacalConfig->zmax/2)*sc );
 		glEnd();
-	}/**/
-
-
-	//glEnd();//???
-
+	}
 	glLineWidth((GLfloat)1.0);
-
 	glutSwapBuffers();
 	helper->watch_report("graphics: \t\t%9.3f ms\n====================================\n");
 	renderTime = helper->get_elapsedTime();
 	totalTime += calculationTime + renderTime;
 	calculateFPS();
 }
+/** Drawing main scene and bounding box
+ */
 inline void drawScene()
 {
 	//       [7]----[6]
@@ -512,6 +470,8 @@ float current_sv ;
 static char label[1000];                            /* Storage for current string   */
 bool showInfo = true;
 bool showRuler = false;
+/** Render addition test information
+ */
 void renderInfo(int x, int y)
 {
 	beginWinCoords();
@@ -524,7 +484,10 @@ void renderInfo(int x, int y)
 																													 numOfBoundaryP,loacalConfig->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F); 
-		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
+		if(!load_from_file)
+			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
+		else
+			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, iteration,((float)iteration)*timeStep);
 		glPrint( 0 , 17 , label, m_font);
 
 
@@ -656,6 +619,7 @@ void renderInfo(int x, int y)
 	}
 	if(showRuler){
 		glColor3ub(255, 0, 0);
+		float accuracy = 100;//what it it?
 		float s_v = 1 * sc_scale * (1 /( accuracy * simulationScale));
 		float s_v_10 = s_v / 10;
 		std::stringstream ss;
@@ -696,6 +660,8 @@ void renderInfo(int x, int y)
 	}
 	endWinCoords();
 }
+/** Calculation of FPS
+ */
 void calculateFPS()
 {
     //  Increase frame count
@@ -725,15 +691,15 @@ void respond_mouse(int button, int state, int x, int y)
 		buttonState = 0;
 	old_x=x;
 	old_y=y;
-	if (button == 3)// mouse wheel up
+	if (button == 3)     // mouse wheel up
     {
-        sc *= 1.1f;// Zoom in
+        sc *= 1.1f;		 // Zoom in
 		sc_scale *= 1.1f;// Zoom in
     }
     else
-	if (button == 4)// mouse wheel down
+	if (button == 4)	 // mouse wheel down
     {
-        sc /= 1.1f;// Zoom out
+        sc /= 1.1f;		 // Zoom out
 		sc_scale /= 1.1f;// Zoom out
     }
 }
@@ -780,7 +746,11 @@ void mouse_motion (int x, int y)
 }
 
 extern float *muscle_activation_signal_cpp;
-
+void Cleanup(int exitCode){
+	delete fluid_simulation;
+	delete helper;
+	exit (exitCode);
+}
 void RespondKey(unsigned char key, int x, int y)
 {
 	switch(key)
@@ -789,11 +759,22 @@ void RespondKey(unsigned char key, int x, int y)
 		owHelper::suffix = "";
 		helper->refreshTime();
 		fluid_simulation->reset();
+		sPause = false;
 		break;
 	case '2':
 		owHelper::suffix = "_membranes_demo";
 		helper->refreshTime();
 		fluid_simulation->reset();
+		sPause = false;
+		break;
+	case '\033':// Escape quits
+	case 'Q':   // Q quits
+	case 'q':   // q quits
+		Cleanup(EXIT_SUCCESS);
+		break;
+	case ' ':
+		sPause = !sPause;
+		std::cout << "\nSimulation Is Paused" << std::endl;
 		break;
 	}
 
@@ -809,9 +790,10 @@ void RespondKey(unsigned char key, int x, int y)
 }
 
 //Auxiliary function
-/* There can be only one idle() callback function. In an 
-   animation, this idle() function must update not only the 
-   main window but also all derived subwindows */ 
+/** There can be only one idle() callback function. In an
+ *  animation, this idle() function must update not only the
+ *  main window but also all derived subwindows
+ */
 void idle (void) 
 { 
   glutSetWindow (winIdMain); 
@@ -869,16 +851,22 @@ void init(void){
 }
 void sighandler(int s){
 	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
-	delete fluid_simulation;
-	delete helper;
-	exit(EXIT_SUCCESS);
+	Cleanup(EXIT_SUCCESS);
 }
-
+/** Init & start simulation and graphic component if with_graphics==true
+ *
+ * 	@param argc
+ * 	command line arguments going throw the main function
+ * 	@param with_graphics
+ * 	Flag indicates that simulation will be run with graphic or not
+ * 	@param load_to
+ * 	Flag indicates that simulation will in "load configuration to file" mode
+ */
 void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
 	helper = new owHelper();
 	if(!load_from_file){
-		int dev_type = CPU;
+		DEVICE dev_type = CPU;
 		for(int i = 1; i<argc; i++){
 			if(strncmp(argv[i], "device=", 7) == 0){
 				if(strstr(argv[i], "gpu") != NULL || strstr(argv[i], "GPU") != NULL)
@@ -921,13 +909,17 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		if(!load_from_file){
-			delete fluid_simulation;
-			delete helper;
+			Cleanup(EXIT_SUCCESS);
 		}
 	}else{
 		while(1){
 			fluid_simulation->simulationStep(load_to);
 			helper->refreshTime();
+			if(load_to && fluid_simulation->getIteration() == 40000){
+				delete fluid_simulation;
+				delete helper;
+				exit(EXIT_SUCCESS);
+			}
 		}
 	}
     exit(EXIT_SUCCESS);

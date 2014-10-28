@@ -31,28 +31,26 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#ifndef OW_OPENCL_CONSTANT_H
-#define OW_OPENCL_CONSTANT_H
+#ifndef OW_WORLD_SIMULATION_H
+#define OW_WORLD_SIMULATION_H
 
-#define MAX_NEIGHBOR_COUNT 32
+#if defined(_WIN32) || defined (_WIN64)
+	#include <GL/glew.h>
+	#include <GL/wglew.h>
+#else
+	#include <string.h>
+#endif
+#if defined(__APPLE__) || defined(MACOSX)
+    #include <GLUT/glut.h>
+#else
+    #include <GL/freeglut.h>
+#endif
 
-#define MAX_MEMBRANES_INCLUDING_SAME_PARTICLE 7
+#include "owPhysicsFluidSimulator.h"
+#include "VectorMath.h"
 
-#define LIQUID_PARTICLE 1
-#define ELASTIC_PARTICLE 2
-#define BOUNDARY_PARTICLE 3
 
-#define NO_PARTICLE_ID -1
-#define NO_CELL_ID -1
-#define NO_DISTANCE -1.0f
-
-#define QUEUE_EACH_KERNEL 1
-
-#define INTEL_OPENCL_DEBUG 0
-
-const int local_NDRange_size = 256;
-
-#define CPU 0
-#define GPU 1
-
-#endif // #ifndef OW_OPENCL_CONSTANT_H
+#define TIMER_INTERVAL 30  			//this is the interval between calls to timer func (in milliseconds)
+#define ROTATION_STEP_ANGLE 1       //this is the step angle that the mesh will rotate every SOME_INTERVAL milliseconds
+void run(int argc, char** argv, const bool with_graphics = true, const bool load_to = false);
+#endif //OW_WORLD_SIMULATION_H

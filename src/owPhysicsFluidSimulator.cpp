@@ -40,13 +40,14 @@
 
 float calcDelta();
 extern const float delta = calcDelta();
-int numOfElasticConnections = 0;
-int numOfLiquidP = 0;
-int numOfElasticP = 0;
-int numOfBoundaryP = 0;
-int numOfMembranes = 0;
+int numOfElasticConnections = 0; // Number of elastic connection TODO: move this to owConfig class
+int numOfLiquidP = 0;			 // Number of liquid particles TODO: move this to owConfig class
+int numOfElasticP = 0;			 // Number of liquid particles TODO: move this to owConfig class
+int numOfBoundaryP = 0;			 // Number of boundary particles TODO: move this to owConfig class
+int numOfMembranes = 0;			 // Number of membranes TODO: move this to owConfig class
 extern float * muscle_activation_signal_cpp;
-int iter_step = 10;
+int iter_step = 10;				 // Count of iteration which will be skipped before logging configuration to file
+								 // NOTE: this using only in "load config to file" mode
 
 //mv
 //need to find a more elegant design for this - at the moment the use of a global
@@ -54,7 +55,23 @@ int iter_step = 10;
 #ifdef PY_NETWORK_SIMULATION
 PyramidalSimulation simulation;
 #endif
-owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev_type)
+std::vector<int> memParticle;
+void fillMemId(int * particleMembranesList_cpp){
+	for(int i=0;i < numOfElasticP ;i++){
+		if(particleMembranesList_cpp[MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * i + 0]!=-1){
+			memParticle.push_back(i);
+		}
+	}
+	std::cout << memParticle.size() << std::endl;
+}
+/** Constructor method for owPhysicsFluidSimulator.
+ *
+ *  @param helper
+ *  pointer to owHelper object with helper function.
+ *  @param dev_type
+ *  defines preferable device type for current configuration
+ */
+owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,DEVICE dev_type)
 {
 	//int generateInitialConfiguration = 1;//1 to generate initial configuration, 0 - load from file
 
@@ -63,11 +80,11 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev
 		config = new owConfigProrerty();
 #if generateWormBodyConfiguration
 		config->xmin = 0.f;
-		config->xmax = 30.0*h;
+		config->xmax = 30.0f*h;
 		config->ymin = 0.f;
-		config->ymax = 20.0*h;
+		config->ymax = 20.0f*h;
 		config->zmin = 0.f;
-		config->zmax = 200.0*h;
+		config->zmax = 200.0f*h;
 #endif
 		config->setDeviceType(dev_type);
 		if(generateWormBodyConfiguration)
@@ -89,8 +106,14 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev
 		position_cpp = new float[ 4 * config->getParticleCount() ];
 		velocity_cpp = new float[ 4 * config->getParticleCount() ];
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
-		if(numOfMembranes<=0) membraneData_cpp = NULL; else membraneData_cpp = new int [numOfMembranes*3];
-		if(numOfElasticP<=0)  particleMembranesList_cpp = NULL; else particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
+		if(numOfMembranes<=0)
+			membraneData_cpp = NULL;
+		else
+			membraneData_cpp = new int [numOfMembranes*3];
+		if(numOfElasticP<=0)
+			particleMembranesList_cpp = NULL;
+		else
+			particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
 		for(int i=0;i<MUSCLE_COUNT;i++)
 		{
 			muscle_activation_signal_cpp[i] = 0.f;
@@ -106,7 +129,6 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev
 		else 
 		// LOAD FROM FILE	
 		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
-											
 		if(numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
@@ -117,7 +139,12 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,const int dev
 		exit( -1 );
 	}
 }
-
+/** Reset simulation
+ *
+ *  Restart simulation with new or current simulation configuration.
+ *  It redefines all required data buffers and restart owOpenCLSolver
+ *  by run owOpenCLSolver::reset(...).
+ */
 void owPhysicsFluidSimulator::reset(){
 	iterationCount = 0;
 	numOfBoundaryP = 0;
@@ -127,11 +154,11 @@ void owPhysicsFluidSimulator::reset(){
 	numOfElasticConnections = 0;
 #if generateWormBodyConfiguration
 		config->xmin = 0.f;
-		config->xmax = 30.0*h;
+		config->xmax = 30.0f*h;
 		config->ymin = 0.f;
-		config->ymax = 20.0*h;
+		config->ymax = 20.0f*h;
 		config->zmin = 0.f;
-		config->zmax = 200.0*h;
+		config->zmax = 200.0f*h;
 #endif
 	if(generateWormBodyConfiguration)
 	// GENERATE THE SCENE
@@ -171,18 +198,32 @@ void owPhysicsFluidSimulator::reset(){
 	// LOAD FROM FILE
 	owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
 	if(numOfElasticP != 0){
-		ocl_solver->refresh(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
+		ocl_solver->reset(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 	}else
-		ocl_solver->refresh(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
+		ocl_solver->reset(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
 }
-
+/** Run one simulation step
+ *
+ *  Run simulation step in pipeline manner.
+ *  It starts with neighbor search algorithm than
+ *  physic simulation algorithms: PCI SPH [1],
+ *  elastic matter simulation, boundary handling [2],
+ *  membranes handling and finally numerical integration.
+ *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
+ *  [2] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner,
+ *      Boundary Handling and Adaptive Time-stepping for PCISPH
+ *      Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
+ *
+ *  @param looad_to
+ *  If it's true than Sibernetic works "load simulation data in file" mode.
+ */
 double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 {
-	//PCISPH algorithm
-	int iter = 0;//PCISPH prediction-correction iterations conter
+	int iter = 0;//PCISPH prediction-correction iterations counter
+                 //
 	// now we will implement sensory system of the c. elegans worm, mechanosensory one
-	// hrre we plan to imeplememtn the parto of openworm sensory sysmtem, which is still one of the grand chanllenges of this project
-	// 
+	// here we plan to implement the part of openworm sensory system, which is still
+	// one of the grand challenges of this project
 
 	//if(iterationCount==0) return 0.0;//uncomment this line to stop movement of the scene
 
@@ -190,7 +231,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 	printf("\n[[ Step %d ]]\n",iterationCount);
 	try{
 		//SEARCH FOR NEIGHBOURS PART
-//		ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
+		//ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
 		ocl_solver->_runHashParticles(config);							helper->watch_report("_runHashParticles: \t%9.3f ms\n");
 		ocl_solver->_runSort(config);									helper->watch_report("_runSort: \t\t%9.3f ms\n");
 		ocl_solver->_runSortPostPass(config);							helper->watch_report("_runSortPostPass: \t%9.3f ms\n");
@@ -228,10 +269,10 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		printf("------------------------------------\n");
 		if(load_to){
 			if(iterationCount == 0){
-				owHelper::loadConfigurationToFile(position_cpp,  config,elasticConnectionsData_cpp,membraneData_cpp,true);
+				owHelper::loadConfigurationToFile(position_cpp, config, memParticle, elasticConnectionsData_cpp,membraneData_cpp,true);
 			}else{
 				if(iterationCount % iter_step == 0){
-					owHelper::loadConfigurationToFile(position_cpp, config, NULL, NULL, false);
+					owHelper::loadConfigurationToFile(position_cpp, config, memParticle, NULL, NULL, false);
 				}
 			}
 		}
@@ -240,8 +281,8 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 #ifdef PY_NETWORK_SIMULATION
         //mv
         vector<float> muscle_vector = simulation.run();
-        for(int i=0; i<MUSCLE_COUNT; i++){
-        	for (long index = 0; index < muscle_vector.size(); index++){
+        for(int i=0; i < MUSCLE_COUNT; i++){
+        	for (unsigned int index = 0; index < muscle_vector.size(); index++){
         		muscle_activation_signal_cpp[index] = muscle_vector[index];
         	}
         }
@@ -268,7 +309,16 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 	delete config;
 	delete ocl_solver;
 }
-
+/** Calculating delta parameter.
+ *
+ *  "In these situations,
+ *  the SPH equations result in falsified values. To circumvent that problem, we pre-
+ *  compute a single scaling factor δ according to the following formula [1, eq. 8] which is
+ *  evaluated for a prototype particle with a filled neighborhood. The resulting value
+ *  is then used for all particles. Finally, we end up with the following equations
+ *  which are used in the PCISPH method" [1].
+ *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
+ */
 float calcDelta()
 {
 	float x[] = { 1, 1, 0,-1,-1,-1, 0, 1, 1, 1, 0,-1,-1,-1, 0, 1, 1, 1, 0,-1,-1,-1, 0, 1, 2,-2, 0, 0, 0, 0, 0, 0 };
@@ -282,14 +332,15 @@ float calcDelta()
 	float v_y = 0.f;
 	float v_z = 0.f;
 	float dist;
-	float particleRadius = pow(mass/rho0,1.f/3.f);  // the value is about 0.01 instead of 
-	float h_r_2;									// my previous estimate = simulationScale*h/2 = 0.0066
+	float particleRadius = pow(mass/rho0,1.f/3.f);  // It's equal to simulationScale
+													// TODO: replace it with simulation scale
+	float h_r_2;
 
     for (int i = 0; i < MAX_NEIGHBOR_COUNT; i++)
     {
-		v_x = x[i] * 0.8f * particleRadius;
-		v_y = y[i] * 0.8f * particleRadius;
-		v_z = z[i] * 0.8f * particleRadius;
+		v_x = x[i] * 1.f * particleRadius;
+		v_y = y[i] * 1.f * particleRadius;
+		v_z = z[i] * 1.f * particleRadius;
 
         dist = sqrt(v_x*v_x+v_y*v_y+v_z*v_z);//scaled, right?
 
