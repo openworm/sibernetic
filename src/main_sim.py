@@ -62,7 +62,7 @@ class c302_simulation():
     
     values = []
 
-    def __init__(self, activity_file):
+    def __init__(self, activity_file='configuration/test/c302/c302_B_Muscles.muscles.activity.dat'):
         self.step = 0
         data = open(activity_file, 'r')
         for line in data:
@@ -71,10 +71,13 @@ class c302_simulation():
             for v in vs:
                 vv.append(float(v))
             self.values.append(vv)
+            
+        print("Loaded a list of %i activity traces at %i time points"%(len(self.values[0]), len(self.values)))
 
     def run(self,do_plot = True):
-        v = self.values[self.step]
+        v = self.values[self.step][0:95]
         self.step += 1
+        print("Returning: %s"%v)
         return list(v)  
         
 
