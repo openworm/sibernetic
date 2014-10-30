@@ -8,6 +8,38 @@ muscle_row_count = 24
 
 time_per_step = 0.000005  #  ms
 
+quadrant0 = 'MDR'
+quadrant1 = 'MVR'
+quadrant2 = 'MVL'
+quadrant3 = 'MDL'
+
+colours = {}
+colours[quadrant0] = '#ff0000'
+colours[quadrant1] = '#00ff00'
+colours[quadrant2] = '#0000ff'
+colours[quadrant3] = '#ffff00'
+
+"""
+
+Get list of muscle names in same order as waves generated below. 
+Based on info here:
+https://github.com/openworm/Smoothed-Particle-Hydrodynamics/blob/3da1edc3b018c2e5c7c1a25e2f8d44b54b1a1c47/src/owWorldSimulation.cpp#L475
+
+"""
+def get_muscle_names():
+    names = []
+    for i in range(muscle_row_count):
+        names.append("%s%s"%(quadrant0, i+1 if i>8 else ("0%i"%(i+1))))
+    for i in range(muscle_row_count):
+        names.append("%s%s"%(quadrant1, i+1 if i>8 else ("0%i"%(i+1))))
+    for i in range(muscle_row_count):
+        names.append("%s%s"%(quadrant2, i+1 if i>8 else ("0%i"%(i+1))))
+    for i in range(muscle_row_count):
+        names.append("%s%s"%(quadrant3, i+1 if i>8 else ("0%i"%(i+1))))
+    
+    return names
+
+
 def parallel_waves(n=muscle_row_count, #26 for our first test?
                    step=0, 
                    phi=math.pi,
@@ -62,8 +94,9 @@ class c302_simulation():
     
     values = []
 
-    def __init__(self, activity_file='configuration/test/c302/c302_B_Muscles.muscles.activity.dat'):
+    def __init__(self, activity_file='configuration/test/c302/c302_B_Muscles.muscles.activity.dat', dt=0.1):
         self.step = 0
+        self.dt = dt
         data = open(activity_file, 'r')
         for line in data:
             vv = []
@@ -74,10 +107,18 @@ class c302_simulation():
             
         print("Loaded a list of %i activity traces at %i time points"%(len(self.values[0]), len(self.values)))
 
-    def run(self,do_plot = True):
-        v = self.values[self.step][0:95]
+    def run(self):
+        t = step*time_per_step
+        
+        FUDGE_FACTOR = 1000
+        
+        index = int(FUDGE_FACTOR * t/self.dt)
+        if (index<len(self.values)):
+            v = self.values[index][1:96]
+        else:
+            v = np.zeros(96)
+        #print("Returning values at time: %f ms, step: %i (index %i): [%f, %f, %f, ...]"%(t, self.step, index, v[0], v[1], v[2]))
         self.step += 1
-        print("Returning: %s"%v)
         return list(v)  
         
 
@@ -88,37 +129,56 @@ if __name__ == '__main__':
     print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
     
     ms = muscle_simulation()
-    #ms = c302_simulation('../configuration/test/c302/c302_B_Muscles.activity.dat')
+    #ms = c302_simulation('../configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
     
-    num_plots = 5
-    steps = 20000
-    m0 = []
-    m1 = []
+    max_time = 0.5 # ms
+    num_plots = 4
+    
+    activation = {}
+    m0='%s01'%quadrant0
+    m1='%s01'%quadrant1
+    m2='%s01'%quadrant2
+    m3='%s01'%quadrant3
+    activation[m0] = []
+    activation[m1] = []
+    activation[m2] = []
+    activation[m3] = []
     times = []
     
-    
-    for step in range(num_plots*steps):
+    num_steps = int(max_time/time_per_step)
+    steps_between_plots = int(num_steps/num_plots)
+    for step in range(num_steps):
         t = step*time_per_step
         l = ms.run()
-        m0.append(l[0])
-        m1.append(l[muscle_row_count])
+        activation[m0].append(l[0])
+        activation[m1].append(l[muscle_row_count])
+        activation[m2].append(l[muscle_row_count*2])
+        activation[m3].append(l[muscle_row_count*3])
         times.append(t)
-        if step==0 or step%steps == 0:
+        if step==0 or step%steps_between_plots == 0:
             print "At step %s (%s ms)"%(step, t)
             figV = plt.figure()
             figV.suptitle("Muscle activation waves at step %s (%s ms)"%(step, t))
             plV = figV.add_subplot(111, autoscale_on=True)
-            plV.plot(l[0:muscle_row_count], solid_joinstyle ='round', solid_capstyle ='round', color='#ff0000', linestyle='-', marker='o')
-            plV.plot(l[muscle_row_count:muscle_row_count*2], solid_joinstyle ='round', solid_capstyle ='round', color='#00ff00', linestyle='-', marker='o')
+            
+            plV.plot(l[0:muscle_row_count], label='%s*'%quadrant0,  color=colours[quadrant0], linestyle='-', marker='o')
+            plV.plot(l[muscle_row_count:2*muscle_row_count], label='%s*'%quadrant1,  color=colours[quadrant1], linestyle='-', marker='o')
+            plV.plot(l[2*muscle_row_count:3*muscle_row_count], label='%s*'%quadrant2,  color=colours[quadrant2], linestyle='-')
+            plV.plot(l[3*muscle_row_count:4*muscle_row_count], label='%s*'%quadrant3,  color=colours[quadrant3], linestyle='-')
+            
+            plV.legend()
     
     
     fig0 = plt.figure()
     fig0.suptitle("Muscle activation waves vs time")
     pl0 = fig0.add_subplot(111, autoscale_on=True)
-    pl0.plot(times, m0,solid_joinstyle ='round', solid_capstyle ='round', color='#ff0000', linestyle='-')
-    pl0.plot(times, m1,solid_joinstyle ='round', solid_capstyle ='round', color='#ffff00', linestyle='-')
-    #print m0
-    #pl0.plot(m1.values(), m1.keys(), solid_joinstyle ='round', solid_capstyle ='round', color='#ffff00', linestyle='-')
+    pl0.plot(times, activation[m0], label=m0,  color=colours[quadrant0], linestyle='-')
+    pl0.plot(times, activation[m1], label=m1, color=colours[quadrant1], linestyle='-')
+    pl0.plot(times, activation[m2], label=m2, color=colours[quadrant2], linestyle='--')
+    pl0.plot(times, activation[m3], label=m3, color=colours[quadrant3], linestyle='--')
+    
+    pl0.legend()
 
     plt.show()
+    
     
