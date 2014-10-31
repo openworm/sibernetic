@@ -6,7 +6,7 @@ from pylab import *
 
 muscle_row_count = 24
 
-time_per_step = 0.000005  #  ms
+time_per_step = 0.000005  #  s
 
 quadrant0 = 'MDR'
 quadrant1 = 'MVR'
@@ -14,10 +14,10 @@ quadrant2 = 'MVL'
 quadrant3 = 'MDL'
 
 colours = {}
-colours[quadrant0] = '#ff0000'
+colours[quadrant0] = '#000000'
 colours[quadrant1] = '#00ff00'
 colours[quadrant2] = '#0000ff'
-colours[quadrant3] = '#ffff00'
+colours[quadrant3] = '#ff0000'
 
 """
 
@@ -130,8 +130,9 @@ if __name__ == '__main__':
     
     ms = muscle_simulation()
     #ms = c302_simulation('../configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
+    #ms = c302_simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
     
-    max_time = 0.5 # ms
+    max_time = 0.5 # s
     num_plots = 4
     
     activation = {}
@@ -156,9 +157,9 @@ if __name__ == '__main__':
         activation[m3].append(l[muscle_row_count*3])
         times.append(t)
         if step==0 or step%steps_between_plots == 0:
-            print "At step %s (%s ms)"%(step, t)
+            print "At step %s (%s s)"%(step, t)
             figV = plt.figure()
-            figV.suptitle("Muscle activation waves at step %s (%s ms)"%(step, t))
+            figV.suptitle("Muscle activation waves at step %s (%s s)"%(step, t))
             plV = figV.add_subplot(111, autoscale_on=True)
             
             plV.plot(l[0:muscle_row_count], label='%s*'%quadrant0,  color=colours[quadrant0], linestyle='-', marker='o')
