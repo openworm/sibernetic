@@ -94,7 +94,7 @@ class c302_simulation():
     
     values = []
 
-    def __init__(self, activity_file='configuration/test/c302/c302_B_Muscles.muscles.activity.dat', dt=0.1):
+    def __init__(self, activity_file='configuration/test/c302/c302_B_Muscles.muscles.activity.dat', dt=0.0001):
         self.step = 0
         self.dt = dt
         data = open(activity_file, 'r')
@@ -106,18 +106,19 @@ class c302_simulation():
             self.values.append(vv)
             
         print("Loaded a list of %i activity traces at %i time points"%(len(self.values[0]), len(self.values)))
+        
 
     def run(self):
-        t = step*time_per_step
-        
-        FUDGE_FACTOR = 1000
-        
-        index = int(FUDGE_FACTOR * t/self.dt)
+        t = self.step*time_per_step
+        index = int(t/self.dt)+500
         if (index<len(self.values)):
-            v = self.values[index][1:96]
+            v = self.values[index][1:48]
+            v.append(0)
+            v.extend(self.values[index][48:])
         else:
             v = np.zeros(96)
-        #print("Returning values at time: %f ms, step: %i (index %i): [%f, %f, %f, ...]"%(t, self.step, index, v[0], v[1], v[2]))
+        print("Returning %i values at time: %f s, step: %i (index %i): [%f, %f, %f, ...]"%(len(v), t, self.step, index, v[0], v[1], v[2]))
+        #print v
         self.step += 1
         return list(v)  
         
@@ -130,16 +131,18 @@ if __name__ == '__main__':
     
     ms = muscle_simulation()
     #ms = c302_simulation('../configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
-    #ms = c302_simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
+    ms = c302_simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
     
     max_time = 0.5 # s
     num_plots = 4
     
     activation = {}
-    m0='%s01'%quadrant0
-    m1='%s01'%quadrant1
-    m2='%s01'%quadrant2
-    m3='%s01'%quadrant3
+    row = '11'
+    row_int=int(row)
+    m0='%s%s'%(quadrant0,row)
+    m1='%s%s'%(quadrant1,row)
+    m2='%s%s'%(quadrant2,row)
+    m3='%s%s'%(quadrant3,row)
     activation[m0] = []
     activation[m1] = []
     activation[m2] = []
@@ -151,10 +154,10 @@ if __name__ == '__main__':
     for step in range(num_steps):
         t = step*time_per_step
         l = ms.run()
-        activation[m0].append(l[0])
-        activation[m1].append(l[muscle_row_count])
-        activation[m2].append(l[muscle_row_count*2])
-        activation[m3].append(l[muscle_row_count*3])
+        activation[m0].append(l[row_int])
+        activation[m1].append(l[row_int+muscle_row_count])
+        activation[m2].append(l[row_int+muscle_row_count*2])
+        activation[m3].append(l[row_int+muscle_row_count*3])
         times.append(t)
         if step==0 or step%steps_between_plots == 0:
             print "At step %s (%s s)"%(step, t)
