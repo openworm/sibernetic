@@ -110,14 +110,14 @@ class c302_simulation():
 
     def run(self):
         t = self.step*time_per_step
-        index = int(t/self.dt)+500
+        index = int(t/self.dt)       #+1500
         if (index<len(self.values)):
             v = self.values[index][1:48]
             v.append(0)
             v.extend(self.values[index][48:])
         else:
             v = np.zeros(96)
-        print("Returning %i values at time: %f s, step: %i (index %i): [%f, %f, %f, ...]"%(len(v), t, self.step, index, v[0], v[1], v[2]))
+        #print("Returning %i values at time: %f s, step: %i (index %i): [%f, %f, %f, ...]"%(len(v), t, self.step, index, v[0], v[1], v[2]))
         #print v
         self.step += 1
         return list(v)  
