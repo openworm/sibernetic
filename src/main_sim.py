@@ -131,7 +131,7 @@ if __name__ == '__main__':
     
     ms = muscle_simulation()
     #ms = c302_simulation('../configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
-    ms = c302_simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
+    #ms = c302_simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
     
     max_time = 0.5 # s
     num_plots = 4
