@@ -353,9 +353,9 @@ float calcDelta()
 
     for (int i = 0; i < MAX_NEIGHBOR_COUNT; i++)
     {
-		v_x = x[i] * 1.f * particleRadius;
-		v_y = y[i] * 1.f * particleRadius;
-		v_z = z[i] * 1.f * particleRadius;
+		v_x = x[i] * 0.8f/*1.f*/ * particleRadius; // return it back to 0.8 it's more stable
+		v_y = y[i] * 0.8f/*1.f*/ * particleRadius; // return it back to 0.8
+		v_z = z[i] * 0.8f/*1.f*/ * particleRadius; // return it back to 0.8
 
         dist = sqrt(v_x*v_x+v_y*v_y+v_z*v_z);//scaled, right?
 
