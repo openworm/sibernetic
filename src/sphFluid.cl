@@ -533,7 +533,8 @@ __kernel void pcisph_computeForcesAndInitPressure(
 								  float gravity_z,
 								  __global float4 * position,
 								  __global uint2 * particleIndex,
-								  int PARTICLE_COUNT
+								  int PARTICLE_COUNT,
+								  float mass
 								  //__global float4 * elasticConnectionsData
 								  )
 {
@@ -553,7 +554,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 
 	float4 acceleration_i;// = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
 	float2 nm;
-	float r_ij;
+	float r_ij, r_ij2;
 	int nc = 0;//neighbor counter
 	int jd;
 	float4 accel_viscosityForce = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
@@ -566,6 +567,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 		if( (jd = NEIGHBOR_MAP_ID(neighborMap[ idx + nc])) != NO_PARTICLE_ID )
 		{
 			r_ij = NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc] );
+			r_ij2 = r_ij * r_ij;
 			if(r_ij<hScaled)
 			{
 				//neighbor_cnt++;
@@ -585,12 +587,15 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				//0.09 for experiments with water drops
 				//-0.0133
 				// surface tension force
-				accel_surfTensForce += surfTensCoeff * (sortedPosition[id]-sortedPosition[jd]); // Caculating surface tension forces impact to acceleration
+				//accel_surfTensForce += surfTensCoeff * (sortedPosition[id]-sortedPosition[jd]); // Caculating surface tension forces impact to acceleration
 																								// formula (16) [5]
+				float surffKern = (hScaled2 -r_ij2) * (hScaled2 -r_ij2) * (hScaled2 -r_ij2);		
+				accel_surfTensForce += -1.7e-09f /*-1.9e-09f*/ * surfTensCoeff * surffKern * (sortedPosition[id]-sortedPosition[jd]);
 			}
 		}
 	}while(  ++nc < MAX_NEIGHBOR_COUNT );
 	accel_surfTensForce.w = 0.f;
+	accel_surfTensForce /= mass;
 	accel_viscosityForce *= mu * mass_mult_divgradWviscosityCoefficient / rho[id];
 	// apply external forces
 	acceleration_i = accel_viscosityForce;

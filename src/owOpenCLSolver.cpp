@@ -609,6 +609,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
 	pcisph_computeForcesAndInitPressure.setArg(14, position );
 	pcisph_computeForcesAndInitPressure.setArg(15, particleIndex );
 	pcisph_computeForcesAndInitPressure.setArg(16, config->getParticleCount() );
+	pcisph_computeForcesAndInitPressure.setArg(17, mass );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeForcesAndInitPressure, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
