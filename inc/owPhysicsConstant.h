@@ -94,7 +94,7 @@ const float timeStep = 5.0e-06f;                    // Time step of simulation (
                                                     // [1] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
                                                     // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
 
-const float simulationScale = pow(mass,1.f/3.f)/pow(rho0,1.f/3.f); // Simulation scale coefficient. It means that N * simulationScale
+const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);//pow(mass,1.f/3.f)/pow(rho0,1.f/3.f); // Simulation scale coefficient. It means that N * simulationScale
                                                                    // converts from simulation scale to meters N / simulationScale convert from meters simulation scale
                                                                    // If you want to take real value of distance in meters you need multiple on simulation scale
                                                                    // NOTE: simulationScale depends from mass of particle. If we place one particle
