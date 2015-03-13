@@ -269,7 +269,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 					if(jd>=-1)
 					{
 						elasticConnections[ 4 * i + 0 ] = jd;
-						elasticConnections[ 4 * i + 1 ] = rij0;
+						elasticConnections[ 4 * i + 1 ] = rij0 * simulationScale;
 						elasticConnections[ 4 * i + 2 ] = val1;
 						elasticConnections[ 4 * i + 3 ] = val2;
 						i++;
