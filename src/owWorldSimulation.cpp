@@ -704,7 +704,14 @@ GLvoid resize(GLsizei width, GLsizei height){
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
-void init(void){
+inline void init(void){
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_COLOR_MATERIAL);
+	glEnable(GL_NORMALIZE);
+	glEnable(GL_AUTO_NORMAL);
+	float ambient[4] = {1.0, 1.0, 1.0, 1};
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
 	glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
 	glClearDepth(1.0f);
 
@@ -761,13 +768,6 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutInitWindowPosition(100, 100);
 		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
 		glutIdleFunc (idle); 
-		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
-		glEnable(GL_COLOR_MATERIAL);
-		glEnable(GL_NORMALIZE);
-		glEnable(GL_AUTO_NORMAL);
-		float ambient[4] = {1.0, 1.0, 1.0, 1};
-		glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
 		//Init physic Simulation
 		init();
 		glutDisplayFunc(display);
