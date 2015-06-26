@@ -54,8 +54,8 @@ using namespace std;
 int PyramidalSimulation::setup(){
 
   char python_module[] = "main_sim";
-  char pyClass[] = "muscle_simulation";
-  //char pyClass[] = "c302_simulation";
+  //char pyClass[] = "muscle_simulation";
+  char pyClass[] = "c302_simulation";
 
   // Initialize the Python interpreter
   Py_Initialize();
