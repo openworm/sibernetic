@@ -63,6 +63,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,DEVICE dev_ty
 		iterationCount = 0;
 		config = new owConfigProrerty();
 		config->setDeviceType(dev_type);
+		config->integration_method = EULER;//LEAPFROG;
 		// LOAD FROM FILE
 		owHelper::preLoadConfiguration(numOfMembranes, config, numOfLiquidP, numOfElasticP, numOfBoundaryP);
 
@@ -91,8 +92,8 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,DEVICE dev_ty
 		//The buffers listed below are only for usability and debug
 		density_cpp = new float[ 1 * config->getParticleCount() ];
 		particleIndex_cpp = new unsigned int[config->getParticleCount() * 2];
-		
-		// LOAD FROM FILE	
+
+		// LOAD FROM FILE
 		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
 
 		if(numOfElasticP != 0){
@@ -185,6 +186,10 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		ocl_solver->_runIndexPostPass(config);							helper->watch_report("_runIndexPostPass: \t%9.3f ms\n");
 		ocl_solver->_runFindNeighbors(config);							helper->watch_report("_runFindNeighbors: \t%9.3f ms\n");
 		//PCISPH PART
+		if(config->integration_method == LEAPFROG){ // in this case we should remmember value of position on stem i - 1
+			//Calc next time (t+dt) positions x(t+dt)
+			ocl_solver->_run_pcisph_integrate(iterationCount,0/*=positions_mode*/, config);
+		}
 		ocl_solver->_run_pcisph_computeDensity(config);
 		ocl_solver->_run_pcisph_computeForcesAndInitPressure(config);
 		ocl_solver->_run_pcisph_computeElasticForces(config);
@@ -197,7 +202,13 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 			iter++;
 		}while( iter < maxIteration );
 
-		ocl_solver->_run_pcisph_integrate(iterationCount, config);		helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+		//and finally calculate v(t+dt)
+		if(config->integration_method == LEAPFROG){
+			ocl_solver->_run_pcisph_integrate(iterationCount,1/*=velocities_mode*/, config);		helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+		}
+		else{
+			ocl_solver->_run_pcisph_integrate(iterationCount, 2,config);		helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+		}
 		//Handling of Interaction with membranes
 		if(numOfMembranes > 0){
 			ocl_solver->_run_clearMembraneBuffers(config);

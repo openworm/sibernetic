@@ -40,7 +40,7 @@
 extern int numOfElasticP;
 extern int numOfMembranes;
 
-int myCompare( const void * v1, const void * v2 ); 
+int myCompare( const void * v1, const void * v2 );
 
 /** Constructor of class owOpenCLSolver
  *
@@ -81,7 +81,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		create_ocl_kernel("hashParticles", hashParticles);
 		create_ocl_kernel("indexx", indexx);
 		create_ocl_kernel("sortPostPass", sortPostPass);
-		// Additional PCISPH-related kernels 
+		// Additional PCISPH-related kernels
 		create_ocl_kernel("pcisph_computeForcesAndInitPressure", pcisph_computeForcesAndInitPressure);
 		create_ocl_kernel("pcisph_integrate", pcisph_integrate);
 		create_ocl_kernel("pcisph_predictPositions", pcisph_predictPositions);
@@ -215,7 +215,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 		if (ciErrNum == CL_SUCCESS)
 		{
 			printf(" CL_PLATFORM_VERSION [%d]: \t%s\n", i, cBuffer);
-		} 
+		}
 		else
 		{
 			printf(" Error %i in clGetPlatformInfo Call !!!\n\n", ciErrNum);
@@ -286,7 +286,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM [" << plList <<"]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE [" << deviceNum <<"]:\t" << val2 <<std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_LOCAL_MEM_SIZE,&val2);
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM " << plList <<": CL_DEVICE_LOCAL_MEM_SIZE ["<< deviceNum <<"]:\t" << val2 << std::endl;
-	
+
 	queue = cl::CommandQueue( context, devices[ deviceNum ], 0, &err );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "failed to create command queue" );
@@ -432,7 +432,7 @@ unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
 	for(int i=config->gridCellCount;i>=0;i--)
 	{
 		if(gridNextNonEmptyCellBuffer[i] == NO_CELL_ID)
-			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell; 
+			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell;
 		else recentNonEmptyCell = gridNextNonEmptyCellBuffer[i];
 	}
 	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
@@ -532,12 +532,12 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 	int err = queue.enqueueNDRangeKernel(
 		findNeighbors, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
-		cl::NullRange, NULL, NULL );/* 
+		cl::NullRange, NULL, NULL );/*
 		local_work_size can also be a NULL
 		value in which case the OpenCL implementation will
-		determine how to be break the global work-items 
+		determine how to be break the global work-items
 		into appropriate work-group instances.
-		http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109 
+		http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109
 		*/
 #else
 		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
@@ -918,7 +918,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owCon
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, int pcisph_integrate_mode, owConfigProrerty * config)
 {
 	// Stage Integrate
 	pcisph_integrate.setArg( 0, acceleration );
@@ -944,6 +944,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigP
 	pcisph_integrate.setArg( 20, neighborMap );
 	pcisph_integrate.setArg( 21, config->getParticleCount() );
 	pcisph_integrate.setArg( 22, iterationCount );
+	pcisph_integrate.setArg( 23, pcisph_integrate_mode );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_integrate, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -1025,7 +1026,7 @@ void owOpenCLSolver::create_ocl_buffer(const char *name, cl::Buffer &b, const cl
  */
 int owOpenCLSolver::copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b, const int size )
 {
-	//Actualy we should check  size and type 
+	//Actualy we should check  size and type
 	int err = queue.enqueueWriteBuffer( ocl_b, CL_TRUE, 0, size, host_b );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "Could not enqueue write" );
@@ -1047,7 +1048,7 @@ int owOpenCLSolver::copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,
  */
 int owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b, const int size )
 {
-	//Actualy we should check  size and type 
+	//Actualy we should check  size and type
 	int err = queue.enqueueReadBuffer( ocl_b, CL_TRUE, 0, size, host_b );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "Could not enqueue read" );

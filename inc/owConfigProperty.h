@@ -53,18 +53,19 @@ public:
 	int gridCellsY;
 	int gridCellsZ;
 	int gridCellCount;
+	INTEGRATOR integration_method;
 	const int getParticleCount(){ return PARTICLE_COUNT; };
 	void setParticleCount(int value){
 		PARTICLE_COUNT = value;
 		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	};
 	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; };
-	void setDeviceType(int type){ preferable_device_type=type; };
+	void setDeviceType(DEVICE type){ preferable_device_type=type; };
 	const int getDeviceType(){ return preferable_device_type; };
 private:
 	int PARTICLE_COUNT;
 	int PARTICLE_COUNT_RoundedUp;
-	int preferable_device_type;// 0-CPU, 1-GPU
+	DEVICE preferable_device_type;// 0-CPU, 1-GPU
 };
 
 

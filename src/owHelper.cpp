@@ -87,7 +87,8 @@ void owHelper::refreshTime()
 #endif
 }
 
-//READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER
+
+//READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER TODO move it into configuration struct
 int read_position = 0;
 std::string owHelper::path = "./configuration/";
 std::string owHelper::suffix = "";
@@ -526,11 +527,11 @@ void owHelper::watch_report( const char * str )
 #elif defined(__APPLE__)
     uint64_t elapsedNano;
     static mach_timebase_info_data_t    sTimebaseInfo;
-    
+
     if ( sTimebaseInfo.denom == 0 ) {
         (void) mach_timebase_info(&sTimebaseInfo);
     }
-    
+
     t2 = mach_absolute_time();
     elapsedNano = (t2-t1) * sTimebaseInfo.numer / sTimebaseInfo.denom;
     printf(str, (float)elapsedNano/1000000.f );
