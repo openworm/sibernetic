@@ -88,6 +88,7 @@ void drawScene();
 void renderInfo(int,int);
 void glPrint(float,float,const char *, void*);
 void glPrint3D(float,float,float,const char *, void*);
+void Cleanup(int);
 //float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
 void beginWinCoords(void)
 {
@@ -152,6 +153,11 @@ void display(void)
 			p_cpp = fluid_simulation->getPosition_cpp();
 			d_cpp = fluid_simulation->getDensity_cpp();
 			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+			if(fluid_simulation->getIteration() == loacalConfig->getNumberOfIteration()){
+				std::cout << "Simulation is reached time limit" << std::endl;
+				Cleanup(EXIT_SUCCESS);
+			}
+
 		}
 		helper->refreshTime();
 	}
@@ -483,7 +489,7 @@ void renderInfo(int x, int y)
 																													 numOfBoundaryP,loacalConfig->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F);
-		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
+		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*loacalConfig->getTimeStep());
 		glPrint( 0 , 17 , label, m_font);
 	}
 	if(showRuler){
@@ -742,18 +748,11 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
 	helper = new owHelper();
 	if(!load_from_file){
-		DEVICE dev_type = CPU;
-    for(int i = 1; i<argc; i++){
-			if(strncmp(argv[i], "device=", 7) == 0){
-				if(strstr(argv[i], "gpu") != NULL || strstr(argv[i], "GPU") != NULL)
-					dev_type = GPU;
-			}
-		}
-		fluid_simulation = new owPhysicsFluidSimulator(helper, dev_type);
-    loacalConfig = fluid_simulation->getConfig();
+		fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
+		loacalConfig = fluid_simulation->getConfig();
 	}
 	else{
-		loacalConfig = new owConfigProrerty();
+		loacalConfig = new owConfigProrerty(argc, argv);
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
 		for(int i=0;i<MUSCLE_COUNT;i++)
 		{
