@@ -1719,18 +1719,29 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 		if(filter.empty()){
 			for(int i=0;i < config->getParticleCount(); i++){
 				if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
-					positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+#if !EXPEREMENTAL_WRITE
+				positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+#else
+				binary_write(positionFile,position[i * 4 + 0]);
+				binary_write(positionFile,position[i * 4 + 1]);
+				binary_write(positionFile,position[i * 4 + 2]);
+				binary_write(positionFile,position[i * 4 + 3]);
+#endif
+
 				}
 			}
 		}else{
 			int i = 0;
 			for(unsigned int index = 0; index<filter.size(); index++){
 				i = filter[index];
-				//positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+#if !EXPEREMENTAL_WRITE
+				positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+#else
 				binary_write(positionFile,position[i * 4 + 0]);
 				binary_write(positionFile,position[i * 4 + 1]);
 				binary_write(positionFile,position[i * 4 + 2]);
 				binary_write(positionFile,position[i * 4 + 3]);
+#endif
 			}
 		}
 		positionFile.close();
