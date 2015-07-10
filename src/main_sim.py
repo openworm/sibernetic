@@ -77,7 +77,7 @@ def parallel_waves(n=muscle_row_count, #26 for our first test?
         
     return (double_wave_1,double_wave_2)
 
-class muscle_simulation():
+class MuscleSimulation():
 
     def __init__(self,increment=1.0):
         self.increment = increment
@@ -90,7 +90,7 @@ class muscle_simulation():
                                     self.contraction_array[1],
                                     self.contraction_array[1],
                                     self.contraction_array[0]]))  
-class c302_simulation():
+class C302Simulation():
     
     values = []
 
@@ -108,9 +108,11 @@ class c302_simulation():
         print("Loaded a list of %i activity traces at %i time points"%(len(self.values[0]), len(self.values)))
         
 
-    def run(self):
-        t = self.step*time_per_step
-        index = int(t/self.dt)       #+1500
+    def run(self, skip_to_time=0):
+        t = skip_to_time + self.step*time_per_step
+        
+        index = int(t/self.dt)
+        
         if (index<len(self.values)):
             v = self.values[index][1:48]
             v.append(0)
@@ -129,16 +131,16 @@ if __name__ == '__main__':
     print("This script is used by the Sibernetic C++ application")
     print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
     
-    ms = muscle_simulation()
-    #ms = c302_simulation('../configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
-    ms = c302_simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
-    ms = c302_simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
+    ms = MuscleSimulation()
+    ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
+    #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
+    #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
     
-    max_time = 0.3 # s
+    max_time = 0.4 # s
     num_plots = 4
     
     activation = {}
-    row = '11'
+    row = '02'
     row_int=int(row)
     m0='%s%s'%(quadrant0,row)
     m1='%s%s'%(quadrant1,row)
@@ -152,9 +154,13 @@ if __name__ == '__main__':
     
     num_steps = int(max_time/time_per_step)
     steps_between_plots = int(num_steps/num_plots)
+    
+    
+    l = ms.run(skip_to_time=0.03)
+        
+        
     for step in range(num_steps):
         t = step*time_per_step
-        l = ms.run()
         activation[m0].append(l[row_int])
         activation[m1].append(l[row_int+muscle_row_count])
         activation[m2].append(l[row_int+muscle_row_count*2])
