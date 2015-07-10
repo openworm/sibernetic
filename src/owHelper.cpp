@@ -281,46 +281,48 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 			else
 				throw std::runtime_error("Could not open file connection.txt");
 			std::cout << "Elastic Connection is loaded" << std::endl;
-			//Import Membranes
-			//return;
-			std::string m_file_name = path + "membranes" + suffix + ".txt";
-			std::ifstream membranesFile (m_file_name.c_str());
-			i = 0;
-			if( membranesFile.is_open() )
-			{
-				int id, jd, kd;
+			if(numOfMembranes != 0){
+				//Import Membranes
+				//return;
+				std::string m_file_name = path + "membranes" + suffix + ".txt";
+				std::ifstream membranesFile (m_file_name.c_str());
+				i = 0;
+				if( membranesFile.is_open() )
+				{
+					int id, jd, kd;
 
-				while( membranesFile.good() && i < numOfMembranes)
-				{
-					membranesFile >> id >> jd >> kd;
-					membraneData_cpp[ 3 * i + 0 ] = id;
-					membraneData_cpp[ 3 * i + 1 ] = jd;
-					membraneData_cpp[ 3 * i + 2 ] = kd;
-					i++;
+					while( membranesFile.good() && i < numOfMembranes)
+					{
+						membranesFile >> id >> jd >> kd;
+						membraneData_cpp[ 3 * i + 0 ] = id;
+						membraneData_cpp[ 3 * i + 1 ] = jd;
+						membraneData_cpp[ 3 * i + 2 ] = kd;
+						i++;
+					}
+					membranesFile.close();
 				}
-				membranesFile.close();
-			}
-			else
-				throw std::runtime_error("Could not open file membranes.txt");
-			std::cout << "Membranes is loaded" << std::endl;
-			//Import Membranes
-			std::string mi_file_name = path + "particleMembraneIndex" + suffix + ".txt";
-			std::ifstream membranesIndexFile (mi_file_name.c_str());
-			i = 0;
-			if( membranesIndexFile.is_open())
-			{
-				int id;
-				while( membranesIndexFile.good() && i < numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
+				else
+					throw std::runtime_error("Could not open file membranes.txt");
+				std::cout << "Membranes is loaded" << std::endl;
+				//Import Membranes
+				std::string mi_file_name = path + "particleMembraneIndex" + suffix + ".txt";
+				std::ifstream membranesIndexFile (mi_file_name.c_str());
+				i = 0;
+				if( membranesIndexFile.is_open())
 				{
-					membranesIndexFile >> id ;
-					particleMembranesList_cpp[ i ] = id;
-					i++;
+					int id;
+					while( membranesIndexFile.good() && i < numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
+					{
+						membranesIndexFile >> id ;
+						particleMembranesList_cpp[ i ] = id;
+						i++;
+					}
+					membranesIndexFile.close();
 				}
-				membranesIndexFile.close();
+				else
+					throw std::runtime_error("Could not open file particleMembraneIndex.txt");
+				std::cout << "ParticleMembraneIndex is loaded" << std::endl;
 			}
-			else
-				throw std::runtime_error("Could not open file particleMembraneIndex.txt");
-			std::cout << "ParticleMembraneIndex is loaded" << std::endl;
 		}
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
