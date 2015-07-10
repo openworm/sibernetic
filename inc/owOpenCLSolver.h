@@ -88,14 +88,14 @@ public:
 	unsigned int _run_pcisph_predictDensity(owConfigProrerty * config);
 	unsigned int _run_pcisph_correctPressure(owConfigProrerty * config);
 	unsigned int _run_pcisph_computePressureForceAcceleration(owConfigProrerty * config);
-	unsigned int _run_pcisph_integrate(int iterationCount, owConfigProrerty * config);
+	unsigned int _run_pcisph_integrate(int iterationCount, int pcisph_integrate_mode, owConfigProrerty * config);
 	//Kernels for membrane handling interaction
 	unsigned int _run_clearMembraneBuffers(owConfigProrerty * config);
 	unsigned int _run_computeInteractionWithMembranes(owConfigProrerty * config);
 	unsigned int _run_computeInteractionWithMembranes_finalize(owConfigProrerty * config);
 	//
 	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp);
-	
+
 	void read_position_buffer( float * position_cpp, owConfigProrerty * config) { copy_buffer_from_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 ); };
 	void read_velocity_buffer( float * velocity_cpp, owConfigProrerty * config) { copy_buffer_from_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 ); };
 	void read_density_buffer( float * density_cpp, owConfigProrerty * config ) { copy_buffer_from_device( density_cpp, rho, config->getParticleCount() * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
@@ -111,7 +111,7 @@ private:
 	cl::CommandQueue		  queue;
 	cl::Program				  program;
 	// Buffers
-	cl::Buffer  muscle_activation_signal;   // array storing data (activation signals) for an array of muscles. 
+	cl::Buffer  muscle_activation_signal;   // array storing data (activation signals) for an array of muscles.
                                             // now each can be activated by user independently
 
 	cl::Buffer acceleration;                // Acceleration buffer

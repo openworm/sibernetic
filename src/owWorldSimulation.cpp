@@ -88,6 +88,7 @@ void drawScene();
 void renderInfo(int,int);
 void glPrint(float,float,const char *, void*);
 void glPrint3D(float,float,float,const char *, void*);
+void Cleanup(int);
 //float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
 void beginWinCoords(void)
 {
@@ -152,11 +153,16 @@ void display(void)
 			p_cpp = fluid_simulation->getPosition_cpp();
 			d_cpp = fluid_simulation->getDensity_cpp();
 			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+			if(fluid_simulation->getIteration() == loacalConfig->getNumberOfIteration()){
+				std::cout << "Simulation is reached time limit" << std::endl;
+				Cleanup(EXIT_SUCCESS);
+			}
+
 		}
 		helper->refreshTime();
 	}
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawScene();
 	glPointSize(3.f);
 	glBegin(GL_POINTS);
@@ -185,8 +191,8 @@ void display(void)
 		if((int)p_cpp[i*4 + 3] != BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/)
 		{
 			glBegin(GL_POINTS);
-			if((int)p_cpp[i*4+3]==2) 
-			{ 
+			if((int)p_cpp[i*4+3]==2)
+			{
 				glColor4f(   0,   0,   0,  1.0f);// color of elastic particles
 				glPointSize(6.f);
 			}
@@ -220,17 +226,17 @@ void display(void)
 		if((j=(int)ec_cpp[ 4 * i_ec + 0 ])>=0)
 		{
 			i = (i_ec / MAX_NEIGHBOR_COUNT);// + (generateInitialConfiguration!=1)*numOfBoundaryP;
-			if(i<j)	
+			if(i<j)
 			{
 				glColor4b(150/2, 125/2, 0, 100/2/*alpha*/);
-				if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles 
+				if(ec_cpp[ 4 * i_ec + 2 ]>1.f)//muscles
 				{
 					glLineWidth((GLfloat)1.0);
-					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.45f) 
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.45f)
 					{
 						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
 						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
-						glColor4b(127/2, 0, 255/2, 255/2);/* muscle_number+0.5 <--> violet*/  
+						glColor4b(127/2, 0, 255/2, 255/2);/* muscle_number+0.5 <--> violet*/
 						glBegin(GL_LINES);
 						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 						glColor4b(255/2, 255/2, 255/2, 255/2);
@@ -238,11 +244,11 @@ void display(void)
 						glEnd();
 					}
 					else
-					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.35f) 
-					{ 
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.35f)
+					{
 						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
 						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
-						glColor4b(255/2, 0, 255/2, 255/2);/* muscle_number+0.4 <--> magenta*/  
+						glColor4b(255/2, 0, 255/2, 255/2);/* muscle_number+0.4 <--> magenta*/
 						glBegin(GL_LINES);
 						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 						glColor4b(255/2, 255/2, 255/2, 255/2);
@@ -250,11 +256,11 @@ void display(void)
 						glEnd();
 					}
 					else
-					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.25f) 
-					{ 
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.25f)
+					{
 						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
 						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
-						glColor4b(255/2, 127/2, 0, 255/2);/* muscle_number+0.3 <--> orange*/  
+						glColor4b(255/2, 127/2, 0, 255/2);/* muscle_number+0.3 <--> orange*/
 						glBegin(GL_LINES);
 						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 						glColor4b(255/2, 255/2, 255/2, 255/2);
@@ -262,11 +268,11 @@ void display(void)
 						glEnd();
 					}
 					else
-					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.15f) 
-					{ 
+					if(ec_cpp[4*i_ec+2]-floor(ec_cpp[4*i_ec+2])>0.15f)
+					{
 						if(muscle_activation_signal_cpp[ (int)(floor( ec_cpp[4*i_ec+2])-1) ]>0.1)
 						glLineWidth((GLfloat)6.0); else glLineWidth((GLfloat)2.0);
-						glColor4b(255/2, 0, 0, 255/2);/* muscle_number+0.2 <--> red*/  
+						glColor4b(255/2, 0, 0, 255/2);/* muscle_number+0.2 <--> red*/
 						glBegin(GL_LINES);
 						glVertex3f( (p_cpp[i*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[i*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[i*4+2]-loacalConfig->zmax/2)*sc );
 						glColor4b(255/2, 255/2, 255/2, 255/2);
@@ -295,7 +301,7 @@ void display(void)
 					glVertex3f( (p_cpp[j*4+0]-loacalConfig->xmax/2)*sc , (p_cpp[j*4+1]-loacalConfig->ymax/2)*sc, (p_cpp[j*4+2]-loacalConfig->zmax/2)*sc );
 					glEnd();
 				}
-				
+
 				ecc++;
 			}
 		}
@@ -333,11 +339,11 @@ void display(void)
 inline void drawScene()
 {
 	//       [7]----[6]
-	//      / |     /| 
-	//    [3]----[2] | 
-	//     | [4]--|-[5]   
+	//      / |     /|
+	//    [3]----[2] |
+	//     | [4]--|-[5]
 	//     | /    | /
-	//    [0]----[1]  
+	//    [0]----[1]
 	Vector3D vcenter(0,0,0);
 	Vector3D vbox[8];
 	float s_v = 1 /(simulationScale);// = 1 m in simulation
@@ -361,7 +367,7 @@ inline void drawScene()
 	vbox[7] = Vector3D(loacalConfig->xmin,loacalConfig->ymax,loacalConfig->zmax);
 	// Display user interface if enabled
 	bool displayInfos = true;
-    if (displayInfos) 
+    if (displayInfos)
     {
         glDisable(GL_DEPTH_TEST);
         glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO); // invert color
@@ -394,9 +400,9 @@ inline void drawScene()
 	v7 = Vector3D(  loacalConfig->xmax/2,  loacalConfig->ymax/2,  loacalConfig->zmax/2)*sc;
 	v8 = Vector3D( -loacalConfig->xmax/2,  loacalConfig->ymax/2,  loacalConfig->zmax/2)*sc;
 	glColor3ub(255,255,255);//yellow
-	glVertex3d(v1.x,v1.y,v1.z); 
+	glVertex3d(v1.x,v1.y,v1.z);
 	glVertex3d(v2.x,v2.y,v2.z);
-	
+
 
 	glColor3ub(255,255,255);//yellow
 	glVertex3d(v2.x,v2.y,v2.z);
@@ -436,7 +442,7 @@ inline void drawScene()
 	//
 	glBegin(GL_LINES);
 	glColor3ub(0,0,0);//black
-	
+
 
 	Vector3D v_s = Vector3D(  -loacalConfig->xmax/2 + s_v,  loacalConfig->ymax/2,  loacalConfig->zmax/2)*sc;
 	glVertex3d(v_s.x, v_s.y, v_s.z);
@@ -482,8 +488,8 @@ void renderInfo(int x, int y)
 																													 numOfElasticP,
 																													 numOfBoundaryP,loacalConfig->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
-		glColor3f (1.0F, 1.0F, 1.0F); 
-		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*timeStep);
+		glColor3f (1.0F, 1.0F, 1.0F);
+		sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", device_full_name+7, fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*loacalConfig->getTimeStep());
 		glPrint( 0 , 17 , label, m_font);
 	}
 	if(showRuler){
@@ -501,7 +507,7 @@ void renderInfo(int x, int y)
 			glVertex2f((GLfloat) s_v,(GLfloat)y_m + 5.f );
 		glEnd();
 			glPrint( s_v , y_m + 15.f , "1E-02 m", m_font);
-		glBegin(GL_LINES);		
+		glBegin(GL_LINES);
 			glVertex2f((GLfloat) s_v_10,(GLfloat)y_m + 0.f);
 			glVertex2f((GLfloat) s_v_10,(GLfloat)y_m + 5.f);
 		glEnd();
@@ -516,7 +522,7 @@ void renderInfo(int x, int y)
 		}
 		if(flag){
 			for(int i = 1;i <= count_s; i++){
-				glBegin(GL_LINES);		
+				glBegin(GL_LINES);
 					glVertex2f((GLfloat) s_v/pow(10.f,i + 1),(GLfloat)y_m + 0.f);
 					glVertex2f((GLfloat) s_v/pow(10.f,i + 1),(GLfloat)y_m + 5.f);
 				glEnd();
@@ -552,10 +558,10 @@ void respond_mouse(int button, int state, int x, int y)
 		buttonState = 3;
 	int mods;
 	mods = glutGetModifiers();
-    if (mods & GLUT_ACTIVE_CTRL) 
+    if (mods & GLUT_ACTIVE_CTRL)
     {
         buttonState = 2;
-    } 
+    }
 	if(state == GLUT_UP)
 		buttonState = 0;
 	old_x=x;
@@ -576,12 +582,12 @@ void respond_mouse(int button, int state, int x, int y)
 // GLUT callback
 // called on mouse movement
 
-void mouse_motion (int x, int y) 
+void mouse_motion (int x, int y)
 {
 	float dx,dy;
-	dy = (float)(y - old_y);	
+	dy = (float)(y - old_y);
 	dx = (float)(x - old_x);
-	
+
 	if(buttonState == 1)
 	{
 		camera_rot[0] += dy / 5.0f;
@@ -663,11 +669,11 @@ void RespondKey(unsigned char key, int x, int y)
  *  animation, this idle() function must update not only the
  *  main window but also all derived subwindows
  */
-void idle (void) 
-{ 
-  glutSetWindow (winIdMain); 
-  glutPostRedisplay (); 
-} 
+void idle (void)
+{
+  glutSetWindow (winIdMain);
+  glutPostRedisplay ();
+}
 //static char label[1000];                            /* Storage for current string   */
 
 void Timer(int value)
@@ -679,13 +685,13 @@ void Timer(int value)
 
 GLvoid resize(GLsizei width, GLsizei height){
 
-	if(height == 0) { height = 1; }										 
-	if(width == 0) { width = 1; }										 
-	
+	if(height == 0) { height = 1; }
+	if(width == 0) { width = 1; }
+
 	glViewport(0, 0, width, height);					// Set view area
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	
+
 	float aspectRatio = (GLfloat)width / (GLfloat)height;
 	if (aspectRatio>1.f)
 		glFrustum(-1*aspectRatio, 1*aspectRatio, -1, 1, 3, 45);
@@ -704,7 +710,14 @@ GLvoid resize(GLsizei width, GLsizei height){
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
-void init(void){
+inline void init(void){
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_COLOR_MATERIAL);
+	glEnable(GL_NORMALIZE);
+	glEnable(GL_AUTO_NORMAL);
+	float ambient[4] = {1.0, 1.0, 1.0, 1};
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
 	glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
 	glClearDepth(1.0f);
 
@@ -735,18 +748,11 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 {
 	helper = new owHelper();
 	if(!load_from_file){
-		DEVICE dev_type = CPU;
-		for(int i = 1; i<argc; i++){
-			if(strncmp(argv[i], "device=", 7) == 0){
-				if(strstr(argv[i], "gpu") != NULL || strstr(argv[i], "GPU") != NULL)
-					dev_type = GPU;
-			}
-		}
-		fluid_simulation = new owPhysicsFluidSimulator(helper, dev_type);
+		fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
 		loacalConfig = fluid_simulation->getConfig();
 	}
 	else{
-		loacalConfig = new owConfigProrerty();
+		loacalConfig = new owConfigProrerty(argc, argv);
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
 		for(int i=0;i<MUSCLE_COUNT;i++)
 		{
@@ -760,14 +766,7 @@ void run(int argc, char** argv, const bool with_graphics, const bool load_to)
 		glutInitWindowSize(1024, 1024);
 		glutInitWindowPosition(100, 100);
 		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
-		glutIdleFunc (idle); 
-		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
-		glEnable(GL_COLOR_MATERIAL);
-		glEnable(GL_NORMALIZE);
-		glEnable(GL_AUTO_NORMAL);
-		float ambient[4] = {1.0, 1.0, 1.0, 1};
-		glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
+		glutIdleFunc (idle);
 		//Init physic Simulation
 		init();
 		glutDisplayFunc(display);

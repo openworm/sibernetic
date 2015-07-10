@@ -40,7 +40,7 @@
 extern int numOfElasticP;
 extern int numOfMembranes;
 
-int myCompare( const void * v1, const void * v2 ); 
+int myCompare( const void * v1, const void * v2 );
 
 /** Constructor of class owOpenCLSolver
  *
@@ -81,7 +81,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		create_ocl_kernel("hashParticles", hashParticles);
 		create_ocl_kernel("indexx", indexx);
 		create_ocl_kernel("sortPostPass", sortPostPass);
-		// Additional PCISPH-related kernels 
+		// Additional PCISPH-related kernels
 		create_ocl_kernel("pcisph_computeForcesAndInitPressure", pcisph_computeForcesAndInitPressure);
 		create_ocl_kernel("pcisph_integrate", pcisph_integrate);
 		create_ocl_kernel("pcisph_predictPositions", pcisph_predictPositions);
@@ -215,7 +215,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 		if (ciErrNum == CL_SUCCESS)
 		{
 			printf(" CL_PLATFORM_VERSION [%d]: \t%s\n", i, cBuffer);
-		} 
+		}
 		else
 		{
 			printf(" Error %i in clGetPlatformInfo Call !!!\n\n", ciErrNum);
@@ -226,7 +226,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
     cl_device_type type;
 	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
 
-	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
+	int plList = -1;//selected platform index in platformList array [choose CPU by default]
 							//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
 	cl_uint ciDeviceCount;
 	cl_device_id * devices_t;
@@ -234,6 +234,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	cl_int result;
 	cl_uint device_coumpute_unit_num;
 	cl_uint device_coumpute_unit_num_current = 0;
+	unsigned int deviceNum = 0;
 	//Selection of more appropriate device
 	for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
 		//if(findDevice)
@@ -253,14 +254,24 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 							plList = clSelectedPlatformID;
 							device_coumpute_unit_num_current = device_coumpute_unit_num;
 							findDevice = true;
+							deviceNum = i;
 						}
 						//break;
 					}
 				}
+				if(ciDeviceCount != 0 && plList < 0){
+					plList = clSelectedPlatformID;
+				}
 			}
 		}
 	}
-	if(!findDevice) plList = 0;
+	if(!findDevice){
+		//plList = 0;
+		deviceNum = 0;
+		std::cout << "Unfortunately OpenCL couldn't find device " << ((config->getDeviceType() == CPU)? "CPU":"GPU") << std::endl;
+		std::cout << "OpenCL try to init existing device " << std::endl;
+		config->setDeviceType((config->getDeviceType() == CPU)? GPU:CPU);
+	}
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( device_type[config->getDeviceType()], cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
@@ -272,10 +283,11 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
     unsigned long val2;
     size_t val3;
 	//uint deviceNum = 0;// causes "error C2065: 'uint' : undeclared identifier"
-    unsigned int deviceNum = 0;
-	result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
+    result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_NAME [" << deviceNum << "]:\t" << cBuffer << "\n" << std::endl;
 	if(strlen(cBuffer)<1000) strcpy(device_full_name,cBuffer);
+	result = devices[deviceNum].getInfo(CL_DEVICE_TYPE,&cBuffer);
+	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_TYPE [" << deviceNum << "]:\t" << (((int)cBuffer[0] == CL_DEVICE_TYPE_CPU)? "CPU" : "GPU") << std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&val3);
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_MAX_WORK_GROUP_SIZE [" <<  deviceNum <<"]: \t" << val3 <<std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&value);
@@ -286,7 +298,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM [" << plList <<"]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE [" << deviceNum <<"]:\t" << val2 <<std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_LOCAL_MEM_SIZE,&val2);
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM " << plList <<": CL_DEVICE_LOCAL_MEM_SIZE ["<< deviceNum <<"]:\t" << val2 << std::endl;
-	
+
 	queue = cl::CommandQueue( context, devices[ deviceNum ], 0, &err );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "failed to create command queue" );
@@ -432,7 +444,7 @@ unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
 	for(int i=config->gridCellCount;i>=0;i--)
 	{
 		if(gridNextNonEmptyCellBuffer[i] == NO_CELL_ID)
-			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell; 
+			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell;
 		else recentNonEmptyCell = gridNextNonEmptyCellBuffer[i];
 	}
 	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
@@ -532,12 +544,12 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 	int err = queue.enqueueNDRangeKernel(
 		findNeighbors, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
-		cl::NullRange, NULL, NULL );/* 
+		cl::NullRange, NULL, NULL );/*
 		local_work_size can also be a NULL
 		value in which case the OpenCL implementation will
-		determine how to be break the global work-items 
+		determine how to be break the global work-items
 		into appropriate work-group instances.
-		http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109 
+		http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109
 		*/
 #else
 		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
@@ -690,7 +702,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * con
 	pcisph_predictPositions.setArg( 6, gravity_y );
 	pcisph_predictPositions.setArg( 7, gravity_z );
 	pcisph_predictPositions.setArg( 8, simulationScaleInv );
-	pcisph_predictPositions.setArg( 9, timeStep );
+	pcisph_predictPositions.setArg( 9, config->getTimeStep() );
 	pcisph_predictPositions.setArg(10, position );
 	pcisph_predictPositions.setArg(11, velocity );
 	pcisph_predictPositions.setArg(12, r0 );
@@ -760,7 +772,7 @@ unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProrerty * conf
 	pcisph_correctPressure.setArg( 1, rho0 );
 	pcisph_correctPressure.setArg( 2, pressure );
 	pcisph_correctPressure.setArg( 3, rho );
-	pcisph_correctPressure.setArg( 4, delta );
+	pcisph_correctPressure.setArg( 4, config->getDelta() );
 	pcisph_correctPressure.setArg( 5, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_correctPressure, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
@@ -793,7 +805,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConf
 	pcisph_computePressureForceAcceleration.setArg( 3, sortedPosition );
 	pcisph_computePressureForceAcceleration.setArg( 4, sortedVelocity );
 	pcisph_computePressureForceAcceleration.setArg( 5, particleIndexBack );
-	pcisph_computePressureForceAcceleration.setArg( 6, delta );
+	pcisph_computePressureForceAcceleration.setArg( 6, config->getDelta() );
 	pcisph_computePressureForceAcceleration.setArg( 7, mass_mult_gradWspikyCoefficient );
 	pcisph_computePressureForceAcceleration.setArg( 8, h );
 	pcisph_computePressureForceAcceleration.setArg( 9, simulationScale );
@@ -918,7 +930,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owCon
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, int pcisph_integrate_mode, owConfigProrerty * config)
 {
 	// Stage Integrate
 	pcisph_integrate.setArg( 0, acceleration );
@@ -930,7 +942,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigP
 	pcisph_integrate.setArg( 6, gravity_y );
 	pcisph_integrate.setArg( 7, gravity_z );
 	pcisph_integrate.setArg( 8, simulationScaleInv );
-	pcisph_integrate.setArg( 9, timeStep );
+	pcisph_integrate.setArg( 9, config->getTimeStep() );
 	pcisph_integrate.setArg( 10, config->xmin );
 	pcisph_integrate.setArg( 11, config->xmax );
 	pcisph_integrate.setArg( 12, config->ymin );
@@ -944,6 +956,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigP
 	pcisph_integrate.setArg( 20, neighborMap );
 	pcisph_integrate.setArg( 21, config->getParticleCount() );
 	pcisph_integrate.setArg( 22, iterationCount );
+	pcisph_integrate.setArg( 23, pcisph_integrate_mode );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_integrate, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -1025,7 +1038,7 @@ void owOpenCLSolver::create_ocl_buffer(const char *name, cl::Buffer &b, const cl
  */
 int owOpenCLSolver::copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b, const int size )
 {
-	//Actualy we should check  size and type 
+	//Actualy we should check  size and type
 	int err = queue.enqueueWriteBuffer( ocl_b, CL_TRUE, 0, size, host_b );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "Could not enqueue write" );
@@ -1047,7 +1060,7 @@ int owOpenCLSolver::copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,
  */
 int owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b, const int size )
 {
-	//Actualy we should check  size and type 
+	//Actualy we should check  size and type
 	int err = queue.enqueueReadBuffer( ocl_b, CL_TRUE, 0, size, host_b );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "Could not enqueue read" );
