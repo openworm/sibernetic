@@ -36,16 +36,16 @@
 
 #include <math.h>
 
-const double PI=3.14159265;
+const float PI=3.14159265f;
 
 
 //An object to represent a 3D vector or a 3D point in space
 class Vector3D
 {
 public:
-	double x;									// the x value of this Vector3D
-	double y;									// the y value of this Vector3D
-	double z;									// the z value of this Vector3D
+	float x;									// the x value of this Vector3D
+	float y;									// the y value of this Vector3D
+	float z;									// the z value of this Vector3D
 
     Vector3D():  // Constructor to set x = y = z = 0
         x(0),
@@ -55,7 +55,7 @@ public:
 
 	}
 
-    Vector3D(double x, double y, double z):			// Constructor that initializes this Vector3D to the intended values of x, y and z
+    Vector3D(float x, float y, float z):			// Constructor that initializes this Vector3D to the intended values of x, y and z
         x(x),
         y(y),
         z(z)
@@ -81,13 +81,13 @@ public:
 		return Vector3D(x - v.x, y - v.y, z - v.z);
 	}
 
-    Vector3D operator* (double value)	const		// operator* is used to scale a Vector3D by a value. This value multiplies the Vector3D's x, y and z.
+    Vector3D operator* (float value)	const		// operator* is used to scale a Vector3D by a value. This value multiplies the Vector3D's x, y and z.
 	{
 		return Vector3D(x * value, y * value, z * value);
 	}
 
 
-    Vector3D operator/ (double value)	const		// operator/ is used to scale a Vector3D by a value. This value divides the Vector3D's x, y and z.
+    Vector3D operator/ (float value)	const		// operator/ is used to scale a Vector3D by a value. This value divides the Vector3D's x, y and z.
 	{
 		return Vector3D(x / value, y / value, z / value);
 	}
@@ -108,7 +108,7 @@ public:
 		return *this;
 	}
 
-	Vector3D& operator*= (double value)			// operator*= is used to scale this Vector3D by a value.
+	Vector3D& operator*= (float value)			// operator*= is used to scale this Vector3D by a value.
 	{
 		x *= value;
 		y *= value;
@@ -116,7 +116,7 @@ public:
 		return *this;
 	}
 
-	Vector3D& operator/= (double value)			// operator/= is used to scale this Vector3D by a value.
+	Vector3D& operator/= (float value)			// operator/= is used to scale this Vector3D by a value.
 	{
 		x /= value;
 		y /= value;
@@ -130,14 +130,14 @@ public:
 		return Vector3D(-x, -y, -z);
 	}
 
-    double length()		const						// length() returns the length of this Vector3D
+    float length()		const						// length() returns the length of this Vector3D
 	{
 		return sqrt(x*x + y*y + z*z);
     }
 
 	void unitize()								// unitize() normalizes this Vector3D that its direction remains the same but its length is 1.
 	{
-		double length = this->length();
+		float length = this->length();
 
 		if (length == 0)
 			return;
@@ -149,7 +149,7 @@ public:
 
     Vector3D unit() const						// unit() returns a new Vector3D. The returned value is a unitized version of this Vector3D.
 	{
-		double length = this->length();
+		float length = this->length();
 
 		if (length == 0)
 			return *this;
@@ -157,17 +157,17 @@ public:
 		return Vector3D(x / length, y / length, z / length);
 	}
 
-    double scaleM(const Vector3D &vec) const
+    float scaleM(const Vector3D &vec) const
 	{
 		return x * vec.x + y * vec.y + z * vec.z;
 	}
 
-    double getLengthSq_fast() const
+    float getLengthSq_fast() const
 	{
 		return x*x + y*y + z*z;
 	}
 
-    double operator*(const Vector3D &v) const
+    float operator*(const Vector3D &v) const
 	{
 		return x*v.x + y*v.y + z*v.z;
 	}
@@ -189,7 +189,7 @@ public:
 			return false;
 	}
 
-    static Vector3D RotateVector1AroundVector2(const Vector3D &v1, const Vector3D &v2 ,double alpha)
+    static Vector3D RotateVector1AroundVector2(const Vector3D &v1, const Vector3D &v2 ,float alpha)
 	{
 		if(v1==v2) return v1;
 

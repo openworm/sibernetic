@@ -2,17 +2,21 @@
 RM := rm -rf
 
 # All of the sources participating in the build are defined here
-SOURCES = src/PyramidalSimulation.cpp \
-src/main.cpp \
+SOURCES = src/main.cpp \
 src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \
 src/owWorldSimulation.cpp
 
+TEST_SOURCES = src/test/owPhysicTest.cpp
+
 SRCEXT := cpp
 SRCDIR := src
+INCDIR := inc
 BUILDDIR := build
+BINARYTESTDIR = $(BUILDDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
+OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 	
@@ -37,11 +41,12 @@ Smoothed-Particle-Hydrodynamics: $(OBJECTS)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BUILDDIR)
+	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: clang C++ Compiler'
 #### use this to compile against homebrew installed python
 #### change version number as necessary (2.7.n)
-	g++ -O1 -Wall -c -I$(PYTHONHEADERDIR) -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	g++ -O1 -Wall -c -I$(PYTHONHEADERDIR) -I$(INCDIR) -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

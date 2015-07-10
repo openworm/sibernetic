@@ -61,7 +61,7 @@ Finally, to run, run the command:
 
 **Linux**:
 ```
-./Release/Smoothed-Particle-Hydrodynamics
+./Release/Sibernetic
 ```
 **Mac**:
 ```
@@ -83,8 +83,32 @@ Compilation failed:
 #include "src//owOpenCLConstant.h"
 ```
 
+What's inside
+-------------
+
+Physical Algorithms:
+
+- PCI SPH - simulation incompressible liquid [1]
+- Simulation elastic matter
+- Simulation liquid-impermeable membranes
+- Boundary handling [2]
+- Surface tension [3]
+
+There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to boundary (one of it has a liquid-impermeable membranes covering and another one hasn't such). 
+
+The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).
+
+To switch between demos you need to press the 1 or 2 keys respectively. To pause simulation you may press space bar.
+
+References
+
+1. B. Solenthaler, Predictive-Corrective Incompressible SPH. ACM Transactions on Graphics (Proceedings of SIGGRAPH), 28(3), 2009. 
+2. M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
+3. M. Becker, M. Teschner. Weakly compressible SPH for free surface flows // Proceedings of the 2007 ACM SIGGRAPH/Eurographics symposium on Computer animation, pages 209-217.
+
 Saving to disk
 --------------
+You can run Sibernetic on gpu for this you should start Sibernetic with key device=gpu.
 
 You may wish to save simulations to disk rather than visualise them (**WARNING**: This is buggy)
 

@@ -30,24 +30,42 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
+/*
+ * This file contains definition for struct configuration
+ */
+#ifndef OWCONFIGURATION_H_
+#define OWCONFIGURATION_H_
 
-#ifndef OW_OPENCL_CONSTANT_H
-#define OW_OPENCL_CONSTANT_H
+#include "owOpenCLConstant.h"
 
-#define MAX_NEIGHBOR_COUNT 32
+struct owConfigProrerty{
+	//This value defines boundary of box in which simulation is
+	//Sizes of the box containing simulated 'world'
+	//Sizes choice is realized this way because it should be proportional to smoothing radius h
+public:
+	float xmin;
+	float xmax;
+	float ymin;
+	float ymax;
+	float zmin;
+	float zmax;
+	int gridCellsX;
+	int gridCellsY;
+	int gridCellsZ;
+	int gridCellCount;
+	const int getParticleCount(){ return PARTICLE_COUNT; };
+	void setParticleCount(int value){
+		PARTICLE_COUNT = value;
+		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+	};
+	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; };
+	void setDeviceType(int type){ preferable_device_type=type; };
+	const int getDeviceType(){ return preferable_device_type; };
+private:
+	int PARTICLE_COUNT;
+	int PARTICLE_COUNT_RoundedUp;
+	int preferable_device_type;// 0-CPU, 1-GPU
+};
 
-#define MAX_MEMBRANES_INCLUDING_SAME_PARTICLE 7
 
-#define LIQUID_PARTICLE 1
-#define ELASTIC_PARTICLE 2
-#define BOUNDARY_PARTICLE 3
-
-#define NO_PARTICLE_ID -1
-#define NO_CELL_ID -1
-#define NO_DISTANCE -1.0f
-
-#define QUEUE_EACH_KERNEL 1
-
-#define INTEL_OPENCL_DEBUG 0
-
-#endif // #ifndef OW_OPENCL_CONSTANT_H
+#endif /* OWCONFIGURATION_H_ */
