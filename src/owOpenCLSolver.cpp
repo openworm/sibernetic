@@ -111,8 +111,6 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 				create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
 				copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
 			}
-
-			if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;//We delete it because we don't need it anymore
 		}
 		//elastic connections if it's necessary
 		if(elasticConnectionsData_cpp != NULL){

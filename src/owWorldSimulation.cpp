@@ -651,6 +651,9 @@ void RespondKey(unsigned char key, int x, int y)
 		sPause = !sPause;
 		std::cout << "\nSimulation Is Paused" << std::endl;
 		break;
+	case 's':
+		fluid_simulation->makeSnapshot();
+		break;
 	}
 
 	if(key == 'i')

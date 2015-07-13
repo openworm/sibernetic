@@ -240,6 +240,15 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		exit( -1 );
 	}
 }
+/** Prepare data and log it to special configuration
+ *  file you can run your simulation from place you snapshoted it
+ *
+ *  @param fileName - name of file where saved configuration will be stored
+ */
+void owPhysicsFluidSimulator::makeSnapshot(const std::string & fileName){
+	getvelocity_cpp();
+	owHelper::loadConfigurationToFile(position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp, fileName.c_str(), config);
+}
 
 //Destructor
 owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
@@ -248,8 +257,13 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 	delete [] velocity_cpp;
 	delete [] density_cpp;
 	delete [] particleIndex_cpp;
+	if(numOfElasticP != 0)
+		delete [] elasticConnectionsData_cpp;
 	delete [] muscle_activation_signal_cpp;
-	if(membraneData_cpp != NULL) delete [] membraneData_cpp;
+	if(membraneData_cpp != NULL) {
+		delete [] membraneData_cpp;
+		delete [] particleMembranesList_cpp;
+	}
 	delete config;
 	delete ocl_solver;
 }

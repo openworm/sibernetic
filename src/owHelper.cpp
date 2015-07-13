@@ -405,6 +405,67 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 		exit( -1 );
 	}
 }
+/** Load configuration from simulation to files
+ *
+ *  TODO make description
+ *
+ *
+ *
+ *
+ *
+ *  @param position
+ *  pointer to position buffer
+ *  @param config
+ *  pointer to owConfigProrerty object it includes information about
+ *  @param connections
+ *  reference on pointer to elasticConnections buffer.
+ *  @param membranes
+ *  pointer to membranes buffer
+ *  @param firstIteration
+ *  if true it means that we first time record information
+ *  to a file and on first iteration it put to
+ *  the file info about dimensions of boundary box
+ *  NOTE: next 2 parameters are an experimental
+ *  @param filter_p
+ *  pointer to filter particle buffer, if you need storing only
+ *  a bunch of particles not all of them
+ *  @param size
+ *  size of filter_p array
+ */
+void owHelper::loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex,const char * filename, owConfigProrerty * config){
+	try{
+		ofstream configFile;
+		configFile.open(filename, std::ofstream::trunc);
+		configFile << config->xmin << "\n";
+		configFile << config->xmax << "\n";
+		configFile << config->ymin << "\n";
+		configFile << config->ymax << "\n";
+		configFile << config->zmin << "\n";
+		configFile << config->zmax << "\n";
+		configFile << "[position]\n" ;
+		for(int i=0;i < config->getParticleCount(); i++)
+			configFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+		configFile << "[velocity]\n" ;
+		for(int i=0;i < config->getParticleCount(); i++)
+			configFile << velocity[i * 4 + 0] << "\t" << velocity[i * 4 + 1] << "\t" << velocity[i * 4 + 2] << "\t" << velocity[i * 4 + 3] << "\n";
+		configFile << "[connection]\n" ;
+		int con_num = MAX_NEIGHBOR_COUNT * numOfElasticP;
+		for(int i = 0; i < con_num; i++)
+			configFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
+		configFile << "[membranes]\n";
+		configFile << numOfMembranes << "\n";
+		for(int i = 0; i < numOfMembranes; i++)
+			configFile << membranes[4 * i + 0] << "\t" << membranes[4 * i + 1] << "\t" << membranes[4 * i + 2] << "\t" << membranes[4 * i + 3] << "\n";
+		configFile << "[particleMemIndex]\n";
+		int particleMemIndexCount = numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE;
+		for(int i = 0; i < particleMemIndexCount; i++)
+			configFile << particleMemIndex[i] << "\n";
+		configFile.close();
+	}catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
 //This function needed for visualiazation buffered data
 long position_index = 0;
 ifstream positionFile;
