@@ -531,7 +531,7 @@ ifstream positionFile;
  *  to a file and on first iteration it put to
  *  the file info about dimensions of boundary box
  */
-void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
+void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
 	try{
 		if(iteration == 0)
 			positionFile.open("./buffers/position_buffer.txt");

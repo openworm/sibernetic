@@ -37,6 +37,7 @@
 #include "owPhysicTest.h"
 
 bool load_from_file = false;
+bool load_to = false;
 int main(int argc, char **argv)
 {
 	if(argc == 1)
@@ -46,7 +47,6 @@ int main(int argc, char **argv)
 	}
 	else{
 		bool graph = true;
-		bool load_to = false;
 		bool run_tests = false;
 		for(int i = 1; i<argc; i++){
 			if(strncmp(argv[i], "-no_g", 5) == 0)	// run without graphics
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 			test_energy_conservation(argc, argv);
 		}
 		else
-			run( argc, argv, graph, load_to );
+			run( argc, argv, graph);
 	}
 	return 0;
 }
