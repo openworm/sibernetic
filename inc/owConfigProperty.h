@@ -39,21 +39,24 @@
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
 
+
 struct owConfigProrerty{
 	//This value defines boundary of box in which simulation is
 	//Sizes of the box containing simulated 'world'
 	//Sizes choice is realized this way because it should be proportional to smoothing radius h
 public:
-	const int getParticleCount(){ return PARTICLE_COUNT; };
+	const int getParticleCount(){ return PARTICLE_COUNT; }
 	void setParticleCount(int value){
 		PARTICLE_COUNT = value;
 		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
-	};
-	void setDeviceType(DEVICE type) { preferable_device_type = type; };
-	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; };
+	}
+	void setDeviceType(DEVICE type) { preferable_device_type = type; }
+	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; }
 	const int getDeviceType() const { return preferable_device_type; };
-	const int getNumberOfIteration() const { return totalNumberOfIteration ;};
-	INTEGRATOR getIntegrationMethod() const { return integration_method; };
+	const int getNumberOfIteration() const { return totalNumberOfIteration ;}
+	INTEGRATOR getIntegrationMethod() const { return integration_method; }
+	const std::string & getCofigFileName() const { return configFileName; }
+	void setCofigFileName( const char * name ) { configFileName = name; }
 	// Constructor
 	owConfigProrerty(int argc, char** argv){
 		preferable_device_type = CPU;
@@ -62,6 +65,7 @@ public:
 		beta = ::beta;
 		integration_method = EULER;
 		std::string s_temp;
+		configFileName = "demo1";
 		for(int i = 1; i<argc; i++){
 			s_temp = argv[i];
 			if(s_temp.find("device=") == 0){
@@ -80,6 +84,13 @@ public:
 			}
 			if(s_temp.find("LEAPFROG") != std::string::npos || s_temp.find("leapfrog") != std::string::npos){
 				integration_method = LEAPFROG;
+			}
+			if(s_temp == "-f"){
+				if(i + 1 < argc){
+					configFileName = argv[i+1];
+				}
+				else
+					throw std::runtime_error("You forget add configuration file name. Please add it and try again");
 			}
 		}
 		totalNumberOfIteration = time_limit/time_step; // if it equals to 0 it means that simulation will work infinitely
@@ -159,6 +170,7 @@ private:
 	float delta;
 	DEVICE preferable_device_type;// 0-CPU, 1-GPU
 	INTEGRATOR integration_method; //DEFAULT is EULER
+	std::string configFileName;
 };
 
 #endif /* OWCONFIGURATION_H_ */

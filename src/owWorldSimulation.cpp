@@ -631,13 +631,14 @@ void RespondKey(unsigned char key, int x, int y)
 	switch(key)
 	{
 	case '1':
-		owHelper::configFileName = "demo1";
+		loacalConfig->setCofigFileName("demo1");
 		helper->refreshTime();
 		fluid_simulation->reset();
 		sPause = false;
 		break;
 	case '2':
-		owHelper::configFileName = "demo2";
+		//owHelper::configFileName = "demo2";
+		loacalConfig->setCofigFileName("demo2");
 		helper->refreshTime();
 		fluid_simulation->reset();
 		sPause = false;

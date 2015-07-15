@@ -98,7 +98,6 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
 			ocl_solver = new owOpenCLSolver(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
-		makeSnapshot();
 		this->helper = helper;
 	}catch( std::exception &e ){
 		std::cout << "ERROR: " << e.what() << std::endl;

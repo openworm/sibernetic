@@ -142,7 +142,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 	try
 	{
 		int p_count = 0;
-		std::string file_name = path + configFileName;
+		std::string file_name = path + config->getCofigFileName();
 		std::string inputStr;
 		std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
 		float x, y, z, p_type;
@@ -252,7 +252,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 {
 	try
 	{
-		std::string file_name = path + configFileName;
+		std::string file_name = path + config->getCofigFileName();
 		std::string inputStr;
 		std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
 		char delimiter = '\t';

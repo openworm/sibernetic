@@ -36,8 +36,6 @@
 #include "owWorldSimulation.h"
 #include "owPhysicTest.h"
 
-#include "owWorldSimulation.h"
-
 bool load_from_file = false;
 int main(int argc, char **argv)
 {
