@@ -72,6 +72,8 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 		position_cpp = new float[ 4 * config->getParticleCount() ];
 		velocity_cpp = new float[ 4 * config->getParticleCount() ];
 		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
+		if(numOfElasticP != 0)
+			elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
 		if(numOfMembranes<=0)
 			membraneData_cpp = NULL;
 		else
@@ -96,6 +98,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
 			ocl_solver = new owOpenCLSolver(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
+		makeSnapshot();
 		this->helper = helper;
 	}catch( std::exception &e ){
 		std::cout << "ERROR: " << e.what() << std::endl;
@@ -127,7 +130,8 @@ void owPhysicsFluidSimulator::reset(){
 	velocity_cpp = new float[ 4 * config->getParticleCount() ];
 
 	muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
-	if(numOfMembranes<=0) membraneData_cpp = NULL; else membraneData_cpp = new int [numOfMembranes*3];
+	if(numOfElasticP != 0) elasticConnectionsData_cpp = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
+	if(numOfMembranes<=0) membraneData_cpp = NULL; else membraneData_cpp = new int [ numOfMembranes * 3 ];
 	if(numOfElasticP<=0)  particleMembranesList_cpp = NULL; else particleMembranesList_cpp = new int [numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
 	for(int i=0;i<MUSCLE_COUNT;i++)
 	{

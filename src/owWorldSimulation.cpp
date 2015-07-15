@@ -631,13 +631,13 @@ void RespondKey(unsigned char key, int x, int y)
 	switch(key)
 	{
 	case '1':
-		owHelper::suffix = "";
+		owHelper::configFileName = "demo1";
 		helper->refreshTime();
 		fluid_simulation->reset();
 		sPause = false;
 		break;
 	case '2':
-		owHelper::suffix = "_membranes_demo";
+		owHelper::configFileName = "demo2";
 		helper->refreshTime();
 		fluid_simulation->reset();
 		sPause = false;
