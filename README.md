@@ -83,6 +83,90 @@ Compilation failed:
 #include "src//owOpenCLConstant.h"
 ```
 
+Main command options
+--------------
+To start Sibernetic with argument print in command prompt next ./Release/Sibernetic -whatever
+Available options:
+```
+ -g_no                 Run without graphics
+ -l_to                 Save simulation results to disk.
+ -l_from               Load simulation results from disk.
+ -test                 Run some physical tests.
+ -f <filename>         Load configuration from file ./configuration/<filename>.
+ device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu default-cpu.
+ timestep=<value>      Start simulation with time step = <value> in seconds.
+ timelimit=<value>     Run simulation until <value> will be reached in seconds.
+ leapfrog              Use for integration LeapFrog method
+ -help                 Print this information on screen.
+```
+
+LeapFrog integration
+--------------
+[Leapfrog](https://en.wikipedia.org/wiki/Leapfrog_integration) is second order method insted of [Semi-implicid Euler](https://en.wikipedia.org/wiki/Semi-implicit_Euler_method) which we are using as default method for integration. For run simulation with Leapfro integration medhod print run command
+```
+./Release/Sibernetic leapfrog
+```
+
+Run simulation from configuration file
+--------------
+All configuration is stored in ./configuration folder there are two demo configuration demo1 and demo2 (demo1 is using as default demonstarative configuration). You can switch between two demo configurations directly inside the working Sibernetic - just push button '1' or '2' respectively. For run your configuration put you're configuration file into configuration folder and run Sibernetic with key 
+```
+./Release/Sibernetic -f and <configuration_file_name>. 
+```
+For run worm body simulation you should run Siberntic with key 
+```
+./Release/Sibernetic -f worm
+```
+it load worm body simulation and run pyhon modul which is responsible for muscle signal updating. If you want work with worm body configuration generator you should change branch to WormBodySimultion.
+
+Control in graphical mode
+---------------
+If you run Sibernetic with graphic you can work with scene rotate and scaling by mouse. Also you several control button is available:
+```
+'Space' - pause simulation 
+'s'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
+than (./Release/Sibernetic -f /snapshot/configuration_default).
+'q' or 'Esc'     - quit the semulation 
+'1'     - run demo1 configuration
+'2'     - run demo2 configuration
+```
+
+Configuration file format
+---------------
+Configuration file is consist from:
+```
+First 6 lines is spatial description of boundary box
+xmin
+xmax
+ymin
+ymax
+zmin
+zmax
+[position] - contains information about position of all particles e.g.
+1 0 0 1
+1 0 0 1
+...
+[velocity] - contains infomation about velocityes of all particles e.g.
+0 0 0 1
+0 0 0 1
+...
+[connection] - contains infomation about elastic connection of all elastic particles e.g.
+1	1.58649939377	1.1	0.0
+7	1.58649939377	1.1	0.0
+...
+[membranes] - contains infomation about membranes e.g.
+0	1	7
+7	8	1
+...
+[particleMemIndex] - contains infomation about in which membranes elastic particle is includes e.g.
+0
+144
+288
+-1
+...
+```
+
+
 Saving to disk
 --------------
 You can run Sibernetic on gpu for this you should start Sibernetic with key device=gpu.
