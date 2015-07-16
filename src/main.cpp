@@ -52,17 +52,25 @@ int main(int argc, char **argv) {
         char save_flag[] = "-l_to";
         char load_flag[] = "-l_from";
         char test_flag[] = "-test";
+        char config_file_flag[] = "-f <filename>";
+        char device_type_flag[] = "device=<device_type>";
+        char time_step_flag[] = "timestep=<value>";
+        char time_limit_flag[] = "timelimit=<value>";
 
         for (int i = 1; i < argc; i++) {
             if (strncmp(argv[i], help_flag, 6) == 0) { // print usage information
                 std::cout << "\nSibernetic\n  This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion\n\n";
                 std::cout << "  Usage:  ./Release/Sibernetic [OPTION]\n";
-                std::cout << "    " << no_graphics_flag << "       Run without graphics\n";
-                std::cout << "    " << save_flag << "       Save simulation results to disk\n";
-                std::cout << "    " << load_flag << "     Load simulation results from disk\n";
-                std::cout << "    " << test_flag << "       Run some tests\n";
-                std::cout << "    " << help_flag << "       Print this information\n\n";
-                std::cout << "  Please report any bugs/issues on: https://github.com/openworm/Smoothed-Particle-Hydrodynamics/issues\n\n";
+                std::cout << "    " << no_graphics_flag << "                      Run without graphics\n\n";
+                std::cout << "    " << save_flag << "                      Save simulation results to disk\n\n";
+                std::cout << "    " << load_flag << "                    Load simulation results from disk\n\n";
+                std::cout << "    " << test_flag << "                      Run some tests\n\n";
+                std::cout << "    " << config_file_flag << "              Load configuration from file ./configuration/<filename>\n\n";
+                std::cout << "    " << device_type_flag << "       Trying to init OpenCL on device <type> it could be cpu or gpu default-cpu\n\n";
+                std::cout << "    " << time_step_flag << "           Start simulation with time step = <value> in seconds\n\n";
+                std::cout << "    " << time_limit_flag << "          Run simulation until <value> will be reached in seconds\n\n";
+                std::cout << "    " << help_flag << "                      Print this information\n\n";
+                std::cout << "  Please report any bugs/issues on: https://github.com/openworm/sibernetic/issues\n\n";
                 exit(0);
             }
             if (strncmp(argv[i], no_graphics_flag, 5) == 0) // run without graphics
@@ -81,7 +89,7 @@ int main(int argc, char **argv) {
             }
         }
         if (run_tests) {
-            test_energy_conservation();
+            test_energy_conservation(argc, argv);
         } else
             run(argc, argv, graph);
     }

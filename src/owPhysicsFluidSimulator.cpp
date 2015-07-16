@@ -98,7 +98,6 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 		config->zmin = 0.f;
 		config->zmax = 200.0f*h;
 #endif
-		config->setDeviceType(dev_type);
 		if(generateWormBodyConfiguration)
 		// GENERATE THE SCENE
 		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config);
@@ -303,14 +302,17 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		}
 		iterationCount++;
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
+
 #ifdef PY_NETWORK_SIMULATION
         //mv
-        vector<float> muscle_vector = simulation.run();
+        vector<float> muscle_vector = config->getPyramidalSimulation().run();
         for(int i=0; i < MUSCLE_COUNT; i++){
         	for (unsigned int index = 0; index < muscle_vector.size(); index++){
         		muscle_activation_signal_cpp[index] = muscle_vector[index];
         	}
         }
+#else
+        config->updatePyramidalSimulation(muscle_activation_signal_cpp);
 #endif
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp);
 		return helper->get_elapsedTime();

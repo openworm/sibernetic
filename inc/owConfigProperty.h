@@ -36,9 +36,13 @@
 #ifndef OWCONFIGURATION_H_
 #define OWCONFIGURATION_H_
 
+#include <vector>
+
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
+#include "PyramidalSimulation.h"
 
+extern int MUSCLE_COUNT;
 
 struct owConfigProrerty{
 	//This value defines boundary of box in which simulation is
@@ -56,6 +60,18 @@ public:
 	const int getNumberOfIteration() const { return totalNumberOfIteration ;}
 	INTEGRATOR getIntegrationMethod() const { return integration_method; }
 	const std::string & getCofigFileName() const { return configFileName; }
+	PyramidalSimulation & getPyramidalSimulation() { return simulation; }
+	void updatePyramidalSimulation(float * muscleActivationSignal){
+		if(configFileName == "worm"){
+			std::vector<float> muscle_vector = simulation.run();
+			for(int i=0; i < MUSCLE_COUNT; i++){
+				for (unsigned int index = 0; index < muscle_vector.size(); index++){
+					muscleActivationSignal[index] = muscle_vector[index];
+				}
+			}
+		}
+	}
+	bool isWormConfig(){ return (configFileName == "worm")? true:false; }
 	void setCofigFileName( const char * name ) { configFileName = name; }
 	// Constructor
 	owConfigProrerty(int argc, char** argv){
@@ -92,6 +108,9 @@ public:
 				else
 					throw std::runtime_error("You forget add configuration file name. Please add it and try again");
 			}
+		}
+		if(configFileName == "worm"){ // in case if we run worm configuration TODO make it optional
+			simulation.setup();
 		}
 		totalNumberOfIteration = time_limit/time_step; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
@@ -171,6 +190,7 @@ private:
 	DEVICE preferable_device_type;// 0-CPU, 1-GPU
 	INTEGRATOR integration_method; //DEFAULT is EULER
 	std::string configFileName;
+	PyramidalSimulation simulation;
 };
 
 #endif /* OWCONFIGURATION_H_ */
