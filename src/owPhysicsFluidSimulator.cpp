@@ -43,39 +43,9 @@ int numOfLiquidP = 0;			 // Number of liquid particles TODO: move this to owConf
 int numOfElasticP = 0;			 // Number of liquid particles TODO: move this to owConfig class
 int numOfBoundaryP = 0;			 // Number of boundary particles TODO: move this to owConfig class
 int numOfMembranes = 0;			 // Number of membranes TODO: move this to owConfig class
-extern float * muscle_activation_signal_cpp;
 int iter_step = 10;				 // Count of iteration which will be skipped before logging configuration to file
 								 // NOTE: this using only in "load config to file" mode
 
-//mv
-//need to find a more elegant design for this - at the moment the use of a global
-//is pretty ugly:
-#ifdef PY_NETWORK_SIMULATION
-PyramidalSimulation simulation;
-#endif
-std::vector<int> memParticle;
-std::vector<int> muscleParticle;
-void fillMemId(int * particleMembranesList_cpp){
-	for(int i=0;i < numOfElasticP ;i++){
-		if(particleMembranesList_cpp[MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * i + 0]!=-1){
-			memParticle.push_back(i);
-		}
-	}
-	std::cout << memParticle.size() << std::endl;
-}
-void fillMuscleParticles(float * elasticConnection){
-	for(int i=0;i < numOfElasticP;i++){
-		for(int j=0;j<MAX_NEIGHBOR_COUNT;j++)
-		{
-			if((int)elasticConnection[i * MAX_NEIGHBOR_COUNT * 4 + j * 4 + 2] != 0){
-				muscleParticle.push_back(i);
-				break;
-			}
-		}
-	}
-	owHelper::log_buffer(&muscleParticle[0],1,muscleParticle.size(),"./logs/muscleParticles");
-	std::cout << memParticle.size() << std::endl;
-}
 /** Constructor method for owPhysicsFluidSimulator.
  *
  *  @param helper
@@ -90,24 +60,9 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 	try{
 		iterationCount = 0;
 		config = new owConfigProrerty(argc, argv);
-#if generateWormBodyConfiguration
-		config->xmin = 0.f;
-		config->xmax = 30.0f*h;
-		config->ymin = 0.f;
-		config->ymax = 20.0f*h;
-		config->zmin = 0.f;
-		config->zmax = 200.0f*h;
-#endif
-		if(generateWormBodyConfiguration)
-		// GENERATE THE SCENE
-		owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config);
-		else								
 		// LOAD FROM FILE
 		owHelper::preLoadConfiguration(numOfMembranes, config, numOfLiquidP, numOfElasticP, numOfBoundaryP);
-#ifdef PY_NETWORK_SIMULATION
-        //mv
-		simulation.setup();
-#endif
+
 		//TODO move initialization to configuration class
 		config->gridCellsX = (int)( ( config->xmax - config->xmin ) / h ) + 1;
 		config->gridCellsY = (int)( ( config->ymax - config->ymin ) / h ) + 1;
@@ -135,13 +90,10 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 		//The buffers listed below are only for usability and debug
 		density_cpp = new float[ 1 * config->getParticleCount() ];
 		particleIndex_cpp = new unsigned int[config->getParticleCount() * 2];
-		if(generateWormBodyConfiguration)
-			// GENERATE THE SCENE
-			owHelper::generateConfiguration(1,position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config );
-		else 
-			// LOAD FROM FILE
-			owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
-		fillMuscleParticles(elasticConnectionsData_cpp);
+
+		// LOAD FROM FILE
+		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
+
 		if(numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
@@ -165,24 +117,8 @@ void owPhysicsFluidSimulator::reset(){
 	numOfLiquidP = 0;
 	numOfMembranes = 0;
 	numOfElasticConnections = 0;
-#if generateWormBodyConfiguration
-		config->xmin = 0.f;
-		config->xmax = 30.0f*h;
-		config->ymin = 0.f;
-		config->ymax = 20.0f*h;
-		config->zmin = 0.f;
-		config->zmax = 200.0f*h;
-#endif
-	if(generateWormBodyConfiguration)
-	// GENERATE THE SCENE
-	owHelper::generateConfiguration(0, position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config);
-	else
 	// LOAD FROM FILE
 	owHelper::preLoadConfiguration(numOfMembranes, config, numOfLiquidP, numOfElasticP, numOfBoundaryP);
-#ifdef PY_NETWORK_SIMULATION
-	//mv
-	simulation.setup();
-#endif
 	//TODO move initialization to configuration class
 	config->gridCellsX = (int)( ( config->xmax - config->xmin ) / h ) + 1;
 	config->gridCellsY = (int)( ( config->ymax - config->ymin ) / h ) + 1;
@@ -205,10 +141,6 @@ void owPhysicsFluidSimulator::reset(){
 	density_cpp = new float[ 1 * config->getParticleCount() ];
 	particleIndex_cpp = new unsigned int[config->getParticleCount() * 2];
 
-	if(generateWormBodyConfiguration)
-	// GENERATE THE SCENE
-	owHelper::generateConfiguration(1,position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes, particleMembranesList_cpp, config );
-	else
 	// LOAD FROM FILE
 	owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, numOfLiquidP, numOfElasticP, numOfBoundaryP, numOfElasticConnections, numOfMembranes,membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
 	if(numOfElasticP != 0){
@@ -293,27 +225,17 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		printf("------------------------------------\n");
 		if(load_to){
 			if(iterationCount == 0){
-				owHelper::loadConfigurationToFile(position_cpp, config, muscleParticle, elasticConnectionsData_cpp,membraneData_cpp,true);
+				owHelper::loadConfigurationToFile(position_cpp,  config,elasticConnectionsData_cpp,membraneData_cpp,true);
 			}else{
 				if(iterationCount % iter_step == 0){
-					owHelper::loadConfigurationToFile(position_cpp, config, muscleParticle, NULL, NULL, false);
+					owHelper::loadConfigurationToFile(position_cpp, config, NULL, NULL, false);
 				}
 			}
 		}
 		iterationCount++;
 		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 
-#ifdef PY_NETWORK_SIMULATION
-        //mv
-        vector<float> muscle_vector = config->getPyramidalSimulation().run();
-        for(int i=0; i < MUSCLE_COUNT; i++){
-        	for (unsigned int index = 0; index < muscle_vector.size(); index++){
-        		muscle_activation_signal_cpp[index] = muscle_vector[index];
-        	}
-        }
-#else
         config->updatePyramidalSimulation(muscle_activation_signal_cpp);
-#endif
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp);
 		return helper->get_elapsedTime();
 	}

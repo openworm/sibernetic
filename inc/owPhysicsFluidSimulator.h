@@ -101,6 +101,12 @@ public:
 	 *  @return membraneData_cpp
 	 */
 	int   * getMembraneData_cpp() const { return membraneData_cpp; };
+	/** Getter for muscle_activation_signal_cpp buffer
+	 *
+	 *
+	 *  @return membraneData_cpp
+	 */
+	float * getMuscleAtcivationSignal() const { return muscle_activation_signal_cpp; }
 	double  simulationStep(const bool load_to = false);
 	/** Getter for config
 	 *  @return config
@@ -119,6 +125,8 @@ private:
 	float * elasticConnectionsData_cpp; // copied later to OpenCL buffer %variableName%
 	int	  * membraneData_cpp;
 	int   * particleMembranesList_cpp;
+	//Muscle contraction data buffer
+	float * muscle_activation_signal_cpp;
 	//Helper arrays for displaying information about density changes
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;

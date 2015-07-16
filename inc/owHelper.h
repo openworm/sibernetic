@@ -38,7 +38,6 @@
 #include <stdexcept>
 #include <iostream>
 #include <cstdlib>
-#include <vector>
 
 #include "owConfigProperty.h"
 #include "owOpenCLConstant.h"
@@ -58,11 +57,10 @@ class owHelper
 public:
 	owHelper(void);
 	~owHelper(void);
-	static void generateConfiguration( int stage, float *position, float *velocity, float *& elasticConnectionsData_cpp, int *membraneData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes, int * particleMembranesList_cpp, owConfigProrerty * config);
 	static void preLoadConfiguration( int & numOfMembranes, owConfigProrerty * config, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP );
 	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config );
 	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *& elasticConnectionsData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
-	static void loadConfigurationToFile(float * position, owConfigProrerty * config, std::vector<int> & filter, float * connections=NULL, int * membranes=NULL, bool firstIteration = true);
+	static void loadConfigurationToFile(float * position, owConfigProrerty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true, int * filter_p=NULL, int size=0);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration = 0);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config,int iteration = 0);
 	static void loadConfigurationFromFile(float *& position, float *& velocity,float *& connections, int *& membranes, int *& particleMemIndex, owConfigProrerty * config);

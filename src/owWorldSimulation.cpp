@@ -884,6 +884,7 @@ void run(int argc, char** argv, const bool with_graphics)
 	if(!load_from_file){
 		fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
 		localConfig = fluid_simulation->getConfig();
+		muscle_activation_signal_cpp = fluid_simulation->getMuscleAtcivationSignal();
 	}
 	else{
 		localConfig = new owConfigProrerty(argc, argv);
