@@ -132,7 +132,6 @@ const double divgradWviscosityCoefficient = - gradWspikyCoefficient;            
 const float gravity_x = 0.0f;                       // Value of vector Gravity component x
 const float gravity_y = -9.8f;                      // Value of vector Gravity component y
 const float gravity_z = 0.0f;                       // Value of vector Gravity component z
-extern const float delta;                           // NOTE more info about this parameter see in file owPhysicsFluidSimulator.cpp description of function calcDelta()
 const int maxIteration = 3;                         // Number of iterations for Predictive-Corrective scheme
 
 const float mass_mult_Wpoly6Coefficient = (float) ( (double)mass * Wpoly6Coefficient );                       // Conversion of double value to float. For work with only 1st precision arithmetic.
@@ -146,7 +145,8 @@ const float simulationScaleInv = 1.0f / simulationScale;   // Inverted value for
 const float _hScaled = h * simulationScale;         // scaled smoothing radius
 const float _hScaled2 = _hScaled*_hScaled;          // squared scaled smoothing radius
 
-const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale; // Surface coefficient. Actually it is -1.5e-09f * 0.3f
+const float surfTensCoeff = mass_mult_Wpoly6Coefficient * simulationScale;
+//const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale; // Surface coefficient. Actually it is -1.5e-09f * 0.3f
                                                                                                                                                // But for decreasing number of repeating calculation we suppose that
                                                                                                                                                // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
 const float elasticityCoefficient = 1.95e-05f / mass; // Elasticity coefficient. Actually it isn't

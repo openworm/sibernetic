@@ -53,5 +53,6 @@
 const int local_NDRange_size = 256;
 
 enum DEVICE { CPU = 0, GPU = 1};
+enum INTEGRATOR { EULER = 0, LEAPFROG = 1 };
 
 #endif // #ifndef OW_OPENCL_CONSTANT_H

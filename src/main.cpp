@@ -36,10 +36,8 @@
 #include "owWorldSimulation.h"
 #include "owPhysicTest.h"
 
-#include "owWorldSimulation.h"
-
 bool load_from_file = false;
-
+bool load_to = false;
 int main(int argc, char **argv) {
 
     if (argc == 1) {
@@ -47,7 +45,6 @@ int main(int argc, char **argv) {
         run(argc, argv);
     } else {
         bool graph = true;
-        bool load_to = false;
         bool run_tests = false;
 
         char help_flag[] = "-help";
@@ -86,7 +83,7 @@ int main(int argc, char **argv) {
         if (run_tests) {
             test_energy_conservation();
         } else
-            run(argc, argv, graph, load_to);
+            run(argc, argv, graph);
     }
     return 0;
 }
