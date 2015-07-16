@@ -305,7 +305,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 
 #ifdef PY_NETWORK_SIMULATION
         //mv
-        vector<float> muscle_vector = config->getPyramidalSimulation().run();
+        vector<float> muscle_vector = simulation.run();//config->getPyramidalSimulation().run();
         for(int i=0; i < MUSCLE_COUNT; i++){
         	for (unsigned int index = 0; index < muscle_vector.size(); index++){
         		muscle_activation_signal_cpp[index] = muscle_vector[index];
