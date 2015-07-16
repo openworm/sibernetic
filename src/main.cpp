@@ -56,6 +56,7 @@ int main(int argc, char **argv) {
         char device_type_flag[] = "device=<device_type>";
         char time_step_flag[] = "timestep=<value>";
         char time_limit_flag[] = "timelimit=<value>";
+        char integration_method_flag[] = "leapfrog";
 
         for (int i = 1; i < argc; i++) {
             if (strncmp(argv[i], help_flag, 6) == 0) { // print usage information
@@ -69,6 +70,7 @@ int main(int argc, char **argv) {
                 std::cout << "    " << device_type_flag << "       Trying to init OpenCL on device <type> it could be cpu or gpu default-cpu\n\n";
                 std::cout << "    " << time_step_flag << "           Start simulation with time step = <value> in seconds\n\n";
                 std::cout << "    " << time_limit_flag << "          Run simulation until <value> will be reached in seconds\n\n";
+                std::cout << "    " << integration_method_flag << "                   Run simulation using Leapfrog integration method for time integration\n\n";
                 std::cout << "    " << help_flag << "                      Print this information\n\n";
                 std::cout << "  Please report any bugs/issues on: https://github.com/openworm/sibernetic/issues\n\n";
                 exit(0);
