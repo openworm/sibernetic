@@ -1,34 +1,34 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
+    <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>Sibernetic by openworm</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
 
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
+
+    <title>Sibernetic by openworm</title>
   </head>
+
   <body>
-    <div class="wrapper">
-      <header>
+    <header>
+      <div class="inner">
         <h1>Sibernetic</h1>
-        <p>This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion</p>
+        <h2>This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion</h2>
+        <a href="https://github.com/openworm/sibernetic" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
 
-        <p class="view"><a href="https://github.com/openworm/Smoothed-Particle-Hydrodynamics">View the Project on GitHub <small>openworm/Smoothed-Particle-Hydrodynamics</small></a></p>
-
-
-        <ul>
-          <li><a href="https://github.com/openworm/Smoothed-Particle-Hydrodynamics/zipball/master">Download <strong>ZIP File</strong></a></li>
-          <li><a href="https://github.com/openworm/Smoothed-Particle-Hydrodynamics/tarball/master">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/openworm/Smoothed-Particle-Hydrodynamics">View On <strong>GitHub</strong></a></li>
-        </ul>
-      </header>
-      <section>
-        <p><img src="http://i.imgur.com/Hbsw6Zs.png" alt="Sibernetic"></p>
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <p><img src="http://i.imgur.com/Hbsw6Zs.png" alt="Sibernetic"></p>
 
 <p>Sibernetic is a fluid mechanics simulator developed for simulations of C. elegans in the <a href="http://www.openworm.org">OpenWorm project</a> developed for the <a href="http://openworm.org">OpenWorm</a> project by Andrey Palyanov, Sergey Khayrulin and Mike Vella as part of the <a href="http://www.openworm.org/people.html">OpenWorm team</a>. Sibernetic provides an implementation of the PCISPH contractile matter algorithm for simulating muscle tissue and is applies to C. elegans locomotion.</p>
 
@@ -39,7 +39,7 @@
 <p>There is a separate effort lead by <a href="https://github.com/gidili">Giovanni Idili</a> and <a href="https://github.com/skhayrulin">Sergey Khayrulin</a> to port this code to Java, as part of the <a href="https://github.com/openworm/OpenWorm/wiki/Geppetto--Overview">Geppetto simulation framework</a>. </p>
 
 <h2>
-<a name="compiling--running-linuxmac" class="anchor" href="#compiling--running-linuxmac"><span class="octicon octicon-link"></span></a>Compiling / running (Linux/mac)</h2>
+<a id="compiling--running-linuxmac" class="anchor" href="#compiling--running-linuxmac" aria-hidden="true"><span class="octicon octicon-link"></span></a>Compiling / running (Linux/mac)</h2>
 
 <p><strong>Linux</strong></p>
 
@@ -81,7 +81,7 @@ Finished building target: Smoothed-Particle-Hydrodynamics
 
 <p><strong>Linux</strong>:</p>
 
-<pre><code>./Release/Sibernetic
+<pre><code>./Release/Smoothed-Particle-Hydrodynamics
 </code></pre>
 
 <p><strong>Mac</strong>:</p>
@@ -103,8 +103,8 @@ Finished building target: Smoothed-Particle-Hydrodynamics
 </code></pre>
 
 <h2>
-<a name="saving-to-disk" class="anchor" href="#saving-to-disk"><span class="octicon octicon-link"></span></a>Saving to disk</h2>
-<p>You can run Sibernetic on gpu for this you should start Sibernetic with key device=gpu</p>
+<a id="saving-to-disk" class="anchor" href="#saving-to-disk" aria-hidden="true"><span class="octicon octicon-link"></span></a>Saving to disk</h2>
+
 <p>You may wish to save simulations to disk rather than visualise them (<strong>WARNING</strong>: This is buggy)</p>
 
 <p>For record configuraton into file you need to run simulation with key -l_to - it create 3 new files 
@@ -115,11 +115,13 @@ at the folder ./buffers:</p>
 <li>membranes_buffer.txt   - it need to store information about membranes </li>
 <li>position_buffer.txt    - it need to store information current position all of the non boundary particles it save information to this file every 10 steps of simulation. You shoulld remember that than more info you 
 want to store than bigger output file is. </li>
-</ul><p>For view result you should run simulation with key -l_from - it get positions from position_buffer.txt file and 
+</ul>
+
+<p>For view result you should run simulation with key -l_from - it get positions from position_buffer.txt file and 
 draw evolution of system in time</p>
 
 <h2>
-<a name="making-videos-nix" class="anchor" href="#making-videos-nix"><span class="octicon octicon-link"></span></a>Making videos (*nix)</h2>
+<a id="making-videos-nix" class="anchor" href="#making-videos-nix" aria-hidden="true"><span class="octicon octicon-link"></span></a>Making videos (*nix)</h2>
 
 <p>If you run a simulation you may be interested in recording the graphical output. Making such videos is a bit tricky because they need to be speeded up, so far I have found the following two commands do a decent job (change folder names accordingly) after you have used a screen record program:</p>
 
@@ -147,13 +149,25 @@ ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
 <pre><code>#re-encode into video
 ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 </code></pre>
-      </section>
-      <footer>
-        <p>This project is maintained by <a href="https://github.com/openworm">openworm</a></p>
-        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
-      </footer>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/openworm/sibernetic/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/openworm/sibernetic/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/openworm/sibernetic"></a> is maintained by <a href="https://github.com/openworm">openworm</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
     </div>
-    <script src="javascripts/scale.fix.js"></script>
-    
+
+  
   </body>
 </html>
