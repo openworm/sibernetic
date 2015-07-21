@@ -79,7 +79,6 @@ int main(int argc, char **argv) {
                 graph = false;
             if (strncmp(argv[i], save_flag, 5) == 0) { // run load config to file mode
                 std::cout << save_flag << " flag: Sibernetic will save simulation results to disk\n";
-                graph = false;
                 load_to = true;
             }
             if (strncmp(argv[i], load_flag, 7) == 0) { // run load config from file mode
