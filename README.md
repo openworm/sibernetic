@@ -111,7 +111,7 @@ Run simulation from configuration file
 --------------
 All configuration is stored in ./configuration folder there are two demo configuration demo1 and demo2 (demo1 is using as default demonstarative configuration). You can switch between two demo configurations directly inside the working Sibernetic - just push button '1' or '2' respectively. For run your configuration put you're configuration file into configuration folder and run Sibernetic with key 
 ```
-./Release/Sibernetic -f and <configuration_file_name>. 
+./Release/Sibernetic -f <configuration_file_name>. 
 ```
 For run worm body simulation you should run Siberntic with key 
 ```
