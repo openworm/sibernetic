@@ -124,7 +124,6 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 	}
 }
 
-extern char device_full_name [1000];
 /** Reset simulation method
  *
  *  This Method reset all simulation. It's reiniting all buffers with
@@ -222,7 +221,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	//0-CPU, 1-GPU // depends on the time order of system OpenCL drivers installation on your local machine
 	// CL_DEVICE_TYPE
     cl_device_type type;
-	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
+	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU, CL_DEVICE_TYPE_ALL};
 
 	int plList = -1;//selected platform index in platformList array [choose CPU by default]
 							//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
@@ -237,12 +236,12 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
 		//if(findDevice)
 		//	break;
-		clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], CL_DEVICE_TYPE_ALL, 0, NULL, &ciDeviceCount);
+		clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], 0, NULL, &ciDeviceCount);
 		if ((devices_t = (cl_device_id*)malloc(sizeof(cl_device_id) * ciDeviceCount)) == NULL){
 		   bPassed = false;
 		}
 		if(bPassed){
-			result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], CL_DEVICE_TYPE_ALL, ciDeviceCount, devices_t, &ciDeviceCount);
+			result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], ciDeviceCount, devices_t, &ciDeviceCount);
 			if( result == CL_SUCCESS){
 				for( cl_uint i =0; i < ciDeviceCount; ++i ){
 					clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);
@@ -280,10 +279,10 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	int value;
     unsigned long val2;
     size_t val3;
-	//uint deviceNum = 0;// causes "error C2065: 'uint' : undeclared identifier"
+	//deviceNum = 0;// causes "error C2065: 'uint' : undeclared identifier"
     result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_NAME [" << deviceNum << "]:\t" << cBuffer << "\n" << std::endl;
-	if(strlen(cBuffer)<1000) strcpy(device_full_name,cBuffer);
+	if(strlen(cBuffer)<1000) config->setDeviceName(cBuffer);
 	result = devices[deviceNum].getInfo(CL_DEVICE_TYPE,&cBuffer);
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_TYPE [" << deviceNum << "]:\t" << (((int)cBuffer[0] == CL_DEVICE_TYPE_CPU)? "CPU" : "GPU") << std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&val3);

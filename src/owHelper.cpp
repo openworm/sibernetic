@@ -36,6 +36,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <algorithm>    
 
 
 #if defined(__APPLE__) || defined (__MACOSX)
@@ -115,6 +116,15 @@ void findVali(std::string & str, char delimiter, size_t & start, int & val){
 	}else // it means usualy that we reached the end of string and there are no \t
 		val = std::atoi(str.substr(start).c_str());
 }
+bool my_strcmp(const char * str1, const char * str2){
+	while(*str2){
+		if(*str1 != *str2)
+			return false;
+		str2++;
+		str1++;
+	}
+	return true;
+}
 /** Preparing initial data before load full configuration
  *
  *  Before load configuration data from file (initial position and velocity,
@@ -162,7 +172,9 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 			{
 				//configFile >> inputStr;
 				std::getline(configFile,inputStr);
-				if(inputStr == "[position]"){
+				inputStr.erase( std::remove( inputStr.begin(), inputStr.end(), '\r' ), inputStr.end() );
+				inputStr.erase( std::remove( inputStr.begin(), inputStr.end(), '\n' ), inputStr.end() );
+				if( inputStr == "[position]"){
 					mode = POSITION;
 					continue;
 				}
@@ -266,6 +278,8 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 			{
 				//configFile >> inputStr;
 				std::getline(configFile,inputStr);
+				inputStr.erase( std::remove( inputStr.begin(), inputStr.end(), '\r' ), inputStr.end() );
+				inputStr.erase( std::remove( inputStr.begin(), inputStr.end(), '\n' ), inputStr.end() );
 				if(inputStr == "[position]"){
 					mode = POSITION;
 					continue;

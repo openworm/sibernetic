@@ -37,6 +37,7 @@
 #define OWCONFIGURATION_H_
 
 #include <vector>
+#include <string>
 
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
@@ -58,6 +59,10 @@ public:
 	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; }
 	const int getDeviceType() const { return preferable_device_type; };
 	const int getNumberOfIteration() const { return totalNumberOfIteration ;}
+	const char * getDeviceName() const { return device_full_name.c_str(); }
+	void setDeviceName(char * name) {
+		device_full_name = name;
+	}
 	INTEGRATOR getIntegrationMethod() const { return integration_method; }
 	const std::string & getCofigFileName() const { return configFileName; }
 	PyramidalSimulation & getPyramidalSimulation() { return simulation; }
@@ -75,7 +80,7 @@ public:
 	void setCofigFileName( const char * name ) { configFileName = name; }
 	// Constructor
 	owConfigProrerty(int argc, char** argv){
-		preferable_device_type = CPU;
+		preferable_device_type = ALL;
 		time_step = timeStep;
 		time_limit = 0.f;
 		beta = ::beta;
@@ -87,6 +92,8 @@ public:
 			if(s_temp.find("device=") == 0){
 				if(s_temp.find("GPU") != std::string::npos || s_temp.find("gpu") != std::string::npos)
 					preferable_device_type = GPU;
+				if(s_temp.find("CPU") != std::string::npos || s_temp.find("cpu") != std::string::npos)
+					preferable_device_type = CPU;
 			}
 			if(s_temp.find("timestep=") == 0){
 
@@ -191,6 +198,7 @@ private:
 	INTEGRATOR integration_method; //DEFAULT is EULER
 	std::string configFileName;
 	PyramidalSimulation simulation;
+	std::string device_full_name;
 };
 
 #endif /* OWCONFIGURATION_H_ */

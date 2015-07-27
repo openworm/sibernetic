@@ -93,7 +93,7 @@ Available options:
  -l_from               Load simulation results from disk.
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file ./configuration/<filename>.
- device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu default-cpu.
+ device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu default-ALL (it try to init most powerful available device).
  timestep=<value>      Start simulation with time step = <value> in seconds.
  timelimit=<value>     Run simulation until <value> will be reached in seconds.
  leapfrog              Use for integration LeapFrog method
