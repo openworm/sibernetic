@@ -1,4 +1,4 @@
-
+TARGET = Sibernetic
 RM := rm -rf
 
 # All of the sources participating in the build are defined here
@@ -30,13 +30,13 @@ LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
 
 
 # All Target
-all: Smoothed-Particle-Hydrodynamics
+all: $(TARGET)
 
 # Tool invocations
-Smoothed-Particle-Hydrodynamics: $(OBJECTS)
+$(TARGET): $(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: clang C++ Linker'
-	g++ -L/usr/lib -F$(PYTHONFRAMEWORKDIR) -L$(PYTHONLIBDIR) -o $(BUILDDIR)/Smoothed-Particle-Hydrodynamics $(OBJECTS) $(LIBS)
+	g++ -L/usr/lib -F$(PYTHONFRAMEWORKDIR) -L$(PYTHONLIBDIR) -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -53,7 +53,7 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 
 # Other Targets
 clean:
-	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/Smoothed-Particle-Hydrodynamics
+	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
 .PHONY: all clean dependents
