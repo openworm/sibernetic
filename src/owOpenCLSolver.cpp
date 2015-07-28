@@ -978,8 +978,8 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, int pcisp
  *  @return -1 if value v1[0] > v2[0], +1 v1[0] < v2[0] else 0.
  */
 int myCompare( const void * v1, const void * v2 ){
-	int * f1 = (int *)v1;
-	int * f2 = (int *)v2;
+	const int * f1 = static_cast<const int *>(v1);
+	const int * f2 = static_cast<const int *>(v2);
 	if( f1[ 0 ] < f2[ 0 ] ) return -1;
 	if( f1[ 0 ] > f2[ 0 ] ) return +1;
 	return 0;

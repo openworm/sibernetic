@@ -83,6 +83,30 @@ Compilation failed:
 #include "src//owOpenCLConstant.h"
 ```
 
+
+What's inside
+-------------
+
+Physical Algorithms:
+
+- PCI SPH - simulation incompressible liquid [1]
+- Simulation elastic matter
+- Simulation liquid-impermeable membranes
+- Boundary handling [2]
+- Surface tension [3]
+
+There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to boundary (one of it has a liquid-impermeable membranes covering and another one hasn't such). 
+
+The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).
+
+To switch between demos you need to press the 1 or 2 keys respectively. To pause simulation you may press space bar.
+
+References
+
+1. B. Solenthaler, Predictive-Corrective Incompressible SPH. ACM Transactions on Graphics (Proceedings of SIGGRAPH), 28(3), 2009. 
+2. M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
+3. M. Becker, M. Teschner. Weakly compressible SPH for free surface flows // Proceedings of the 2007 ACM SIGGRAPH/Eurographics symposium on Computer animation, pages 209-217.
+
 Main command options
 --------------
 To start Sibernetic with argument print in command prompt next ./Release/Sibernetic -whatever
@@ -94,7 +118,7 @@ Available options:
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file ./configuration/<filename>.
  device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu 
-                       default-ALL (it try to init most powerful available device).
+                       default-ALL (it will try to init most powerful available device).
  timestep=<value>      Start simulation with time step = <value> in seconds.
  timelimit=<value>     Run simulation until <value> will be reached in seconds.
  leapfrog              Use for integration LeapFrog method
@@ -114,11 +138,11 @@ All configuration is stored in ./configuration folder there are two demo configu
 ```
 ./Release/Sibernetic -f <configuration_file_name>. 
 ```
-For run worm body simulation you should run Siberntic with key 
+For run worm body simulation you need run Siberntic with key 
 ```
 ./Release/Sibernetic -f worm
 ```
-it load worm body simulation and run pyhon modul which is responsible for muscle signal updating. If you want work with worm body configuration generator you should change branch to WormBodySimultion.
+it load worm body configuration and init and run pyhon module which is responsible for muscle signal updating. If you want work with worm body configuration generator you should change branch to WormBodySimultion.
 
 Control in graphical mode
 ---------------
@@ -127,7 +151,7 @@ If you run Sibernetic with graphic you can work with scene rotate and scaling by
 'Space' - pause simulation 
 's'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
 than (./Release/Sibernetic -f /snapshot/configuration_default).
-'q' or 'Esc'     - quit the semulation 
+'q' or 'Esc'     - quit the sibernetic
 '1'     - run demo1 configuration
 '2'     - run demo2 configuration
 ```
@@ -216,3 +240,7 @@ ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
 #re-encode into video
 ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 ```
+Troubleshooting
+--------------------
+If you have any question or have a problem with runing sibernetic please contact with us
+email me on skhayrulin@openworm.org or info@openworm.org. Or you can create the [issues on github](https://github.com/openworm/sibernetic/issues)
