@@ -216,3 +216,7 @@ ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
 #re-encode into video
 ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 ```
+Troubleshooting
+--------------------
+If you have any question or have a problem with runing sibernetic please contact with us
+email me on skhayrulin@openworm.org or info@openworm.org. Or you can create the [issues on github](https://github.com/openworm/sibernetic/issues)
