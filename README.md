@@ -94,7 +94,7 @@ Available options:
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file ./configuration/<filename>.
  device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu 
-                       default-ALL (it try to init most powerful available device).
+                       default-ALL (it will try to init most powerful available device).
  timestep=<value>      Start simulation with time step = <value> in seconds.
  timelimit=<value>     Run simulation until <value> will be reached in seconds.
  leapfrog              Use for integration LeapFrog method
@@ -114,11 +114,11 @@ All configuration is stored in ./configuration folder there are two demo configu
 ```
 ./Release/Sibernetic -f <configuration_file_name>. 
 ```
-For run worm body simulation you should run Siberntic with key 
+For run worm body simulation you need run Siberntic with key 
 ```
 ./Release/Sibernetic -f worm
 ```
-it load worm body simulation and run pyhon modul which is responsible for muscle signal updating. If you want work with worm body configuration generator you should change branch to WormBodySimultion.
+it load worm body configuration and init and run pyhon module which is responsible for muscle signal updating. If you want work with worm body configuration generator you should change branch to WormBodySimultion.
 
 Control in graphical mode
 ---------------
