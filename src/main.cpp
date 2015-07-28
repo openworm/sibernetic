@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
                 std::cout << "    " << load_flag << "                    Load simulation results from disk\n\n";
                 std::cout << "    " << test_flag << "                      Run some tests\n\n";
                 std::cout << "    " << config_file_flag << "              Load configuration from file ./configuration/<filename>\n\n";
-                std::cout << "    " << device_type_flag << "       Trying to init OpenCL on device <type> it could be cpu or gpu default-cpu\n\n";
+                std::cout << "    " << device_type_flag << "       Trying to init OpenCL on device <type> it could be cpu or gpu default-ALL (it try to init most powerful available device)\n\n";
                 std::cout << "    " << time_step_flag << "           Start simulation with time step = <value> in seconds\n\n";
                 std::cout << "    " << time_limit_flag << "          Run simulation until <value> will be reached in seconds\n\n";
                 std::cout << "    " << integration_method_flag << "                   Run simulation using Leapfrog integration method for time integration\n\n";
