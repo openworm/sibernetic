@@ -43,9 +43,14 @@
 
 <p><strong>Linux</strong></p>
 
-<p>Install OpenCL on Ubuntu. We suggest you initially go with <a href="http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/">AMD OpenCL drivers</a> as we have found these to be the most stable and complete. AMD only provides rpms but install instructions for Ubuntu can be found <a href="http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html">here</a>. This step often causes problems, contact the <a href="https://groups.google.com/forum/#!forum/openworm-discuss">openworm-discuss</a> mailing list if you encounter issues.</p>
+<p>Install OpenCL on Ubuntu. We suggest you initially go with <a href="http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/">AMD OpenCL drivers</a> as we have found these to be the most stable and complete. You can also try <a href="http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html">Intel's drivers</a>. This step often causes problems, contact the <a href="https://groups.google.com/forum/#!forum/openworm-discuss">openworm-discuss</a> mailing list if you encounter issues. The AMD drivers include samples in /opt/AMDAPP/samples/opencl/bin which you can use to verify your OpenCL support is working.</p>
 
-<p>Navigate to the <code>Release</code> folder and run:</p>
+<p>You'll also need a variety of libraries. In ubuntu, install the dependencies with:</p>
+
+<pre><code>sudo apt-get install g++ python-dev freeglut3-dev nvidia-opencl-dev libglu1-mesa-dev libglew-dev python-numpy
+</code></pre>
+
+<p>Next, navigate to the <code>Release</code> folder and run:</p>
 
 <pre><code>make clean
 make all
@@ -81,7 +86,7 @@ Finished building target: Smoothed-Particle-Hydrodynamics
 
 <p><strong>Linux</strong>:</p>
 
-<pre><code>./Release/Smoothed-Particle-Hydrodynamics
+<pre><code>./Release/Sibernetic
 </code></pre>
 
 <p><strong>Mac</strong>:</p>
@@ -103,7 +108,127 @@ Finished building target: Smoothed-Particle-Hydrodynamics
 </code></pre>
 
 <h2>
+<a id="whats-inside" class="anchor" href="#whats-inside" aria-hidden="true"><span class="octicon octicon-link"></span></a>What's inside</h2>
+
+<p>Physical Algorithms:</p>
+
+<ul>
+<li>PCI SPH - simulation incompressible liquid [1]</li>
+<li>Simulation elastic matter</li>
+<li>Simulation liquid-impermeable membranes</li>
+<li>Boundary handling [2]</li>
+<li>Surface tension [3]</li>
+</ul>
+
+<p>There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to boundary (one of it has a liquid-impermeable membranes covering and another one hasn't such). </p>
+
+<p>The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).</p>
+
+<p>To switch between demos you need to press the 1 or 2 keys respectively. To pause simulation you may press space bar.</p>
+
+<p>References</p>
+
+<ol>
+<li>B. Solenthaler, Predictive-Corrective Incompressible SPH. ACM Transactions on Graphics (Proceedings of SIGGRAPH), 28(3), 2009. </li>
+<li>M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.</li>
+<li>M. Becker, M. Teschner. Weakly compressible SPH for free surface flows // Proceedings of the 2007 ACM SIGGRAPH/Eurographics symposium on Computer animation, pages 209-217.</li>
+</ol>
+
+<h2>
+<a id="main-command-options" class="anchor" href="#main-command-options" aria-hidden="true"><span class="octicon octicon-link"></span></a>Main command options</h2>
+
+<p>To start Sibernetic with argument print in command prompt next ./Release/Sibernetic -whatever
+Available options:</p>
+
+<pre><code> -g_no                 Run without graphics
+ -l_to                 Save simulation results to disk.
+ -l_from               Load simulation results from disk.
+ -test                 Run some physical tests.
+ -f &lt;filename&gt;         Load configuration from file ./configuration/&lt;filename&gt;.
+ device=&lt;device_type&gt;  Trying to init OpenCL on device &lt;type&gt; it could be cpu or gpu 
+                       default-ALL (it will try to init most powerful available device).
+ timestep=&lt;value&gt;      Start simulation with time step = &lt;value&gt; in seconds.
+ timelimit=&lt;value&gt;     Run simulation until &lt;value&gt; will be reached in seconds.
+ leapfrog              Use for integration LeapFrog method
+ -help                 Print this information on screen.
+</code></pre>
+
+<h2>
+<a id="leapfrog-integration" class="anchor" href="#leapfrog-integration" aria-hidden="true"><span class="octicon octicon-link"></span></a>LeapFrog integration</h2>
+
+<p><a href="https://en.wikipedia.org/wiki/Leapfrog_integration">Leapfrog</a> is second order method insted of <a href="https://en.wikipedia.org/wiki/Semi-implicit_Euler_method">Semi-implicid Euler</a> which we are using as default method for integration. For run simulation with Leapfro integration medhod print run command</p>
+
+<pre><code>./Release/Sibernetic leapfrog
+</code></pre>
+
+<h2>
+<a id="run-simulation-from-configuration-file" class="anchor" href="#run-simulation-from-configuration-file" aria-hidden="true"><span class="octicon octicon-link"></span></a>Run simulation from configuration file</h2>
+
+<p>All configuration is stored in ./configuration folder there are two demo configuration demo1 and demo2 (demo1 is using as default demonstarative configuration). You can switch between two demo configurations directly inside the working Sibernetic - just push button '1' or '2' respectively. For run your configuration put you're configuration file into configuration folder and run Sibernetic with key </p>
+
+<pre><code>./Release/Sibernetic -f &lt;configuration_file_name&gt;. 
+</code></pre>
+
+<p>For run worm body simulation you need run Siberntic with key </p>
+
+<pre><code>./Release/Sibernetic -f worm
+</code></pre>
+
+<p>it load worm body configuration and init and run pyhon module which is responsible for muscle signal updating. If you want work with worm body configuration generator you should change branch to WormBodySimultion.</p>
+
+<h2>
+<a id="control-in-graphical-mode" class="anchor" href="#control-in-graphical-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Control in graphical mode</h2>
+
+<p>If you run Sibernetic with graphic you can work with scene rotate and scaling by mouse. Also you several control button is available:</p>
+
+<pre><code>'Space' - pause simulation 
+'s'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
+than (./Release/Sibernetic -f /snapshot/configuration_default).
+'q' or 'Esc'     - quit the sibernetic
+'1'     - run demo1 configuration
+'2'     - run demo2 configuration
+</code></pre>
+
+<h2>
+<a id="configuration-file-format" class="anchor" href="#configuration-file-format" aria-hidden="true"><span class="octicon octicon-link"></span></a>Configuration file format</h2>
+
+<p>Configuration file is consist from:</p>
+
+<pre><code>First 6 lines is spatial description of boundary box
+xmin
+xmax
+ymin
+ymax
+zmin
+zmax
+[position] - contains information about position of all particles e.g.
+1 0 0 1
+1 0 0 1
+...
+[velocity] - contains infomation about velocityes of all particles e.g.
+0 0 0 1
+0 0 0 1
+...
+[connection] - contains infomation about elastic connection of all elastic particles e.g.
+1   1.58649939377   1.1 0.0
+7   1.58649939377   1.1 0.0
+...
+[membranes] - contains infomation about membranes e.g.
+0   1   7
+7   8   1
+...
+[particleMemIndex] - contains infomation about in which membranes elastic particle is includes e.g.
+0
+144
+288
+-1
+...
+</code></pre>
+
+<h2>
 <a id="saving-to-disk" class="anchor" href="#saving-to-disk" aria-hidden="true"><span class="octicon octicon-link"></span></a>Saving to disk</h2>
+
+<p>You can run Sibernetic on gpu for this you should start Sibernetic with key device=gpu.</p>
 
 <p>You may wish to save simulations to disk rather than visualise them (<strong>WARNING</strong>: This is buggy)</p>
 
@@ -149,6 +274,12 @@ ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
 <pre><code>#re-encode into video
 ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 </code></pre>
+
+<h2>
+<a id="troubleshooting" class="anchor" href="#troubleshooting" aria-hidden="true"><span class="octicon octicon-link"></span></a>Troubleshooting</h2>
+
+<p>If you have any question or have a problem with runing sibernetic please contact with us
+email me on <a href="mailto:skhayrulin@openworm.org">skhayrulin@openworm.org</a> or <a href="mailto:info@openworm.org">info@openworm.org</a>. Or you can create the <a href="https://github.com/openworm/sibernetic/issues">issues on github</a></p>
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/openworm">openworm</a></p>
