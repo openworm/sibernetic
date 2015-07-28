@@ -62,7 +62,9 @@ public:
 	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *& elasticConnectionsData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
 	static void loadConfigurationToFile(float * position, owConfigProrerty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true, int * filter_p=NULL, int size=0);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration = 0);
-	static void loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, owConfigProrerty * config,int iteration = 0);
+	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config,int iteration = 0);
+	static void loadConfigurationFromFile(float *& position, float *& velocity,float *& connections, int *& membranes, int *& particleMemIndex, owConfigProrerty * config);
+	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProrerty * config);
 	void watch_report(const char *str);
 	double get_elapsedTime() { return elapsedTime; };
 	void refreshTime();
@@ -90,8 +92,9 @@ public:
 		}
 	}
 	static std::string path;
-	static std::string suffix;
+	static std::string configFileName;
 private:
+	enum ELOADMODE { NOMODE=-1, POSITION, VELOCITY, CONNECTION, MEMBRANE, PMEMINDEX };
 	double elapsedTime;
 #if defined(_WIN32) || defined (_WIN64)
 	LARGE_INTEGER frequency;				// ticks per second

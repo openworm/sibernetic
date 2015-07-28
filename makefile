@@ -1,7 +1,8 @@
 TARGET = Sibernetic
 RM := rm -rf
 
-SOURCES = src/main.cpp \
+SOURCES = src/PyramidalSimulation.cpp \
+src/main.cpp \
 src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \
@@ -28,7 +29,7 @@ all : $(TARGET)
 $(TARGET):$(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++  -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
+	g++ -L/opt/AMDAPP/lib/x86_64/  -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
