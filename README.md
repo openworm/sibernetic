@@ -127,7 +127,7 @@ If you run Sibernetic with graphic you can work with scene rotate and scaling by
 'Space' - pause simulation 
 's'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
 than (./Release/Sibernetic -f /snapshot/configuration_default).
-'q' or 'Esc'     - quit the semulation 
+'q' or 'Esc'     - quit the sibernetic
 '1'     - run demo1 configuration
 '2'     - run demo2 configuration
 ```
