@@ -45,13 +45,13 @@ Invoking: GCC C++ Compiler
 more stuff...
 ....
 
-Building target: Smoothed-Particle-Hydrodynamics
+Building target: Sibernetic
 Invoking: GCC C++ Linker
-g++ -L/usr/lib -L/usr/lib/python2.7 -o "Smoothed-Particle-Hydrodynamics"  ./src/PyramidalSimulation.o ./src/main.o ./src/owHelper.o ./src/owOpenCLSolver.o ./src/owPhysicsFluidSimulator.o ./src/owWorldSimulation.o   -lOpenCL -lpython2.7 -lrt -lglut -lGL -lGLU
-Finished building target: Smoothed-Particle-Hydrodynamics
+g++ -L/usr/lib -L/usr/lib/python2.7 -o "Sibernetic"  ./src/PyramidalSimulation.o ./src/main.o ./src/owHelper.o ./src/owOpenCLSolver.o ./src/owPhysicsFluidSimulator.o ./src/owWorldSimulation.o   -lOpenCL -lpython2.7 -lrt -lglut -lGL -lGLU
+Finished building target:Sibernetic
 ```
 
-Then navigate to the top-level folder in the hierarchy (e.g `Smoothed-Particle-Hydrodynamics`) and set your `PYTHONPATH`:
+Then navigate to the top-level folder in the hierarchy (e.g `Sibernetic`) and set your `PYTHONPATH`:
 
 ```
 export PYTHONPATH=$PYTHONPATH:'./src'
@@ -64,14 +64,21 @@ Finally, to run, run the command:
 ./Release/Sibernetic
 ```
 **Mac**:
+You need before run export several enviroment variables 
 ```
-./build/Smoothed-Particle-Hydrodynamics
+export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
+export PYTHONLIBDIR=/usr/local/lib/python2...
+export PYTHONFRAMEWORKDIR=/usr/local/Frameworks/
+```
+And than run Sibernetic by this command
+```
+./Release/Sibernetic
 ```
 
-You may need to make `./Release/Smoothed-Particle-Hydrodynamics` executable like so:
+You may need to make `./Release/Sibernetic` executable like so:
 
 ```
-chmod +x ./Release/Smoothed-Particle-Hydrodynamics
+chmod +x ./Release/Sibernetic
 ```
 
 If you do not run from the top-level folder you will see an error which looks something like this:
@@ -169,7 +176,7 @@ zmin
 zmax
 [position] - contains information about position of all particles e.g.
 1 0 0 1
-1 0 0 1
+1 0 1 1
 ...
 [velocity] - contains infomation about velocityes of all particles e.g.
 0 0 0 1

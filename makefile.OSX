@@ -14,17 +14,18 @@ TEST_SOURCES = src/test/owPhysicTest.cpp
 SRCEXT := cpp
 SRCDIR := src
 INCDIR := inc
-BUILDDIR := build
-BINARYTESTDIR = $(BUILDDIR)/test
-OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
-OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
+BUILDDIR = ./Release
+BINARYDIR = $(BUILDDIR)/obj
+BINARYTESTDIR = $(BINARYDIR)/test
+OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
+OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
 
 CPP_DEPS = $(OBJECTS:.o=.d)
-	
+
 # Change these to set the different python directories
-PYTHONHEADERDIR = /usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/
-PYTHONLIBDIR = /usr/local/lib/python2.7
-PYTHONFRAMEWORKDIR = /usr/local/Library/Frameworks
+#PYTHONHEADERDIR = /usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/
+#PYTHONLIBDIR = /usr/local/lib/python2.7
+#PYTHONFRAMEWORKDIR = /usr/local/Library/Frameworks
 
 LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
 
@@ -40,8 +41,8 @@ $(TARGET): $(OBJECTS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
-	@mkdir -p $(BUILDDIR)
+$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
+	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: clang C++ Compiler'
