@@ -224,11 +224,11 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	//0-CPU, 1-GPU // depends on the time order of system OpenCL drivers installation on your local machine
 	// CL_DEVICE_TYPE
     cl_device_type type;
-	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU, CL_DEVICE_TYPE_ALL};
+	unsigned int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU, CL_DEVICE_TYPE_ALL};
 
 	int plList = -1;//selected platform index in platformList array [choose CPU by default]
 							//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
-	cl_uint ciDeviceCount;
+	cl_uint ciDeviceCount = 0;
 	cl_device_id * devices_t;
 	bool bPassed = true, findDevice = false;
 	cl_int result;
@@ -241,9 +241,8 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 			//if(findDevice)
 			//	break;
 			clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], 0, NULL, &ciDeviceCount);
-			if ((devices_t = (cl_device_id*)malloc(sizeof(cl_device_id) * ciDeviceCount)) == NULL){
-			   bPassed = false;
-			}
+			if((devices_t = static_cast<cl_device_id *>(malloc(sizeof(cl_device_id) * ciDeviceCount))) == NULL)
+				bPassed = false;
 			if(bPassed){
 				result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], ciDeviceCount, devices_t, &ciDeviceCount);
 				if( result == CL_SUCCESS){
@@ -260,16 +259,14 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 							//break;
 						}
 					}
-					if(ciDeviceCount != 0 && plList < 0){
-						plList = clSelectedPlatformID;
-					}
 				}
 			}
 		}
 		if(!findDevice){
 			//plList = 0;
 			deviceNum = 0;
-			std::cout << "Unfortunately OpenCL couldn't find device " << ((config->getDeviceType() == CPU)? "CPU":"GPU") << std::endl;
+			std::string deviceTypeName = (config->getDeviceType() == ALL)? "ALL": (config->getDeviceType() == CPU)? "CPU":"GPU";
+			std::cout << "Unfortunately OpenCL couldn't find device " << deviceTypeName << std::endl;
 			std::cout << "OpenCL try to init existing device " << std::endl;
 			if(config->getDeviceType() != ALL)
 				config->setDeviceType(ALL);
