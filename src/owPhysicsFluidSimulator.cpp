@@ -99,7 +99,11 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 		}else
 			ocl_solver = new owOpenCLSolver(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
 		this->helper = helper;
-	}catch( std::exception &e ){
+	}catch(std::runtime_error &re){
+		std::cout << "ERROR: " << re.what() << std::endl;
+		exit( -1 );
+	}
+	catch( std::exception &e ){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
 	}
