@@ -118,7 +118,10 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
 		}
 
-	}catch( std::exception &e ){
+	}catch(std::runtime_error & re){
+		throw re;
+	}
+	catch( std::exception &e ){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
 	}
@@ -233,41 +236,46 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	cl_uint device_coumpute_unit_num_current = 0;
 	unsigned int deviceNum = 0;
 	//Selection of more appropriate device
-	for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
-		//if(findDevice)
-		//	break;
-		clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], 0, NULL, &ciDeviceCount);
-		if ((devices_t = (cl_device_id*)malloc(sizeof(cl_device_id) * ciDeviceCount)) == NULL){
-		   bPassed = false;
-		}
-		if(bPassed){
-			result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], ciDeviceCount, devices_t, &ciDeviceCount);
-			if( result == CL_SUCCESS){
-				for( cl_uint i =0; i < ciDeviceCount; ++i ){
-					clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);
-					if( type & device_type[config->getDeviceType()]){
-						clGetDeviceInfo(devices_t[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(device_coumpute_unit_num), &device_coumpute_unit_num, NULL);
-						if(device_coumpute_unit_num_current <= device_coumpute_unit_num){
-							plList = clSelectedPlatformID;
-							device_coumpute_unit_num_current = device_coumpute_unit_num;
-							findDevice = true;
-							deviceNum = i;
+	while(!findDevice){
+		for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
+			//if(findDevice)
+			//	break;
+			clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], 0, NULL, &ciDeviceCount);
+			if ((devices_t = (cl_device_id*)malloc(sizeof(cl_device_id) * ciDeviceCount)) == NULL){
+			   bPassed = false;
+			}
+			if(bPassed){
+				result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], ciDeviceCount, devices_t, &ciDeviceCount);
+				if( result == CL_SUCCESS){
+					for( cl_uint i =0; i < ciDeviceCount; ++i ){
+						clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);
+						if( type & device_type[config->getDeviceType()]){
+							clGetDeviceInfo(devices_t[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(device_coumpute_unit_num), &device_coumpute_unit_num, NULL);
+							if(device_coumpute_unit_num_current <= device_coumpute_unit_num){
+								plList = clSelectedPlatformID;
+								device_coumpute_unit_num_current = device_coumpute_unit_num;
+								findDevice = true;
+								deviceNum = i;
+							}
+							//break;
 						}
-						//break;
 					}
-				}
-				if(ciDeviceCount != 0 && plList < 0){
-					plList = clSelectedPlatformID;
+					if(ciDeviceCount != 0 && plList < 0){
+						plList = clSelectedPlatformID;
+					}
 				}
 			}
 		}
-	}
-	if(!findDevice){
-		//plList = 0;
-		deviceNum = 0;
-		std::cout << "Unfortunately OpenCL couldn't find device " << ((config->getDeviceType() == CPU)? "CPU":"GPU") << std::endl;
-		std::cout << "OpenCL try to init existing device " << std::endl;
-		config->setDeviceType((config->getDeviceType() == CPU)? GPU:CPU);
+		if(!findDevice){
+			//plList = 0;
+			deviceNum = 0;
+			std::cout << "Unfortunately OpenCL couldn't find device " << ((config->getDeviceType() == CPU)? "CPU":"GPU") << std::endl;
+			std::cout << "OpenCL try to init existing device " << std::endl;
+			if(config->getDeviceType() != ALL)
+				config->setDeviceType(ALL);
+			else
+				throw std::runtime_error("Sibernetic can't find any OpenCL devices. Please check you're environment configuration.");
+		}
 	}
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( device_type[config->getDeviceType()], cprops, NULL, NULL, &err );
