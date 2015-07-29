@@ -30,6 +30,13 @@ make all
 
 **Mac**: stay in the top-level folder and run:
 
+You need before run export several enviroment variables 
+```
+export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
+export PYTHONLIBDIR=/usr/local/lib/python2...
+export PYTHONFRAMEWORKDIR=/usr/local/Frameworks/
+```
+Than
 ```
 make clean -f makefile.OSX
 make all -f makefile.OSX
@@ -64,13 +71,6 @@ Finally, to run, run the command:
 ./Release/Sibernetic
 ```
 **Mac**:
-You need before run export several enviroment variables 
-```
-export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
-export PYTHONLIBDIR=/usr/local/lib/python2...
-export PYTHONFRAMEWORKDIR=/usr/local/Frameworks/
-```
-And than run Sibernetic by this command
 ```
 ./Release/Sibernetic
 ```
