@@ -60,7 +60,7 @@ public:
 	const int getDeviceType() const { return preferable_device_type; };
 	const int getNumberOfIteration() const { return totalNumberOfIteration ;}
 	const char * getDeviceName() const { return device_full_name.c_str(); }
-	void setDeviceName(char * name) {
+	void setDeviceName(const char * name) {
 		device_full_name = name;
 	}
 	INTEGRATOR getIntegrationMethod() const { return integration_method; }

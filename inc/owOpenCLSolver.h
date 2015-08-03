@@ -160,7 +160,7 @@ private:
 
 	//Needed for sorting stuff
 	int * _particleIndex;
-	unsigned int * gridNextNonEmptyCellBuffer;
+	int * gridNextNonEmptyCellBuffer;
 };
 
 #endif //OW_OPENCL_SOLVER_H

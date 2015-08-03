@@ -115,6 +115,9 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
  *  by run owOpenCLSolver::reset(...).
  */
 void owPhysicsFluidSimulator::reset(){
+	// Free all buffers
+	cleanBuffers();
+
 	iterationCount = 0;
 	numOfBoundaryP = 0;
 	numOfElasticP = 0;
@@ -262,6 +265,12 @@ void owPhysicsFluidSimulator::makeSnapshot(const std::string & fileName){
 //Destructor
 owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 {
+	cleanBuffers();
+	delete config;
+	delete ocl_solver;
+}
+
+void owPhysicsFluidSimulator::cleanBuffers(){
 	delete [] position_cpp;
 	delete [] velocity_cpp;
 	delete [] density_cpp;
@@ -273,6 +282,4 @@ owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 		delete [] membraneData_cpp;
 		delete [] particleMembranesList_cpp;
 	}
-	delete config;
-	delete ocl_solver;
 }

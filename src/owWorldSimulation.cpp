@@ -89,7 +89,7 @@ void drawScene();
 void renderInfo(int,int);
 void glPrint(float,float,const char *, void*);
 void glPrint3D(float,float,float,const char *, void*);
-void Cleanup(int);
+void Cleanup();
 //float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
 void beginWinCoords(void)
 {
@@ -156,7 +156,8 @@ void display(void)
 			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
 				std::cout << "Simulation is reached time limit" << std::endl;
-				Cleanup(EXIT_SUCCESS);
+				Cleanup();
+				exit (EXIT_SUCCESS);
 			}
 
 		}
@@ -750,10 +751,10 @@ void mouse_motion (int x, int y)
 }
 
 extern float *muscle_activation_signal_cpp;
-void Cleanup(int exitCode){
+void Cleanup(){
 	delete fluid_simulation;
 	delete helper;
-	exit (exitCode);
+	return;
 }
 void RespondKey(unsigned char key, int x, int y)
 {
@@ -775,8 +776,9 @@ void RespondKey(unsigned char key, int x, int y)
 	case '\033':// Escape quits
 	case 'Q':   // Q quits
 	case 'q':   // q quits
-		Cleanup(EXIT_SUCCESS);
-		break;
+		Cleanup();
+		//break;
+		exit (EXIT_SUCCESS);
 	case ' ':
 		sPause = !sPause;
 		std::cout << "\nSimulation Is Paused" << std::endl;
@@ -866,7 +868,8 @@ inline void init(void){
 }
 void sighandler(int s){
 	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
-	Cleanup(EXIT_SUCCESS);
+	Cleanup();
+	exit(EXIT_SUCCESS);
 }
 /** Init & start simulation and graphic component if with_graphics==true
  *
@@ -911,16 +914,17 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		if(!load_from_file){
-			Cleanup(EXIT_SUCCESS);
+			Cleanup();
+			exit(EXIT_SUCCESS);
 		}
 	}else{
 		while(1){
 			fluid_simulation->simulationStep(load_to);
 			helper->refreshTime();
-			if(load_to && fluid_simulation->getIteration() == 40000){
-				delete fluid_simulation;
-				delete helper;
-				exit(EXIT_SUCCESS);
+			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
+				std::cout << "Simulation is reached time limit" << std::endl;
+				Cleanup();
+				return;
 			}
 		}
 	}

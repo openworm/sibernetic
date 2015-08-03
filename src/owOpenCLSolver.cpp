@@ -99,7 +99,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		copy_buffer_to_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 );
 		//Needed for sorting stuff
 		_particleIndex = new   int[ 2 * config->getParticleCount() ];
-		gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
+		gridNextNonEmptyCellBuffer = new int[config->gridCellCount+1];
 		//Create membranes buffers if it's necessary
 		if(membraneData_cpp != NULL )
 		{
@@ -148,6 +148,9 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
  */
 void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
 	// Reinitializing all data buffer
+	// First freed data for buffer _particleIndex and gridNextNonEmptyCellBuffer
+	delete [] _particleIndex;
+	delete [] gridNextNonEmptyCellBuffer;
 	create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 3 ) );// 4*2-->4*3; third part is to store acceleration[t], while first to are for acceleration[t+delta_t]
 	create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 	create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
@@ -167,19 +170,16 @@ void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cp
 	copy_buffer_to_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 );
 	//Needed for sortin stuff
 	_particleIndex = new   int[ 2 * config->getParticleCount() ];
-	gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
+	gridNextNonEmptyCellBuffer = new int[config->gridCellCount+1];
 	if(membraneData_cpp != NULL )
 	{
 		create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 3 ) );
 		copy_buffer_to_device( membraneData_cpp, membraneData, numOfMembranes * sizeof( int ) * 3 );
-
 		if(particleMembranesList_cpp != NULL) //in actual version I'm going to support only membrance built upon elastic matter particles (interconnected with springs -- highly recommended)
 		{
 			create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
 			copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
 		}
-
-		if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;//We delete it because we don't need it anymore
 	}
 	//elastic connections
 	if(elasticConnectionsData_cpp != NULL){
@@ -441,7 +441,7 @@ unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
 {
 	//Stage IndexPostPass
 	//28aug_Palyanov_start_block
-	copy_buffer_from_device( gridNextNonEmptyCellBuffer, gridCellIndex,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
+	copy_buffer_from_device( gridNextNonEmptyCellBuffer, gridCellIndex,(config->gridCellCount+1) * sizeof( int ) * 1 );
 	int recentNonEmptyCell = config->gridCellCount;
 	for(int i=config->gridCellCount;i>=0;i--)
 	{
@@ -449,7 +449,7 @@ unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
 			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell;
 		else recentNonEmptyCell = gridNextNonEmptyCellBuffer[i];
 	}
-	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
+	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( int ) * 1 );
 	return err;
 }
 /** Sorting of particleIndex list
