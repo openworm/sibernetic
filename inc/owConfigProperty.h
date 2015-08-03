@@ -65,6 +65,7 @@ public:
 	}
 	INTEGRATOR getIntegrationMethod() const { return integration_method; }
 	const std::string & getCofigFileName() const { return configFileName; }
+	const std::string & getCofigPath() const { return path; }
 	PyramidalSimulation & getPyramidalSimulation() { return simulation; }
 	void updatePyramidalSimulation(float * muscleActivationSignal){
 		if(configFileName == "worm"){
@@ -79,7 +80,7 @@ public:
 	bool isWormConfig(){ return (configFileName == "worm")? true:false; }
 	void setCofigFileName( const char * name ) { configFileName = name; }
 	// Constructor
-	owConfigProrerty(int argc, char** argv){
+	owConfigProrerty(int argc, char** argv):path("./configuration/"){
 		preferable_device_type = ALL;
 		time_step = timeStep;
 		time_limit = 0.f;
@@ -197,6 +198,7 @@ private:
 	DEVICE preferable_device_type;// 0-CPU, 1-GPU
 	INTEGRATOR integration_method; //DEFAULT is EULER
 	std::string configFileName;
+	std::string path; // PATH to configuration files
 	PyramidalSimulation simulation;
 	std::string device_full_name;
 };

@@ -260,6 +260,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 						}
 					}
 				}
+				free(devices_t);
 			}
 		}
 		if(!findDevice){

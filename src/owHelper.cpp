@@ -92,8 +92,7 @@ void owHelper::refreshTime()
 
 //READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER TODO move it into configuration struct
 int read_position = 0;
-std::string owHelper::path = "./configuration/";
-std::string owHelper::configFileName = "demo1";
+
 
 /** TODO make description
  *
@@ -152,7 +151,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 	try
 	{
 		int p_count = 0;
-		std::string file_name = path + config->getCofigFileName();
+		std::string file_name = config->getCofigPath() + config->getCofigFileName();
 		std::string inputStr;
 		std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
 		float x, y, z, p_type;
@@ -264,7 +263,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 {
 	try
 	{
-		std::string file_name = path + config->getCofigFileName();
+		std::string file_name = config->getCofigPath() + config->getCofigFileName();
 		std::string inputStr;
 		std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
 		char delimiter = '\t';

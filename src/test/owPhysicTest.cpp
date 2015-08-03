@@ -58,8 +58,7 @@ float gravity = 9.81f;
  * E = mv^2/2 + mgh
  * *****************************************************/
 void test_energy_conservation(int argc, char **argv){
-	owHelper::path = "./configuration/test/";
-	owHelper::configFileName = "test_energy";
+	//owHelper::path = "./configuration/test/"; TODO FIX it
 	owHelper * helper = new owHelper();
 	owPhysicsFluidSimulator * fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
 	float total_energy = 0.f;

@@ -91,8 +91,6 @@ public:
 			exit( -1 );
 		}
 	}
-	static std::string path;
-	static std::string configFileName;
 private:
 	enum ELOADMODE { NOMODE=-1, POSITION, VELOCITY, CONNECTION, MEMBRANE, PMEMINDEX };
 	double elapsedTime;
