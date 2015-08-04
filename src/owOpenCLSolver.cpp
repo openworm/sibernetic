@@ -37,9 +37,6 @@
 
 #include "owOpenCLSolver.h"
 
-extern int numOfElasticP;
-extern int numOfMembranes;
-
 int myCompare( const void * v1, const void * v2 );
 
 /** Constructor of class owOpenCLSolver
@@ -74,7 +71,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		create_ocl_buffer( "sortedPosition", sortedPosition, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 2 ) );
 		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 ) );
 		create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * (1 + 1/*1 extra, for membrane handling*/) ) );
-		create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( MUSCLE_COUNT * sizeof( float ) ) );
+		create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( config->MUSCLE_COUNT * sizeof( float ) ) );
 		// Create OpenCL kernels
 		create_ocl_kernel("clearBuffers", clearBuffers);
 		create_ocl_kernel("findNeighbors", findNeighbors);
@@ -103,19 +100,19 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		//Create membranes buffers if it's necessary
 		if(membraneData_cpp != NULL )
 		{
-			create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 3 ) );
-			copy_buffer_to_device( membraneData_cpp, membraneData, numOfMembranes * sizeof( int ) * 3 );
+			create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( config->numOfMembranes * sizeof( int ) * 3 ) );
+			copy_buffer_to_device( membraneData_cpp, membraneData, config->numOfMembranes * sizeof( int ) * 3 );
 
 			if(particleMembranesList_cpp != NULL) //in actual version I'm going to support only membrance built upon elastic matter particles (interconnected with springs -- highly recommended)
 			{
-				create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
-				copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
+				create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
+				copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
 			}
 		}
 		//elastic connections if it's necessary
 		if(elasticConnectionsData_cpp != NULL){
-			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
-			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
 		}
 
 	}catch(std::runtime_error & re){
@@ -163,7 +160,7 @@ void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cp
 	create_ocl_buffer( "sortedPosition", sortedPosition, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 2 ) );
 	create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 ) );
 	create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * (1 + 1/*1 extra, for membrane handling*/) ) );
-	create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( MUSCLE_COUNT * sizeof( float ) ) );
+	create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( config->MUSCLE_COUNT * sizeof( float ) ) );
 
 	//Copy position_cpp and velocity_cpp to the OpenCL Device
 	copy_buffer_to_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 );
@@ -173,18 +170,18 @@ void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cp
 	gridNextNonEmptyCellBuffer = new int[config->gridCellCount+1];
 	if(membraneData_cpp != NULL )
 	{
-		create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 3 ) );
-		copy_buffer_to_device( membraneData_cpp, membraneData, numOfMembranes * sizeof( int ) * 3 );
+		create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( config->numOfMembranes * sizeof( int ) * 3 ) );
+		copy_buffer_to_device( membraneData_cpp, membraneData, config->numOfMembranes * sizeof( int ) * 3 );
 		if(particleMembranesList_cpp != NULL) //in actual version I'm going to support only membrance built upon elastic matter particles (interconnected with springs -- highly recommended)
 		{
-			create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
-			copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
+			create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
+			copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
 		}
 	}
 	//elastic connections
 	if(elasticConnectionsData_cpp != NULL){
-		create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
-		copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+		create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+		copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
 	}
 }
 /** Initialization OpenCL entities
@@ -651,7 +648,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
  */
 unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty * config)
 {
-	if(numOfElasticP == 0 )
+	if(config->numOfElasticP == 0 )
 		return 0;
 	pcisph_computeElasticForces.setArg( 0, neighborMap );
 	pcisph_computeElasticForces.setArg( 1, sortedPosition );
@@ -662,14 +659,14 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty *
 	pcisph_computeElasticForces.setArg( 6, h );
 	pcisph_computeElasticForces.setArg( 7, mass );
 	pcisph_computeElasticForces.setArg( 8, simulationScale );
-	pcisph_computeElasticForces.setArg( 9, numOfElasticP );
+	pcisph_computeElasticForces.setArg( 9, config->numOfElasticP );
 	pcisph_computeElasticForces.setArg( 10, elasticConnectionsData );
 	pcisph_computeElasticForces.setArg( 11, config->getParticleCount() );
-	pcisph_computeElasticForces.setArg( 12, MUSCLE_COUNT );
+	pcisph_computeElasticForces.setArg( 12, config->MUSCLE_COUNT );
 	pcisph_computeElasticForces.setArg( 13, muscle_activation_signal);
 	pcisph_computeElasticForces.setArg( 14, position);
 	pcisph_computeElasticForces.setArg( 15, elasticityCoefficient);
-	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+	int numOfElasticPCountRoundedUp = ((( config->numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( numOfElasticPCountRoundedUp ),
 #if defined( __APPLE__ )
@@ -877,7 +874,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrer
 	computeInteractionWithMembranes.setArg( 6, particleMembranesList );
 	computeInteractionWithMembranes.setArg( 7, membraneData );
 	computeInteractionWithMembranes.setArg( 8, config->getParticleCount() );
-	computeInteractionWithMembranes.setArg( 9, numOfElasticP );
+	computeInteractionWithMembranes.setArg( 9, config->numOfElasticP );
 	computeInteractionWithMembranes.setArg(10, r0 );
 	int err = queue.enqueueNDRangeKernel(
 		computeInteractionWithMembranes, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
@@ -1083,9 +1080,9 @@ int owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_
  *  @return value taking after enqueue a command to read buffet from a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueReadBuffer.html)
  */
-unsigned int owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_cpp)
+unsigned int owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_cpp, owConfigProrerty * config)
 {
-	copy_buffer_to_device( _muscle_activation_signal_cpp, muscle_activation_signal, MUSCLE_COUNT * sizeof( float ) );
+	copy_buffer_to_device( _muscle_activation_signal_cpp, muscle_activation_signal, config->MUSCLE_COUNT * sizeof( float ) );
 	return 0;
 }
 /** Destructor

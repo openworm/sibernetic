@@ -43,7 +43,6 @@
 #include "owPhysicsConstant.h"
 #include "PyramidalSimulation.h"
 
-extern int MUSCLE_COUNT;
 
 struct owConfigProrerty{
 	//This value defines boundary of box in which simulation is
@@ -80,7 +79,7 @@ public:
 	bool isWormConfig(){ return (configFileName == "worm")? true:false; }
 	void setCofigFileName( const char * name ) { configFileName = name; }
 	// Constructor
-	owConfigProrerty(int argc, char** argv):path("./configuration/"){
+	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), path("./configuration/"){
 		preferable_device_type = ALL;
 		time_step = timeStep;
 		time_limit = 0.f;
@@ -135,6 +134,11 @@ public:
 	int gridCellsY;
 	int gridCellsZ;
 	int gridCellCount;
+	int numOfElasticP;
+	int numOfLiquidP;
+	int numOfBoundaryP;
+	int numOfMembranes;
+	int MUSCLE_COUNT;
 private:
 	/** Calculating delta parameter.
 	 *
@@ -201,6 +205,7 @@ private:
 	std::string path; // PATH to configuration files
 	PyramidalSimulation simulation;
 	std::string device_full_name;
+
 };
 
 #endif /* OWCONFIGURATION_H_ */

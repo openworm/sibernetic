@@ -37,12 +37,6 @@
 
 #include "owWorldSimulation.h"
 
-#include "owWorldSimulation.h"
-
-extern int numOfLiquidP;
-extern int numOfElasticP;
-extern int numOfBoundaryP;
-extern int numOfMembranes;
 extern bool load_from_file;
 extern bool load_to;
 
@@ -54,15 +48,11 @@ float camera_rot_lag[] = {0, 0, 0};
 const float inertia = 1.0f;
 float modelView[16];
 int buttonState = 0;
-
 float sc = 0.045f;		//0.0145;//0.045;//0.07
-
 float sc_scale = 1.0f;
-
 Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
 GLsizei viewHeight, viewWidth;
 int winIdMain;
-int MUSCLE_COUNT = 100;//increase this value and modify corresponding code if you plan to add more than 10 muscles
 double totalTime = 0;
 int frames_counter = 0;
 double calculationTime;
@@ -222,7 +212,7 @@ void display(void)
 	glLineWidth((GLfloat)0.1);
 	int ecc=0;//elastic connections counter;
 	//Display elastic connections
-	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
+	for(int i_ec=0; i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
 	{
 		//offset = 0
 		if((j=(int)ec_cpp[ 4 * i_ec + 0 ])>=0)
@@ -312,7 +302,7 @@ void display(void)
 	if(!load_from_file)
 		md_cpp = fluid_simulation->getMembraneData_cpp();
 	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
-	for(int i_m = 0; i_m < numOfMembranes; i_m++)
+	for(int i_m = 0; i_m < localConfig->numOfMembranes; i_m++)
 	{
 		i = md_cpp [i_m*3+0];
 		j = md_cpp [i_m*3+1];
@@ -332,7 +322,7 @@ void display(void)
 	glLineWidth((GLfloat)1.0);
 	glutSwapBuffers();
 	helper->watch_report("graphics: \t\t%9.3f ms\n====================================\n");
-	renderTime = helper->get_elapsedTime();
+	renderTime = helper->getElapsedTime();
 	totalTime += calculationTime + renderTime;
 	calculateFPS();
 }
@@ -487,9 +477,9 @@ void renderInfo(int x, int y)
 	int i_shift = 0;
 	if(showInfo){
 		glColor3f (0.5F, 1.0F, 1.0F);
-		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
-																													 numOfElasticP,
-																													 numOfBoundaryP,localConfig->getParticleCount());
+		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", localConfig->numOfLiquidP,
+																													 localConfig->numOfElasticP,
+																													 localConfig->numOfBoundaryP,localConfig->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F);
 		if(load_from_file)
@@ -890,8 +880,8 @@ void run(int argc, char** argv, const bool with_graphics)
 	}
 	else{
 		localConfig = new owConfigProrerty(argc, argv);
-		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
-		for(int i=0;i<MUSCLE_COUNT;i++)
+		muscle_activation_signal_cpp = new float [localConfig->MUSCLE_COUNT];
+		for(int i=0;i<localConfig->MUSCLE_COUNT;i++)
 		{
 			muscle_activation_signal_cpp[i] = 0.f;
 		}

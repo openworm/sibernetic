@@ -49,8 +49,6 @@
 #include "owPhysicsConstant.h"
 #include "owConfigProperty.h"
 
-extern int MUSCLE_COUNT;
-
 #if generateWormBodyConfiguration
 	#define PY_NETWORK_SIMULATION
 #endif
@@ -94,7 +92,7 @@ public:
 	unsigned int _run_computeInteractionWithMembranes(owConfigProrerty * config);
 	unsigned int _run_computeInteractionWithMembranes_finalize(owConfigProrerty * config);
 	//
-	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp);
+	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp, owConfigProrerty * config);
 
 	void read_position_buffer( float * position_cpp, owConfigProrerty * config) { copy_buffer_from_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 ); };
 	void read_velocity_buffer( float * velocity_cpp, owConfigProrerty * config) { copy_buffer_from_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 ); };

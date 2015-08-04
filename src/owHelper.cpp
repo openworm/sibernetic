@@ -49,10 +49,6 @@
 
 using namespace std;
 
-extern int numOfMembranes;
-extern int numOfElasticP;
-extern int numOfLiquidP;
-
 
 /** owHelpre class constructor
  */
@@ -134,19 +130,11 @@ bool my_strcmp(const char * str1, const char * str2){
  *  particles and total number too. Also this read membranes file
  *  for counting membranes numbers.
  *
- *  @param numOfMembranes
- *  reference to numOfMembrane variable
  *  @param config
  *  pointer to owConfigProrerty object it includes information about
  *  boundary box dimensions
- *  @param numOfLiquidP
- *  reference to numOfLiquidP variable
- *  @param numOfElasticP
- *  reference to numOfElasticP variable
- *  @param numOfBoundaryP
- *  reference to numOfBoundaryP variable
  */
-void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * config, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP)
+void owHelper::preLoadConfiguration(owConfigProrerty * config)
 {
 	try
 	{
@@ -157,7 +145,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 		float x, y, z, p_type;
 		char delimiter = '\t';
 		size_t pos;
-		ELOADMODE mode = NOMODE;
+		LOADMODE mode = NOMODE;
 		if( configFile.is_open() )
 		{
 			configFile >> config->xmin;
@@ -199,19 +187,19 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 						p_count++;
 						switch((int)p_type){
 							case LIQUID_PARTICLE:
-								numOfLiquidP++;
+								config->numOfLiquidP++;
 								break;
 							case ELASTIC_PARTICLE:
-								numOfElasticP++;
+								config->numOfElasticP++;
 								break;
 							case BOUNDARY_PARTICLE:
-								numOfBoundaryP++;
+								config->numOfBoundaryP++;
 								break;
 						}
 						break;
 					}
 					case MEMBRANE:{
-						numOfMembranes++;
+						config->numOfMembranes++;
 						break;
 					}
 					default:
@@ -241,17 +229,6 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
  *  @param elasticConnections
  *  reference on pointer to elasticConnections buffer.
  *  In this function we allocate memory for elasticConnections.
- *  TODO: change it replace to owPhysicsFluidSimulator constructor.
- *  @param numOfLiquidP
- *  reference to numOfLiquidP variable
- *  @param numOfElasticP
- *  reference to numOfElasticP variable
- *  @param numOfBoundaryP
- *  reference to numOfBoundaryP variable
- *  @param numOfElasticConnections
- *  reference to numOfElasticConnections variable
- *  @param numOfMembranes
- *  reference to numOfMembranes variable
  *  @param membraneData_cpp
  *  pointer to membraneData_cpp buffer
  *  @param particleMembranesList_cpp
@@ -259,7 +236,7 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
  *  @param config
  *  pointer to owConfigProrerty object it includes information about
  */
-void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config)
+void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config)
 {
 	try
 	{
@@ -268,7 +245,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 		std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
 		char delimiter = '\t';
 		size_t pos;
-		ELOADMODE mode = NOMODE;
+		LOADMODE mode = NOMODE;
 		int i = 0;
 		if( configFile.is_open() )
 		{
@@ -421,8 +398,8 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			positionFile << config->ymax << "\n";
 			positionFile << config->zmin << "\n";
 			positionFile << config->zmax << "\n";
-			positionFile << numOfElasticP << "\n";
-			positionFile << numOfLiquidP << "\n";
+			positionFile << config->numOfElasticP << "\n";
+			positionFile << config->numOfLiquidP << "\n";
 		}else{
 			positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
 		}
@@ -444,13 +421,13 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 		positionFile.close();
 		if(firstIteration){
 			ofstream connectionFile("./buffers/connection_buffer.txt", std::ofstream::trunc);
-			int con_num = MAX_NEIGHBOR_COUNT * numOfElasticP;
+			int con_num = MAX_NEIGHBOR_COUNT * config->numOfElasticP;
 			for(int i = 0; i < con_num; i++)
 				connectionFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
 			connectionFile.close();
 			ofstream membranesFile("./buffers/membranes_buffer.txt", std::ofstream::trunc);
-			membranesFile << numOfMembranes << "\n";
-			for(int i = 0; i < numOfMembranes; i++)
+			membranesFile << config->numOfMembranes << "\n";
+			for(int i = 0; i < config->numOfMembranes; i++)
 				membranesFile << membranes[3 * i + 0] << "\t" << membranes[3 * i + 1] << "\t" << membranes[3 * i + 2] << "\n";
 			membranesFile.close();
 		}
@@ -461,12 +438,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 }
 /** Load configuration from simulation to files
  *
- *  TODO make description
- *
- *
- *
- *
- *
+ *  Make configuration file
  *  @param position
  *  pointer to position buffer
  *  @param config
@@ -475,16 +447,6 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
  *  reference on pointer to elasticConnections buffer.
  *  @param membranes
  *  pointer to membranes buffer
- *  @param firstIteration
- *  if true it means that we first time record information
- *  to a file and on first iteration it put to
- *  the file info about dimensions of boundary box
- *  NOTE: next 2 parameters are an experimental
- *  @param filter_p
- *  pointer to filter particle buffer, if you need storing only
- *  a bunch of particles not all of them
- *  @param size
- *  size of filter_p array
  */
 void owHelper::loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex,const char * filename, owConfigProrerty * config){
 	try{
@@ -503,14 +465,14 @@ void owHelper::loadConfigurationToFile(float * position, float * velocity, float
 		for(int i=0;i < config->getParticleCount(); i++)
 			configFile << velocity[i * 4 + 0] << "\t" << velocity[i * 4 + 1] << "\t" << velocity[i * 4 + 2] << "\t" << velocity[i * 4 + 3] << "\n";
 		configFile << "[connection]\n" ;
-		int con_num = MAX_NEIGHBOR_COUNT * numOfElasticP;
+		int con_num = MAX_NEIGHBOR_COUNT * config->numOfElasticP;
 		for(int i = 0; i < con_num; i++)
 			configFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] / simulationScale << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
 		configFile << "[membranes]\n";
-		for(int i = 0; i < numOfMembranes; i++)
+		for(int i = 0; i < config->numOfMembranes; i++)
 			configFile << membranes[3 * i + 0] << "\t" << membranes[3 * i + 1] << "\t" << membranes[3 * i + 2] << "\n";
 		configFile << "[particleMemIndex]\n";
-		int particleMemIndexCount = numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE;
+		int particleMemIndexCount = config->numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE;
 		for(int i = 0; i < particleMemIndexCount; i++)
 			configFile << particleMemIndex[i] << "\n";
 		configFile << "[end]";
@@ -559,9 +521,9 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 				positionFile >> config->ymax;
 				positionFile >> config->zmin;
 				positionFile >> config->zmax;
-				positionFile >> numOfElasticP;
-				positionFile >> numOfLiquidP;
-				config->setParticleCount(numOfElasticP + numOfLiquidP);
+				positionFile >> config->numOfElasticP;
+				positionFile >> config->numOfLiquidP;
+				config->setParticleCount(config->numOfElasticP + config->numOfLiquidP);
 				position = new float[4 * config->getParticleCount()];
 			}
 			while( positionFile.good() &&  i < config->getParticleCount())
@@ -581,12 +543,12 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 		if(iteration == 0){
 
 			ifstream connectionFile("./buffers/connection_buffer.txt");
-			connections = new float[MAX_NEIGHBOR_COUNT * numOfElasticP * 4];
+			connections = new float[MAX_NEIGHBOR_COUNT * config->numOfElasticP * 4];
 			if( connectionFile.is_open() )
 			{
 				int i = 0;
 				float jd, rij0, val1, val2;
-				while(connectionFile.good() && i < MAX_NEIGHBOR_COUNT * numOfElasticP){
+				while(connectionFile.good() && i < MAX_NEIGHBOR_COUNT * config->numOfElasticP){
 					connectionFile >> jd >> rij0 >> val1 >> val2;
 					connections[ 4 * i + 0 ] = jd;
 					connections[ 4 * i + 1 ] = rij0;
