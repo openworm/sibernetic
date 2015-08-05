@@ -123,7 +123,7 @@ Available options:
  -l_to                 Save simulation results to disk.
  -l_from               Load simulation results from disk.
  -test                 Run some physical tests.
- -f <filename>         Load configuration from file ./configuration/<filename>.
+ -f <filename>         Load configuration from file <filename>.
  device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu 
                        default-ALL (it will try to init most powerful available device).
  timestep=<value>      Start simulation with time step = <value> in seconds.
@@ -141,7 +141,7 @@ LeapFrog integration
 
 Run simulation from configuration file
 --------------
-All configuration is stored in ./configuration folder there are two demo configuration demo1 and demo2 (demo1 is using as default demonstarative configuration). You can switch between two demo configurations directly inside the working Sibernetic - just push button '1' or '2' respectively. For run your configuration put you're configuration file into configuration folder and run Sibernetic with key 
+All configuration is stored in ./configuration folder there are two demo configuration demo1 and demo2 (demo1 is using as default demonstarative configuration). You can switch between two demo configurations directly inside the working Sibernetic - just push button '1' or '2' respectively. For run your configuration put you're configuration file into configuration folder and run Sibernetic with key.
 ```
 ./Release/Sibernetic -f <configuration_file_name>. 
 ```
@@ -157,7 +157,7 @@ If you run Sibernetic with graphic you can work with scene rotate and scaling by
 ```
 'Space' - pause simulation 
 's'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
-than (./Release/Sibernetic -f /snapshot/configuration_default).
+than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 'q' or 'Esc'     - quit the sibernetic
 '1'     - run demo1 configuration
 '2'     - run demo2 configuration

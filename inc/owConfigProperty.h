@@ -111,6 +111,9 @@ public:
 			if(s_temp == "-f"){
 				if(i + 1 < argc){
 					configFileName = argv[i+1];
+					if(configFileName.find("\\") != std::string::npos || configFileName.find("/") != std::string::npos) // If it find \ or / it means that
+																														// you indicate full path to configuration in other case it will try to find configuration in configurations folder
+						path = "";
 				}
 				else
 					throw std::runtime_error("You forget add configuration file name. Please add it and try again");
