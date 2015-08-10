@@ -36,7 +36,7 @@ export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFram
 export PYTHONLIBDIR=/usr/local/lib/python2...
 export PYTHONFRAMEWORKDIR=/usr/local/Frameworks/
 ```
-Than
+Then
 ```
 make clean -f makefile.OSX
 make all -f makefile.OSX
