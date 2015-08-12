@@ -36,6 +36,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <algorithm>    
 
 
 #if defined(__APPLE__) || defined (__MACOSX)
@@ -51,6 +52,7 @@ using namespace std;
 extern int numOfMembranes;
 extern int numOfElasticP;
 extern int numOfLiquidP;
+
 
 /** owHelpre class constructor
  */
@@ -87,10 +89,42 @@ void owHelper::refreshTime()
 #endif
 }
 
-//READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER
+
+//READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER TODO move it into configuration struct
 int read_position = 0;
 std::string owHelper::path = "./configuration/";
-std::string owHelper::suffix = "";
+std::string owHelper::configFileName = "demo1";
+
+/** TODO make description
+ *
+ */
+void findValf(std::string & str, char delimiter, size_t & start, float & val){
+	size_t end = str.find(delimiter, start + 1);
+	if(end != std::string::npos){
+		val =std::atof(str.substr(start, end - start).c_str());//TODO make check if this a number
+		start = end;
+	}else // it means usualy that we reached the end of string and there are no \t
+		val = std::atof(str.substr(start).c_str());//TODO make check if this a number
+}
+/** TODO Documentation
+ */
+void findVali(std::string & str, char delimiter, size_t & start, int & val){
+	size_t end = str.find(delimiter, start + 1);
+	if(end != std::string::npos){
+		val =std::atoi(str.substr(start, end - start).c_str());
+		start = end;
+	}else // it means usualy that we reached the end of string and there are no \t
+		val = std::atoi(str.substr(start).c_str());
+}
+bool my_strcmp(const char * str1, const char * str2){
+	while(*str2){
+		if(*str1 != *str2)
+			return false;
+		str2++;
+		str1++;
+	}
+	return true;
+}
 /** Preparing initial data before load full configuration
  *
  *  Before load configuration data from file (initial position and velocity,
@@ -118,58 +152,77 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
 	try
 	{
 		int p_count = 0;
-		std::string p_file_name = path + "position" + suffix + ".txt";
-		std::ifstream positionFile (p_file_name.c_str(), std::ios_base::binary);
+		std::string file_name = path + config->getCofigFileName();
+		std::string inputStr;
+		std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
 		float x, y, z, p_type;
-		if( positionFile.is_open() )
+		char delimiter = '\t';
+		size_t pos;
+		ELOADMODE mode = NOMODE;
+		if( configFile.is_open() )
 		{
-			positionFile >> config->xmin;
-			positionFile >> config->xmax;
-			positionFile >> config->ymin;
-			positionFile >> config->ymax;
-			positionFile >> config->zmin;
-			positionFile >> config->zmax;
-			read_position = positionFile.tellg();
-			while( positionFile.good() )
+			configFile >> config->xmin;
+			configFile >> config->xmax;
+			configFile >> config->ymin;
+			configFile >> config->ymax;
+			configFile >> config->zmin;
+			configFile >> config->zmax;
+			read_position = configFile.tellg();
+			while( configFile.good() )
 			{
-				p_type = -1.1f;//reinitialize
-				positionFile >> x >> y >> z >> p_type;
-				if(p_type>=0){
-					p_count++;
-					switch((int)p_type){
-						case LIQUID_PARTICLE:
-							numOfLiquidP++;
-							break;
-						case ELASTIC_PARTICLE:
-							numOfElasticP++;
-							break;
-						case BOUNDARY_PARTICLE:
-							numOfBoundaryP++;
-							break;
+				//configFile >> inputStr;
+				std::getline(configFile,inputStr);
+				inputStr.erase( std::remove( inputStr.begin(), inputStr.end(), '\r' ), inputStr.end() );
+				inputStr.erase( std::remove( inputStr.begin(), inputStr.end(), '\n' ), inputStr.end() );
+				if( inputStr == "[position]"){
+					mode = POSITION;
+					continue;
+				}
+				if(inputStr == "[velocity]"){
+					mode = VELOCITY;
+					continue;
+				}
+				if(inputStr == "[membranes]"){
+					mode = MEMBRANE;
+					continue;
+				}
+				if(inputStr == "[particleMemIndex]"){
+					break;
+				}
+				switch(mode){
+					case POSITION:{
+						p_type = -1.1f;//reinitialize
+						pos = 0;
+						findValf(inputStr, delimiter,pos,x);
+						findValf(inputStr, delimiter,pos,y);
+						findValf(inputStr, delimiter,pos,z);
+						findValf(inputStr, delimiter,pos,p_type);
+						p_count++;
+						switch((int)p_type){
+							case LIQUID_PARTICLE:
+								numOfLiquidP++;
+								break;
+							case ELASTIC_PARTICLE:
+								numOfElasticP++;
+								break;
+							case BOUNDARY_PARTICLE:
+								numOfBoundaryP++;
+								break;
+						}
+						break;
 					}
-				}//last line of a file can contain only "\n", then p_type thanks to reinitialization will indicate the problem via negative value
-				else break;//end of file
+					case MEMBRANE:{
+						numOfMembranes++;
+						break;
+					}
+					default:
+						continue;
+				}
 			}
-		}
-		positionFile.close();
+		}else
+			throw std::runtime_error("Could not open file configuration file");
+		configFile.close();
 		config->setParticleCount(p_count);
-
-		printf("\nConfiguration we are going to load contains %d particles. Now plan to allocate memory for them.\n",config->getParticleCount());
-
-		numOfMembranes = 0;
-		std::string m_file_name = path + "membranes" + suffix + ".txt";
-		std::ifstream membranesFile (m_file_name.c_str());
-		int id, jd, kd;
-		if( membranesFile.is_open() )
-		{
-			while( membranesFile.good() )
-			{
-				kd = -1;
-				membranesFile >> id >> jd >> kd ;
-				if(kd>=0)numOfMembranes++;//last line of a file can contain only "\n", then kd thanks to reinitialization will indicate the problem via negative value
-			}
-		}
-		membranesFile.close();
 	}
 	catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
@@ -209,118 +262,123 @@ void owHelper::preLoadConfiguration(int & numOfMembranes, owConfigProrerty * con
  */
 void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config)
 {
-
 	try
 	{
-		std::string p_file_name = path + "position" + suffix + ".txt";
-		std::ifstream positionFile (p_file_name.c_str());
+		std::string file_name = path + config->getCofigFileName();
+		std::string inputStr;
+		std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
+		char delimiter = '\t';
+		size_t pos;
+		ELOADMODE mode = NOMODE;
 		int i = 0;
-		float x, y, z, p_type;
-		if( positionFile.is_open() )
+		if( configFile.is_open() )
 		{
-			positionFile.seekg(read_position);
-			while( positionFile.good() && i < config->getParticleCount() )
+			configFile.seekg(read_position);
+			while( configFile.good() )
 			{
-				positionFile >> x >> y >> z >> p_type;
-				position_cpp[ 4 * i + 0 ] = x;
-				position_cpp[ 4 * i + 1 ] = y;
-				position_cpp[ 4 * i + 2 ] = z;
-				position_cpp[ 4 * i + 3 ] = p_type;
-				i++;
-			}
-			positionFile.close();
-		}
-		else
-			throw std::runtime_error("Could not open file position.txt");
-		std::cout << "Position is loaded" << std::endl;
-		std::string v_file_name = path + "velocity" + suffix + ".txt";
-		std::ifstream velocityFile (v_file_name.c_str());
-		i = 0;
-		if( velocityFile.is_open() )
-		{
-			while( velocityFile.good() && i < config->getParticleCount() )
-			{
-				velocityFile >> x >> y >> z >> p_type;
-				velocity_cpp[ 4 * i + 0 ] = x;
-				velocity_cpp[ 4 * i + 1 ] = y;
-				velocity_cpp[ 4 * i + 2 ] = z;
-				velocity_cpp[ 4 * i + 3 ] = p_type;
-				i++;
-			}
-			velocityFile.close();
-		}
-		else
-			throw std::runtime_error("Could not open file velocity.txt");
-		std::cout << "Velocity is loaded" << std::endl;
-		if(numOfElasticP != 0){
-			std::string c_file_name = path + "connection" + suffix + ".txt";
-			std::ifstream elasticConectionsFile (c_file_name.c_str());
-			elasticConnections = new float[ 4 * numOfElasticP * MAX_NEIGHBOR_COUNT ];
-			i = 0;
-			if( elasticConectionsFile.is_open() )
-			{
-				float  jd, rij0, val1, val2;// Elastic connection particle jd - jparticle rij0 - distance between i and j, val1, val2 - doesn't have any useful information yet
-				//elasticConectionsFile >> numElasticConnections;
-
-				while( elasticConectionsFile.good())
-				{
-					jd = -10;
-					elasticConectionsFile >> jd >> rij0 >> val1 >> val2;
-					if(jd>=-1)
-					{
+				//configFile >> inputStr;
+				std::getline(configFile,inputStr);
+				inputStr.erase( std::remove( inputStr.begin(), inputStr.end(), '\r' ), inputStr.end() );
+				inputStr.erase( std::remove( inputStr.begin(), inputStr.end(), '\n' ), inputStr.end() );
+				if(inputStr == "[position]"){
+					mode = POSITION;
+					continue;
+				}
+				if(inputStr == "[velocity]"){
+					i = 0;
+					mode = VELOCITY;
+					continue;
+				}
+				if(inputStr == "[connection]"){
+					i = 0;
+					mode = CONNECTION;
+					continue;
+				}
+				if(inputStr == "[membranes]"){
+					i = 0;
+					mode = MEMBRANE;
+					continue;
+				}
+				if(inputStr == "[particleMemIndex]"){
+					i = 0;
+					mode = PMEMINDEX;
+					continue;
+				}
+				if(inputStr == "[end]")
+					break;
+				switch(mode){
+					case POSITION:{
+						float x, y, z, p_type;
+						p_type = -1.1f;//reinitialize
+						pos = 0;
+						findValf(inputStr, delimiter,pos,x);
+						findValf(inputStr, delimiter,pos,y);
+						findValf(inputStr, delimiter,pos,z);
+						findValf(inputStr, delimiter,pos,p_type);
+						position_cpp[ 4 * i + 0 ] = x;
+						position_cpp[ 4 * i + 1 ] = y;
+						position_cpp[ 4 * i + 2 ] = z;
+						position_cpp[ 4 * i + 3 ] = p_type;
+						i++;
+						break;
+					}
+					case VELOCITY:{
+						float x, y, z, p_type;
+						p_type = -1.1f;//reinitialize
+						pos = 0;
+						findValf(inputStr, delimiter,pos,x);
+						findValf(inputStr, delimiter,pos,y);
+						findValf(inputStr, delimiter,pos,z);
+						findValf(inputStr, delimiter,pos,p_type);
+						velocity_cpp[ 4 * i + 0 ] = x;
+						velocity_cpp[ 4 * i + 1 ] = y;
+						velocity_cpp[ 4 * i + 2 ] = z;
+						velocity_cpp[ 4 * i + 3 ] = p_type;
+						i++;
+						break;
+					}
+					case CONNECTION:{
+						pos = 0;
+						float  jd, rij0, val1, val2;
+						findValf(inputStr, delimiter,pos,jd);
+						findValf(inputStr, delimiter,pos,rij0);
+						findValf(inputStr, delimiter,pos,val1);
+						findValf(inputStr, delimiter,pos,val2);
 						elasticConnections[ 4 * i + 0 ] = jd;
 						elasticConnections[ 4 * i + 1 ] = rij0 * simulationScale;
 						elasticConnections[ 4 * i + 2 ] = val1;
 						elasticConnections[ 4 * i + 3 ] = val2;
 						i++;
+						break;
 					}
+					case MEMBRANE:{
+						pos = 0;
+						int id, jd, kd;
+						findVali(inputStr, delimiter,pos,id);
+						findVali(inputStr, delimiter,pos,jd);
+						findVali(inputStr, delimiter,pos,kd);
+						membraneData_cpp[ 3 * i + 0 ] = id;
+						membraneData_cpp[ 3 * i + 1 ] = jd;
+						membraneData_cpp[ 3 * i + 2 ] = kd;
+						i++;
+						break;
+					}
+					case PMEMINDEX:{
+						int id;
+						pos = 0;
+						findVali(inputStr, delimiter,pos,id);
+						particleMembranesList_cpp[ i ] = id;
+						i++;
+						break;
+					}
+					default:
+						continue;
 				}
-				elasticConectionsFile.close();
 			}
-			else
-				throw std::runtime_error("Could not open file connection.txt");
-			std::cout << "Elastic Connection is loaded" << std::endl;
-			//Import Membranes
-			//return;
-			std::string m_file_name = path + "membranes" + suffix + ".txt";
-			std::ifstream membranesFile (m_file_name.c_str());
-			i = 0;
-			if( membranesFile.is_open() )
-			{
-				int id, jd, kd;
-
-				while( membranesFile.good() && i < numOfMembranes)
-				{
-					membranesFile >> id >> jd >> kd;
-					membraneData_cpp[ 3 * i + 0 ] = id;
-					membraneData_cpp[ 3 * i + 1 ] = jd;
-					membraneData_cpp[ 3 * i + 2 ] = kd;
-					i++;
-				}
-				membranesFile.close();
-			}
-			else
-				throw std::runtime_error("Could not open file membranes.txt");
-			std::cout << "Membranes is loaded" << std::endl;
-			//Import Membranes
-			std::string mi_file_name = path + "particleMembraneIndex" + suffix + ".txt";
-			std::ifstream membranesIndexFile (mi_file_name.c_str());
-			i = 0;
-			if( membranesIndexFile.is_open())
-			{
-				int id;
-				while( membranesIndexFile.good() && i < numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE)
-				{
-					membranesIndexFile >> id ;
-					particleMembranesList_cpp[ i ] = id;
-					i++;
-				}
-				membranesIndexFile.close();
-			}
-			else
-				throw std::runtime_error("Could not open file particleMembraneIndex.txt");
-			std::cout << "ParticleMembraneIndex is loaded" << std::endl;
-		}
+		}else
+			throw std::runtime_error("Could not open file configuration file");
+		configFile.close();
+		std::cout << "Configuration was loaded" << std::endl;
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
@@ -394,9 +452,70 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			ofstream membranesFile("./buffers/membranes_buffer.txt", std::ofstream::trunc);
 			membranesFile << numOfMembranes << "\n";
 			for(int i = 0; i < numOfMembranes; i++)
-				membranesFile << membranes[4 * i + 0] << "\t" << membranes[4 * i + 1] << "\t" << membranes[4 * i + 2] << "\t" << membranes[4 * i + 3] << "\n";
+				membranesFile << membranes[3 * i + 0] << "\t" << membranes[3 * i + 1] << "\t" << membranes[3 * i + 2] << "\n";
 			membranesFile.close();
 		}
+	}catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
+/** Load configuration from simulation to files
+ *
+ *  TODO make description
+ *
+ *
+ *
+ *
+ *
+ *  @param position
+ *  pointer to position buffer
+ *  @param config
+ *  pointer to owConfigProrerty object it includes information about
+ *  @param connections
+ *  reference on pointer to elasticConnections buffer.
+ *  @param membranes
+ *  pointer to membranes buffer
+ *  @param firstIteration
+ *  if true it means that we first time record information
+ *  to a file and on first iteration it put to
+ *  the file info about dimensions of boundary box
+ *  NOTE: next 2 parameters are an experimental
+ *  @param filter_p
+ *  pointer to filter particle buffer, if you need storing only
+ *  a bunch of particles not all of them
+ *  @param size
+ *  size of filter_p array
+ */
+void owHelper::loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex,const char * filename, owConfigProrerty * config){
+	try{
+		ofstream configFile;
+		configFile.open(filename, std::ofstream::trunc);
+		configFile << config->xmin << "\n";
+		configFile << config->xmax << "\n";
+		configFile << config->ymin << "\n";
+		configFile << config->ymax << "\n";
+		configFile << config->zmin << "\n";
+		configFile << config->zmax << "\n";
+		configFile << "[position]\n" ;
+		for(int i=0;i < config->getParticleCount(); i++)
+			configFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
+		configFile << "[velocity]\n" ;
+		for(int i=0;i < config->getParticleCount(); i++)
+			configFile << velocity[i * 4 + 0] << "\t" << velocity[i * 4 + 1] << "\t" << velocity[i * 4 + 2] << "\t" << velocity[i * 4 + 3] << "\n";
+		configFile << "[connection]\n" ;
+		int con_num = MAX_NEIGHBOR_COUNT * numOfElasticP;
+		for(int i = 0; i < con_num; i++)
+			configFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] / simulationScale << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
+		configFile << "[membranes]\n";
+		for(int i = 0; i < numOfMembranes; i++)
+			configFile << membranes[3 * i + 0] << "\t" << membranes[3 * i + 1] << "\t" << membranes[3 * i + 2] << "\n";
+		configFile << "[particleMemIndex]\n";
+		int particleMemIndexCount = numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE;
+		for(int i = 0; i < particleMemIndexCount; i++)
+			configFile << particleMemIndex[i] << "\n";
+		configFile << "[end]";
+		configFile.close();
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
@@ -426,7 +545,7 @@ ifstream positionFile;
  *  to a file and on first iteration it put to
  *  the file info about dimensions of boundary box
  */
-void owHelper::loadConfigurationFromFile_experemental(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
+void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
 	try{
 		if(iteration == 0)
 			positionFile.open("./buffers/position_buffer.txt");
@@ -481,7 +600,7 @@ void owHelper::loadConfigurationFromFile_experemental(float *& position, float *
 			ifstream membranesFile("./buffers/membranes_buffer.txt");
 			if(membranesFile.is_open()){
 				int m_count = 0;
-				membranesFile >> m_count;
+				//membranesFile >> m_count;
 				int i = 0;
 				membranes = new int[4 * m_count];
 				while(membranesFile.good() && i < m_count){
@@ -526,11 +645,11 @@ void owHelper::watch_report( const char * str )
 #elif defined(__APPLE__)
     uint64_t elapsedNano;
     static mach_timebase_info_data_t    sTimebaseInfo;
-    
+
     if ( sTimebaseInfo.denom == 0 ) {
         (void) mach_timebase_info(&sTimebaseInfo);
     }
-    
+
     t2 = mach_absolute_time();
     elapsedNano = (t2-t1) * sTimebaseInfo.numer / sTimebaseInfo.denom;
     printf(str, (float)elapsedNano/1000000.f );

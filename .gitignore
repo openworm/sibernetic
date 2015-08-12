@@ -1,4 +1,6 @@
-/release/Smoothed-Particle-Hydrodynamics
+/src/main_sim.py~
+/Release/Sibernetic
+*~
 # Compiled Object files
 *.slo
 *.lo

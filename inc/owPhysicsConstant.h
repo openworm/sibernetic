@@ -130,7 +130,6 @@ const double divgradWviscosityCoefficient = - gradWspikyCoefficient;            
 const float gravity_x = 0.0f;                       // Value of vector Gravity component x
 const float gravity_y = -9.8f;                      // Value of vector Gravity component y
 const float gravity_z = 0.0f;                       // Value of vector Gravity component z
-extern const float delta;                           // NOTE more info about this parameter see in file owPhysicsFluidSimulator.cpp description of function calcDelta()
 const int maxIteration = 3;                         // Number of iterations for Predictive-Corrective scheme
 
 const float mass_mult_Wpoly6Coefficient = (float) ( (double)mass * Wpoly6Coefficient );                       // Conversion of double value to float. For work with only 1st precision arithmetic.

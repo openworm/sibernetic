@@ -45,7 +45,7 @@ class owPhysicsFluidSimulator
 {
 public:
 	owPhysicsFluidSimulator(void);
-	owPhysicsFluidSimulator(owHelper * helper, DEVICE dev_type=CPU);
+	owPhysicsFluidSimulator(owHelper * helper, int argc, char ** argv);
 	~owPhysicsFluidSimulator(void);
 	/** Getter for position_cpp
 	 *
@@ -101,6 +101,12 @@ public:
 	 *  @return membraneData_cpp
 	 */
 	int   * getMembraneData_cpp() const { return membraneData_cpp; };
+	/** Getter for muscle_activation_signal_cpp buffer
+	 *
+	 *
+	 *  @return membraneData_cpp
+	 */
+	float * getMuscleAtcivationSignal() const { return muscle_activation_signal_cpp; }
 	double  simulationStep(const bool load_to = false);
 	/** Getter for config
 	 *  @return config
@@ -111,13 +117,16 @@ public:
 	 */
 	const int getIteration() const { return iterationCount; };
 	void reset();
+	void makeSnapshot(const std::string & filename="./configuration/snapshot/configuration_default");
 private:
 	owOpenCLSolver * ocl_solver;
-	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create 
-	float * velocity_cpp;				// and initialize in 'ordinary' memory some data, which will be 
-	float * elasticConnectionsData_cpp; // copied later to OpenCL buffer %variableName% 
+	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create
+	float * velocity_cpp;				// and initialize in 'ordinary' memory some data, which will be
+	float * elasticConnectionsData_cpp; // copied later to OpenCL buffer %variableName%
 	int	  * membraneData_cpp;
 	int   * particleMembranesList_cpp;
+	//Muscle contraction data buffer
+	float * muscle_activation_signal_cpp;
 	//Helper arrays for displaying information about density changes
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;
