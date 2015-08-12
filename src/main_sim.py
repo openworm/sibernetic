@@ -29,16 +29,15 @@ https://github.com/openworm/Smoothed-Particle-Hydrodynamics/blob/3da1edc3b018c2e
 def get_muscle_names():
     names = []
     for i in range(muscle_row_count):
-        names.append("%s%s"%(quadrant0, i+1 if i>8 else ("0%i"%(i+1))))
-    for i in range(muscle_row_count):
-        names.append("%s%s"%(quadrant1, i+1 if i>8 else ("0%i"%(i+1))))
-    for i in range(muscle_row_count):
-        names.append("%s%s"%(quadrant2, i+1 if i>8 else ("0%i"%(i+1))))
-    for i in range(muscle_row_count):
-        names.append("%s%s"%(quadrant3, i+1 if i>8 else ("0%i"%(i+1))))
+        names.append(get_muscle_name(quadrant0, i))
+        names.append(get_muscle_name(quadrant1, i))
+        names.append(get_muscle_name(quadrant2, i))
+        names.append(get_muscle_name(quadrant3, i))
     
     return names
 
+def get_muscle_name(quadrant, index):
+    return "%s%s"%(quadrant, index+1 if index>8 else ("0%i"%(index+1)))
 
 def parallel_waves(n=muscle_row_count, #26 for our first test?
                    step=0, 
@@ -83,7 +82,7 @@ class MuscleSimulation():
         self.increment = increment
         self.step = 0
 
-    def run(self,do_plot = True):
+    def run(self, skip_to_time=0):
         self.contraction_array =  parallel_waves(step = self.step)
         self.step += self.increment
         return list(np.concatenate([self.contraction_array[0],
@@ -131,13 +130,16 @@ if __name__ == '__main__':
     print("This script is used by the Sibernetic C++ application")
     print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
     
+    skip_to_time = 0
     ms = MuscleSimulation()
-    ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
+    #ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
+    #skip_to_time = 0.03
     #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
     #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
     
     max_time = 0.4 # s
-    num_plots = 4
+    max_time = 0.4 # s
+    num_plots = 3
     
     activation = {}
     row = '02'
@@ -146,49 +148,71 @@ if __name__ == '__main__':
     m1='%s%s'%(quadrant1,row)
     m2='%s%s'%(quadrant2,row)
     m3='%s%s'%(quadrant3,row)
-    activation[m0] = []
-    activation[m1] = []
-    activation[m2] = []
-    activation[m3] = []
+    
+    for m in get_muscle_names():
+        activation[m] = []
     times = []
     
     num_steps = int(max_time/time_per_step)
     steps_between_plots = int(num_steps/num_plots)
     
     
-    l = ms.run(skip_to_time=0.03)
+    
+    show_all = True
         
         
     for step in range(num_steps):
         t = step*time_per_step
-        activation[m0].append(l[row_int])
-        activation[m1].append(l[row_int+muscle_row_count])
-        activation[m2].append(l[row_int+muscle_row_count*2])
-        activation[m3].append(l[row_int+muscle_row_count*3])
+        
+        l = ms.run(skip_to_time=skip_to_time)
+        
+        for i in range(muscle_row_count):
+            mq0=get_muscle_name(quadrant0, i)
+            activation[mq0].append(l[i])
+            mq1=get_muscle_name(quadrant1, i)
+            activation[mq1].append(l[i+muscle_row_count])
+            mq2=get_muscle_name(quadrant2, i)
+            activation[mq2].append(l[i+muscle_row_count*2])
+            mq3=get_muscle_name(quadrant3, i)
+            activation[mq3].append(l[i+muscle_row_count*3])
+            
         times.append(t)
+        
         if step==0 or step%steps_between_plots == 0:
             print "At step %s (%s s)"%(step, t)
-            figV = plt.figure()
-            figV.suptitle("Muscle activation waves at step %s (%s s)"%(step, t))
-            plV = figV.add_subplot(111, autoscale_on=True)
-            
-            plV.plot(l[0:muscle_row_count], label='%s*'%quadrant0,  color=colours[quadrant0], linestyle='-', marker='o')
-            plV.plot(l[muscle_row_count:2*muscle_row_count], label='%s*'%quadrant1,  color=colours[quadrant1], linestyle='-', marker='o')
-            plV.plot(l[2*muscle_row_count:3*muscle_row_count], label='%s*'%quadrant2,  color=colours[quadrant2], linestyle='-')
-            plV.plot(l[3*muscle_row_count:4*muscle_row_count], label='%s*'%quadrant3,  color=colours[quadrant3], linestyle='-')
-            
-            plV.legend()
+            if show_all:
+                figV = plt.figure()
+                figV.suptitle("Muscle activation waves at step %s (%s s)"%(step, t))
+                plV = figV.add_subplot(111, autoscale_on=True)
+
+                plV.plot(l[0:muscle_row_count], label='%s*'%quadrant0,  color=colours[quadrant0], linestyle='-', marker='o')
+                plV.plot(l[muscle_row_count:2*muscle_row_count], label='%s*'%quadrant1,  color=colours[quadrant1], linestyle='-', marker='o')
+                plV.plot(l[2*muscle_row_count:3*muscle_row_count], label='%s*'%quadrant2,  color=colours[quadrant2], linestyle='-')
+                plV.plot(l[3*muscle_row_count:4*muscle_row_count], label='%s*'%quadrant3,  color=colours[quadrant3], linestyle='-')
+
+                plV.legend()
     
     
-    fig0 = plt.figure()
-    fig0.suptitle("Muscle activation waves vs time")
-    pl0 = fig0.add_subplot(111, autoscale_on=True)
-    pl0.plot(times, activation[m0], label=m0,  color=colours[quadrant0], linestyle='-')
-    pl0.plot(times, activation[m1], label=m1, color=colours[quadrant1], linestyle='-')
-    pl0.plot(times, activation[m2], label=m2, color=colours[quadrant2], linestyle='--')
-    pl0.plot(times, activation[m3], label=m3, color=colours[quadrant3], linestyle='--')
+    if show_all:
+        fig0 = plt.figure()
+        fig0.suptitle("Muscle activation waves vs time")
+        pl0 = fig0.add_subplot(111, autoscale_on=True)
+        pl0.plot(times, activation[m0], label=m0,  color=colours[quadrant0], linestyle='-')
+        pl0.plot(times, activation[m1], label=m1, color=colours[quadrant1], linestyle='-')
+        pl0.plot(times, activation[m2], label=m2, color=colours[quadrant2], linestyle='--')
+        pl0.plot(times, activation[m3], label=m3, color=colours[quadrant3], linestyle='--')
+
+        pl0.legend()
+        
     
-    pl0.legend()
+    plt.figure()
+    plt.title('Activation')
+    arr = []
+    for key in activation.keys():
+        arr.append(activation[key])
+    plt.imshow(arr, interpolation='none', aspect='auto')
+    plt.colorbar()
+        
 
     plt.show()
     
