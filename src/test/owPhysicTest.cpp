@@ -44,7 +44,7 @@
 #include <cmath>        // std::abs
 
 #include "owPhysicTest.h"
-#include "../owPhysicsFluidSimulator.h"
+
 
 float calcPotentialEnergy( owConfigProrerty *, float * );
 float calcKineticEnergy( owConfigProrerty *, float *, float * );
@@ -57,11 +57,10 @@ float gravity = 9.81f;
  * TOTAL ENERGY OF SYSTEM SHOULD BE CONSTANT ALL TIME
  * E = mv^2/2 + mgh
  * *****************************************************/
-void test_energy_conservation(){
-	owHelper::path = "./configuration/test/";
-	owHelper::suffix = "_liquid";
+void test_energy_conservation(int argc, char **argv){
+	//owHelper::path = "./configuration/test/"; TODO FIX it
 	owHelper * helper = new owHelper();
-	owPhysicsFluidSimulator * fluid_simulation = new owPhysicsFluidSimulator(helper);
+	owPhysicsFluidSimulator * fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
 	float total_energy = 0.f;
 	float kinetic_energy = 0.f;
 	float potential_energy = 0.f;

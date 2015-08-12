@@ -30,6 +30,13 @@ make all
 
 **Mac**: stay in the top-level folder and run:
 
+You need before run export several enviroment variables 
+```
+export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
+export PYTHONLIBDIR=/usr/local/lib/python2...
+export PYTHONFRAMEWORKDIR=/usr/local/Frameworks/
+```
+Then
 ```
 make clean -f makefile.OSX
 make all -f makefile.OSX
@@ -45,13 +52,13 @@ Invoking: GCC C++ Compiler
 more stuff...
 ....
 
-Building target: Smoothed-Particle-Hydrodynamics
+Building target: Sibernetic
 Invoking: GCC C++ Linker
-g++ -L/usr/lib -L/usr/lib/python2.7 -o "Smoothed-Particle-Hydrodynamics"  ./src/PyramidalSimulation.o ./src/main.o ./src/owHelper.o ./src/owOpenCLSolver.o ./src/owPhysicsFluidSimulator.o ./src/owWorldSimulation.o   -lOpenCL -lpython2.7 -lrt -lglut -lGL -lGLU
-Finished building target: Smoothed-Particle-Hydrodynamics
+g++ -L/usr/lib -L/usr/lib/python2.7 -o "Sibernetic"  ./src/PyramidalSimulation.o ./src/main.o ./src/owHelper.o ./src/owOpenCLSolver.o ./src/owPhysicsFluidSimulator.o ./src/owWorldSimulation.o   -lOpenCL -lpython2.7 -lrt -lglut -lGL -lGLU
+Finished building target:Sibernetic
 ```
 
-Then navigate to the top-level folder in the hierarchy (e.g `Smoothed-Particle-Hydrodynamics`) and set your `PYTHONPATH`:
+Then navigate to the top-level folder in the hierarchy (e.g `Sibernetic`) and set your `PYTHONPATH`:
 
 ```
 export PYTHONPATH=$PYTHONPATH:'./src'
@@ -65,13 +72,13 @@ Finally, to run, run the command:
 ```
 **Mac**:
 ```
-./build/Smoothed-Particle-Hydrodynamics
+./Release/Sibernetic
 ```
 
-You may need to make `./Release/Smoothed-Particle-Hydrodynamics` executable like so:
+You may need to make `./Release/Sibernetic` executable like so:
 
 ```
-chmod +x ./Release/Smoothed-Particle-Hydrodynamics
+chmod +x ./Release/Sibernetic
 ```
 
 If you do not run from the top-level folder you will see an error which looks something like this:
@@ -82,6 +89,115 @@ Compilation failed:
 "src//owOpenCLConstant.h"
 #include "src//owOpenCLConstant.h"
 ```
+
+
+What's inside
+-------------
+
+Physical Algorithms:
+
+- PCI SPH - simulation incompressible liquid [1]
+- Simulation elastic matter
+- Simulation liquid-impermeable membranes
+- Boundary handling [2]
+- Surface tension [3]
+
+There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to boundary (one of it has a liquid-impermeable membranes covering and another one hasn't such). 
+
+The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).
+
+To switch between demos you need to press the 1 or 2 keys respectively. To pause simulation you may press space bar.
+
+References
+
+1. B. Solenthaler, Predictive-Corrective Incompressible SPH. ACM Transactions on Graphics (Proceedings of SIGGRAPH), 28(3), 2009. 
+2. M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
+3. M. Becker, M. Teschner. Weakly compressible SPH for free surface flows // Proceedings of the 2007 ACM SIGGRAPH/Eurographics symposium on Computer animation, pages 209-217.
+
+Main command options
+--------------
+To start Sibernetic with argument print in command prompt next ./Release/Sibernetic -whatever
+Available options:
+```
+ -g_no                 Run without graphics
+ -l_to                 Save simulation results to disk.
+ -l_from               Load simulation results from disk.
+ -test                 Run some physical tests.
+ -f <filename>         Load configuration from file <filename>.
+ device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu 
+                       default-ALL (it will try to init most powerful available device).
+ timestep=<value>      Start simulation with time step = <value> in seconds.
+ timelimit=<value>     Run simulation until <value> will be reached in seconds.
+ leapfrog              Use for integration LeapFrog method
+ -help                 Print this information on screen.
+```
+
+LeapFrog integration
+--------------
+[Leapfrog](https://en.wikipedia.org/wiki/Leapfrog_integration) is second order method insted of [Semi-implicid Euler](https://en.wikipedia.org/wiki/Semi-implicit_Euler_method) which we are using as default method for integration. For run simulation with Leapfro integration medhod print run command
+```
+./Release/Sibernetic leapfrog
+```
+
+Run simulation from configuration file
+--------------
+All configuration is stored in ./configuration folder there are two demo configuration demo1 and demo2 (demo1 is using as default demonstarative configuration). You can switch between two demo configurations directly inside the working Sibernetic - just push button '1' or '2' respectively. For run your configuration put you're configuration file into configuration folder and run Sibernetic with key.
+```
+./Release/Sibernetic -f <configuration_file_name>. 
+```
+For run worm body simulation you need run Siberntic with key 
+```
+./Release/Sibernetic -f worm
+```
+it load worm body configuration and init and run pyhon module which is responsible for muscle signal updating. If you want work with worm body configuration generator you should change branch to WormBodySimultion.
+
+Control in graphical mode
+---------------
+If you run Sibernetic with graphic you can work with scene rotate and scaling by mouse. Also you several control button is available:
+```
+'Space' - pause simulation 
+'s'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
+than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
+'q' or 'Esc'     - quit the sibernetic
+'1'     - run demo1 configuration
+'2'     - run demo2 configuration
+```
+
+Configuration file format
+---------------
+Configuration file is consist from:
+```
+First 6 lines is spatial description of boundary box
+xmin
+xmax
+ymin
+ymax
+zmin
+zmax
+[position] - contains information about position of all particles e.g.
+1 0 0 1
+1 0 1 1
+...
+[velocity] - contains infomation about velocityes of all particles e.g.
+0 0 0 1
+0 0 0 1
+...
+[connection] - contains infomation about elastic connection of all elastic particles e.g.
+1	1.58649939377	1.1	0.0
+7	1.58649939377	1.1	0.0
+...
+[membranes] - contains infomation about membranes e.g.
+0	1	7
+7	8	1
+...
+[particleMemIndex] - contains infomation about in which membranes elastic particle is includes e.g.
+0
+144
+288
+-1
+...
+```
+
 
 Saving to disk
 --------------
@@ -131,3 +247,7 @@ ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
 #re-encode into video
 ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 ```
+Troubleshooting
+--------------------
+If you have any question or have a problem with runing sibernetic please contact with us
+email me on skhayrulin@openworm.org or info@openworm.org. Or you can create the [issues on github](https://github.com/openworm/sibernetic/issues)

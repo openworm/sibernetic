@@ -1,4 +1,6 @@
+/src/main_sim.py~
 /Release/Sibernetic
+*~
 # Compiled Object files
 *.slo
 *.lo
@@ -34,9 +36,18 @@ buffers/position_buffer.txt
 *.obj
 *.pdb
 *.res
+/buffers
+/logs
+/out_config
+/release
+rebuild.sh
+rebuildandrun.sh
 
 #Apple stuff
 .DS_Store
 build
 /Build
 /debug
+/Release
+
+

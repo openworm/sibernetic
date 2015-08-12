@@ -54,7 +54,8 @@ using namespace std;
 int PyramidalSimulation::setup(){
 
   char python_module[] = "main_sim";
-  char pyClass[] = "muscle_simulation";
+  char pyClass[] = "MuscleSimulation";
+  //char pyClass[] = "C302Simulation";
 
   // Initialize the Python interpreter
   Py_Initialize();
@@ -100,7 +101,7 @@ vector<float> PyramidalSimulation::unpackPythonList(PyObject* pValue){
 	printf("====\n");
 	for (Py_ssize_t i = 0; i < size; i++) {
 		float value;
-		value = PyFloat_AsDouble(PyList_GetItem(pValue, i));
+		value = (float)PyFloat_AsDouble(PyList_GetItem(pValue, i));
 		test[i]= value;
 	}
 
@@ -111,25 +112,25 @@ vector<float> PyramidalSimulation::run(){
 // Call a method of the class
 // pValue = PyObject_CallMethod(pInstance, "rrun
 // un", NULL);
-	printf("!!!checkpoint001!!!\n");
+	//printf("!!!checkpoint001!!!\n");
 	pValue = PyObject_CallMethod(pInstance, "run", NULL);
-	printf("!!!checkpoint002!!!\n");
+	//printf("!!!checkpoint002!!!\n");
 	if(PyList_Check(pValue)){
-	   printf("!!!checkpoint003.1!!!\n");
+	   //printf("!!!checkpoint003.1!!!\n");
 	  vector<float> value_array;
 	  value_array = PyramidalSimulation::unpackPythonList(pValue);
-	  printf("!!!checkpoint003!!!\n");
+	  //printf("!!!checkpoint003!!!\n");
 	  return value_array;
 
 	}
 
 
 	else {
-	  printf("!!!checkpoint004.1!!!\n");
+	  //printf("!!!checkpoint004.1!!!\n");
 	  vector<float> single_element_array(0);
-	  single_element_array[0] = PyFloat_AsDouble(pValue);
-	  printf("!!!checkpoint004!!!\n");
+	  single_element_array[0] = (float)PyFloat_AsDouble(pValue);
+	  //printf("!!!checkpoint004!!!\n");
 	  return single_element_array;
 	}
-   printf("!!!checkpoint005!!!\n");
+   //printf("!!!checkpoint005!!!\n");
 };

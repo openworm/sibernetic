@@ -37,12 +37,23 @@
 
 #include "owOpenCLSolver.h"
 
-extern int numOfElasticP;
-extern int numOfBoundaryP;
-extern int numOfMembranes;
+int myCompare( const void * v1, const void * v2 );
 
-int myCompare( const void * v1, const void * v2 ); 
-
+/** Constructor of class owOpenCLSolver
+ *
+ *  @param position_cpp
+ *  initial position buffer
+ *  @param velocity_cpp
+ *  initial velocity buffer
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @param elasticConnectionData_cpp
+ *  buffer with info about elastic connections
+ *  @param membraneData_cpp
+ *  buffer with info about membranes
+ *  @param particleMembranesList_cpp
+ *  buffer with info about sets of membranes in which particular particle is including
+ */
 owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp)
 {
 	try{
@@ -60,14 +71,14 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		create_ocl_buffer( "sortedPosition", sortedPosition, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 2 ) );
 		create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 ) );
 		create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * (1 + 1/*1 extra, for membrane handling*/) ) );
-		create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( MUSCLE_COUNT * sizeof( float ) ) );
+		create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( config->MUSCLE_COUNT * sizeof( float ) ) );
 		// Create OpenCL kernels
 		create_ocl_kernel("clearBuffers", clearBuffers);
 		create_ocl_kernel("findNeighbors", findNeighbors);
 		create_ocl_kernel("hashParticles", hashParticles);
 		create_ocl_kernel("indexx", indexx);
 		create_ocl_kernel("sortPostPass", sortPostPass);
-		// Additional PCISPH-related kernels 
+		// Additional PCISPH-related kernels
 		create_ocl_kernel("pcisph_computeForcesAndInitPressure", pcisph_computeForcesAndInitPressure);
 		create_ocl_kernel("pcisph_integrate", pcisph_integrate);
 		create_ocl_kernel("pcisph_predictPositions", pcisph_predictPositions);
@@ -83,37 +94,60 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
 		//Copy position_cpp and velocity_cpp to the OpenCL Device
 		copy_buffer_to_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 );
 		copy_buffer_to_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 );
-		//membranes
-		//Needed for sortin stuff
+		//Needed for sorting stuff
 		_particleIndex = new   int[ 2 * config->getParticleCount() ];
-		gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
+		gridNextNonEmptyCellBuffer = new int[config->gridCellCount+1];
+		//Create membranes buffers if it's necessary
 		if(membraneData_cpp != NULL )
 		{
-			create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 3 ) );
-			copy_buffer_to_device( membraneData_cpp, membraneData, numOfMembranes * sizeof( int ) * 3 );
+			create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( config->numOfMembranes * sizeof( int ) * 3 ) );
+			copy_buffer_to_device( membraneData_cpp, membraneData, config->numOfMembranes * sizeof( int ) * 3 );
 
 			if(particleMembranesList_cpp != NULL) //in actual version I'm going to support only membrance built upon elastic matter particles (interconnected with springs -- highly recommended)
 			{
-				create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
-				copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
+				create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
+				copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
 			}
-
-			if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;//We delete it because we don't need it anymore
 		}
-		//elastic connections
+		//elastic connections if it's necessary
 		if(elasticConnectionsData_cpp != NULL){
-			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
-			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+			create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+			copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
 		}
 
-	}catch( std::exception &e ){
+	}catch(std::runtime_error & re){
+		throw re;
+	}
+	catch( std::exception &e ){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
 	}
 }
 
-extern char device_full_name [1000];
-void owOpenCLSolver::refresh(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
+/** Reset simulation method
+ *
+ *  This Method reset all simulation. It's reiniting all buffers with
+ *  new start configuration and restart simulation.
+ *  NOTE: this method reiniting only buffers not a kernels an so one.
+ *
+ *  @param position_cpp
+ *  initial position buffer
+ *  @param velocity_cpp
+ *  initial velocity buffer
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @param elasticConnectionData_cpp
+ *  buffer with info about elastic connections
+ *  @param membraneData_cpp
+ *  buffer with info about membranes
+ *  @param particleMembranesList_cpp
+ *  buffer with info about sets of membranes in which particular particle is including
+ */
+void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
+	// Reinitializing all data buffer
+	// First freed data for buffer _particleIndex and gridNextNonEmptyCellBuffer
+	delete [] _particleIndex;
+	delete [] gridNextNonEmptyCellBuffer;
 	create_ocl_buffer( "acceleration", acceleration, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 3 ) );// 4*2-->4*3; third part is to store acceleration[t], while first to are for acceleration[t+delta_t]
 	create_ocl_buffer( "gridCellIndex", gridCellIndex, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
 	create_ocl_buffer( "gridCellIndexFixedUp", gridCellIndexFixedUp, CL_MEM_READ_WRITE, ( ( config->gridCellCount + 1 ) * sizeof( unsigned int ) * 1 ) );
@@ -126,34 +160,37 @@ void owOpenCLSolver::refresh(const float * position_cpp, const float * velocity_
 	create_ocl_buffer( "sortedPosition", sortedPosition, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * 2 ) );
 	create_ocl_buffer( "sortedVelocity", sortedVelocity, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 ) );
 	create_ocl_buffer( "velocity", velocity, CL_MEM_READ_WRITE, ( config->getParticleCount() * sizeof( float ) * 4 * (1 + 1/*1 extra, for membrane handling*/) ) );
-	create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( MUSCLE_COUNT * sizeof( float ) ) );
+	create_ocl_buffer( "muscle_activation_signal", muscle_activation_signal, CL_MEM_READ_WRITE, ( config->MUSCLE_COUNT * sizeof( float ) ) );
 
 	//Copy position_cpp and velocity_cpp to the OpenCL Device
 	copy_buffer_to_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 );
 	copy_buffer_to_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 );
-	//membranes
 	//Needed for sortin stuff
 	_particleIndex = new   int[ 2 * config->getParticleCount() ];
-	gridNextNonEmptyCellBuffer = new unsigned int[config->gridCellCount+1];
+	gridNextNonEmptyCellBuffer = new int[config->gridCellCount+1];
 	if(membraneData_cpp != NULL )
 	{
-		create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( numOfMembranes * sizeof( int ) * 3 ) );
-		copy_buffer_to_device( membraneData_cpp, membraneData, numOfMembranes * sizeof( int ) * 3 );
-
+		create_ocl_buffer( "membraneData", membraneData, CL_MEM_READ_WRITE, ( config->numOfMembranes * sizeof( int ) * 3 ) );
+		copy_buffer_to_device( membraneData_cpp, membraneData, config->numOfMembranes * sizeof( int ) * 3 );
 		if(particleMembranesList_cpp != NULL) //in actual version I'm going to support only membrance built upon elastic matter particles (interconnected with springs -- highly recommended)
 		{
-			create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
-			copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
+			create_ocl_buffer("particleMembranesList", particleMembranesList,CL_MEM_READ_WRITE, config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int) );
+			copy_buffer_to_device( particleMembranesList_cpp, particleMembranesList, config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof( int ) );
 		}
-
-		if(particleMembranesList_cpp) delete [] particleMembranesList_cpp;//We delete it because we don't need it anymore
 	}
 	//elastic connections
 	if(elasticConnectionsData_cpp != NULL){
-		create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
-		copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+		create_ocl_buffer("elasticConnectionsData", elasticConnectionsData,CL_MEM_READ_WRITE, config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
+		copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData, config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
 	}
 }
+/** Initialization OpenCL entities
+ *
+ * Method inits all required entities for work with OpenCL code.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ */
 void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 {
 	cl_int err;
@@ -175,7 +212,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 		if (ciErrNum == CL_SUCCESS)
 		{
 			printf(" CL_PLATFORM_VERSION [%d]: \t%s\n", i, cBuffer);
-		} 
+		}
 		else
 		{
 			printf(" Error %i in clGetPlatformInfo Call !!!\n\n", ciErrNum);
@@ -184,36 +221,57 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	//0-CPU, 1-GPU // depends on the time order of system OpenCL drivers installation on your local machine
 	// CL_DEVICE_TYPE
     cl_device_type type;
-	const int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU};
+	unsigned int device_type [] = {CL_DEVICE_TYPE_CPU,CL_DEVICE_TYPE_GPU, CL_DEVICE_TYPE_ALL};
 
-	unsigned int plList = 0;//selected platform index in platformList array [choose CPU by default]
-	//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
-	cl_uint ciDeviceCount;
+	int plList = -1;//selected platform index in platformList array [choose CPU by default]
+							//added autodetection of device number corresonding to preferrable device type (CPU|GPU) | otherwise the choice will be made from list of existing devices
+	cl_uint ciDeviceCount = 0;
 	cl_device_id * devices_t;
 	bool bPassed = true, findDevice = false;
 	cl_int result;
-	for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
-		if(findDevice)
-			break;
-		clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], CL_DEVICE_TYPE_ALL, 0, NULL, &ciDeviceCount);
-		if ((devices_t = (cl_device_id*)malloc(sizeof(cl_device_id) * ciDeviceCount)) == NULL){
-		   bPassed = false;
-		}
-		if(bPassed){
-			result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], CL_DEVICE_TYPE_ALL, ciDeviceCount, devices_t, &ciDeviceCount);
-			if( result == CL_SUCCESS){
-				for( cl_uint i =0; i < ciDeviceCount; ++i ){
-					clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);		
-					if( type & device_type[config->getDeviceType()]){
-						plList = clSelectedPlatformID;
-						findDevice = true;
-						break;
+	cl_uint device_coumpute_unit_num;
+	cl_uint device_coumpute_unit_num_current = 0;
+	unsigned int deviceNum = 0;
+	//Selection of more appropriate device
+	while(!findDevice){
+		for(int clSelectedPlatformID = 0;clSelectedPlatformID < (int)n_pl;clSelectedPlatformID++){
+			//if(findDevice)
+			//	break;
+			clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], 0, NULL, &ciDeviceCount);
+			if((devices_t = static_cast<cl_device_id *>(malloc(sizeof(cl_device_id) * ciDeviceCount))) == NULL)
+				bPassed = false;
+			if(bPassed){
+				result= clGetDeviceIDs (cl_pl_id[clSelectedPlatformID], device_type[config->getDeviceType()], ciDeviceCount, devices_t, &ciDeviceCount);
+				if( result == CL_SUCCESS){
+					for( cl_uint i =0; i < ciDeviceCount; ++i ){
+						clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type, NULL);
+						if( type & device_type[config->getDeviceType()]){
+							clGetDeviceInfo(devices_t[i], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(device_coumpute_unit_num), &device_coumpute_unit_num, NULL);
+							if(device_coumpute_unit_num_current <= device_coumpute_unit_num){
+								plList = clSelectedPlatformID;
+								device_coumpute_unit_num_current = device_coumpute_unit_num;
+								findDevice = true;
+								deviceNum = i;
+							}
+							//break;
+						}
 					}
 				}
+				free(devices_t);
 			}
 		}
+		if(!findDevice){
+			//plList = 0;
+			deviceNum = 0;
+			std::string deviceTypeName = (config->getDeviceType() == ALL)? "ALL": (config->getDeviceType() == CPU)? "CPU":"GPU";
+			std::cout << "Unfortunately OpenCL couldn't find device " << deviceTypeName << std::endl;
+			std::cout << "OpenCL try to init existing device " << std::endl;
+			if(config->getDeviceType() != ALL)
+				config->setDeviceType(ALL);
+			else
+				throw std::runtime_error("Sibernetic can't find any OpenCL devices. Please check you're environment configuration.");
+		}
 	}
-	if(!findDevice) plList = 0;
 	cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties) (platformList[plList])(), 0 };
 	context = cl::Context( device_type[config->getDeviceType()], cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
@@ -224,11 +282,12 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	int value;
     unsigned long val2;
     size_t val3;
-	//uint deviceNum = 0;// causes "error C2065: 'uint' : undeclared identifier"
-    unsigned int deviceNum = 0;
-	result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
+	//deviceNum = 0;// causes "error C2065: 'uint' : undeclared identifier"
+    result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_NAME [" << deviceNum << "]:\t" << cBuffer << "\n" << std::endl;
-	if(strlen(cBuffer)<1000) strcpy(device_full_name,cBuffer);
+	if(strlen(cBuffer)<1000) config->setDeviceName(cBuffer);
+	result = devices[deviceNum].getInfo(CL_DEVICE_TYPE,&cBuffer);
+	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_TYPE [" << deviceNum << "]:\t" << (((int)cBuffer[0] == CL_DEVICE_TYPE_CPU)? "CPU" : "GPU") << std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&val3);
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_MAX_WORK_GROUP_SIZE [" <<  deviceNum <<"]: \t" << val3 <<std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&value);
@@ -239,7 +298,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM [" << plList <<"]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE [" << deviceNum <<"]:\t" << val2 <<std::endl;
 	result = devices[deviceNum].getInfo(CL_DEVICE_LOCAL_MEM_SIZE,&val2);
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM " << plList <<": CL_DEVICE_LOCAL_MEM_SIZE ["<< deviceNum <<"]:\t" << val2 << std::endl;
-	
+
 	queue = cl::CommandQueue( context, devices[ deviceNum ], 0, &err );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "failed to create command queue" );
@@ -272,6 +331,15 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	return;
 }
 //Kernels functions definition
+/** Run clearing neighbor map
+ *
+ *  This function is depreciated and will be removed in next releases.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_runClearBuffers(owConfigProrerty * config)
 {
 	// Stage ClearBuffers
@@ -288,6 +356,16 @@ unsigned int owOpenCLSolver::_runClearBuffers(owConfigProrerty * config)
 #endif
 	return err;
 }
+/** Run hash particle kernel
+ *
+ *  This kernel runs algorithm for calculating cell number
+ *  for all particles
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_runHashParticles(owConfigProrerty * config)
 {
 	// Stage HashParticles
@@ -313,14 +391,105 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProrerty * config)
 #endif
 	return err;
 }
-
+/** Run indexx kernel
+ *
+ *  Fill up gridCellIndex array with start correct
+ *  value in partcileIndex array.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
+unsigned int owOpenCLSolver::_runIndexx(owConfigProrerty * config)
+{
+	// Stage Indexx
+	indexx.setArg( 0, particleIndex );
+	indexx.setArg( 1, config->gridCellCount );
+	indexx.setArg( 2, gridCellIndex );
+	indexx.setArg( 3, config->getParticleCount() );
+	int gridCellCountRoundedUp = ((( config->gridCellCount - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+	int err = queue.enqueueNDRangeKernel(
+		indexx, cl::NullRange, cl::NDRange( (int) ( /**/gridCellCountRoundedUp/**/ ) ),
+#if defined( __APPLE__ )
+		cl::NullRange, NULL, NULL );
+#else
+		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
+#endif
+#if QUEUE_EACH_KERNEL
+	queue.finish();
+#endif
+	return err;
+}
+/** Run index post pass function
+ *
+ *  Fill up all empty cell in gridCellIndex. If value in particular cell == -1
+ *  it fills with value from last non empty cell. It need for optimization
+ *  of neighbor search.
+ *  EXAMPLE: particleIndex after sorting [[1,1],[1,2],[2,3],[3,0],[3,7],[4,5],[6,8]...]
+ *                                          ^           ^     ^           ^     ^
+ *           gridCellIndex               [  0,          2,    3,          5,-1, 6,....]
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to write buffet to a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueWriteBuffer.html)
+ */
+unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
+{
+	//Stage IndexPostPass
+	//28aug_Palyanov_start_block
+	copy_buffer_from_device( gridNextNonEmptyCellBuffer, gridCellIndex,(config->gridCellCount+1) * sizeof( int ) * 1 );
+	int recentNonEmptyCell = config->gridCellCount;
+	for(int i=config->gridCellCount;i>=0;i--)
+	{
+		if(gridNextNonEmptyCellBuffer[i] == NO_CELL_ID)
+			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell;
+		else recentNonEmptyCell = gridNextNonEmptyCellBuffer[i];
+	}
+	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( int ) * 1 );
+	return err;
+}
+/** Sorting of particleIndex list
+ *
+ *  particleIndex list contains for every particle information about current
+ *  cell in which it contains in format {cell_id, partcile_id}. Before sorting
+ *  particleIndex list arranged by particle id. This method sort particleIndex
+ *  in accordance with order of cell.
+ *  EXAMPLE: before sorting [[3,0],[1,1],[1,2],[2,3],..]
+ *           after sorting  [[1,1],[1,2],[2,3],[3,0],..]
+ *  For sorting method's using standard library quick sort algorithm.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_runSort(owConfigProrerty * config)
 {
 	copy_buffer_from_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
 	qsort( _particleIndex, config->getParticleCount(), 2 * sizeof( int ), myCompare );
-	copy_buffer_to_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
-	return 0;
+	int err = copy_buffer_to_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
+	return err;
 }
+/** Run sorting of position and velocity arrays
+ *
+ *  After sorting particleIndex list's order isn't correspond
+ *  to order of particles in position and velocity arrays.
+ *  It also need to be arranged in correct order.
+ *  NOTE: this kernel doesn't change an order of position and velocity buffers,
+ *  it's using special created buffers sortedPosition and sortedVelocity.
+ *  NOTE: for tracking info about particular particle using particleIndexBack list
+ *  which == particleIndex before sorting.
+ *  EXAMPLE:  particleIndex list after sorting  [[1,1],[1,2],[2,3],[3,0],..]
+ *            position list                     [ pos_0, pos_1, pos_2, pos_3, ...]
+ *            sortingPosition list after sorting[ pos_1, pos_2, pos_3, pos_0, ...]
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_runSortPostPass(owConfigProrerty * config)
 {
 	// Stage SortPostPass
@@ -343,41 +512,17 @@ unsigned int owOpenCLSolver::_runSortPostPass(owConfigProrerty * config)
 #endif
 	return err;
 }
-unsigned int owOpenCLSolver::_runIndexx(owConfigProrerty * config)
-{
-	// Stage Indexx
-	indexx.setArg( 0, particleIndex );
-	indexx.setArg( 1, config->gridCellCount );
-	indexx.setArg( 2, gridCellIndex );
-	indexx.setArg( 3, config->getParticleCount() );
-	int gridCellCountRoundedUp = ((( config->gridCellCount - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
-	int err = queue.enqueueNDRangeKernel(
-		indexx, cl::NullRange, cl::NDRange( (int) ( /**/gridCellCountRoundedUp/**/ ) ),
-#if defined( __APPLE__ )
-		cl::NullRange, NULL, NULL );
-#else
-		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
-#endif
-#if QUEUE_EACH_KERNEL
-	queue.finish();
-#endif
-	return err;
-}
-unsigned int owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
-{
-	// Stage IndexPostPass
-	//28aug_Palyanov_start_block
-	copy_buffer_from_device( gridNextNonEmptyCellBuffer, gridCellIndex,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
-	int recentNonEmptyCell = config->gridCellCount;
-	for(int i=config->gridCellCount;i>=0;i--)
-	{
-		if(gridNextNonEmptyCellBuffer[i] == NO_CELL_ID)
-			gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell; 
-		else recentNonEmptyCell = gridNextNonEmptyCellBuffer[i];
-	}
-	int err = copy_buffer_to_device( gridNextNonEmptyCellBuffer,gridCellIndexFixedUp,(config->gridCellCount+1) * sizeof( unsigned int ) * 1 );
-	return err;
-}
+/** Run search for neighbors kernel
+ *
+ *  After preparing all required data: particleIndex list,
+ *  sortedPosition and sortedVelocity, neighbor search starting.
+ *  Kernel looking for a nearest particles for all particles.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 {
 	// Stage FindNeighbors
@@ -399,12 +544,12 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 	int err = queue.enqueueNDRangeKernel(
 		findNeighbors, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
-		cl::NullRange, NULL, NULL );/* 
+		cl::NullRange, NULL, NULL );/*
 		local_work_size can also be a NULL
 		value in which case the OpenCL implementation will
-		determine how to be break the global work-items 
+		determine how to be break the global work-items
 		into appropriate work-group instances.
-		http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109 
+		http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109
 		*/
 #else
 		cl::NDRange( (int)( local_NDRange_size ) ), NULL, NULL );
@@ -414,6 +559,15 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
 #endif
 	return err;
 }
+/** Run pcisph_computeDensity kernel
+ *
+ *  The kernel's calculating density for every particle.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_pcisph_computeDensity(owConfigProrerty * config)
 {
 	// Stage ComputeDensityPressure
@@ -435,6 +589,19 @@ unsigned int owOpenCLSolver::_run_pcisph_computeDensity(owConfigProrerty * confi
 #endif
 	return err;
 }
+/** Run pcisph_computeForcesAndInitPressure kernel
+ *
+ *  The kernel initializes pressure by 0.
+ *  Calculating viscosity and surface tension forces
+ *  and acceleration of particle
+ *  acceleration[id] = (ViscosityForces + SurfaceTensiion +GravityForces)/mass
+ *  tempAcceleration[id] = acceleration[id + PARTICLE_COUNT]=0.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigProrerty * config)
 {
 	pcisph_computeForcesAndInitPressure.setArg( 0, neighborMap );
@@ -454,6 +621,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
 	pcisph_computeForcesAndInitPressure.setArg(14, position );
 	pcisph_computeForcesAndInitPressure.setArg(15, particleIndex );
 	pcisph_computeForcesAndInitPressure.setArg(16, config->getParticleCount() );
+	pcisph_computeForcesAndInitPressure.setArg(17, mass );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeForcesAndInitPressure, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -466,10 +634,21 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
 #endif
 	return err;
 }
-
+/** Run pcisph_computeElasticForces kernel
+ *
+ *  The kernel calculates elastic forces and muscle
+ *  contraction forces if particle has muscle connection
+ *  acceleration[id] += (ElasticForces + MuscleForce)/mass.
+ *  NOTE: this kernel works only with elastic particles
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty * config)
 {
-	if(numOfElasticP == 0 )
+	if(config->numOfElasticP == 0 )
 		return 0;
 	pcisph_computeElasticForces.setArg( 0, neighborMap );
 	pcisph_computeElasticForces.setArg( 1, sortedPosition );
@@ -480,14 +659,14 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty *
 	pcisph_computeElasticForces.setArg( 6, h );
 	pcisph_computeElasticForces.setArg( 7, mass );
 	pcisph_computeElasticForces.setArg( 8, simulationScale );
-	pcisph_computeElasticForces.setArg( 9, numOfElasticP );
+	pcisph_computeElasticForces.setArg( 9, config->numOfElasticP );
 	pcisph_computeElasticForces.setArg( 10, elasticConnectionsData );
 	pcisph_computeElasticForces.setArg( 11, config->getParticleCount() );
-	pcisph_computeElasticForces.setArg( 12, MUSCLE_COUNT );
+	pcisph_computeElasticForces.setArg( 12, config->MUSCLE_COUNT );
 	pcisph_computeElasticForces.setArg( 13, muscle_activation_signal);
 	pcisph_computeElasticForces.setArg( 14, position);
 	pcisph_computeElasticForces.setArg( 15, elasticityCoefficient);
-	int numOfElasticPCountRoundedUp = ((( numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
+	int numOfElasticPCountRoundedUp = ((( config->numOfElasticP - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_computeElasticForces, cl::NullRange, cl::NDRange( numOfElasticPCountRoundedUp ),
 #if defined( __APPLE__ )
@@ -500,7 +679,18 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty *
 #endif
 	return err;
 }
-
+/** Run pcisph_predictPositions kernel
+ *
+ *  The kernel predicts possible position value of particles
+ *  what leads to incompressibility. Temp value of position
+ *  is calculating from temp value of velocity which's tacking from predicted value of
+ *  tempacceleration[id].
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * config)
 {
 	pcisph_predictPositions.setArg( 0, acceleration );
@@ -512,7 +702,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * con
 	pcisph_predictPositions.setArg( 6, gravity_y );
 	pcisph_predictPositions.setArg( 7, gravity_z );
 	pcisph_predictPositions.setArg( 8, simulationScaleInv );
-	pcisph_predictPositions.setArg( 9, timeStep );
+	pcisph_predictPositions.setArg( 9, config->getTimeStep() );
 	pcisph_predictPositions.setArg(10, position );
 	pcisph_predictPositions.setArg(11, velocity );
 	pcisph_predictPositions.setArg(12, r0 );
@@ -530,6 +720,16 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * con
 #endif
 	return err;
 }
+/** Run pcisph_predictDensity kernel
+ *
+ *  The kernel predicts possible value of density
+ *  taking into account predicted value of particle's position
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * config)
 {
 	// Stage ComputeDensityPressure
@@ -539,11 +739,10 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * confi
 	pcisph_predictDensity.setArg( 3, h );
 	pcisph_predictDensity.setArg( 4, rho0 );
 	pcisph_predictDensity.setArg( 5, simulationScale );
-	pcisph_predictDensity.setArg( 6, stiffness );
-	pcisph_predictDensity.setArg( 7, sortedPosition );
-	pcisph_predictDensity.setArg( 8, pressure );
-	pcisph_predictDensity.setArg( 9, rho );
-	pcisph_predictDensity.setArg(10, config->getParticleCount() );
+	pcisph_predictDensity.setArg( 6, sortedPosition );
+	pcisph_predictDensity.setArg( 7, pressure );
+	pcisph_predictDensity.setArg( 8, rho );
+	pcisph_predictDensity.setArg( 9, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_predictDensity, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -556,6 +755,16 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * confi
 #endif
 	return err;
 }
+/** Run pcisph_correctPressure kernel
+ *
+ *  The kernel corrects the pressure
+ *  taking into account predicted values of density.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProrerty * config)
 {
 	// Stage ComputeDensityPressure
@@ -563,7 +772,7 @@ unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProrerty * conf
 	pcisph_correctPressure.setArg( 1, rho0 );
 	pcisph_correctPressure.setArg( 2, pressure );
 	pcisph_correctPressure.setArg( 3, rho );
-	pcisph_correctPressure.setArg( 4, delta );
+	pcisph_correctPressure.setArg( 4, config->getDelta() );
 	pcisph_correctPressure.setArg( 5, config->getParticleCount() );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_correctPressure, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
@@ -577,6 +786,16 @@ unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProrerty * conf
 #endif
 	return err;
 }
+/** Run pcisph_computePressureForceAcceleration kernel
+ *
+ *  The kernel calculating pressure forces
+ *  and calculating new value of tempacceleration[id].
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConfigProrerty * config)
 {
 	// Stage ComputeAcceleration
@@ -586,7 +805,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConf
 	pcisph_computePressureForceAcceleration.setArg( 3, sortedPosition );
 	pcisph_computePressureForceAcceleration.setArg( 4, sortedVelocity );
 	pcisph_computePressureForceAcceleration.setArg( 5, particleIndexBack );
-	pcisph_computePressureForceAcceleration.setArg( 6, delta );
+	pcisph_computePressureForceAcceleration.setArg( 6, config->getDelta() );
 	pcisph_computePressureForceAcceleration.setArg( 7, mass_mult_gradWspikyCoefficient );
 	pcisph_computePressureForceAcceleration.setArg( 8, h );
 	pcisph_computePressureForceAcceleration.setArg( 9, simulationScale );
@@ -608,7 +827,15 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConf
 #endif
 	return err;
 }
-
+/** Run clearMembraneBuffers kernel
+ *
+ *  The kernel clears membranes data buffers.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_clearMembraneBuffers(owConfigProrerty * config)
 {
 	clearMembraneBuffers.setArg( 0, position );
@@ -627,7 +854,15 @@ unsigned int owOpenCLSolver::_run_clearMembraneBuffers(owConfigProrerty * config
 #endif
 	return err;
 }
-
+/** Run computeInteractionWithMembranes kernel
+ *
+ *  The kernel handles interaction particles and membranes.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrerty * config)
 {
 	computeInteractionWithMembranes.setArg( 0, position );
@@ -639,7 +874,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrer
 	computeInteractionWithMembranes.setArg( 6, particleMembranesList );
 	computeInteractionWithMembranes.setArg( 7, membraneData );
 	computeInteractionWithMembranes.setArg( 8, config->getParticleCount() );
-	computeInteractionWithMembranes.setArg( 9, numOfElasticP );
+	computeInteractionWithMembranes.setArg( 9, config->numOfElasticP );
 	computeInteractionWithMembranes.setArg(10, r0 );
 	int err = queue.enqueueNDRangeKernel(
 		computeInteractionWithMembranes, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
@@ -653,7 +888,16 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrer
 #endif
 	return err;
 }
-
+/** Run computeInteractionWithMembranes_finalize kernel
+ *
+ *  The kernel corrects position and velocity
+ *  of particles after interaction with membranes.
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
 unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owConfigProrerty * config)
 {
 	computeInteractionWithMembranes_finalize.setArg( 0, position );
@@ -673,9 +917,20 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owCon
 #endif
 	return err;
 }
-
-
-unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigProrerty * config)
+/** Run pcisph_integrate kernel
+ *
+ *  The kernel run numerical integration method.
+ *  Calculating value of position and velocity on step (t+1)
+ *  NOTE: for now simulation using Semi-implicit Euler method
+ *        for integration 1th order
+ *  NOTE: soon we plan to add Leap-frog 2th order
+ *
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @return value taking after enqueue a command to execute a kernel on a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
+ */
+unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, int pcisph_integrate_mode, owConfigProrerty * config)
 {
 	// Stage Integrate
 	pcisph_integrate.setArg( 0, acceleration );
@@ -687,21 +942,21 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigP
 	pcisph_integrate.setArg( 6, gravity_y );
 	pcisph_integrate.setArg( 7, gravity_z );
 	pcisph_integrate.setArg( 8, simulationScaleInv );
-	pcisph_integrate.setArg( 9, timeStep );
+	pcisph_integrate.setArg( 9, config->getTimeStep() );
 	pcisph_integrate.setArg( 10, config->xmin );
 	pcisph_integrate.setArg( 11, config->xmax );
 	pcisph_integrate.setArg( 12, config->ymin );
 	pcisph_integrate.setArg( 13, config->ymax );
 	pcisph_integrate.setArg( 14, config->zmin );
 	pcisph_integrate.setArg( 15, config->zmax );
-	pcisph_integrate.setArg( 16, damping );
-	pcisph_integrate.setArg( 17, position );
-	pcisph_integrate.setArg( 18, velocity );
-	pcisph_integrate.setArg( 19, rho );
-	pcisph_integrate.setArg( 20, r0 );
-	pcisph_integrate.setArg( 21, neighborMap );
-	pcisph_integrate.setArg( 22, config->getParticleCount() );
-	pcisph_integrate.setArg( 23, iterationCount );
+	pcisph_integrate.setArg( 16, position );
+	pcisph_integrate.setArg( 17, velocity );
+	pcisph_integrate.setArg( 18, rho );
+	pcisph_integrate.setArg( 19, r0 );
+	pcisph_integrate.setArg( 20, neighborMap );
+	pcisph_integrate.setArg( 21, config->getParticleCount() );
+	pcisph_integrate.setArg( 22, iterationCount );
+	pcisph_integrate.setArg( 23, pcisph_integrate_mode );
 	int err = queue.enqueueNDRangeKernel(
 		pcisph_integrate, cl::NullRange, cl::NDRange( (int) (  config->getParticleCount_RoundUp() ) ),
 #if defined( __APPLE__ )
@@ -716,13 +971,29 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, owConfigP
 }
 //end Kernels definition
 //Auxiliary methods
+/** Comparator method
+ *
+ *  This needs for quick sort standard method.
+ *  More info (http://www.cplusplus.com/reference/cstdlib/qsort/).
+ *
+ *  @param v1
+ *  @param v2
+ *  @return -1 if value v1[0] > v2[0], +1 v1[0] < v2[0] else 0.
+ */
 int myCompare( const void * v1, const void * v2 ){
-	int * f1 = (int *)v1;
-	int * f2 = (int *)v2;
+	const int * f1 = static_cast<const int *>(v1);
+	const int * f2 = static_cast<const int *>(v2);
 	if( f1[ 0 ] < f2[ 0 ] ) return -1;
 	if( f1[ 0 ] > f2[ 0 ] ) return +1;
 	return 0;
 }
+/** OpenCL kernel creator method
+ *
+ *  @param name
+ *  Name of kernel should be the same that in OpenCL program file
+ *  @param k
+ *  reference to cl::Kernel object
+ */
 void owOpenCLSolver::create_ocl_kernel(const char *name, cl::Kernel &k )
 {
 	int err;
@@ -733,6 +1004,15 @@ void owOpenCLSolver::create_ocl_kernel(const char *name, cl::Kernel &k )
 		throw std::runtime_error( error_m );
 	}
 }
+/** OpenCL buffer creator method
+ *
+ *  @param name
+ *  name of buffer
+ *  @param b
+ *  reference to cl::Buffer object
+ *  @param flags
+ *  OpenCL memory flags more info (https://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/enums.html)
+ */
 void owOpenCLSolver::create_ocl_buffer(const char *name, cl::Buffer &b, const cl_mem_flags flags,const int size)
 {
 	int err;
@@ -743,9 +1023,22 @@ void owOpenCLSolver::create_ocl_buffer(const char *name, cl::Buffer &b, const cl
 		throw std::runtime_error( error_m );
 	}
 }
+/** Copy openCL buffer from host program into a memory of device
+ *
+ *  @param host_b
+ *  host buffer
+ *  @param ocl_b
+ *  reference to cl::Buffer object in which
+ *  @param flags
+ *  OpenCL memory flags more info (https://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/enums.html)
+ *  @param size
+ *  buffer's size
+ *  @return value taking after enqueue a command to write buffet to a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueWriteBuffer.html)
+ */
 int owOpenCLSolver::copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b, const int size )
 {
-	//Actualy we should check  size and type 
+	//Actualy we should check  size and type
 	int err = queue.enqueueWriteBuffer( ocl_b, CL_TRUE, 0, size, host_b );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "Could not enqueue write" );
@@ -753,9 +1046,21 @@ int owOpenCLSolver::copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,
 	queue.finish();
 	return err;
 }
+/** Copy openCL buffer from device to host program memory
+ *
+ *  @param host_b
+ *  host buffer
+ *  @param ocl_b
+ *  reference to cl::Buffer object in which
+ *  OpenCL memory flags more info (https://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/enums.html)
+ *  @param size
+ *  buffer's size
+ *  @return value taking after enqueue a command to read buffet from a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueReadBuffer.html)
+ */
 int owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b, const int size )
 {
-	//Actualy we should check  size and type 
+	//Actualy we should check  size and type
 	int err = queue.enqueueReadBuffer( ocl_b, CL_TRUE, 0, size, host_b );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "Could not enqueue read" );
@@ -763,13 +1068,26 @@ int owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_
 	queue.finish();
 	return err;
 }
-
-unsigned int owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_cpp)
+/** Copy openCL buffer from device to host program memory
+ *
+ *  @param host_b
+ *  host buffer
+ *  @param ocl_b
+ *  reference to cl::Buffer object in which
+ *  OpenCL memory flags more info (https://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/enums.html)
+ *  @param size
+ *  buffer's size
+ *  @return value taking after enqueue a command to read buffet from a device.
+ *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueReadBuffer.html)
+ */
+unsigned int owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_cpp, owConfigProrerty * config)
 {
-	copy_buffer_to_device( _muscle_activation_signal_cpp, muscle_activation_signal, MUSCLE_COUNT * sizeof( float ) );
+	copy_buffer_to_device( _muscle_activation_signal_cpp, muscle_activation_signal, config->MUSCLE_COUNT * sizeof( float ) );
 	return 0;
 }
-
+/** Destructor
+ *
+ */
 owOpenCLSolver::~owOpenCLSolver(void)
 {
 	delete [] gridNextNonEmptyCellBuffer;
