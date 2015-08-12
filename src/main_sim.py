@@ -217,13 +217,23 @@ if __name__ == '__main__':
         pl0.legend()
         
     
-    plt.figure()
+    f, a = plt.subplots(4, muscle_row_count, sharex=True, sharey=True)
     plt.title('Activation')
-    arr = []
-    for key in activation.keys():
-        arr.append(activation[key])
-    plt.imshow(arr, interpolation='none', aspect='auto')
-    plt.colorbar()
+    
+    for i in range(muscle_row_count):
+        arr = []
+        arr.append(activation[get_muscle_name(quadrant0, i)])
+        a[0,i].imshow(arr, interpolation='none', aspect='auto')
+        arr = []
+        arr.append(activation[get_muscle_name(quadrant3, i)])
+        a[1,i].imshow(arr, interpolation='none', aspect='auto')
+        arr = []
+        arr.append(activation[get_muscle_name(quadrant1, i)])
+        a[2,i].imshow(arr, interpolation='none', aspect='auto')
+        arr = []
+        arr.append(activation[get_muscle_name(quadrant2, i)])
+        a[3,i].imshow(arr, interpolation='none', aspect='auto')
+    #plt.colorbar()
         
 
     plt.show()
