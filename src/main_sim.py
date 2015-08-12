@@ -6,7 +6,8 @@ from pylab import *
 
 muscle_row_count = 24
 
-time_per_step = 0.000005  #  s
+default_time_per_step = 0.000005  #  s
+time_per_step = default_time_per_step  #  s
 
 quadrant0 = 'MDR'
 quadrant1 = 'MVR'
@@ -131,18 +132,29 @@ if __name__ == '__main__':
     print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
     
     skip_to_time = 0
-    ms = MuscleSimulation()
-    #ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
-    #skip_to_time = 0.03
+    
+    max_time = 0.4 # s
+    max_time = 0.4 # s
+    
+    time_per_step = 0.001  #  s
+    increment = time_per_step/default_time_per_step
+    num_plots = 3
+    
+    try_c302 = True
+    try_c302 = False
+    
+    ms = MuscleSimulation(increment=increment)
+    
+    if try_c302:
+        ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
+        skip_to_time = 0.02
+        max_time = 0.08
     #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
     #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
     
-    max_time = 0.4 # s
-    max_time = 0.4 # s
-    num_plots = 3
     
     activation = {}
-    row = '02'
+    row = '11'
     row_int=int(row)
     m0='%s%s'%(quadrant0,row)
     m1='%s%s'%(quadrant1,row)
@@ -195,7 +207,7 @@ if __name__ == '__main__':
     
     if show_all:
         fig0 = plt.figure()
-        fig0.suptitle("Muscle activation waves vs time")
+        fig0.suptitle("Muscle activation waves of [%s, %s, %s, %s] vs time"%(m0,m1,m2,m3))
         pl0 = fig0.add_subplot(111, autoscale_on=True)
         pl0.plot(times, activation[m0], label=m0,  color=colours[quadrant0], linestyle='-')
         pl0.plot(times, activation[m1], label=m1, color=colours[quadrant1], linestyle='-')
