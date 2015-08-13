@@ -38,6 +38,9 @@
 
 bool load_from_file = false;
 bool load_to = false;
+
+char version[] = "0.0.3";
+        
 int main(int argc, char **argv) {
 
     if (argc == 1) {
@@ -48,25 +51,33 @@ int main(int argc, char **argv) {
         bool run_tests = false;
 
         char help_flag[] = "-help";
+        char help_flag2[] = "-h";
+        char help_flag3[] = "-?";
+        char help_flag4[] = "--help";
         char no_graphics_flag[] = "-no_g";
         char save_flag[] = "-l_to";
         char load_flag[] = "-l_from";
         char test_flag[] = "-test";
         char config_file_flag[] = "-f <filename>";
+        char config_file_worm[] = "-f worm";
         char device_type_flag[] = "device=<device_type>";
         char time_step_flag[] = "timestep=<value>";
         char time_limit_flag[] = "timelimit=<value>";
         char integration_method_flag[] = "leapfrog";
 
         for (int i = 1; i < argc; i++) {
-            if (strncmp(argv[i], help_flag, 6) == 0) { // print usage information
-                std::cout << "\nSibernetic\n  This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion\n\n";
-                std::cout << "  Usage:  ./Release/Sibernetic [OPTION]\n";
+            if (strncmp(argv[i], help_flag, 6) == 0 || 
+                strncmp(argv[i], help_flag2, 6) == 0|| 
+                strncmp(argv[i], help_flag3, 6) == 0|| 
+                strncmp(argv[i], help_flag4, 6) == 0) { // print usage information
+                std::cout << "\nSibernetic v" << version << "\n  This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion\n\n";
+                std::cout << "  Usage:  ./Release/Sibernetic [OPTION]\n\n";
                 std::cout << "    " << no_graphics_flag << "                      Run without graphics\n\n";
                 std::cout << "    " << save_flag << "                      Save simulation results to disk\n\n";
                 std::cout << "    " << load_flag << "                    Load simulation results from disk\n\n";
                 std::cout << "    " << test_flag << "                      Run some tests\n\n";
                 std::cout << "    " << config_file_flag << "              Load configuration from file ./configuration/<filename>\n\n";
+                std::cout << "    " << config_file_worm << "                    **Load Worm Body Simulation**\n\n";
                 std::cout << "    " << device_type_flag << "       Trying to init OpenCL on device <type> it could be cpu or gpu default-ALL (it try to init most powerful available device)\n\n";
                 std::cout << "    " << time_step_flag << "           Start simulation with time step = <value> in seconds\n\n";
                 std::cout << "    " << time_limit_flag << "          Run simulation until <value> will be reached in seconds\n\n";
