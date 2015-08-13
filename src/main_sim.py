@@ -105,7 +105,7 @@ class C302Simulation():
                 vv.append(float(v))
             self.values.append(vv)
             
-        print("Loaded a list of %i activity traces at %i time points"%(len(self.values[0]), len(self.values)))
+        print("Loaded a list of %i activity traces at %i time points from %s"%(len(self.values[0]), len(self.values), activity_file))
         
 
     def run(self, skip_to_time=0):
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     
     time_per_step = 0.001  #  s
     increment = time_per_step/default_time_per_step
-    num_plots = 3
+    num_plots = 1
     
     try_c302 = True
     try_c302 = False
@@ -147,11 +147,11 @@ if __name__ == '__main__':
     
     if try_c302:
         ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
-        skip_to_time = 0.02
-        max_time = 0.08
-    #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
-    #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
-    
+        #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
+        #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Oscillator.muscles.activity.dat')
+        skip_to_time = 0.0
+        max_time = 0.1
+        
     
     activation = {}
     row = '11'
@@ -217,22 +217,33 @@ if __name__ == '__main__':
         pl0.legend()
         
     
-    f, a = plt.subplots(4, muscle_row_count, sharex=True, sharey=True)
-    plt.title('Activation')
+    f, a = plt.subplots(4, sharex=True, sharey=True)
+        
+    a[0].set_title(quadrant0)
+    a[0].set_ylabel('muscle #')
+    a[1].set_title(quadrant3)
+    a[1].set_ylabel('muscle #')
+    a[2].set_title(quadrant1)
+    a[2].set_ylabel('muscle #')
+    a[3].set_title(quadrant2)
+    a[3].set_ylabel('muscle #')
+    a[3].set_xlabel('time step (%s s -> %s s)'%(skip_to_time, max_time))
     
+    arr0 = []
+    arr1 = []
+    arr2 = []
+    arr3 = []
     for i in range(muscle_row_count):
-        arr = []
-        arr.append(activation[get_muscle_name(quadrant0, i)])
-        a[0,i].imshow(arr, interpolation='none', aspect='auto')
-        arr = []
-        arr.append(activation[get_muscle_name(quadrant3, i)])
-        a[1,i].imshow(arr, interpolation='none', aspect='auto')
-        arr = []
-        arr.append(activation[get_muscle_name(quadrant1, i)])
-        a[2,i].imshow(arr, interpolation='none', aspect='auto')
-        arr = []
-        arr.append(activation[get_muscle_name(quadrant2, i)])
-        a[3,i].imshow(arr, interpolation='none', aspect='auto')
+        arr0.append(activation[get_muscle_name(quadrant0, i)])
+        arr1.append(activation[get_muscle_name(quadrant3, i)])
+        arr2.append(activation[get_muscle_name(quadrant1, i)])
+        arr3.append(activation[get_muscle_name(quadrant2, i)])
+        
+    a[0].imshow(arr0, interpolation='none', aspect='auto')
+    a[1].imshow(arr1, interpolation='none', aspect='auto')
+    a[2].imshow(arr2, interpolation='none', aspect='auto')
+    a[3].imshow(arr3, interpolation='none', aspect='auto')
+    
     #plt.colorbar()
         
 
