@@ -55,6 +55,7 @@ int PyramidalSimulation::setup(){
 
   char python_module[] = "main_sim";
   char pyClass[] = "MuscleSimulation";
+  char pyClass[] = "SiberneticNEURONWrapper";
   //char pyClass[] = "C302Simulation";
 
   // Initialize the Python interpreter

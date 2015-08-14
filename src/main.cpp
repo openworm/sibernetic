@@ -39,7 +39,6 @@
 bool load_from_file = false;
 bool load_to = false;
 int main(int argc, char **argv) {
-
     if (argc == 1) {
         std::cout << "Sibernetic: no arguments specified, run method executing\n";
         run(argc, argv);
@@ -73,7 +72,7 @@ int main(int argc, char **argv) {
                 std::cout << "    " << integration_method_flag << "                   Run simulation using Leapfrog integration method for time integration\n\n";
                 std::cout << "    " << help_flag << "                      Print this information\n\n";
                 std::cout << "  Please report any bugs/issues on: https://github.com/openworm/sibernetic/issues\n\n";
-                exit(0);
+                return 0;
             }
             if (strncmp(argv[i], no_graphics_flag, 5) == 0) // run without graphics
                 graph = false;

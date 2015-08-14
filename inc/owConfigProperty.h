@@ -69,10 +69,8 @@ public:
 	void updatePyramidalSimulation(float * muscleActivationSignal){
 		if(configFileName == "worm"){
 			std::vector<float> muscle_vector = simulation.run();
-			for(int i=0; i < MUSCLE_COUNT; i++){
-				for (unsigned int index = 0; index < muscle_vector.size(); index++){
-					muscleActivationSignal[index] = muscle_vector[index];
-				}
+			for (unsigned int index = 0; index < muscle_vector.size(); index++){
+				muscleActivationSignal[index] = muscle_vector[index];
 			}
 		}
 	}
