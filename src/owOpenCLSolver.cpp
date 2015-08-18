@@ -195,7 +195,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 {
 	cl_int err;
 	std::vector< cl::Platform > platformList;
-	err = cl::Platform::get( &platformList );
+	err = cl::Platform::get( &platformList ); //TODO make check that returned value isn't error
 	if( platformList.size() < 1 ){
 		throw std::runtime_error( "No OpenCL platforms found" );
 	}
@@ -303,7 +303,6 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "failed to create command queue" );
 	}
-
 	std::string sourceFileName( OPENCL_PROGRAM_PATH );
 	std::ifstream file( sourceFileName.c_str() );
 	if( !file.is_open() ){

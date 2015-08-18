@@ -69,10 +69,8 @@ public:
 	void updatePyramidalSimulation(float * muscleActivationSignal){
 		if(configFileName == "worm"){
 			std::vector<float> muscle_vector = simulation.run();
-			for(int i=0; i < MUSCLE_COUNT; i++){
-				for (unsigned int index = 0; index < muscle_vector.size(); index++){
-					muscleActivationSignal[index] = muscle_vector[index];
-				}
+			for (unsigned int index = 0; index < muscle_vector.size(); index++){
+				muscleActivationSignal[index] = muscle_vector[index];
 			}
 		}
 	}
@@ -99,7 +97,7 @@ public:
 
 				time_step = ::atof( s_temp.substr(s_temp.find('=')+1).c_str());
 				time_step = (time_step > 0) ? time_step : timeStep;
-				//also we should recalculate beta if time_step is different from default value of timeStep in owPhysicsConstant
+				//also we shoisSimulationRun = true;uld recalculate beta if time_step is different from default value of timeStep in owPhysicsConstant
 				beta = time_step*time_step*mass*mass*2/(rho0*rho0);
 			}
 			if(s_temp.find("timelimit=") == 0){
@@ -119,11 +117,16 @@ public:
 					throw std::runtime_error("You forget add configuration file name. Please add it and try again");
 			}
 		}
-		if(configFileName == "worm"){ // in case if we run worm configuration TODO make it optional
-			simulation.setup();
-		}
 		totalNumberOfIteration = time_limit/time_step; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
+		if(configFileName == "worm"){ // in case if we run worm configuration TODO make it optional
+			try{
+				simulation.setup();
+			}catch(const char * ex){
+				std::cerr << ex << std::endl;// TODO make more careful exception catching
+				exit(-1);
+			}
+		}
 	};
 	float getTimeStep() const { return timeStep; };
 	float getDelta() const { return delta; };
@@ -208,7 +211,6 @@ private:
 	std::string path; // PATH to configuration files
 	PyramidalSimulation simulation;
 	std::string device_full_name;
-
 };
 
 #endif /* OWCONFIGURATION_H_ */

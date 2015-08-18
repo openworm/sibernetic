@@ -85,11 +85,7 @@ void owHelper::refreshTime()
 #endif
 }
 
-
-//READ DEFAULT CONFIGURATATION FROM FILE IN CONFIGURATION FOLDER TODO move it into configuration struct
 int read_position = 0;
-
-
 /** TODO make description
  *
  */

@@ -147,7 +147,7 @@ const float surfTensCoeff = mass_mult_Wpoly6Coefficient * simulationScale;
 //const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale; // Surface coefficient. Actually it is -1.5e-09f * 0.3f
                                                                                                                                                // But for decreasing number of repeating calculation we suppose that
                                                                                                                                                // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
-const float elasticityCoefficient = 1.95e-05f / mass; // Elasticity coefficient. Actually it isn't
+const float elasticityCoefficient = 2e-05f / mass; // Elasticity coefficient. Actually it isn't
                                                       // elasticity coefficient (elasticity coefficient = 1.95e-05f)
                                                       // But for decreasing number of repeating calculation we suppose that  elasticityCoefficient = 1.95e-05f / mass
 #endif // #ifndef OW_PHYSICS_CONSTANT_H

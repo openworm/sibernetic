@@ -59,7 +59,6 @@ class PyramidalSimulation{
  public:
   int setup();
   vector<float> run();
-
 };
 
 #endif

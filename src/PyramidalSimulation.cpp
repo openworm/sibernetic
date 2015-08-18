@@ -55,6 +55,7 @@ int PyramidalSimulation::setup(){
 
   char python_module[] = "main_sim";
   char pyClass[] = "MuscleSimulation";
+  //char pyClass[] = "SiberneticNEURONWrapper";
   //char pyClass[] = "C302Simulation";
 
   // Initialize the Python interpreter
@@ -77,20 +78,18 @@ int PyramidalSimulation::setup(){
 	if( PyErr_Occurred() ) PyErr_Print();  
   }
   else {
-    cout << "Module not loaded, have you set PYTHONPATH?" <<endl;
+    throw "Module not loaded, have you set PYTHONPATH?";
   }
-
   // Create an instance of the class
   if (PyCallable_Check(pClass))
-    {
-      pInstance = PyObject_CallObject(pClass, NULL);
+	{
+	  pInstance = PyObject_CallObject(pClass, NULL);
 	  if( PyErr_Occurred() ) PyErr_Print(); 
-      cout << "Pyramidal simulation class loaded!"<<endl;
-    }
+	  cout << "Pyramidal simulation class loaded!"<<endl;
+	}
   else {
-    cout << "Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src"<<endl;
+    throw "Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src";
   }
-
   return 0;
 };
 
@@ -123,8 +122,6 @@ vector<float> PyramidalSimulation::run(){
 	  return value_array;
 
 	}
-
-
 	else {
 	  //printf("!!!checkpoint004.1!!!\n");
 	  vector<float> single_element_array(0);
