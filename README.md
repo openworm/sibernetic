@@ -141,7 +141,7 @@ LeapFrog integration
 Run simulation from configuration file
 --------------
 All configuration is stored in the [configuration folder](configuration). There are two demo configurations [demo1](configuration/demo1) 
-and [demo2](configuration/demo2) (demo1 is using as default demonstarative configuration). You can switch between two demo configurations 
+and [demo2](configuration/demo2) (demo1 is the default configuration). You can switch between two demo configurations 
 directly inside the working Sibernetic - just push button '1' or '2' respectively. To run your configuration put your configuration file 
 into the configuration folder and run Sibernetic using:
 ```
@@ -204,28 +204,42 @@ zmax
 
 Saving to disk
 --------------
-You can run Sibernetic on gpu for this you should start Sibernetic with key device=gpu.
+You can run Sibernetic on GPU. For this you should start Sibernetic with key:
+```
+./Release/Sibernetic device=gpu
+```
 
 You may wish to save simulations to disk rather than visualise them (**WARNING**: This is buggy)
 
-For record configuraton into file you need to run simulation with key -l_to - it create 3 new files 
-at the folder ./buffers:
-- connection_buffers.txt - it need to store information about conection among of elastic partciles
-- membranes_buffer.txt   - it need to store information about membranes 
-- position_buffer.txt    - it need to store information current position all of the non boundary particles it save information to this file every 10 steps of simulation. You shoulld remember that than more info you 
+To record configurations to file you need to run simulation with key -l_to:
+```
+./Release/Sibernetic -l_to
+```
+
+This create 3 new files in the folder ./buffers:
+- connection_buffers.txt - stores information about connection among the elastic particles
+- membranes_buffer.txt   - stores information about membranes 
+- position_buffer.txt    - stores information about current position of all of the non boundary particles it save information to this file every 10 steps of simulation. You should remember that the more info you 
 want to store than bigger output file is. 
 
-For view result you should run simulation with key -l_from - it get positions from position_buffer.txt file and 
-draw evolution of system in time
+For view result you should run simulation with:
+```
+./Release/Sibernetic -l_from
+```
+It get positions from position_buffer.txt file and displays the evolution of system in time
 
 
 Making videos (*nix)
 --------------------
-If you run a simulation you may be interested in recording the graphical output. Making such videos is a bit tricky because they need to be speeded up, so far I have found the following two commands do a decent job (change folder names accordingly) after you have used a screen record program:
+If you run a simulation you may be interested in recording the graphical output. Making such videos is a bit tricky 
+because they need to be speeded up, so far I have found the following two commands do a decent job (change folder 
+names accordingly) after you have used a screen record program:
+
+
+If your video is in OGV format (if you used [recordmydesktop](http://recordmydesktop.sourceforge.net/about.php) for instance), 
+use the following script to convert to avi:
 
 ```
-#If your video is in OGV  format (if you used recordmydesktop for instance), use the following script to convert to avi:
-
 #!/bin/bash
  # ogv to avi
  # Call this with multiple arguments
@@ -250,7 +264,8 @@ ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
 #re-encode into video
 ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 ```
+
 Troubleshooting
 --------------------
-If you have any question or have a problem with runing sibernetic please contact with us
-email me on skhayrulin@openworm.org or info@openworm.org. Or you can create the [issues on github](https://github.com/openworm/sibernetic/issues)
+If you have any question or have a problem with running Sibernetic please contact with us.
+Email me on skhayrulin@openworm.org or info@openworm.org. Or you can create an [issues on GitHub](https://github.com/openworm/sibernetic/issues).
