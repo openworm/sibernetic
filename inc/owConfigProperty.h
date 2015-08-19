@@ -38,6 +38,8 @@
 
 #include <vector>
 #include <string>
+#include <ctime>
+#include <sstream>
 
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
@@ -76,6 +78,25 @@ public:
 	}
 	bool isWormConfig(){ return (configFileName == "worm" || configFileName == "worm_no_water")? true:false; }
 	void setCofigFileName( const char * name ) { configFileName = name; }
+	std::string getSnapshotFileName() {
+		std::string fileName = "./configuration/snapshot/" + configFileName + "_";
+		std::stringstream ss;
+		time_t t = time(0);   // get time now
+		struct tm * now = localtime( & t );
+		ss << now->tm_hour;
+		ss << ":";
+		ss << now->tm_min;
+		ss << ":";
+		ss << now->tm_sec;
+		ss << "_";
+		ss << now->tm_mday;
+		ss << "-";
+		ss << (now->tm_mon + 1);
+		ss << "-";
+		ss << (now->tm_year + 1900);
+		fileName += ss.str();
+		return fileName;
+	}
 	// Constructor
 	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), path("./configuration/"){
 		preferable_device_type = ALL;
@@ -109,9 +130,11 @@ public:
 			if(s_temp == "-f"){
 				if(i + 1 < argc){
 					configFileName = argv[i+1];
-					if(configFileName.find("\\") != std::string::npos || configFileName.find("/") != std::string::npos) // If it find \ or / it means that
-																														// you indicate full path to configuration in other case it will try to find configuration in configurations folder
-						path = "";
+					if(configFileName.find("\\") != std::string::npos || configFileName.find("/") != std::string::npos){
+						std::size_t found = configFileName.find_last_of("/\\");
+						path = configFileName.substr(0,found + 1);
+						configFileName = configFileName.substr(found + 1);
+					}
 				}
 				else
 					throw std::runtime_error("You forget add configuration file name. Please add it and try again");

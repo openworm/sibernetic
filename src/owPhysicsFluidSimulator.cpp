@@ -251,8 +251,9 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
  *
  *  @param fileName - name of file where saved configuration will be stored
  */
-void owPhysicsFluidSimulator::makeSnapshot(const std::string & fileName){
+void owPhysicsFluidSimulator::makeSnapshot(){
 	getvelocity_cpp();
+	std::string fileName = config->getSnapshotFileName();
 	owHelper::loadConfigurationToFile(position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp, fileName.c_str(), config);
 }
 
