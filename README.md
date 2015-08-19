@@ -28,9 +28,8 @@ make clean
 make all
 ```
 
-**Mac**: stay in the top-level folder and run:
-
-You need before run export several enviroment variables 
+**Mac**: stay in the top-level folder. You need before run export several environment variables:
+ 
 ```
 export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
 export PYTHONLIBDIR=/usr/local/lib/python2...
@@ -141,21 +140,25 @@ LeapFrog integration
 
 Run simulation from configuration file
 --------------
-All configuration is stored in ./configuration folder there are two demo configuration demo1 and demo2 (demo1 is using as default demonstarative configuration). You can switch between two demo configurations directly inside the working Sibernetic - just push button '1' or '2' respectively. For run your configuration put you're configuration file into configuration folder and run Sibernetic with key.
+All configuration is stored in the [configuration folder](configuration). There are two demo configurations [demo1](configuration/demo1) 
+and [demo2](configuration/demo2) (demo1 is using as default demonstarative configuration). You can switch between two demo configurations 
+directly inside the working Sibernetic - just push button '1' or '2' respectively. To run your configuration put your configuration file 
+into the configuration folder and run Sibernetic using:
 ```
 ./Release/Sibernetic -f <configuration_file_name>. 
 ```
-For run worm body simulation you need run Siberntic with key 
+To run the worm body simulation you need run Sibernetic with key:
 ```
 ./Release/Sibernetic -f worm
 ```
-it load worm body configuration and init and run pyhon module which is responsible for muscle signal updating. If you want work with worm body configuration generator you should change branch to WormBodySimultion.
+It loads the [worm body configuration](configuration/worm) and initialises and runs the [Python module](src/main_sim.py) which is 
+responsible for muscle signal updating.
 
 Control in graphical mode
 ---------------
-If you run Sibernetic with graphic you can work with scene rotate and scaling by mouse. Also you several control button is available:
+If you run Sibernetic with graphics you can work with scene rotation and scaling using the mouse. There are also several control button options available:
 ```
-'Space' - pause simulation 
+'Space' - pause the simulation 
 's'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
 than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 'q' or 'Esc'     - quit the sibernetic
@@ -165,9 +168,9 @@ than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 
 Configuration file format
 ---------------
-Configuration file is consist from:
+The configuration file consists of:
 ```
-First 6 lines is spatial description of boundary box
+First 6 lines is a spatial description of boundary box
 xmin
 xmax
 ymin
@@ -178,19 +181,19 @@ zmax
 1 0 0 1
 1 0 1 1
 ...
-[velocity] - contains infomation about velocityes of all particles e.g.
+[velocity] - contains information about velocities of all particles e.g.
 0 0 0 1
 0 0 0 1
 ...
-[connection] - contains infomation about elastic connection of all elastic particles e.g.
+[connection] - contains information about elastic connection of all elastic particles e.g.
 1	1.58649939377	1.1	0.0
 7	1.58649939377	1.1	0.0
 ...
-[membranes] - contains infomation about membranes e.g.
+[membranes] - contains information about membranes e.g.
 0	1	7
 7	8	1
 ...
-[particleMemIndex] - contains infomation about in which membranes elastic particle is includes e.g.
+[particleMemIndex] - contains information about in which membranes elastic particle is includes e.g.
 0
 144
 288
