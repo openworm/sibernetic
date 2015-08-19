@@ -268,4 +268,4 @@ ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
 Troubleshooting
 --------------------
 If you have any question or have a problem with running Sibernetic please contact with us.
-Email me on skhayrulin@openworm.org or info@openworm.org. Or you can create an [issues on GitHub](https://github.com/openworm/sibernetic/issues).
+Email me on skhayrulin@openworm.org or info@openworm.org. Or you can create an [issue on GitHub](https://github.com/openworm/sibernetic/issues).
