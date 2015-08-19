@@ -67,14 +67,14 @@ public:
 	const std::string & getCofigPath() const { return path; }
 	PyramidalSimulation & getPyramidalSimulation() { return simulation; }
 	void updatePyramidalSimulation(float * muscleActivationSignal){
-		if(configFileName == "worm"){
+		if(isWormConfig()){
 			std::vector<float> muscle_vector = simulation.run();
 			for (unsigned int index = 0; index < muscle_vector.size(); index++){
 				muscleActivationSignal[index] = muscle_vector[index];
 			}
 		}
 	}
-	bool isWormConfig(){ return (configFileName == "worm")? true:false; }
+	bool isWormConfig(){ return (configFileName == "worm" || configFileName == "worm_no_water")? true:false; }
 	void setCofigFileName( const char * name ) { configFileName = name; }
 	// Constructor
 	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), path("./configuration/"){
@@ -119,7 +119,7 @@ public:
 		}
 		totalNumberOfIteration = time_limit/time_step; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
-		if(configFileName == "worm"){ // in case if we run worm configuration TODO make it optional
+		if(isWormConfig()){ // in case if we run worm configuration TODO make it optional
 			try{
 				simulation.setup();
 			}catch(const char * ex){
