@@ -164,6 +164,7 @@ than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 'q' or 'Esc'     - quit the sibernetic
 '1'     - run demo1 configuration
 '2'     - run demo2 configuration
+'r'     - reset current configuration and start from begining
 ```
 
 Configuration file format
