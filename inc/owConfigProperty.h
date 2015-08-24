@@ -78,6 +78,10 @@ public:
 	}
 	bool isWormConfig(){ return (configFileName == "worm" || configFileName == "worm_no_water")? true:false; }
 	void setCofigFileName( const char * name ) { configFileName = name; }
+	void resetNeuronSimulation(){
+		if(isWormConfig())
+			simulation.setup();
+	}
 	std::string getSnapshotFileName() {
 		std::string fileName = "./configuration/snapshot/" + configFileName + "_";
 		std::stringstream ss;

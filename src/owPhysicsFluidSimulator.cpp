@@ -112,7 +112,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 void owPhysicsFluidSimulator::reset(){
 	// Free all buffers
 	cleanBuffers();
-
+	config->resetNeuronSimulation();
 	iterationCount = 0;
 	config->numOfBoundaryP = 0;
 	config->numOfElasticP = 0;

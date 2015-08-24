@@ -776,16 +776,19 @@ void RespondKey(unsigned char key, int x, int y)
 	case 's':
 		fluid_simulation->makeSnapshot();
 		break;
+	case 'r': // reset simulation
+		helper->refreshTime();
+		fluid_simulation->reset();
+		break;
 	}
-
 	if(key == 'i')
 	{
 		showInfo = !showInfo;
 	}
-	if(key == 'r')
+	/*if(key == 'r')
 	{
 		showRuler = !showRuler;
-	}
+	}*/
 	glutPostRedisplay();
 }
 
