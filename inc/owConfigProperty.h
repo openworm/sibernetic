@@ -143,6 +143,12 @@ public:
 				else
 					throw std::runtime_error("You forget add configuration file name. Please add it and try again");
 			}
+			if(s_temp.find("--geppetto_mode")){
+				/* In this case simulation puts all result in special format into file
+				 * Than this file is reading by geppetto interpreting and transferring on client side
+				 *
+				 */
+			}
 		}
 		totalNumberOfIteration = time_limit/time_step; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
