@@ -88,15 +88,15 @@ public:
 		time_t t = time(0);   // get time now
 		struct tm * now = localtime( & t );
 		ss << now->tm_hour;
-		ss << ":";
+		ss << "-";
 		ss << now->tm_min;
-		ss << ":";
+		ss << "-";
 		ss << now->tm_sec;
 		ss << "_";
 		ss << now->tm_mday;
-		ss << "-";
+		ss << ".";
 		ss << (now->tm_mon + 1);
-		ss << "-";
+		ss << ".";
 		ss << (now->tm_year + 1900);
 		fileName += ss.str();
 		return fileName;
