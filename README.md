@@ -6,7 +6,7 @@ When driven by [Hodgkin Huxley dynamics](https://en.wikipedia.org/wiki/Hodgkin%E
 
 Sibernetic is primarily written in  C++ and OpenCL, it also provides a Python API.
 
-There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](https://github.com/openworm/OpenWorm/wiki/Geppetto--Overview). 
+There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](http://www.geppetto.org/). 
 
 Compiling / running (Linux/mac)
 ------------------------------
@@ -120,6 +120,7 @@ Available options:
 ```
  -g_no                 Run without graphics
  -l_to                 Save simulation results to disk.
+     logstep=<value>   Log every <value> steps
  -l_from               Load simulation results from disk.
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file <filename>.
@@ -159,7 +160,8 @@ Control in graphical mode
 If you run Sibernetic with graphics you can work with scene rotation and scaling using the mouse. There are also several control button options available:
 ```
 'Space' - pause the simulation 
-'s'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
+'s'     - save current configuration into file 
+          ./configuration/snapshot/configuration_name_current_time_and_date you can run this
 than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 'q' or 'Esc'     - quit the sibernetic
 '1'     - run demo1 configuration
