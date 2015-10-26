@@ -915,7 +915,7 @@ void run(int argc, char** argv, const bool with_graphics)
 			fluid_simulation->simulationStep(load_to);
 			helper->refreshTime();
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
-				std::cout << "Simulation is reached time limit" << std::endl;
+				std::cout << "Simulation has been reached time limit" << std::endl;
 				Cleanup();
 				return;
 			}
