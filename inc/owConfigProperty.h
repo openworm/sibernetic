@@ -82,27 +82,34 @@ public:
 		if(isWormConfig())
 			simulation.setup();
 	}
+	void setTimeStep(float value){
+		time_step = value;
+	}
+	void setLogStep(int value){
+		time_step = value;
+	}
+	int getLogStep(){ return logStep; }
 	std::string getSnapshotFileName() {
 		std::string fileName = "./configuration/snapshot/" + configFileName + "_";
 		std::stringstream ss;
 		time_t t = time(0);   // get time now
 		struct tm * now = localtime( & t );
 		ss << now->tm_hour;
-		ss << ":";
+		ss << "-";
 		ss << now->tm_min;
-		ss << ":";
+		ss << "-";
 		ss << now->tm_sec;
 		ss << "_";
 		ss << now->tm_mday;
-		ss << "-";
+		ss << ".";
 		ss << (now->tm_mon + 1);
-		ss << "-";
+		ss << ".";
 		ss << (now->tm_year + 1900);
 		fileName += ss.str();
 		return fileName;
 	}
 	// Constructor
-	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), path("./configuration/"){
+	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"){
 		preferable_device_type = ALL;
 		time_step = timeStep;
 		time_limit = 0.f;
@@ -121,15 +128,24 @@ public:
 			if(s_temp.find("timestep=") == 0){
 
 				time_step = ::atof( s_temp.substr(s_temp.find('=')+1).c_str());
+				if(time_step < 0.0)
+					std::cout << "timeStep < 0 using default value" << timeStep << std::endl;
 				time_step = (time_step > 0) ? time_step : timeStep;
 				//also we shoisSimulationRun = true;uld recalculate beta if time_step is different from default value of timeStep in owPhysicsConstant
 				beta = time_step*time_step*mass*mass*2/(rho0*rho0);
 			}
 			if(s_temp.find("timelimit=") == 0){
 				time_limit = ::atof( s_temp.substr(s_temp.find('=')+1).c_str());
+				if(time_limit < 0.0)
+					throw std::runtime_error("timelimit could not be less than 0 check input parameters");
 			}
 			if(s_temp.find("LEAPFROG") != std::string::npos || s_temp.find("leapfrog") != std::string::npos){
 				integration_method = LEAPFROG;
+			}
+			if(s_temp.find("logstep=") == 0 ){
+				logStep = ::atoi(s_temp.substr(s_temp.find('=')+1).c_str());
+				if(logStep < 1)
+					throw std::runtime_error("logStep could not be less than 1 check input parameters");
 			}
 			if(s_temp == "-f"){
 				if(i + 1 < argc){
@@ -234,6 +250,7 @@ private:
 	int PARTICLE_COUNT;
 	int PARTICLE_COUNT_RoundedUp;
 	int totalNumberOfIteration;
+	int logStep;
 	float time_step;
 	float time_limit;
 	float beta;

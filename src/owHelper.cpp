@@ -396,12 +396,15 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			positionFile << config->zmax << "\n";
 			positionFile << config->numOfElasticP << "\n";
 			positionFile << config->numOfLiquidP << "\n";
+			positionFile << config->numOfBoundaryP << "\n";
+			positionFile << config->getTimeStep() << "\n";
+			positionFile << config->getLogStep() << "\n";
 		}else{
 			positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
 		}
 		if(size==0){
 			for(int i=0;i < config->getParticleCount(); i++){
-				if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE){
+				if((int)position[ 4 * i + 3] != BOUNDARY_PARTICLE || firstIteration ){
 					positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t" << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
 				}
 			}
@@ -511,6 +514,8 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 		if( positionFile.is_open() )
 		{
 			if(iteration == 0){
+				float valueF;
+				int valueI;
 				positionFile >> config->xmin;
 				positionFile >> config->xmax;
 				positionFile >> config->ymin;
@@ -519,18 +524,27 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 				positionFile >> config->zmax;
 				positionFile >> config->numOfElasticP;
 				positionFile >> config->numOfLiquidP;
-				config->setParticleCount(config->numOfElasticP + config->numOfLiquidP);
+				positionFile >> config->numOfBoundaryP;
+				positionFile >> valueF;
+				positionFile >> valueI;
+				config->setTimeStep(valueF);
+				config->setLogStep(valueI);
+				config->setParticleCount(config->numOfElasticP + config->numOfLiquidP + config->numOfBoundaryP);
 				position = new float[4 * config->getParticleCount()];
 			}
 			while( positionFile.good() &&  i < config->getParticleCount())
 			{
-				positionFile >> x >> y >> z >> p_type;
-				position[i * 4 + 0] = x;
-				position[i * 4 + 1] = y;
-				position[i * 4 + 2] = z;
-				position[i * 4 + 3] = p_type;
+				if(static_cast<int>(p_type) != BOUNDARY_PARTICLE || iteration == 0){
+					positionFile >> x >> y >> z >> p_type;
+					position[i * 4 + 0] = x;
+					position[i * 4 + 1] = y;
+					position[i * 4 + 2] = z;
+					position[i * 4 + 3] = p_type;
+				}
 				i++;
 			}
+			if(iteration == 0)
+				config->setParticleCount(config->numOfElasticP + config->numOfLiquidP);
 		}
 		if(!positionFile.good()){
 			positionFile.close();

@@ -140,7 +140,7 @@
 				OutputFile="$(OutDir)\$(ProjectName).exe"
 				Version="0.0.1"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="C:\Python25\libs;&quot;lib/$(PlatformName)&quot;"
+				AdditionalLibraryDirectories="C:\Python27\libs;&quot;lib/$(PlatformName)&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				OptimizeReferences="2"
@@ -274,10 +274,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\test\owPhysicTest.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\owWorldSimulation.cpp"
 				>
 			</File>
@@ -309,6 +305,10 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath=".\inc\owConfigProperty.h"
+				>
+			</File>
 			<File
 				RelativePath=".\inc\owHelper.h"
 				>
@@ -343,10 +343,6 @@
 			</File>
 			<File
 				RelativePath=".\inc\VectorMath.h"
-				>
-			</File>
-			<File
-				RelativePath=".\inc\owConfigProperty.h"
 				>
 			</File>
 		</Filter>

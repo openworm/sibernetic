@@ -38,8 +38,6 @@
 #include "PyramidalSimulation.h"
 #include "owPhysicsFluidSimulator.h"
 
-int iter_step = 10;				 // Count of iteration which will be skipped before logging configuration to file
-								 // NOTE: this using only in "load config to file" mode
 
 /** Constructor method for owPhysicsFluidSimulator.
  *
@@ -228,7 +226,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 			if(iterationCount == 0){
 				owHelper::loadConfigurationToFile(position_cpp,  config,elasticConnectionsData_cpp,membraneData_cpp,true);
 			}else{
-				if(iterationCount % iter_step == 0){
+				if(iterationCount % config->getLogStep() == 0){
 					owHelper::loadConfigurationToFile(position_cpp, config, NULL, NULL, false);
 				}
 			}

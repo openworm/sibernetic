@@ -483,7 +483,7 @@ void renderInfo(int x, int y)
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F);
 		if(load_from_file)
-			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", localConfig->getDeviceName(), fps, iteration, iteration * localConfig->getTimeStep());
+			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", localConfig->getDeviceName(), fps, iteration, iteration * localConfig->getTimeStep() * localConfig->getLogStep());
 		else
 			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", localConfig->getDeviceName(), fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*localConfig->getTimeStep());
 		glPrint( 0 , 17 , label, m_font);
