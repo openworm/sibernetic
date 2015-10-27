@@ -85,9 +85,9 @@ void test_energy_conservation(int argc, char **argv){
 			break;
 		counter++;
 	}
-	owHelper::log_buffer(&energy_evolution_total[0], 1, energy_evolution_total.size(), "./logs/total_energy_distrib.txt");
-	owHelper::log_buffer(&energy_evolution_kinetic[0], 1, energy_evolution_kinetic.size(), "./logs/kinetic_energy_distrib.txt");
-	owHelper::log_buffer(&energy_evolution_potential[0], 1, energy_evolution_potential.size(), "./logs/potential_energy_distrib.txt");
+	owHelper::logBuffer(&energy_evolution_total[0], 1, energy_evolution_total.size(), "./logs/total_energy_distrib.txt");
+	owHelper::logBuffer(&energy_evolution_kinetic[0], 1, energy_evolution_kinetic.size(), "./logs/kinetic_energy_distrib.txt");
+	owHelper::logBuffer(&energy_evolution_potential[0], 1, energy_evolution_potential.size(), "./logs/potential_energy_distrib.txt");
 	std::cout << "===================" << "CONSERVATION ENERGY TEST END  " << "========================" << std::endl;
 	delete fluid_simulation;
 	delete p_buffer;

@@ -60,17 +60,18 @@ public:
 	static void preLoadConfiguration( owConfigProrerty * config );
 	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config );
 	static void loadConfigurationToFile(float * position, owConfigProrerty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true, int * filter_p=NULL, int size=0);
+	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProrerty * config);
+	static void loadConfigurationToGeppettoFile(float * position, float * velocity, float * connections, int * membranes, std::vector<int> &particleTypes);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration = 0);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config,int iteration = 0);
 	static void loadConfigurationFromFile(float *& position, float *& velocity,float *& connections, int *& membranes, int *& particleMemIndex, owConfigProrerty * config);
-	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProrerty * config);
 	void watch_report(const char *str);
 	double getElapsedTime() { return elapsedTime; };
 	void refreshTime();
 	//For output buffer
 	//Create File in which line element_size elements
 	//global_size - size of buffer / element_size
-	template<typename T> static void log_buffer(const T * buffer, const int element_size, const int global_size, const char * fileName)
+	template<typename T> static void logBuffer(const T * buffer, const int element_size, const int global_size, const char * fileName)
 	{
 		try{
 			std::ofstream outFile (fileName);

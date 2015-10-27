@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
         std::string noGraphicsFlag = "-no_g";
         std::string saveFlag = "-l_to";
         std::string loadFlag = "-l_from";
-        std:;string testFlag = "-test";
+        std::string testFlag = "-test";
         std::string configFileFlag = "-f <filename>";
         std::string configFileWorm = "-f worm";
         std::string deviceTypeFlag = "device=<device_type>";

@@ -34,6 +34,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 
 #include "PyramidalSimulation.h"
 #include "owPhysicsFluidSimulator.h"
@@ -92,6 +93,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 		}else
 			ocl_solver = new owOpenCLSolver(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
 		this->helper = helper;
+		initParticleList();
 	}catch(std::runtime_error &re){
 		std::cout << "ERROR: " << re.what() << std::endl;
 		exit( -1 );
@@ -236,6 +238,9 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 
         config->updatePyramidalSimulation(muscle_activation_signal_cpp);
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
+		this->updateParticleList();
+		owHelper::logBuffer(&this->particleList[0],config->getParticleCount(),1,"./logs/particles");
+		exit(0);
 		return helper->getElapsedTime();
 	}
 	catch(std::exception &e)
@@ -253,6 +258,45 @@ void owPhysicsFluidSimulator::makeSnapshot(){
 	getvelocity_cpp();
 	std::string fileName = config->getSnapshotFileName();
 	owHelper::loadConfigurationToFile(position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp, fileName.c_str(), config);
+}
+
+struct MuscleParticle{
+	int id;
+	int muscleId;
+	bool operator==(const int & otherId){ return this->id == otherId; };
+	MuscleParticle():id(-1), muscleId(0){};
+	MuscleParticle(int &id):id(id), muscleId(0){};
+	MuscleParticle(int id, int muscleId):id(id), muscleId(muscleId){};
+};
+/**Generating List of particles it contains information about particle type its position velocity and
+ * mucleID if it has
+ */
+void owPhysicsFluidSimulator::initParticleList(){
+	std::vector<MuscleParticle> muscleParticles;
+	for(int i=0;i < config->numOfElasticP;i++){
+		for(int j=0;j<MAX_NEIGHBOR_COUNT;j++){
+			if((int)elasticConnectionsData_cpp[i * MAX_NEIGHBOR_COUNT * 4 + j * 4 + 2] != 0){
+				MuscleParticle p(i, (int)elasticConnectionsData_cpp[i * MAX_NEIGHBOR_COUNT * 4 + j * 4 + 2]);
+				muscleParticles.push_back(p);
+				break;
+			}
+		}
+	}
+	for(int i=0;i<config->getParticleCount();i++){
+		owParticle p;
+		p.setType(static_cast<int>(position_cpp[i * 4 + 3]));
+		std::vector<MuscleParticle>::const_iterator mIt = std::find(muscleParticles.begin(), muscleParticles.end(), i);
+		if( mIt != muscleParticles.end())
+			p.setMuscleIndex(mIt->muscleId);
+		this->particleList.push_back(p);
+	}
+}
+
+void owPhysicsFluidSimulator::updateParticleList(){
+	for(int i=0;i<config->getParticleCount();i++){
+		this->particleList[i].setPosition(&position_cpp[i * 4 + 0]);
+		this->particleList[i].setVelocity(&velocity_cpp[i * 4 + 0]);
+	}
 }
 
 //Destructor
