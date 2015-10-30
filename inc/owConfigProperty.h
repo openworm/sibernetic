@@ -45,6 +45,56 @@
 #include "owPhysicsConstant.h"
 #include "PyramidalSimulation.h"
 
+class owParticle{
+	typedef float float3[3];
+	float3 position;
+	float3 velocity;
+	int type;
+	int muscleIndex;
+	int writePosition;
+public:
+	owParticle():type(-1), muscleIndex(-1), writePosition(0){}
+	owParticle(int t, int mi):type(t), muscleIndex(mi),writePosition(0){}
+	owParticle(float * p, float * v, int t, int mi):type(t), muscleIndex(mi),writePosition(0){
+		setPosition(p);
+		setVelocity(v);
+	}
+	void setPosition(float * p){
+		if(p != 0)
+			for(int i = 0; i<3; ++i)
+				position[i] = p[i];
+	}
+	void setVelocity(float * v){
+		if(v != 0)
+			for(int i = 0; i<3; ++i)
+				velocity[i] = v[i];
+	}
+	void setType(int value){
+		type=value;
+	}
+	void setMuscleIndex(int value){
+		muscleIndex=value;
+	}
+	const float * getPosition() const{
+		return &position[0];
+	}
+	float * getVelocity(){
+		return &velocity[0];
+	}
+	int getType() const{
+		return type;
+	}
+	int getMuscleIndex() const{
+		return muscleIndex;
+	}
+	int getWritePos() const {
+		return writePosition;
+	}
+	void setWritePos(int newPosition){
+		writePosition = newPosition;
+	}
+};
+
 
 struct owConfigProrerty{
 	//This value defines boundary of box in which simulation is

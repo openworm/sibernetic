@@ -233,14 +233,11 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 				}
 			}
 		}
-		iterationCount++;
-		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
-
-        config->updatePyramidalSimulation(muscle_activation_signal_cpp);
+		config->updatePyramidalSimulation(muscle_activation_signal_cpp);
 		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
 		this->updateParticleList();
-		owHelper::logBuffer(&this->particleList[0],config->getParticleCount(),1,"./logs/particles");
-		exit(0);
+		owHelper::loadConfigurationToGeppettoFile(config, this->particleList, iterationCount);
+		iterationCount++;
 		return helper->getElapsedTime();
 	}
 	catch(std::exception &e)

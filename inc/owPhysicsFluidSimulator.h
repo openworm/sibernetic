@@ -38,59 +38,6 @@
 #include "owHelper.h"
 #include "owOpenCLSolver.h"
 
-
-class owParticle{
-	typedef float float3[3];
-	float3 position;
-	float3 velocity;
-	int type;
-	int muscleIndex;
-public:
-	owParticle():type(-1), muscleIndex(-1){}
-	owParticle(int t, int mi):type(t), muscleIndex(mi){}
-	owParticle(float * p, float * v, int t, int mi):type(t), muscleIndex(mi){
-		setPosition(p);
-		setVelocity(v);
-	}
-	void setPosition(float * p){
-		if(p != 0)
-			for(int i = 0; i<3; ++i)
-				position[i] = p[i];
-	}
-	void setVelocity(float * v){
-		if(v != 0)
-			for(int i = 0; i<3; ++i)
-				position[i] = v[i];
-	}
-	void setType(int value){
-		type=value;
-	}
-	void setMuscleIndex(int value){
-		muscleIndex=value;
-	}
-	float * getPosition(){
-		return &position[0];
-	}
-	float * getVelocity(){
-		return &velocity[0];
-	}
-	int getType(){
-		return type;
-	}
-	int getMuscleIndex(){
-		return muscleIndex;
-	}
-	std::ostream& operator<<(std::ostream &out){
-		out << this->position[0] ;//<< "\t" << p.getPosition()[1] << "\t" << p.getPosition()[2] << "\t" << p.getType() << "\t" << p.getMuscleIndex();
-		return out;
-	}
-};
-
-//TODO FIX this shit
-/*std::ostream& operator<<(std::ostream &out, const owParticle &p){
-	out << p.getType();// << "\t" << p.getPosition()[1] << "\t" << p.getPosition()[2] << "\t" << p.getType() << "\t" << p.getMuscleIndex();
-	return out;
-}*/
 /** owPhysicsFluidSimulator class contains
  *  realization of algorithms.
  */

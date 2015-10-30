@@ -49,6 +49,11 @@
 
 using namespace std;
 
+//TODO FIX this shit
+std::ostream& operator<<(std::ostream &out, const owParticle &p){
+	out << p.getPosition()[0] << "\t" << p.getPosition()[1] << "\t" << p.getPosition()[2] << "\t" << p.getType() << "\t" << p.getMuscleIndex();
+	return out;
+}
 
 /** owHelpre class constructor
  */
@@ -586,6 +591,44 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 		exit( -1 );
 	}
 }
+
+
+std::ofstream gConfigFile;
+
+void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, std::vector<owParticle> &particlesList, int iteration){
+	try{
+		if(iteration == 0){
+			gConfigFile.open("./gresult/gresult", std::ofstream::trunc);
+			gConfigFile << "#MODEL (all parameters)"<< "\n";
+			gConfigFile << config->xmin << "\n";
+			gConfigFile << config->xmax << "\n";
+			gConfigFile << config->ymin << "\n";
+			gConfigFile << config->ymax << "\n";
+			gConfigFile << config->zmin << "\n";
+			gConfigFile << config->zmax << "\n";
+			gConfigFile << "#END_MODEL"<< "\n";
+			gConfigFile << "#PARTICLES\n";
+			gConfigFile << "cuticule {\n";
+		}
+		for(std::vector<owParticle>::iterator particle = particlesList.begin(); particle != particlesList.begin() + 2; ++particle){
+			if(particle->getType() == ELASTIC_PARTICLE){
+				if(iteration != 0)
+					gConfigFile.seekp(particle->getWritePos());
+				gConfigFile << particle->getPosition()[0] << "\t" << particle->getPosition()[1] << "\t" << particle->getPosition()[2] << "\t";
+				particle->setWritePos(gConfigFile.tellp());
+				gConfigFile << "\n";
+			}
+		}
+		if(iteration == 0)
+			gConfigFile << "},\n";
+		if(config->getNumberOfIteration() == iteration + 1) // in case if we don't indicate timeLimit getNumberOfIteration() return 0 TODO neet to be fixed
+			gConfigFile.close();
+	}catch(std::exception &e){
+		std::cout << "ERROR: " << e.what() << std::endl;
+		exit( -1 );
+	}
+}
+
 /** Print value of elapsed time from last handling to watch_report method.
  *
  *  This function is required for logging time consumption info.
