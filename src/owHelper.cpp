@@ -610,19 +610,38 @@ void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, std::v
 			gConfigFile << "#PARTICLES\n";
 			gConfigFile << "cuticule {\n";
 		}
+		long currentPosition = 0;
 		for(std::vector<owParticle>::iterator particle = particlesList.begin(); particle != particlesList.begin() + 2; ++particle){
 			if(particle->getType() == ELASTIC_PARTICLE){
 				if(iteration != 0)
-					gConfigFile.seekp(particle->getWritePos());
-				gConfigFile << particle->getPosition()[0] << "\t" << particle->getPosition()[1] << "\t" << particle->getPosition()[2] << "\t";
+					gConfigFile.seekp(currentPosition + particle->getWritePos());
+				std::ostringstream ss;
+				ss << "PARTICLE ID ";
+				ss << particle - particlesList.begin();
+				ss << "\t";
+				ss << "iteration is ";
+				ss << iteration;
+				ss << "\t";
+				ss << particle->getPosition()[0];
+				ss << "\t";
+				ss << particle->getPosition()[1];
+				ss << "\t";
+				ss << particle->getPosition()[2];
+				ss << "\t";
+				std::string tempStr(ss.str());
+				gConfigFile <<;
 				particle->setWritePos(gConfigFile.tellp());
 				gConfigFile << "\n";
+				//if(iteration == 0)
+				currentPosition = gConfigFile.tellp();
 			}
 		}
 		if(iteration == 0)
 			gConfigFile << "},\n";
-		if(config->getNumberOfIteration() == iteration + 1) // in case if we don't indicate timeLimit getNumberOfIteration() return 0 TODO neet to be fixed
+		if(config->getNumberOfIteration() == iteration + 1){ // in case if we don't indicate timeLimit getNumberOfIteration() return 0 TODO neet to be fixed
+			gConfigFile << "#END_PARTICLES";
 			gConfigFile.close();
+		}
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
