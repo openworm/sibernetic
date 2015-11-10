@@ -133,7 +133,7 @@ private:
 	owConfigProrerty * config;
 	owHelper * helper;
 	int iterationCount;
-	void cleanBuffers();
+	void destroy();
 };
 
 #endif //OW_PHYSICS_SIMULATOR_H

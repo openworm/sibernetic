@@ -86,7 +86,7 @@ public:
 		time_step = value;
 	}
 	void setLogStep(int value){
-		time_step = value;
+		logStep = value;
 	}
 	int getLogStep(){ return logStep; }
 	std::string getSnapshotFileName() {
@@ -116,7 +116,7 @@ public:
 		beta = ::beta;
 		integration_method = EULER;
 		std::string s_temp;
-		configFileName = "demo1";
+		configFileName = "demo1"; // by default
 		for(int i = 1; i<argc; i++){
 			s_temp = argv[i];
 			if(s_temp.find("device=") == 0){
@@ -163,16 +163,11 @@ public:
 		totalNumberOfIteration = time_limit/time_step; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
 		if(isWormConfig()){ // in case if we run worm configuration TODO make it optional
-			try{
-				simulation.setup();
-			}catch(const char * ex){
-				std::cerr << ex << std::endl;// TODO make more careful exception catching
-				exit(-1);
-			}
+			simulation.setup();
 		}
-	};
-	float getTimeStep() const { return timeStep; };
-	float getDelta() const { return delta; };
+	}
+	float getTimeStep() const { return timeStep; }
+	float getDelta() const { return delta; }
 	float xmin;
 	float xmax;
 	float ymin;

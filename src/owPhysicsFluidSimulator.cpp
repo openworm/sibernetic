@@ -86,19 +86,19 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 
 		// LOAD FROM FILE
 		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
-
+		this->helper = helper;
 		if(config->numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
 			ocl_solver = new owOpenCLSolver(position_cpp,velocity_cpp, config);	//Create new openCLsolver instance
-		this->helper = helper;
-	}catch(std::runtime_error &re){
-		std::cout << "ERROR: " << re.what() << std::endl;
-		exit( -1 );
-	}
-	catch( std::exception &e ){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
+	}catch(std::runtime_error &ex){
+		/* Clearing all allocated buffers and created object only not ocl_solver
+		 * case it wont be created yet only if exception is throwing from its constructor
+		 * but in this case ocl_solver wont be created
+		 * */
+		destroy();
+		delete config;
+		throw ex;
 	}
 }
 /** Reset simulation
@@ -109,7 +109,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
  */
 void owPhysicsFluidSimulator::reset(){
 	// Free all buffers
-	cleanBuffers();
+	destroy();
 	config->resetNeuronSimulation();
 	iterationCount = 0;
 	config->numOfBoundaryP = 0;
@@ -173,76 +173,69 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 	//if(iterationCount==0) return 0.0;//uncomment this line to stop movement of the scene
 
 	helper->refreshTime();
-	printf("\n[[ Step %d ]]\n",iterationCount);
-	try{
-		//SEARCH FOR NEIGHBOURS PART
-		//ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
-		ocl_solver->_runHashParticles(config);							helper->watch_report("_runHashParticles: \t%9.3f ms\n");
-		ocl_solver->_runSort(config);									helper->watch_report("_runSort: \t\t%9.3f ms\n");
-		ocl_solver->_runSortPostPass(config);							helper->watch_report("_runSortPostPass: \t%9.3f ms\n");
-		ocl_solver->_runIndexx(config);									helper->watch_report("_runIndexx: \t\t%9.3f ms\n");
-		ocl_solver->_runIndexPostPass(config);							helper->watch_report("_runIndexPostPass: \t%9.3f ms\n");
-		ocl_solver->_runFindNeighbors(config);							helper->watch_report("_runFindNeighbors: \t%9.3f ms\n");
-		//PCISPH PART
-		if(config->getIntegrationMethod() == LEAPFROG){ // in this case we should remmember value of position on stem i - 1
-			//Calc next time (t+dt) positions x(t+dt)
-			ocl_solver->_run_pcisph_integrate(iterationCount,0/*=positions_mode*/, config);
-		}
-		ocl_solver->_run_pcisph_computeDensity(config);
-		ocl_solver->_run_pcisph_computeForcesAndInitPressure(config);
-		ocl_solver->_run_pcisph_computeElasticForces(config);
-		do{
-			//printf("\n^^^^ iter %d ^^^^\n",iter);
-			ocl_solver->_run_pcisph_predictPositions(config);
-			ocl_solver->_run_pcisph_predictDensity(config);
-			ocl_solver->_run_pcisph_correctPressure(config);
-			ocl_solver->_run_pcisph_computePressureForceAcceleration(config);
-			iter++;
-		}while( iter < maxIteration );
+	std::cout << "\n[[ Step "<< iterationCount << " ]]\n";
+	//SEARCH FOR NEIGHBOURS PART
+	//ocl_solver->_runClearBuffers();								helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
+	ocl_solver->_runHashParticles(config);							helper->watch_report("_runHashParticles: \t%9.3f ms\n");
+	ocl_solver->_runSort(config);									helper->watch_report("_runSort: \t\t%9.3f ms\n");
+	ocl_solver->_runSortPostPass(config);							helper->watch_report("_runSortPostPass: \t%9.3f ms\n");
+	ocl_solver->_runIndexx(config);									helper->watch_report("_runIndexx: \t\t%9.3f ms\n");
+	ocl_solver->_runIndexPostPass(config);							helper->watch_report("_runIndexPostPass: \t%9.3f ms\n");
+	ocl_solver->_runFindNeighbors(config);							helper->watch_report("_runFindNeighbors: \t%9.3f ms\n");
+	//PCISPH PART
+	if(config->getIntegrationMethod() == LEAPFROG){ // in this case we should remmember value of position on stem i - 1
+		//Calc next time (t+dt) positions x(t+dt)
+		ocl_solver->_run_pcisph_integrate(iterationCount,0/*=positions_mode*/, config);
+	}
+	ocl_solver->_run_pcisph_computeDensity(config);
+	ocl_solver->_run_pcisph_computeForcesAndInitPressure(config);
+	ocl_solver->_run_pcisph_computeElasticForces(config);
+	do{
+		//printf("\n^^^^ iter %d ^^^^\n",iter);
+		ocl_solver->_run_pcisph_predictPositions(config);
+		ocl_solver->_run_pcisph_predictDensity(config);
+		ocl_solver->_run_pcisph_correctPressure(config);
+		ocl_solver->_run_pcisph_computePressureForceAcceleration(config);
+		iter++;
+	}while( iter < maxIteration );
 
-		//and finally calculate v(t+dt)
-		if(config->getIntegrationMethod() == LEAPFROG){
-			ocl_solver->_run_pcisph_integrate(iterationCount,1/*=velocities_mode*/, config);		helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
-		}
-		else{
-			ocl_solver->_run_pcisph_integrate(iterationCount, 2,config);		helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
-		}
-		//Handling of Interaction with membranes
-		if(config->numOfMembranes > 0){
-			ocl_solver->_run_clearMembraneBuffers(config);
-			ocl_solver->_run_computeInteractionWithMembranes(config);
-			// compute change of coordinates due to interactions with membranes
-			ocl_solver->_run_computeInteractionWithMembranes_finalize(config);
-																		helper->watch_report("membraneHadling: \t%9.3f ms\n");
-		}
-		//END
-		ocl_solver->read_position_buffer(position_cpp, config);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n");
+	//and finally calculate v(t+dt)
+	if(config->getIntegrationMethod() == LEAPFROG){
+		ocl_solver->_run_pcisph_integrate(iterationCount,1/*=velocities_mode*/, config);		helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+	}
+	else{
+		ocl_solver->_run_pcisph_integrate(iterationCount, 2,config);		helper->watch_report("_runPCISPH: \t\t%9.3f ms\t3 iteration(s)\n");
+	}
+	//Handling of Interaction with membranes
+	if(config->numOfMembranes > 0){
+		ocl_solver->_run_clearMembraneBuffers(config);
+		ocl_solver->_run_computeInteractionWithMembranes(config);
+		// compute change of coordinates due to interactions with membranes
+		ocl_solver->_run_computeInteractionWithMembranes_finalize(config);
+																	helper->watch_report("membraneHadling: \t%9.3f ms\n");
+	}
+	//END
+	ocl_solver->read_position_buffer(position_cpp, config);				helper->watch_report("_readBuffer: \t\t%9.3f ms\n");
 
-		//END PCISPH algorithm
-		printf("------------------------------------\n");
-		printf("_Total_step_time:\t%9.3f ms\n",helper->getElapsedTime());
-		printf("------------------------------------\n");
-		if(load_to){
-			if(iterationCount == 0){
-				owHelper::loadConfigurationToFile(position_cpp,  config,elasticConnectionsData_cpp,membraneData_cpp,true);
-			}else{
-				if(iterationCount % config->getLogStep() == 0){
-					owHelper::loadConfigurationToFile(position_cpp, config, NULL, NULL, false);
-				}
+	//END PCISPH algorithm
+	printf("------------------------------------\n");
+	printf("_Total_step_time:\t%9.3f ms\n",helper->getElapsedTime());
+	printf("------------------------------------\n");
+	if(load_to){
+		if(iterationCount == 0){
+			owHelper::loadConfigurationToFile(position_cpp,  config,elasticConnectionsData_cpp,membraneData_cpp,true);
+		}else{
+			if(iterationCount % config->getLogStep() == 0){
+				owHelper::loadConfigurationToFile(position_cpp, config, NULL, NULL, false);
 			}
 		}
-		iterationCount++;
-		//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
+	}
+	iterationCount++;
+	//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 
-        config->updatePyramidalSimulation(muscle_activation_signal_cpp);
-		ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
-		return helper->getElapsedTime();
-	}
-	catch(std::exception &e)
-	{
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
-	}
+	config->updatePyramidalSimulation(muscle_activation_signal_cpp);
+	ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
+	return helper->getElapsedTime();
 }
 /** Prepare data and log it to special configuration
  *  file you can run your simulation from place you snapshoted it
@@ -258,17 +251,17 @@ void owPhysicsFluidSimulator::makeSnapshot(){
 //Destructor
 owPhysicsFluidSimulator::~owPhysicsFluidSimulator(void)
 {
-	cleanBuffers();
+	destroy();
 	delete config;
 	delete ocl_solver;
 }
 
-void owPhysicsFluidSimulator::cleanBuffers(){
+void owPhysicsFluidSimulator::destroy(){
 	delete [] position_cpp;
 	delete [] velocity_cpp;
 	delete [] density_cpp;
 	delete [] particleIndex_cpp;
-	if(config->numOfElasticP != 0)
+	if(elasticConnectionsData_cpp != NULL)
 		delete [] elasticConnectionsData_cpp;
 	delete [] muscle_activation_signal_cpp;
 	if(membraneData_cpp != NULL) {

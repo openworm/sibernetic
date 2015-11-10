@@ -46,6 +46,7 @@
 #include <string>
 #include <iterator>
 #include <vector>
+#include <stdexcept>
 
 #include "PyramidalSimulation.h"
 
@@ -78,7 +79,7 @@ int PyramidalSimulation::setup(){
 	if( PyErr_Occurred() ) PyErr_Print();  
   }
   else {
-    throw "Module not loaded, have you set PYTHONPATH?";
+    throw std::runtime_error("Module not loaded, have you set PYTHONPATH?");
   }
   // Create an instance of the class
   if (PyCallable_Check(pClass))
@@ -88,7 +89,7 @@ int PyramidalSimulation::setup(){
 	  cout << "Pyramidal simulation class loaded!"<<endl;
 	}
   else {
-    throw "Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src";
+    throw std::runtime_error("Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src");
   }
   return 0;
 };
@@ -112,7 +113,7 @@ vector<float> PyramidalSimulation::run(){
 // pValue = PyObject_CallMethod(pInstance, "rrun
 // un", NULL);
 	//printf("!!!checkpoint001!!!\n");
-	pValue = PyObject_CallMethod(pInstance, "run", NULL);
+	pValue = PyObject_CallMethod(pInstance, const_cast<char *>("run"), NULL);
 	//printf("!!!checkpoint002!!!\n");
 	if(PyList_Check(pValue)){
 	   //printf("!!!checkpoint003.1!!!\n");

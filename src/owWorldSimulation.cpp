@@ -133,21 +133,30 @@ void display(void)
 			owHelper::loadConfigurationFromFile(p_cpp,ec_cpp,md_cpp, localConfig,iteration);
 			iteration++;
 		}else{
+			try{
 			calculationTime = fluid_simulation->simulationStep(load_to); // Run one simulation step
-			int pib;
 			p_indexb = fluid_simulation->getParticleIndex_cpp();
+			p_cpp = fluid_simulation->getPosition_cpp();
+			d_cpp = fluid_simulation->getDensity_cpp();
+			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+			if(!load_from_file)
+				md_cpp = fluid_simulation->getMembraneData_cpp();
+			}catch(std::runtime_error & ex){
+				Cleanup();
+				std::cout << "ERROR: " << ex.what() << std::endl;
+				exit (EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by the other way
+			}
+			int pib;
 			for(i=0;i<localConfig->getParticleCount();i++)
 			{
 				pib = p_indexb[2*i + 1];
 				p_indexb[2*pib + 0] = i;
 			}
-			p_cpp = fluid_simulation->getPosition_cpp();
-			d_cpp = fluid_simulation->getDensity_cpp();
-			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
 				std::cout << "Simulation is reached time limit" << std::endl;
 				Cleanup();
-				exit (EXIT_SUCCESS);
+				exit (EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by the other way
 			}
 
 		}
@@ -299,8 +308,6 @@ void display(void)
 		}
 	}
 	// Draw membranes
-	if(!load_from_file)
-		md_cpp = fluid_simulation->getMembraneData_cpp();
 	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
 	for(int i_m = 0; i_m < localConfig->numOfMembranes; i_m++)
 	{
@@ -875,19 +882,26 @@ void sighandler(int s){
  */
 void run(int argc, char** argv, const bool with_graphics)
 {
+
 	helper = new owHelper();
-	if(!load_from_file){
-		fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
-		localConfig = fluid_simulation->getConfig();
-		muscle_activation_signal_cpp = fluid_simulation->getMuscleAtcivationSignal();
-	}
-	else{
-		localConfig = new owConfigProrerty(argc, argv);
-		muscle_activation_signal_cpp = new float [localConfig->MUSCLE_COUNT];
-		for(int i=0;i<localConfig->MUSCLE_COUNT;i++)
-		{
-			muscle_activation_signal_cpp[i] = 0.f;
+	try{
+		if(!load_from_file){
+			fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
+			localConfig = fluid_simulation->getConfig();
+			muscle_activation_signal_cpp = fluid_simulation->getMuscleAtcivationSignal();
 		}
+		else{
+			localConfig = new owConfigProrerty(argc, argv);
+			muscle_activation_signal_cpp = new float [localConfig->MUSCLE_COUNT];
+			for(int i=0;i<localConfig->MUSCLE_COUNT;i++)
+			{
+				muscle_activation_signal_cpp[i] = 0.f;
+			}
+		}
+	}catch(std::runtime_error & ex){
+		Cleanup();
+		std::cout << "ERROR: " << ex.what() << std::endl;
+		return;
 	}
 	std::signal(SIGINT,sighandler);
 	if(with_graphics){
@@ -912,7 +926,13 @@ void run(int argc, char** argv, const bool with_graphics)
 		}
 	}else{
 		while(1){
-			fluid_simulation->simulationStep(load_to);
+			try{
+				fluid_simulation->simulationStep(load_to);
+			}catch(std::runtime_error & ex){
+				Cleanup();
+				std::cout << "ERROR: " << ex.what() << std::endl;
+				return;
+			}
 			helper->refreshTime();
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
 				std::cout << "Simulation has been reached time limit" << std::endl;
@@ -921,5 +941,5 @@ void run(int argc, char** argv, const bool with_graphics)
 			}
 		}
 	}
-    exit(EXIT_SUCCESS);
+    return;
 }
