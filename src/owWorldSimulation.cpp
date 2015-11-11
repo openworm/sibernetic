@@ -785,7 +785,13 @@ void RespondKey(unsigned char key, int x, int y)
 		break;
 	case 'r': // reset simulation
 		helper->refreshTime();
-		fluid_simulation->reset();
+		try{
+			fluid_simulation->reset();
+		}catch(std::runtime_error &ex){
+			Cleanup();
+			std::cout << "ERROR: " << ex.what() << std::endl;
+			exit (EXIT_FAILURE);
+		}
 		break;
 	}
 	if(key == 'i')
@@ -880,7 +886,7 @@ void sighandler(int s){
  * 	@param load_to
  * 	Flag indicates that simulation will in "load configuration to file" mode
  */
-void run(int argc, char** argv, const bool with_graphics)
+int run(int argc, char** argv, const bool with_graphics)
 {
 
 	helper = new owHelper();
@@ -901,7 +907,7 @@ void run(int argc, char** argv, const bool with_graphics)
 	}catch(std::runtime_error & ex){
 		Cleanup();
 		std::cout << "ERROR: " << ex.what() << std::endl;
-		return;
+		return EXIT_FAILURE;
 	}
 	std::signal(SIGINT,sighandler);
 	if(with_graphics){
@@ -922,7 +928,7 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutMainLoop();
 		if(!load_from_file){
 			Cleanup();
-			exit(EXIT_SUCCESS);
+			return EXIT_SUCCESS;
 		}
 	}else{
 		while(1){
@@ -931,15 +937,15 @@ void run(int argc, char** argv, const bool with_graphics)
 			}catch(std::runtime_error & ex){
 				Cleanup();
 				std::cout << "ERROR: " << ex.what() << std::endl;
-				return;
+				return EXIT_FAILURE;
 			}
 			helper->refreshTime();
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
 				std::cout << "Simulation has been reached time limit" << std::endl;
 				Cleanup();
-				return;
+				return EXIT_SUCCESS;
 			}
 		}
 	}
-    return;
+    return EXIT_SUCCESS;
 }
