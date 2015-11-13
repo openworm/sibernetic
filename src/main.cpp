@@ -41,7 +41,6 @@ bool load_to = false;
 
         
 int main(int argc, char **argv) {
-	std::string version = "0.0.4b";
 	int exitStatus;
     if (argc == 1) {
         std::cout << "Sibernetic: no arguments specified, run method executing\n";
@@ -49,7 +48,7 @@ int main(int argc, char **argv) {
     } else {
         bool graph = true;
         bool run_tests = false;
-
+        std::string version = "0.0.4b";
         std::string helpFlag = "-help";
         std::string helpFlag2 = "-h";
         std::string helpFlag3 = "-?";
@@ -65,7 +64,6 @@ int main(int argc, char **argv) {
         std::string timeLimitFlag = "timelimit=<value>";
         std::string integrationMethodFlag = "leapfrog";
         std::string logStepFlag = "logstep=<value>";
-
         for (int i = 1; i < argc; i++) {
             if (helpFlag.compare(argv[i]) == 0 ||
             	helpFlag2.compare(argv[i]) == 0||

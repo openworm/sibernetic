@@ -181,7 +181,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	cl_int err;
 	std::vector< cl::Platform > platformList;
 	err = cl::Platform::get( &platformList ); //TODO make check that returned value isn't error
-	if( platformList.size() < 1 ){
+	if( platformList.size() < 1 || err != CL_SUCCESS ){
 		throw std::runtime_error( "No OpenCL platforms found" );
 	}
 	char cBuffer[1024];
@@ -265,8 +265,8 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	}
 	//Print some information about chosen platform
 	int value;
-  unsigned long val2;
-  size_t val3;
+	unsigned long val2;
+	size_t val3;
 	result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
 	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_NAME [" << deviceNum << "]:\t" << cBuffer << "\n" << std::endl;
 	if(strlen(cBuffer)<1000) config->setDeviceName(cBuffer);

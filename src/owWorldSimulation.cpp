@@ -79,7 +79,7 @@ void drawScene();
 void renderInfo(int,int);
 void glPrint(float,float,const char *, void*);
 void glPrint3D(float,float,float,const char *, void*);
-void Cleanup();
+void cleanupSimulation();
 //float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
 void beginWinCoords(void)
 {
@@ -142,9 +142,9 @@ void display(void)
 			if(!load_from_file)
 				md_cpp = fluid_simulation->getMembraneData_cpp();
 			}catch(std::runtime_error & ex){
-				Cleanup();
+				cleanupSimulation();
 				std::cout << "ERROR: " << ex.what() << std::endl;
-				exit (EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by the other way
+				exit (EXIT_FAILURE); // unfortunately we cannot leave glutmain loop by the other way
 			}
 			int pib;
 			for(i=0;i<localConfig->getParticleCount();i++)
@@ -155,7 +155,7 @@ void display(void)
 
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
 				std::cout << "Simulation is reached time limit" << std::endl;
-				Cleanup();
+				cleanupSimulation();
 				exit (EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by the other way
 			}
 
@@ -747,13 +747,12 @@ void mouse_motion (int x, int y)
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 
-extern float *muscle_activation_signal_cpp;
-void Cleanup(){
+void cleanupSimulation(){
 	delete fluid_simulation;
 	delete helper;
 	return;
 }
-void RespondKey(unsigned char key, int x, int y)
+void respondKey(unsigned char key, int x, int y)
 {
 	switch(key)
 	{
@@ -773,7 +772,7 @@ void RespondKey(unsigned char key, int x, int y)
 	case '\033':// Escape quits
 	case 'Q':   // Q quits
 	case 'q':   // q quits
-		Cleanup();
+		cleanupSimulation();
 		//break;
 		exit (EXIT_SUCCESS);
 	case ' ':
@@ -788,7 +787,7 @@ void RespondKey(unsigned char key, int x, int y)
 		try{
 			fluid_simulation->reset();
 		}catch(std::runtime_error &ex){
-			Cleanup();
+			cleanupSimulation();
 			std::cout << "ERROR: " << ex.what() << std::endl;
 			exit (EXIT_FAILURE);
 		}
@@ -873,8 +872,8 @@ inline void init(void){
 
 }
 void sighandler(int s){
-	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
-	Cleanup();
+	std::cerr << "\nCaught signal CTRL+C. Exit Simulation...\n"; // this is undefined behaviour should check signal value
+	cleanupSimulation();
 	exit(EXIT_SUCCESS);
 }
 /** Init & start simulation and graphic component if with_graphics==true
@@ -905,7 +904,7 @@ int run(int argc, char** argv, const bool with_graphics)
 			}
 		}
 	}catch(std::runtime_error & ex){
-		Cleanup();
+		cleanupSimulation();
 		std::cout << "ERROR: " << ex.what() << std::endl;
 		return EXIT_FAILURE;
 	}
@@ -917,17 +916,16 @@ int run(int argc, char** argv, const bool with_graphics)
 		glutInitWindowPosition(100, 100);
 		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
 		glutIdleFunc (idle);
-		//Init physic Simulation
 		init();
 		glutDisplayFunc(display);
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
 		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked,
-		glutKeyboardFunc(RespondKey);
+		glutKeyboardFunc(respondKey);
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		if(!load_from_file){
-			Cleanup();
+			cleanupSimulation();
 			return EXIT_SUCCESS;
 		}
 	}else{
@@ -935,14 +933,14 @@ int run(int argc, char** argv, const bool with_graphics)
 			try{
 				fluid_simulation->simulationStep(load_to);
 			}catch(std::runtime_error & ex){
-				Cleanup();
+				cleanupSimulation();
 				std::cout << "ERROR: " << ex.what() << std::endl;
 				return EXIT_FAILURE;
 			}
 			helper->refreshTime();
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
 				std::cout << "Simulation has been reached time limit" << std::endl;
-				Cleanup();
+				cleanupSimulation();
 				return EXIT_SUCCESS;
 			}
 		}
