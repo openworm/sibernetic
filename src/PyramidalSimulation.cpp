@@ -104,7 +104,7 @@ vector<float> PyramidalSimulation::unpackPythonList(PyObject* pValue){
 		value = (float)PyFloat_AsDouble(PyList_GetItem(pValue, i));
 		test[i]= value;
 	}
-
+	Py_DECREF(pValue);
 	return test;
 };
 
@@ -112,23 +112,16 @@ vector<float> PyramidalSimulation::run(){
 // Call a method of the class
 // pValue = PyObject_CallMethod(pInstance, "rrun
 // un", NULL);
-	//printf("!!!checkpoint001!!!\n");
 	pValue = PyObject_CallMethod(pInstance, const_cast<char *>("run"), NULL);
-	//printf("!!!checkpoint002!!!\n");
 	if(PyList_Check(pValue)){
-	   //printf("!!!checkpoint003.1!!!\n");
 	  vector<float> value_array;
 	  value_array = PyramidalSimulation::unpackPythonList(pValue);
-	  //printf("!!!checkpoint003!!!\n");
 	  return value_array;
 
 	}
 	else {
-	  //printf("!!!checkpoint004.1!!!\n");
 	  vector<float> single_element_array(0);
 	  single_element_array[0] = (float)PyFloat_AsDouble(pValue);
-	  //printf("!!!checkpoint004!!!\n");
 	  return single_element_array;
 	}
-   //printf("!!!checkpoint005!!!\n");
 };

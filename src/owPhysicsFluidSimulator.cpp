@@ -230,11 +230,11 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 			}
 		}
 	}
-	iterationCount++;
 	//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 
 	config->updatePyramidalSimulation(muscle_activation_signal_cpp);
 	ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
+	iterationCount++;
 	return helper->getElapsedTime();
 }
 /** Prepare data and log it to special configuration
