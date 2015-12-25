@@ -36,7 +36,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <algorithm>    
+#include <algorithm>
 
 
 #if defined(__APPLE__) || defined (__MACOSX)
@@ -373,7 +373,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
 void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
 	std::ofstream positionFile;
 	if(firstIteration){
-		positionFile.open("./buffers/position_buffer.txt", std::ofstream::trunc);
+		positionFile.open(config->getLoadPath() + "position_buffer.txt", std::ofstream::trunc);
 		if(!positionFile)
 			throw std::runtime_error("There was a problem with creation of position file for logging check the path.");
 		positionFile << config->xmin << "\n";
@@ -388,7 +388,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 		positionFile << config->getTimeStep() << "\n";
 		positionFile << config->getLogStep() << "\n";
 	}else{
-		positionFile.open("./buffers/position_buffer.txt", std::ofstream::app);
+		positionFile.open(config->getLoadPath() + "position_buffer.txt", std::ofstream::app);
 		if(!positionFile)
 			throw std::runtime_error("There was a problem with creation of position file for logging Check the path.");
 	}
@@ -409,14 +409,14 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 	}
 	positionFile.close();
 	if(firstIteration){
-		ofstream connectionFile("./buffers/connection_buffer.txt", std::ofstream::trunc);
+		ofstream connectionFile(config->getLoadPath() + "connection_buffer.txt", std::ofstream::trunc);
 		if(!connectionFile)
 			throw std::runtime_error("There was a problem with creation of connection data file for logging. Check the path.");
 		int con_num = MAX_NEIGHBOR_COUNT * config->numOfElasticP;
 		for(int i = 0; i < con_num; i++)
 			connectionFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
 		connectionFile.close();
-		ofstream membranesFile("./buffers/membranes_buffer.txt", std::ofstream::trunc);
+		ofstream membranesFile(config->getLoadPath() + "membranes_buffer.txt", std::ofstream::trunc);
 		if(!membranesFile)
 			throw std::runtime_error("There was a problem with creation of membrane data file for logging. Check the path.");
 		membranesFile << config->numOfMembranes << "\n";
@@ -494,7 +494,7 @@ ifstream positionFile;
 void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
 	try{
 		if(iteration == 0)
-			positionFile.open("./buffers/position_buffer.txt");
+			positionFile.open(config->getLoadPath() + "position_buffer.txt");
 		int i = 0;
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
@@ -538,7 +538,7 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 		}
 		if(iteration == 0){
 
-			ifstream connectionFile("./buffers/connection_buffer.txt");
+			ifstream connectionFile(config->getLoadPath() + "connection_buffer.txt");
 			connections = new float[MAX_NEIGHBOR_COUNT * config->numOfElasticP * 4];
 			if( connectionFile.is_open() )
 			{
@@ -554,7 +554,7 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 				}
 			}
 			connectionFile.close();
-			ifstream membranesFile("./buffers/membranes_buffer.txt");
+			ifstream membranesFile(config->getLoadPath() + "membranes_buffer.txt");
 			if(membranesFile.is_open()){
 				int m_count = 0;
 				//membranesFile >> m_count;
