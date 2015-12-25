@@ -118,6 +118,7 @@ Available options:
  -l_to                 Save simulation results to disk.
      logstep=<value>   Log every <value> steps
  -l_from               Load simulation results from disk.
+     lpath=<value>     Indicates path where result of simulation will be stored. This option work only for -l_to and -l_from options
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file <filename>.
  device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu 
