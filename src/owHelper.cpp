@@ -629,7 +629,7 @@ void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, std::v
 				ss << particle->getPosition()[2];
 				ss << "\t";
 				std::string tempStr(ss.str());
-				gConfigFile <<;
+				//gConfigFile <<;
 				particle->setWritePos(gConfigFile.tellp());
 				gConfigFile << "\n";
 				//if(iteration == 0)
