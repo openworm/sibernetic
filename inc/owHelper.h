@@ -75,24 +75,23 @@ public:
 	//global_size - size of buffer / element_size
 	template<typename T> static void logBuffer(const T * buffer, const int element_size, const int global_size, const char * fileName)
 	{
-		try{
-			std::ofstream outFile (fileName);
-			for(int i = 0; i < global_size; i++)
-			{
-				for(int j = 0; j < element_size; j++)
-				{
-					if(j < element_size - 1 ){
-						outFile << buffer[ i * element_size + j ] << "\t";
-					}
-					else
-						outFile << buffer[ i * element_size + j ] << "\n";
-				}
-			}
-			outFile.close();
-		}catch(std::exception &e){
-			std::cout << "ERROR: " << e.what() << std::endl;
-			exit( -1 );
+		std::ofstream outFile (fileName);
+		if(!outFile){
+			std::string error = "Couldn't create file check the file name: ";
+			error += fileName;
+			throw std::runtime_error(error);
 		}
+		for(int i = 0; i < global_size; i++)
+		{
+			for(int j = 0; j < element_size; j++)
+			{
+				if(j < element_size - 1 )
+					outFile << buffer[ i * element_size + j ] << "\t";
+				else
+					outFile << buffer[ i * element_size + j ] << "\n";
+			}
+		}
+		outFile.close();
 	}
 private:
 	enum LOADMODE { NOMODE=-1, POSITION, VELOCITY, CONNECTION, MEMBRANE, PMEMINDEX };

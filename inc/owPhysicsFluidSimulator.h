@@ -133,10 +133,7 @@ private:
 	owConfigProrerty * config;
 	owHelper * helper;
 	int iterationCount;
-	std::vector<owParticle> particleList;
-	void cleanBuffers();
-	void initParticleList();
-	void updateParticleList();
+	void destroy();
 };
 
 #endif //OW_PHYSICS_SIMULATOR_H

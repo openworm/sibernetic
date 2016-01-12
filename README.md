@@ -1,15 +1,13 @@
 ![Sibernetic](http://i.imgur.com/Hbsw6Zs.png)
 
-Sibernetic is a fluid mechanics simulator developed for simulations of C. elegans in the [OpenWorm project](http://www.openworm.org) developed for the [OpenWorm](http://openworm.org) project by Andrey Palyanov, Sergey Khayrulin and Mike Vella as part of the [OpenWorm team](http://www.openworm.org/people.html). Sibernetic provides an implementation of the PCISPH contractile matter algorithm for simulating muscle tissue and is applies to C. elegans locomotion.
+Sibernetic is physical simulator of biomechanical matter (membranes, elastic matter, contractile matter) and environments (liquids, solids and elastic matter with variable physical properties) developed for simulations of C. elegans physical body dynamics within the [OpenWorm project](http://www.openworm.org) by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python module for external muscle activating signals generation and input) as part of the [OpenWorm team](http://www.openworm.org/people.html). At its core, Sibernetic is built as an extension to Predictive-Corrective Incompressible Smoothed Particle Hydrodynamics (PCISPH). It is primarily written in  C++ and OpenCL, which makes possible to run simulations on CPUs or GPUs, and has 3D visualization support built on top of OpenGL. 
 
-When driven by [Hodgkin Huxley dynamics](https://en.wikipedia.org/wiki/Hodgkin%E2%80%93Huxley_model) contractile matter is called Electrofluid.
-
-Sibernetic is primarily written in  C++ and OpenCL, it also provides a Python API.
-
-There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](https://github.com/openworm/OpenWorm/wiki/Geppetto--Overview). 
+There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](http://www.geppetto.org/). 
 
 Compiling / running (Linux/mac)
 ------------------------------
+
+[![Join the chat at https://gitter.im/openworm/sibernetic](https://badges.gitter.im/openworm/sibernetic.svg)](https://gitter.im/openworm/sibernetic?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 **Linux**
 
@@ -120,7 +118,10 @@ Available options:
 ```
  -g_no                 Run without graphics
  -l_to                 Save simulation results to disk.
+     logstep=<value>   Log every <value> steps
  -l_from               Load simulation results from disk.
+     lpath=<value>     Indicates path where result of simulation will be stored. 
+                       This option work only for -l_to and -l_from options
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file <filename>.
  device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu 
@@ -159,7 +160,8 @@ Control in graphical mode
 If you run Sibernetic with graphics you can work with scene rotation and scaling using the mouse. There are also several control button options available:
 ```
 'Space' - pause the simulation 
-'s'     - save current configuration into file ./configuration/snapshot/configuration_default you can run this
+'s'     - save current configuration into file 
+          ./configuration/snapshot/configuration_name_current_time_and_date you can run this
 than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 'q' or 'Esc'     - quit the sibernetic
 '1'     - run demo1 configuration

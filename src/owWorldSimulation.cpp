@@ -79,7 +79,7 @@ void drawScene();
 void renderInfo(int,int);
 void glPrint(float,float,const char *, void*);
 void glPrint3D(float,float,float,const char *, void*);
-void Cleanup();
+void cleanupSimulation();
 //float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
 void beginWinCoords(void)
 {
@@ -133,21 +133,30 @@ void display(void)
 			owHelper::loadConfigurationFromFile(p_cpp,ec_cpp,md_cpp, localConfig,iteration);
 			iteration++;
 		}else{
+			try{
 			calculationTime = fluid_simulation->simulationStep(load_to); // Run one simulation step
-			int pib;
 			p_indexb = fluid_simulation->getParticleIndex_cpp();
+			p_cpp = fluid_simulation->getPosition_cpp();
+			d_cpp = fluid_simulation->getDensity_cpp();
+			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+			if(!load_from_file)
+				md_cpp = fluid_simulation->getMembraneData_cpp();
+			}catch(std::runtime_error & ex){
+				cleanupSimulation();
+				std::cout << "ERROR: " << ex.what() << std::endl;
+				exit (EXIT_FAILURE); // unfortunately we cannot leave glutmain loop by the other way
+			}
+			int pib;
 			for(i=0;i<localConfig->getParticleCount();i++)
 			{
 				pib = p_indexb[2*i + 1];
 				p_indexb[2*pib + 0] = i;
 			}
-			p_cpp = fluid_simulation->getPosition_cpp();
-			d_cpp = fluid_simulation->getDensity_cpp();
-			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
 				std::cout << "Simulation is reached time limit" << std::endl;
-				Cleanup();
-				exit (EXIT_SUCCESS);
+				cleanupSimulation();
+				exit (EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by the other way
 			}
 
 		}
@@ -299,8 +308,6 @@ void display(void)
 		}
 	}
 	// Draw membranes
-	if(!load_from_file)
-		md_cpp = fluid_simulation->getMembraneData_cpp();
 	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
 	for(int i_m = 0; i_m < localConfig->numOfMembranes; i_m++)
 	{
@@ -740,13 +747,12 @@ void mouse_motion (int x, int y)
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 
-extern float *muscle_activation_signal_cpp;
-void Cleanup(){
+void cleanupSimulation(){
 	delete fluid_simulation;
 	delete helper;
 	return;
 }
-void RespondKey(unsigned char key, int x, int y)
+void respondKey(unsigned char key, int x, int y)
 {
 	switch(key)
 	{
@@ -766,7 +772,7 @@ void RespondKey(unsigned char key, int x, int y)
 	case '\033':// Escape quits
 	case 'Q':   // Q quits
 	case 'q':   // q quits
-		Cleanup();
+		cleanupSimulation();
 		//break;
 		exit (EXIT_SUCCESS);
 	case ' ':
@@ -778,7 +784,13 @@ void RespondKey(unsigned char key, int x, int y)
 		break;
 	case 'r': // reset simulation
 		helper->refreshTime();
-		fluid_simulation->reset();
+		try{
+			fluid_simulation->reset();
+		}catch(std::runtime_error &ex){
+			cleanupSimulation();
+			std::cout << "ERROR: " << ex.what() << std::endl;
+			exit (EXIT_FAILURE);
+		}
 		break;
 	}
 	if(key == 'i')
@@ -860,8 +872,8 @@ inline void init(void){
 
 }
 void sighandler(int s){
-	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
-	Cleanup();
+	std::cerr << "\nCaught signal CTRL+C. Exit Simulation...\n"; // this is undefined behaviour should check signal value
+	cleanupSimulation();
 	exit(EXIT_SUCCESS);
 }
 /** Init & start simulation and graphic component if with_graphics==true
@@ -873,21 +885,28 @@ void sighandler(int s){
  * 	@param load_to
  * 	Flag indicates that simulation will in "load configuration to file" mode
  */
-void run(int argc, char** argv, const bool with_graphics)
+int run(int argc, char** argv, const bool with_graphics)
 {
+
 	helper = new owHelper();
-	if(!load_from_file){
-		fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
-		localConfig = fluid_simulation->getConfig();
-		muscle_activation_signal_cpp = fluid_simulation->getMuscleAtcivationSignal();
-	}
-	else{
-		localConfig = new owConfigProrerty(argc, argv);
-		muscle_activation_signal_cpp = new float [localConfig->MUSCLE_COUNT];
-		for(int i=0;i<localConfig->MUSCLE_COUNT;i++)
-		{
-			muscle_activation_signal_cpp[i] = 0.f;
+	try{
+		if(!load_from_file){
+			fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
+			localConfig = fluid_simulation->getConfig();
+			muscle_activation_signal_cpp = fluid_simulation->getMuscleAtcivationSignal();
 		}
+		else{
+			localConfig = new owConfigProrerty(argc, argv);
+			muscle_activation_signal_cpp = new float [localConfig->MUSCLE_COUNT];
+			for(int i=0;i<localConfig->MUSCLE_COUNT;i++)
+			{
+				muscle_activation_signal_cpp[i] = 0.f;
+			}
+		}
+	}catch(std::runtime_error & ex){
+		cleanupSimulation();
+		std::cout << "ERROR: " << ex.what() << std::endl;
+		return EXIT_FAILURE;
 	}
 	std::signal(SIGINT,sighandler);
 	if(with_graphics){
@@ -897,29 +916,34 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutInitWindowPosition(100, 100);
 		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
 		glutIdleFunc (idle);
-		//Init physic Simulation
 		init();
 		glutDisplayFunc(display);
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
 		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked,
-		glutKeyboardFunc(RespondKey);
+		glutKeyboardFunc(respondKey);
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		if(!load_from_file){
-			Cleanup();
-			exit(EXIT_SUCCESS);
+			cleanupSimulation();
+			return EXIT_SUCCESS;
 		}
 	}else{
 		while(1){
-			fluid_simulation->simulationStep(load_to);
+			try{
+				fluid_simulation->simulationStep(load_to);
+			}catch(std::runtime_error & ex){
+				cleanupSimulation();
+				std::cout << "ERROR: " << ex.what() << std::endl;
+				return EXIT_FAILURE;
+			}
 			helper->refreshTime();
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
-				std::cout << "Simulation is reached time limit" << std::endl;
-				Cleanup();
-				return;
+				std::cout << "Simulation has been reached time limit" << std::endl;
+				cleanupSimulation();
+				return EXIT_SUCCESS;
 			}
 		}
 	}
-    exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }

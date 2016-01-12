@@ -46,6 +46,7 @@
 #include <string>
 #include <iterator>
 #include <vector>
+#include <stdexcept>
 
 #include "PyramidalSimulation.h"
 
@@ -78,7 +79,7 @@ int PyramidalSimulation::setup(){
 	if( PyErr_Occurred() ) PyErr_Print();  
   }
   else {
-    throw "Module not loaded, have you set PYTHONPATH?";
+    throw std::runtime_error("Module not loaded, have you set PYTHONPATH?");
   }
   // Create an instance of the class
   if (PyCallable_Check(pClass))
@@ -88,7 +89,7 @@ int PyramidalSimulation::setup(){
 	  cout << "Pyramidal simulation class loaded!"<<endl;
 	}
   else {
-    throw "Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src";
+    throw std::runtime_error("Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src");
   }
   return 0;
 };
@@ -103,7 +104,7 @@ vector<float> PyramidalSimulation::unpackPythonList(PyObject* pValue){
 		value = (float)PyFloat_AsDouble(PyList_GetItem(pValue, i));
 		test[i]= value;
 	}
-
+	Py_DECREF(pValue);
 	return test;
 };
 
@@ -111,23 +112,16 @@ vector<float> PyramidalSimulation::run(){
 // Call a method of the class
 // pValue = PyObject_CallMethod(pInstance, "rrun
 // un", NULL);
-	//printf("!!!checkpoint001!!!\n");
-	pValue = PyObject_CallMethod(pInstance, "run", NULL);
-	//printf("!!!checkpoint002!!!\n");
+	pValue = PyObject_CallMethod(pInstance, const_cast<char *>("run"), NULL);
 	if(PyList_Check(pValue)){
-	   //printf("!!!checkpoint003.1!!!\n");
 	  vector<float> value_array;
 	  value_array = PyramidalSimulation::unpackPythonList(pValue);
-	  //printf("!!!checkpoint003!!!\n");
 	  return value_array;
 
 	}
 	else {
-	  //printf("!!!checkpoint004.1!!!\n");
 	  vector<float> single_element_array(0);
 	  single_element_array[0] = (float)PyFloat_AsDouble(pValue);
-	  //printf("!!!checkpoint004!!!\n");
 	  return single_element_array;
 	}
-   //printf("!!!checkpoint005!!!\n");
 };

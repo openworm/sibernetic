@@ -117,6 +117,7 @@ public:
 	INTEGRATOR getIntegrationMethod() const { return integration_method; }
 	const std::string & getCofigFileName() const { return configFileName; }
 	const std::string & getCofigPath() const { return path; }
+	const std::string & getLoadPath() const { return loadPath; }
 	PyramidalSimulation & getPyramidalSimulation() { return simulation; }
 	void updatePyramidalSimulation(float * muscleActivationSignal){
 		if(isWormConfig()){
@@ -136,7 +137,7 @@ public:
 		time_step = value;
 	}
 	void setLogStep(int value){
-		time_step = value;
+		logStep = value;
 	}
 	int getLogStep(){ return logStep; }
 	std::string getSnapshotFileName() {
@@ -159,14 +160,14 @@ public:
 		return fileName;
 	}
 	// Constructor
-	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"){
+	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"), loadPath("./buffers/"){
 		preferable_device_type = ALL;
 		time_step = timeStep;
 		time_limit = 0.f;
 		beta = ::beta;
 		integration_method = EULER;
 		std::string s_temp;
-		configFileName = "demo1";
+		configFileName = "demo1"; // by default
 		for(int i = 1; i<argc; i++){
 			s_temp = argv[i];
 			if(s_temp.find("device=") == 0){
@@ -184,18 +185,21 @@ public:
 				//also we shoisSimulationRun = true;uld recalculate beta if time_step is different from default value of timeStep in owPhysicsConstant
 				beta = time_step*time_step*mass*mass*2/(rho0*rho0);
 			}
-			if(s_temp.find("timelimit=") == 0){
+			if( s_temp.find("timelimit=") == 0 ){
 				time_limit = ::atof( s_temp.substr(s_temp.find('=')+1).c_str());
 				if(time_limit < 0.0)
 					throw std::runtime_error("timelimit could not be less than 0 check input parameters");
 			}
-			if(s_temp.find("LEAPFROG") != std::string::npos || s_temp.find("leapfrog") != std::string::npos){
+			if( s_temp.find("LEAPFROG") != std::string::npos || s_temp.find("leapfrog") != std::string::npos ){
 				integration_method = LEAPFROG;
 			}
-			if(s_temp.find("logstep=") == 0 ){
+			if( s_temp.find("logstep=") == 0 ){
 				logStep = ::atoi(s_temp.substr(s_temp.find('=')+1).c_str());
 				if(logStep < 1)
 					throw std::runtime_error("logStep could not be less than 1 check input parameters");
+			}
+			if( s_temp.find("lpath=") != std::string::npos ){
+				loadPath = s_temp.substr(s_temp.find('=')+1).c_str();
 			}
 			if(s_temp == "-f"){
 				if(i + 1 < argc){
@@ -219,16 +223,11 @@ public:
 		totalNumberOfIteration = time_limit/time_step; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
 		if(isWormConfig()){ // in case if we run worm configuration TODO make it optional
-			try{
-				simulation.setup();
-			}catch(const char * ex){
-				std::cerr << ex << std::endl;// TODO make more careful exception catching
-				exit(-1);
-			}
+			simulation.setup();
 		}
-	};
-	float getTimeStep() const { return timeStep; };
-	float getDelta() const { return delta; };
+	}
+	float getTimeStep() const { return timeStep; }
+	float getDelta() const { return delta; }
 	float xmin;
 	float xmax;
 	float ymin;
@@ -305,10 +304,11 @@ private:
 	float time_limit;
 	float beta;
 	float delta;
-	DEVICE preferable_device_type;// 0-CPU, 1-GPU
+	DEVICE preferable_device_type; // 0-CPU, 1-GPU
 	INTEGRATOR integration_method; //DEFAULT is EULER
 	std::string configFileName;
-	std::string path; // PATH to configuration files
+	std::string path;              // PATH to configuration files
+	std::string loadPath;          // PATH to load buffer files
 	PyramidalSimulation simulation;
 	std::string device_full_name;
 };

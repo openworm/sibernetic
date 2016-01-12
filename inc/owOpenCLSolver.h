@@ -68,15 +68,13 @@ public:
 	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL, const int * particleMembranesList_cpp = NULL);
 	owOpenCLSolver(void);
 	~owOpenCLSolver(void);
-	// Initialize OPENCL device, context, queue, program...
-	void initializeOpenCL(owConfigProrerty * config);
 	//Kernels functions definition for neighbor search algorithm
 	unsigned int _runClearBuffers(owConfigProrerty * config);
 	unsigned int _runHashParticles(owConfigProrerty * config);
-	unsigned int _runSort(owConfigProrerty * config);
+	void _runSort(owConfigProrerty * config);
 	unsigned int _runSortPostPass(owConfigProrerty * config);
 	unsigned int _runIndexx(owConfigProrerty * config);
-	unsigned int _runIndexPostPass(owConfigProrerty * config);
+	void _runIndexPostPass(owConfigProrerty * config);
 	unsigned int _runFindNeighbors(owConfigProrerty * config);
 	//PCISPH kernels for physics-related calculations
 	unsigned int _run_pcisph_computeDensity(owConfigProrerty * config);
@@ -92,7 +90,7 @@ public:
 	unsigned int _run_computeInteractionWithMembranes(owConfigProrerty * config);
 	unsigned int _run_computeInteractionWithMembranes_finalize(owConfigProrerty * config);
 	//
-	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp, owConfigProrerty * config);
+	void updateMuscleActivityData(float *_muscle_activation_signal_cpp, owConfigProrerty * config);
 
 	void read_position_buffer( float * position_cpp, owConfigProrerty * config) { copy_buffer_from_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 ); };
 	void read_velocity_buffer( float * velocity_cpp, owConfigProrerty * config) { copy_buffer_from_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 ); };
@@ -102,8 +100,16 @@ public:
 private:
 	void create_ocl_kernel( const char *name, cl::Kernel &k );
 	void create_ocl_buffer(const char *name, cl::Buffer &b, const cl_mem_flags flags,const int size);
-	int copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,const int size);
-	int copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b, const int size );
+	void copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,const int size);
+	void copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b, const int size );
+	void destroy(){
+		delete [] gridNextNonEmptyCellBuffer;
+		delete [] _particleIndex;
+	}
+	// Initialization of openCl data buffers
+	void initializeBuffers(const float * , const float * , owConfigProrerty * , const float * , const int * , const int * );
+	// Initialize OPENCL device, context, queue, program...
+	void initializeOpenCL(owConfigProrerty * config);
 	cl::Context context;
 	std::vector< cl::Device > devices;
 	cl::CommandQueue		  queue;

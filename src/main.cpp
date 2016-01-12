@@ -39,16 +39,16 @@
 bool load_from_file = false;
 bool load_to = false;
 
-std::string version = "0.0.3";
-        
+
 int main(int argc, char **argv) {
+	int exitStatus;
     if (argc == 1) {
         std::cout << "Sibernetic: no arguments specified, run method executing\n";
-        run(argc, argv);
+        exitStatus = run(argc, argv);
     } else {
         bool graph = true;
         bool run_tests = false;
-
+        std::string version = "0.0.4b";
         std::string helpFlag = "-help";
         std::string helpFlag2 = "-h";
         std::string helpFlag3 = "-?";
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
         std::string timeLimitFlag = "timelimit=<value>";
         std::string integrationMethodFlag = "leapfrog";
         std::string logStepFlag = "logstep=<value>";
-
+        std::string loadFlagPath = "lpath=<value>";
         for (int i = 1; i < argc; i++) {
             if (helpFlag.compare(argv[i]) == 0 ||
             	helpFlag2.compare(argv[i]) == 0||
@@ -76,13 +76,13 @@ int main(int argc, char **argv) {
                 std::cout << "    " << saveFlag << "                      Save simulation results to disk\n\n";
                 std::cout << "        " << logStepFlag << "           Set frequency of logging data into file in -l_to mode by default it equals to 10\n\n";
                 std::cout << "    " << loadFlag << "                    Load simulation results from disk\n\n";
+                std::cout << "        " << loadFlagPath << "                    Indicates path where all buffers will be stored this option also works for -l_to and -l_from options\n\n";
                 std::cout << "    " << testFlag << "                      Run some tests\n\n";
                 std::cout << "    " << configFileFlag << "              Load configuration from file ./configuration/<filename>\n\n";
                 std::cout << "        " << configFileWorm << "                    **Load Worm Body Simulation**\n\n";
                 std::cout << "    " << deviceTypeFlag << "       Trying to init OpenCL on device <type> it could be cpu or gpu default-ALL (it try to init most powerful available device)\n\n";
                 std::cout << "    " << timeStepFlag << "           Start simulation with time step = <value> in seconds\n\n";
                 std::cout << "    " << timeLimitFlag << "          Run simulation until <value> will be reached in seconds\n\n";
-                std::cout << "    " << integrationMethodFlag << "                   Run simulation using Leapfrog integration method for time integration\n\n";
                 std::cout << "    " << integrationMethodFlag << "                   Run simulation using Leapfrog integration method for time integration\n\n";
                 std::cout << "    " << helpFlag << "                      Print this information\n\n";
                 std::cout << "  Please report any bugs/issues on: https://github.com/openworm/sibernetic/issues\n\n";
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
         if (run_tests) {
             test_energy_conservation(argc, argv);
         } else
-            run(argc, argv, graph);
+        	exitStatus = run(argc, argv, graph);
     }
-    return 0;
+    return exitStatus;
 }
