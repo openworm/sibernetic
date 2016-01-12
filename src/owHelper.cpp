@@ -372,7 +372,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
  */
 void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
 	std::ofstream positionFile;
-	std::string positionFileName = config->getLoadPath() + std::string("position_buffer.txt");
+	std::string positionFileName = config->getLoadPath() + std::string("/position_buffer.txt");
 	if(firstIteration){
 		positionFile.open(positionFileName.c_str(), std::ofstream::trunc);
 		if(!positionFile)
@@ -410,7 +410,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 	}
 	positionFile.close();
 	if(firstIteration){
-		std::string connectionFileName = config->getLoadPath() + std::string("connection_buffer.txt");
+		std::string connectionFileName = config->getLoadPath() + std::string("/connection_buffer.txt");
 		ofstream connectionFile(connectionFileName.c_str(), std::ofstream::trunc);
 		if(!connectionFile)
 			throw std::runtime_error("There was a problem with creation of connection data file for logging. Check the path.");
@@ -418,7 +418,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 		for(int i = 0; i < con_num; i++)
 			connectionFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
 		connectionFile.close();
-		std::string membraneFileName = config->getLoadPath() + std::string("membranes_buffer.txt");
+		std::string membraneFileName = config->getLoadPath() + std::string("/membranes_buffer.txt");
 		ofstream membranesFile(membraneFileName.c_str(), std::ofstream::trunc);
 		if(!membranesFile)
 			throw std::runtime_error("There was a problem with creation of membrane data file for logging. Check the path.");
@@ -497,7 +497,7 @@ ifstream positionFile;
 void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
 	try{
 		if(iteration == 0){
-			std::string positionFileName = config->getLoadPath() + std::string("position_buffer.txt");
+			std::string positionFileName = config->getLoadPath() + std::string("/position_buffer.txt");
 			positionFile.open(positionFileName.c_str());
 		}
 		int i = 0;
@@ -542,7 +542,7 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 			exit(0); //TODO make more correct
 		}
 		if(iteration == 0){
-			std::string connectionFileName = config->getLoadPath() + std::string("connection_buffer.txt");
+			std::string connectionFileName = config->getLoadPath() + std::string("/connection_buffer.txt");
 			ifstream connectionFile(connectionFileName.c_str());
 			connections = new float[MAX_NEIGHBOR_COUNT * config->numOfElasticP * 4];
 			if( connectionFile.is_open() )
@@ -559,7 +559,7 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 				}
 			}
 			connectionFile.close();
-			std::string membraneFileName = config->getLoadPath() + std::string("membranes_buffer.txt");
+			std::string membraneFileName = config->getLoadPath() + std::string("/membranes_buffer.txt");
 			ifstream membranesFile(membraneFileName.c_str());
 			if(membranesFile.is_open()){
 				int m_count = 0;
