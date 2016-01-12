@@ -116,7 +116,7 @@ Main command options
 To start Sibernetic with argument print in command prompt next ./Release/Sibernetic -whatever
 Available options:
 ```
- -g_no                 Run without graphics
+ -no_g                 Run without graphics
  -l_to                 Save simulation results to disk.
      logstep=<value>   Log every <value> steps
  -l_from               Load simulation results from disk.
