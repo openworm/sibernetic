@@ -236,7 +236,9 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 	config->updatePyramidalSimulation(muscle_activation_signal_cpp);
 	ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
 	if(config->isGMode()){
-		owHelper::loadConfigurationToGeppettoFile(config, this->particleList, position_cpp, iterationCount);
+		if(iterationCount % config->getLogStep() == 0 || iterationCount + 1 == config->getNumberOfIteration()){ // prevent writing a lot unneeded information
+			owHelper::loadConfigurationToGeppettoFile(config, this->particleList, position_cpp, iterationCount);
+		}
 	}
 	iterationCount++;
 	return helper->getElapsedTime();

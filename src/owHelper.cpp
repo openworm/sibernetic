@@ -593,18 +593,18 @@ void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, map<st
 			gConfigFile.open("./gresult/gresult", std::ofstream::trunc);
 			gConfigFile << "{"<< "\n";
 			gConfigFile << " \"sibernetic_parameters\": {"<< "\n";
-			gConfigFile << "  \"xmin\"" << config->xmin << "," << "\n";
-			gConfigFile << "  \"xmax\"" << config->xmax << "," << "\n";
-			gConfigFile << "  \"ymin\"" << config->ymin << "," << "\n";
-			gConfigFile << "  \"ymax\"" << config->ymax << "," << "\n";
-			gConfigFile << "  \"zmin\"" << config->zmin << "," << "\n";
-			gConfigFile << "  \"zmax\"" << config->zmax << "," << "\n";
-			gConfigFile << "  \"viscosity\"" << viscosity << "," << "\n";
+			gConfigFile << "  \"xmin\": " << config->xmin << "," << "\n";
+			gConfigFile << "  \"xmax\": " << config->xmax << "," << "\n";
+			gConfigFile << "  \"ymin\": " << config->ymin << "," << "\n";
+			gConfigFile << "  \"ymax\": " << config->ymax << "," << "\n";
+			gConfigFile << "  \"zmin\": " << config->zmin << "," << "\n";
+			gConfigFile << "  \"zmax\": " << config->zmax << "," << "\n";
+			gConfigFile << "  \"viscosity\": " << viscosity << "," << "\n";
 			gConfigFile << " }"<< "\n";
 			gConfigFile << " \"particles_position\": [{\n";
 		}
 		for(std::map<std::string, std::vector<owParticle> >::iterator it = particlesList.begin(); it != particlesList.end(); ++it){
-			gConfigFile << "  \"" << it->first << "\" : [\n";
+			gConfigFile << "  \"" << it->first << "\": [\n";
 			for(std::vector<owParticle>::iterator particle = it->second.begin(); particle != it->second.end(); ++particle){
 				gConfigFile << "   " << position[4 * particle->getId() + 0] << ",\n";
 				gConfigFile << "   " << position[4 * particle->getId() + 1] << ",\n";
@@ -612,7 +612,7 @@ void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, map<st
 			}
 			gConfigFile << " ],\n";
 		}
-		if(config->getNumberOfIteration() == iteration + 1){ // in case if we don't indicate timeLimit getNumberOfIteration() return 0 TODO neet to be fixed
+		if(iteration + 1 == config->getNumberOfIteration()){ // in case if we don't indicate timeLimit getNumberOfIteration() return 0 TODO neet to be fixed
 			gConfigFile << " }]\n";
 			gConfigFile << "}";
 			gConfigFile.close();
