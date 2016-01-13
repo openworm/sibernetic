@@ -46,52 +46,22 @@
 #include "PyramidalSimulation.h"
 
 class owParticle{
-	typedef float float3[3];
-	float3 position;
-	float3 velocity;
 	int type;
 	int muscleIndex;
-	int writePosition;
+	int id;
 public:
-	owParticle():type(-1), muscleIndex(-1), writePosition(0){}
-	owParticle(int t, int mi):type(t), muscleIndex(mi),writePosition(0){}
-	owParticle(float * p, float * v, int t, int mi):type(t), muscleIndex(mi),writePosition(0){
-		setPosition(p);
-		setVelocity(v);
-	}
-	void setPosition(float * p){
-		if(p != 0)
-			for(int i = 0; i<3; ++i)
-				position[i] = p[i];
-	}
-	void setVelocity(float * v){
-		if(v != 0)
-			for(int i = 0; i<3; ++i)
-				velocity[i] = v[i];
-	}
+	owParticle():type(-1), muscleIndex(-1), id(-1){}
+	owParticle(int t, int mi):type(t), muscleIndex(mi), id(-1){}
 	void setType(int value){
 		type=value;
-	}
-	void setMuscleIndex(int value){
-		muscleIndex=value;
-	}
-	const float * getPosition() const{
-		return &position[0];
-	}
-	float * getVelocity(){
-		return &velocity[0];
 	}
 	int getType() const{
 		return type;
 	}
-	int getMuscleIndex() const{
-		return muscleIndex;
-	}
-	int getWritePos() const {
-		return writePosition;
-	}
-	void setWritePos(int newPosition){
-		writePosition = newPosition;
+	void setId(int i){ id = i;}
+	int getId(){ return id;}
+	void setMuscleIndex(int value){
+		muscleIndex=value;
 	}
 };
 
@@ -119,6 +89,7 @@ public:
 	const std::string & getCofigPath() const { return path; }
 	const std::string & getLoadPath() const { return loadPath; }
 	PyramidalSimulation & getPyramidalSimulation() { return simulation; }
+	bool isGMode() const { return gmode; }
 	void updatePyramidalSimulation(float * muscleActivationSignal){
 		if(isWormConfig()){
 			std::vector<float> muscle_vector = simulation.run();
@@ -160,7 +131,7 @@ public:
 		return fileName;
 	}
 	// Constructor
-	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"), loadPath("./buffers/"){
+	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"), loadPath("./buffers/"), gmode(false){
 		preferable_device_type = ALL;
 		time_step = timeStep;
 		time_limit = 0.f;
@@ -200,6 +171,9 @@ public:
 			}
 			if( s_temp.find("lpath=") != std::string::npos ){
 				loadPath = s_temp.substr(s_temp.find('=')+1).c_str();
+			}
+			if( s_temp.find("-gmode") != std::string::npos ){
+				gmode = true;
 			}
 			if(s_temp == "-f"){
 				if(i + 1 < argc){
@@ -311,6 +285,7 @@ private:
 	std::string loadPath;          // PATH to load buffer files
 	PyramidalSimulation simulation;
 	std::string device_full_name;
+	bool gmode; // Indicates that sibernetic works in geppetto mode
 };
 
 #endif /* OWCONFIGURATION_H_ */

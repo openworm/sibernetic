@@ -84,10 +84,10 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 		//The buffers listed below are only for usability and debug
 		density_cpp = new float[ 1 * config->getParticleCount() ];
 		particleIndex_cpp = new unsigned int[config->getParticleCount() * 2];
-
 		// LOAD FROM FILE
 		owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
 		this->helper = helper;
+		this->initParticleList();
 		if(config->numOfElasticP != 0){
 			ocl_solver = new owOpenCLSolver(position_cpp, velocity_cpp, config, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp);	//Create new openCLsolver instance
 		}else
@@ -235,6 +235,9 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 
 	config->updatePyramidalSimulation(muscle_activation_signal_cpp);
 	ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
+	if(config->isGMode()){
+		owHelper::loadConfigurationToGeppettoFile(config, this->particleList, position_cpp, iterationCount);
+	}
 	iterationCount++;
 	return helper->getElapsedTime();
 }
@@ -252,9 +255,9 @@ void owPhysicsFluidSimulator::makeSnapshot(){
 struct MuscleParticle{
 	int id;
 	int muscleId;
-	bool operator==(const int & otherId){ return this->id == otherId; };
+	bool operator==(const int & otherId) const { return this->id == otherId; };
 	MuscleParticle():id(-1), muscleId(0){};
-	MuscleParticle(int &id):id(id), muscleId(0){};
+	MuscleParticle(const int &id):id(id), muscleId(0){};
 	MuscleParticle(int id, int muscleId):id(id), muscleId(muscleId){};
 };
 /**Generating List of particles it contains information about particle type its position velocity and
@@ -272,19 +275,27 @@ void owPhysicsFluidSimulator::initParticleList(){
 		}
 	}
 	for(int i=0;i<config->getParticleCount();i++){
+		std::string key = "";
 		owParticle p;
 		p.setType(static_cast<int>(position_cpp[i * 4 + 3]));
+		p.setId(i);
 		std::vector<MuscleParticle>::const_iterator mIt = std::find(muscleParticles.begin(), muscleParticles.end(), i);
-		if( mIt != muscleParticles.end())
+		if( mIt != muscleParticles.end() && muscleParticles.size() > 0){
 			p.setMuscleIndex(mIt->muscleId);
-		this->particleList.push_back(p);
-	}
-}
-
-void owPhysicsFluidSimulator::updateParticleList(){
-	for(int i=0;i<config->getParticleCount();i++){
-		this->particleList[i].setPosition(&position_cpp[i * 4 + 0]);
-		this->particleList[i].setVelocity(&velocity_cpp[i * 4 + 0]);
+			std::ostringstream ss;
+			ss << "muscle_";
+			ss << mIt->muscleId;
+			key = ss.str();
+		}else{
+			if( p.getType() == ELASTIC_PARTICLE){
+				key = "cuticule";
+			}
+			if( p.getType() == LIQUID_PARTICLE){
+				key = "liquid";
+			}
+		}
+		if(key != "")
+			this->particleList[key].push_back(p);
 	}
 }
 

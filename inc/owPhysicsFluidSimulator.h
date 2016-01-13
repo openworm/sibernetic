@@ -34,6 +34,8 @@
 #ifndef OW_PHYSICS_SIMULATOR_H
 #define OW_PHYSICS_SIMULATOR_H
 
+#include <map>
+
 #include "owPhysicsConstant.h"
 #include "owHelper.h"
 #include "owOpenCLSolver.h"
@@ -118,6 +120,7 @@ public:
 	const int getIteration() const { return iterationCount; };
 	void reset();
 	void makeSnapshot();
+
 private:
 	owOpenCLSolver * ocl_solver;
 	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create
@@ -133,7 +136,9 @@ private:
 	owConfigProrerty * config;
 	owHelper * helper;
 	int iterationCount;
+	map<std::string, std::vector<owParticle> > particleList;
 	void destroy();
+	void initParticleList();
 };
 
 #endif //OW_PHYSICS_SIMULATOR_H

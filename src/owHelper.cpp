@@ -50,10 +50,10 @@
 using namespace std;
 
 //TODO FIX this shit
-std::ostream& operator<<(std::ostream &out, const owParticle &p){
+/*std::ostream& operator<<(std::ostream &out, const owParticle &p){
 	out << p.getPosition()[0] << "\t" << p.getPosition()[1] << "\t" << p.getPosition()[2] << "\t" << p.getType() << "\t" << p.getMuscleIndex();
 	return out;
-}
+}*/
 
 /** owHelpre class constructor
  */
@@ -587,53 +587,37 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 
 std::ofstream gConfigFile;
 
-void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, std::vector<owParticle> &particlesList, int iteration){
+void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, map<std::string, std::vector<owParticle> > &particlesList, float * position, int iteration){
 	try{
 		if(iteration == 0){
 			gConfigFile.open("./gresult/gresult", std::ofstream::trunc);
-			gConfigFile << "#MODEL (all parameters)"<< "\n";
-			gConfigFile << config->xmin << "\n";
-			gConfigFile << config->xmax << "\n";
-			gConfigFile << config->ymin << "\n";
-			gConfigFile << config->ymax << "\n";
-			gConfigFile << config->zmin << "\n";
-			gConfigFile << config->zmax << "\n";
-			gConfigFile << "#END_MODEL"<< "\n";
-			gConfigFile << "#PARTICLES\n";
-			gConfigFile << "cuticule {\n";
+			gConfigFile << "{"<< "\n";
+			gConfigFile << " \"sibernetic_parameters\": {"<< "\n";
+			gConfigFile << "  \"xmin\"" << config->xmin << "," << "\n";
+			gConfigFile << "  \"xmax\"" << config->xmax << "," << "\n";
+			gConfigFile << "  \"ymin\"" << config->ymin << "," << "\n";
+			gConfigFile << "  \"ymax\"" << config->ymax << "," << "\n";
+			gConfigFile << "  \"zmin\"" << config->zmin << "," << "\n";
+			gConfigFile << "  \"zmax\"" << config->zmax << "," << "\n";
+			gConfigFile << "  \"viscosity\"" << viscosity << "," << "\n";
+			gConfigFile << " }"<< "\n";
+			gConfigFile << " \"particles_position\": [{\n";
 		}
-		long currentPosition = 0;
-		for(std::vector<owParticle>::iterator particle = particlesList.begin(); particle != particlesList.begin() + 2; ++particle){
-			if(particle->getType() == ELASTIC_PARTICLE){
-				if(iteration != 0)
-					gConfigFile.seekp(currentPosition + particle->getWritePos());
-				std::ostringstream ss;
-				ss << "PARTICLE ID ";
-				ss << particle - particlesList.begin();
-				ss << "\t";
-				ss << "iteration is ";
-				ss << iteration;
-				ss << "\t";
-				ss << particle->getPosition()[0];
-				ss << "\t";
-				ss << particle->getPosition()[1];
-				ss << "\t";
-				ss << particle->getPosition()[2];
-				ss << "\t";
-				std::string tempStr(ss.str());
-				//gConfigFile <<;
-				particle->setWritePos(gConfigFile.tellp());
-				gConfigFile << "\n";
-				//if(iteration == 0)
-				currentPosition = gConfigFile.tellp();
+		for(std::map<std::string, std::vector<owParticle> >::iterator it = particlesList.begin(); it != particlesList.end(); ++it){
+			gConfigFile << "  \"" << it->first << "\" : [\n";
+			for(std::vector<owParticle>::iterator particle = it->second.begin(); particle != it->second.end(); ++particle){
+				gConfigFile << "   " << position[4 * particle->getId() + 0] << ",\n";
+				gConfigFile << "   " << position[4 * particle->getId() + 1] << ",\n";
+				gConfigFile << "   " << position[4 * particle->getId() + 2] << ",\n";
 			}
+			gConfigFile << " ],\n";
 		}
-		if(iteration == 0)
-			gConfigFile << "},\n";
 		if(config->getNumberOfIteration() == iteration + 1){ // in case if we don't indicate timeLimit getNumberOfIteration() return 0 TODO neet to be fixed
-			gConfigFile << "#END_PARTICLES";
+			gConfigFile << " }]\n";
+			gConfigFile << "}";
 			gConfigFile.close();
-		}
+		}else
+			gConfigFile << " }, {\n";
 	}catch(std::exception &e){
 		std::cout << "ERROR: " << e.what() << std::endl;
 		exit( -1 );
