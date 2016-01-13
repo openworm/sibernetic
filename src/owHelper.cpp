@@ -599,8 +599,8 @@ void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, map<st
 			gConfigFile << "  \"ymax\": " << config->ymax << "," << "\n";
 			gConfigFile << "  \"zmin\": " << config->zmin << "," << "\n";
 			gConfigFile << "  \"zmax\": " << config->zmax << "," << "\n";
-			gConfigFile << "  \"viscosity\": " << viscosity << "," << "\n";
-			gConfigFile << " }"<< "\n";
+			gConfigFile << "  \"viscosity\": " << viscosity << "\n";
+			gConfigFile << " },"<< "\n";
 			gConfigFile << " \"particles_position\": [{\n";
 		}
 		for(std::map<std::string, std::vector<owParticle> >::iterator it = particlesList.begin(); it != particlesList.end(); ++it){
