@@ -61,6 +61,7 @@ public:
 	const int getDeviceType() const { return preferable_device_type; };
 	const int getNumberOfIteration() const { return totalNumberOfIteration ;}
 	const char * getDeviceName() const { return device_full_name.c_str(); }
+	const std::string & getSourceFileName() const { return sourceFileName; }
 	void setDeviceName(const char * name) {
 		device_full_name = name;
 	}
@@ -110,7 +111,9 @@ public:
 		return fileName;
 	}
 	// Constructor
-	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"), loadPath("./buffers/"){
+	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0),
+											numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"),
+											loadPath("./buffers/"), sourceFileName( OPENCL_PROGRAM_PATH ){
 		preferable_device_type = ALL;
 		time_step = timeStep;
 		time_limit = 0.f;
@@ -150,6 +153,9 @@ public:
 			}
 			if( s_temp.find("lpath=") != std::string::npos ){
 				loadPath = s_temp.substr(s_temp.find('=')+1).c_str();
+			}
+			if( s_temp.find("oclsourcepath=") != std::string::npos ){
+				sourceFileName = s_temp.substr(s_temp.find('=')+1).c_str();
 			}
 			if(s_temp == "-f"){
 				if(i + 1 < argc){
@@ -255,6 +261,7 @@ private:
 	std::string loadPath;          // PATH to load buffer files
 	PyramidalSimulation simulation;
 	std::string device_full_name;
+	std::string sourceFileName;
 };
 
 #endif /* OWCONFIGURATION_H_ */

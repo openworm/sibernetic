@@ -287,10 +287,9 @@ void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "Failed to create command queue" );
 	}
-	std::string sourceFileName( OPENCL_PROGRAM_PATH );
-	std::ifstream file( sourceFileName.c_str() );
+	std::ifstream file( config->getSourceFileName().c_str() );
 	if( !file.is_open() ){
-		throw std::runtime_error( "Could not open file " + sourceFileName );
+		throw std::runtime_error( "Could not open file with OpenCL program check input arguments oclsourcepath: " + config->getSourceFileName() );
 	}
 	std::string programSource( std::istreambuf_iterator<char>( file ), ( std::istreambuf_iterator<char>() ));
 	cl::Program::Sources source( 1, std::make_pair( programSource.c_str(), programSource.length()+1 ));
