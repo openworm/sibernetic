@@ -91,6 +91,8 @@ public:
 		logStep = value;
 	}
 	int getLogStep(){ return logStep; }
+	float getTimeStep() const { return time_step; }
+	float getDelta() const { return delta; }
 	std::string getSnapshotFileName() {
 		std::string fileName = "./configuration/snapshot/" + configFileName + "_";
 		std::stringstream ss;
@@ -176,8 +178,6 @@ public:
 			simulation.setup();
 		}
 	}
-	float getTimeStep() const { return timeStep; }
-	float getDelta() const { return delta; }
 	float xmin;
 	float xmax;
 	float ymin;

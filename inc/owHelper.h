@@ -61,7 +61,7 @@ public:
 	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config );
 	static void loadConfigurationToFile(float * position, owConfigProrerty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true, int * filter_p=NULL, int size=0);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration = 0);
-	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config,int iteration = 0);
+	static bool loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config,int iteration = 0);
 	static void loadConfigurationFromFile(float *& position, float *& velocity,float *& connections, int *& membranes, int *& particleMemIndex, owConfigProrerty * config);
 	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProrerty * config);
 	void watch_report(const char *str);

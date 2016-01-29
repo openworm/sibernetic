@@ -56,7 +56,7 @@ owHelper::owHelper(void)
 {
 	refreshTime();
 }
-/** owHelpre class destructor
+/** owHelper class destructor
  */
 owHelper::~owHelper(void)
 {
@@ -106,15 +106,6 @@ void findVali(std::string & str, char delimiter, size_t & start, int & val){
 		start = end;
 	}else // it means usualy that we reached the end of string and there are no \t
 		val = std::atoi(str.substr(start).c_str());
-}
-bool my_strcmp(const char * str1, const char * str2){
-	while(*str2){
-		if(*str1 != *str2)
-			return false;
-		str2++;
-		str1++;
-	}
-	return true;
 }
 /** Preparing initial data before load full configuration
  *
@@ -494,8 +485,7 @@ ifstream positionFile;
  *  to a file and on first iteration it put to
  *  the file info about dimensions of boundary box
  */
-void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
-	try{
+bool owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
 		if(iteration == 0){
 			std::string positionFileName = config->getLoadPath() + std::string("/position_buffer.txt");
 			positionFile.open(positionFileName.c_str());
@@ -539,7 +529,7 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 		}
 		if(!positionFile.good()){
 			positionFile.close();
-			exit(0); //TODO make more correct
+			return false;
 		}
 		if(iteration == 0){
 			std::string connectionFileName = config->getLoadPath() + std::string("/connection_buffer.txt");
@@ -573,10 +563,7 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 			}
 			membranesFile.close();
 		}
-	}catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );//TODO make more correct
-	}
+		return true;
 }
 /** Print value of elapsed time from last handling to watch_report method.
  *

@@ -130,8 +130,19 @@ void display(void)
 	int err_coord_cnt = 0;
 	if(!sPause){
 		if(load_from_file){
-			owHelper::loadConfigurationFromFile(p_cpp,ec_cpp,md_cpp, localConfig,iteration);
-			iteration++;
+      try{
+  			if(owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp, localConfig, iteration)){
+            iteration++;
+        }else{
+          cleanupSimulation();
+          std::cout << "Simulation has reached end of file" << std::endl;
+          exit(EXIT_SUCCESS);
+        }
+      }catch(std::exception &e){
+          cleanupSimulation();
+          std::cout << "ERROR: " << e.what() << std::endl;
+          exit (EXIT_FAILURE);
+      }
 		}else{
 			try{
 			calculationTime = fluid_simulation->simulationStep(load_to); // Run one simulation step
@@ -302,7 +313,6 @@ void display(void)
 					glVertex3f( (p_cpp[j*4+0]-localConfig->xmax/2)*sc , (p_cpp[j*4+1]-localConfig->ymax/2)*sc, (p_cpp[j*4+2]-localConfig->zmax/2)*sc );
 					glEnd();
 				}
-
 				ecc++;
 			}
 		}
@@ -741,15 +751,31 @@ void mouse_motion (int x, int y)
 	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]) * inertia;
 		camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]) * inertia;
 	}
-    glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
+  glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
 	glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 
+/*This function run every
+* time when we need exit simulation
+* It clean all memory for all allocated objects
+*/
 void cleanupSimulation(){
-	delete fluid_simulation;
-	delete helper;
+	if(!load_from_file){
+    delete fluid_simulation;
+  	delete helper;
+  }else{
+    //If we load simulation data from input file simulation dosn't create
+    //fluid_simulation and helper objects so simulation dosn't need delete them
+    //but simulation allocate memory for position elatic connection  etc in heap
+    //and we should delocate momory after simulation is over
+    delete localConfig;
+    delete [] p_cpp;
+    delete [] ec_cpp;
+    delete [] md_cpp;
+    delete [] muscle_activation_signal_cpp;
+  }
 	return;
 }
 void respondKey(unsigned char key, int x, int y)
