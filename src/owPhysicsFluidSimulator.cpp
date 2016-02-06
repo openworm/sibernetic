@@ -52,7 +52,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 
 	try{
 		iterationCount = 0;
-		config = new owConfigProrerty(argc, argv);
+		config = new owConfigProperty(argc, argv);
 		// LOAD FROM FILE
 		owHelper::preLoadConfiguration(config);
 

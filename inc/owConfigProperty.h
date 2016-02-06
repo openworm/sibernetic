@@ -46,7 +46,7 @@
 #include "PyramidalSimulation.h"
 
 
-struct owConfigProrerty{
+struct owConfigProperty{
 	//This value defines boundary of box in which simulation is
 	//Sizes of the box containing simulated 'world'
 	//Sizes choice is realized this way because it should be proportional to smoothing radius h
@@ -113,7 +113,7 @@ public:
 		return fileName;
 	}
 	// Constructor
-	owConfigProrerty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0),
+	owConfigProperty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0),
 											numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"),
 											loadPath("./buffers/"), sourceFileName( OPENCL_PROGRAM_PATH ){
 		preferable_device_type = ALL;

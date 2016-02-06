@@ -118,10 +118,10 @@ void findVali(std::string & str, char delimiter, size_t & start, int & val){
  *  for counting membranes numbers.
  *
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  *  boundary box dimensions
  */
-void owHelper::preLoadConfiguration(owConfigProrerty * config)
+void owHelper::preLoadConfiguration(owConfigProperty * config)
 {
 	int p_count = 0;
 	std::string file_name = config->getCofigPath() + config->getCofigFileName();
@@ -214,9 +214,9 @@ void owHelper::preLoadConfiguration(owConfigProrerty * config)
  *  @param particleMembranesList_cpp
  *  pointer to particleMembranesList_cpp buffer
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  */
-void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config)
+void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProperty * config)
 {
 	std::string file_name = config->getCofigPath() + config->getCofigFileName();
 	std::string inputStr;
@@ -345,7 +345,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
  *  @param position
  *  pointer to position buffer
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  *  @param connections
  *  reference on pointer to elasticConnections buffer.
  *  @param membranes
@@ -361,7 +361,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
  *  @param size
  *  size of filter_p array
  */
-void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
+void owHelper::loadConfigurationToFile(float * position, owConfigProperty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
 	std::ofstream positionFile;
 	std::string positionFileName = config->getLoadPath() + std::string("/position_buffer.txt");
 	if(firstIteration){
@@ -425,13 +425,13 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
  *  @param position
  *  pointer to position buffer
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  *  @param connections
  *  reference on pointer to elasticConnections buffer.
  *  @param membranes
  *  pointer to membranes buffer
  */
-void owHelper::loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex,const char * filename, owConfigProrerty * config){
+void owHelper::loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex,const char * filename, owConfigProperty * config){
 	std::ofstream configFile(filename, std::ofstream::trunc);
 	if(!configFile)
 		throw std::runtime_error("There was a problem with creation of file for saving configuration. Check the path.");
@@ -479,13 +479,13 @@ ifstream positionFile;
  *  @param membranes
  *  pointer to membranes buffer
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  *  @param iteration
  *  if iteration==0 it means that we first time record information
  *  to a file and on first iteration it put to
  *  the file info about dimensions of boundary box
  */
-bool owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
+bool owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProperty * config, int iteration){
 		if(iteration == 0){
 			std::string positionFileName = config->getLoadPath() + std::string("/position_buffer.txt");
 			positionFile.open(positionFileName.c_str());

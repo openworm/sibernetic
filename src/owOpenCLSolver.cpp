@@ -55,7 +55,7 @@ int myCompare( const void * v1, const void * v2 );
  *  @param particleMembranesList_cpp
  *  buffer with info about sets of membranes in which particular particle is including
  */
-owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp)
+owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProperty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp)
 {
 	try{
 		initializeOpenCL(config);
@@ -105,7 +105,7 @@ owOpenCLSolver::owOpenCLSolver(const float * position_cpp, const float * velocit
  *  @param particleMembranesList_cpp
  *  buffer with info about sets of membranes in which particular particle is including
  */
-void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
+void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cpp, owConfigProperty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
 	// Reinitializing all data buffer
 	// First freed data for buffer _particleIndex and gridNextNonEmptyCellBuffer
 	destroy(); // Clear buffers before relocate it again this is needed because simulation can run different configuration
@@ -126,7 +126,7 @@ void owOpenCLSolver::reset(const float * position_cpp, const float * velocity_cp
 *  @param particleMembranesList_cpp
 *  buffer with info about sets of membranes in which particular particle is including
 */
-void owOpenCLSolver::initializeBuffers(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
+void owOpenCLSolver::initializeBuffers(const float * position_cpp, const float * velocity_cpp, owConfigProperty * config, const float * elasticConnectionsData_cpp, const int * membraneData_cpp, const int * particleMembranesList_cpp){
 	// Needed for sortin stuff
 	_particleIndex = new   int[ 2 * config->getParticleCount() ];
 	gridNextNonEmptyCellBuffer = new int[config->gridCellCount+1];
@@ -176,7 +176,7 @@ void owOpenCLSolver::initializeBuffers(const float * position_cpp, const float *
  *  @param config
  *  Contain information about simulating configuration
  */
-void owOpenCLSolver::initializeOpenCL(owConfigProrerty * config)
+void owOpenCLSolver::initializeOpenCL(owConfigProperty * config)
 {
 	cl_int err;
 	std::vector< cl::Platform > platformList;
@@ -331,7 +331,7 @@ std::string errorMessage(const char * s, int & error){
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_runClearBuffers(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_runClearBuffers(owConfigProperty * config)
 {
 	// Stage ClearBuffers
 	clearBuffers.setArg( 0, neighborMap );
@@ -360,7 +360,7 @@ unsigned int owOpenCLSolver::_runClearBuffers(owConfigProrerty * config)
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_runHashParticles(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_runHashParticles(owConfigProperty * config)
 {
 	// Stage HashParticles
 	hashParticles.setArg( 0, position );
@@ -398,7 +398,7 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProrerty * config)
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_runIndexx(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_runIndexx(owConfigProperty * config)
 {
 	// Stage Indexx
 	indexx.setArg( 0, particleIndex );
@@ -435,7 +435,7 @@ unsigned int owOpenCLSolver::_runIndexx(owConfigProrerty * config)
  *  @return value taking after enqueue a command to write buffet to a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueWriteBuffer.html)
  */
-void owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
+void owOpenCLSolver::_runIndexPostPass(owConfigProperty * config)
 {
 	//Stage IndexPostPass
 	//28aug_Palyanov_start_block
@@ -464,7 +464,7 @@ void owOpenCLSolver::_runIndexPostPass(owConfigProrerty * config)
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-void owOpenCLSolver::_runSort(owConfigProrerty * config)
+void owOpenCLSolver::_runSort(owConfigProperty * config)
 {
 	copy_buffer_from_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
 	qsort( _particleIndex, config->getParticleCount(), 2 * sizeof( int ), myCompare );
@@ -488,7 +488,7 @@ void owOpenCLSolver::_runSort(owConfigProrerty * config)
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_runSortPostPass(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_runSortPostPass(owConfigProperty * config)
 {
 	// Stage SortPostPass
 	sortPostPass.setArg( 0, particleIndex );
@@ -524,7 +524,7 @@ unsigned int owOpenCLSolver::_runSortPostPass(owConfigProrerty * config)
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProperty * config)
 {
 	// Stage FindNeighbors
 	findNeighbors.setArg( 0, gridCellIndexFixedUp );
@@ -572,7 +572,7 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProrerty * config)
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_computeDensity(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_computeDensity(owConfigProperty * config)
 {
 	// Stage ComputeDensityPressure
 	pcisph_computeDensity.setArg( 0, neighborMap );
@@ -609,7 +609,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeDensity(owConfigProrerty * confi
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigProperty * config)
 {
 	pcisph_computeForcesAndInitPressure.setArg( 0, neighborMap );
 	pcisph_computeForcesAndInitPressure.setArg( 1, rho );
@@ -656,7 +656,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(owConfigPr
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProperty * config)
 {
 	if(config->numOfElasticP == 0 )
 		return 0;
@@ -704,7 +704,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProrerty *
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProperty * config)
 {
 	pcisph_predictPositions.setArg( 0, acceleration );
 	pcisph_predictPositions.setArg( 1, sortedPosition );
@@ -746,7 +746,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictPositions(owConfigProrerty * con
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProperty * config)
 {
 	// Stage ComputeDensityPressure
 	pcisph_predictDensity.setArg( 0, neighborMap );
@@ -784,7 +784,7 @@ unsigned int owOpenCLSolver::_run_pcisph_predictDensity(owConfigProrerty * confi
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProperty * config)
 {
 	// Stage ComputeDensityPressure
 	pcisph_correctPressure.setArg( 0, particleIndexBack );
@@ -818,7 +818,7 @@ unsigned int owOpenCLSolver::_run_pcisph_correctPressure(owConfigProrerty * conf
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConfigProperty * config)
 {
 	// Stage ComputeAcceleration
 	pcisph_computePressureForceAcceleration.setArg( 0, neighborMap );
@@ -861,7 +861,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(owConf
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_clearMembraneBuffers(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_clearMembraneBuffers(owConfigProperty * config)
 {
 	clearMembraneBuffers.setArg( 0, position );
 	clearMembraneBuffers.setArg( 1, velocity );
@@ -891,7 +891,7 @@ unsigned int owOpenCLSolver::_run_clearMembraneBuffers(owConfigProrerty * config
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProperty * config)
 {
 	computeInteractionWithMembranes.setArg( 0, position );
 	computeInteractionWithMembranes.setArg( 1, velocity );
@@ -929,7 +929,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProrer
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owConfigProperty * config)
 {
 	computeInteractionWithMembranes_finalize.setArg( 0, position );
 	computeInteractionWithMembranes_finalize.setArg( 1, velocity );
@@ -964,7 +964,7 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(owCon
  *  @return value taking after enqueue a command to execute a kernel on a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
-unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, int pcisph_integrate_mode, owConfigProrerty * config)
+unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, int pcisph_integrate_mode, owConfigProperty * config)
 {
 	// Stage Integrate
 	pcisph_integrate.setArg( 0, acceleration );
@@ -1115,7 +1115,7 @@ void owOpenCLSolver::copy_buffer_from_device(void *host_b, const cl::Buffer &ocl
  *  @return value taking after enqueue a command to read buffet from a device.
  *  More info here (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueReadBuffer.html)
  */
-void owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_cpp, owConfigProrerty * config)
+void owOpenCLSolver::updateMuscleActivityData(float *_muscle_activation_signal_cpp, owConfigProperty * config)
 {
 	copy_buffer_to_device( _muscle_activation_signal_cpp, muscle_activation_signal, config->MUSCLE_COUNT * sizeof( float ) );
 }
