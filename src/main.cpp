@@ -35,6 +35,7 @@
 #include <iostream>
 #include "owWorldSimulation.h"
 #include "owPhysicTest.h"
+#include "owVtkExport.h"
 
 bool load_from_file = false;
 bool load_to = false;
@@ -56,6 +57,7 @@ int main(int argc, char **argv) {
         std::string noGraphicsFlag = "-no_g";
         std::string saveFlag = "-l_to";
         std::string loadFlag = "-l_from";
+		std::string exportVtkFlag = "-export_vtk";
         std::string testFlag = "-test";
         std::string configFileFlag = "-f <filename>";
         std::string configFileWorm = "-f worm";
@@ -75,7 +77,8 @@ int main(int argc, char **argv) {
                 std::cout << "  Usage:  ./Release/Sibernetic [OPTION]\n\n";
                 std::cout << "    " << noGraphicsFlag << "                      Run without graphics\n\n";
                 std::cout << "    " << saveFlag << "                      Save simulation results to disk\n\n";
-                std::cout << "        " << logStepFlag << "           Set frequency of logging data into file in -l_to mode by default it equals to 10\n\n";
+				std::cout << "    " << exportVtkFlag << "                Save simulation results to VTK files\n\n";
+                std::cout << "        " << logStepFlag << "           Set frequency of logging data into file in -l_to and -export_vtk modes by default it equals to 10\n\n";
                 std::cout << "    " << loadFlag << "                    Load simulation results from disk\n\n";
                 std::cout << "        " << loadFlagPath << "                    Indicates path where all buffers will be stored this option also works for -l_to and -l_from options\n\n";
                 std::cout << "    " << testFlag << "                      Run some tests\n\n";
@@ -96,6 +99,9 @@ int main(int argc, char **argv) {
                 std::cout << saveFlag << " flag: Sibernetic will save simulation results to disk\n";
                 load_to = true;
             }
+			if (exportVtkFlag.compare(argv[i]) == 0) {
+				owVtkExport::isActive = true;
+			}
             if (loadFlag.compare(argv[i]) == 0) { // run load config from file mode
                 graph = true;
                 load_from_file = true;

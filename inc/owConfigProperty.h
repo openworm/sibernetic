@@ -40,6 +40,8 @@
 #include <string>
 #include <ctime>
 #include <sstream>
+#include <stdexcept>
+#include <iostream>
 
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"

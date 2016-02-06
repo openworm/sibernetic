@@ -2,6 +2,7 @@ TARGET = Sibernetic
 RM := rm -rf
 
 SOURCES = src/PyramidalSimulation.cpp \
+src/owVtkExport.cpp \
 src/main.cpp \
 src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
@@ -17,7 +18,7 @@ BUILDDIR = ./Release
 BINARYDIR = $(BUILDDIR)/obj
 BINARYTESTDIR = $(BINARYDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
-OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
+OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
@@ -33,7 +34,7 @@ $(TARGET):$(OBJECTS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp 
+$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
@@ -43,7 +44,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo ' '
 
 
-clean : 
+clean :
 	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
