@@ -2,6 +2,7 @@ TARGET = Sibernetic
 RM := rm -rf
 
 SOURCES = src/PyramidalSimulation.cpp \
+src/owVtkExport.cpp \
 src/main.cpp \
 src/owHelper.cpp \
 src/owOpenCLSolver.cpp \

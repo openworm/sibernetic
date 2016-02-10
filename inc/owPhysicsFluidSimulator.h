@@ -111,7 +111,7 @@ public:
 	/** Getter for config
 	 *  @return config
 	 */
-	owConfigProrerty * getConfig() const { return config; };
+	owConfigProperty * getConfig() const { return config; };
 	/** Getter for iteration
 	 *  @return iteration
 	 */
@@ -130,7 +130,7 @@ private:
 	//Helper arrays for displaying information about density changes
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;
-	owConfigProrerty * config;
+	owConfigProperty * config;
 	owHelper * helper;
 	int iterationCount;
 	void destroy();

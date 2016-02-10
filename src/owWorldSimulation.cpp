@@ -67,7 +67,7 @@ float * muscle_activation_signal_cpp;
 int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
-owConfigProrerty * localConfig;
+owConfigProperty * localConfig;
 bool flag = false;
 bool sPause = false;
 void * m_font = (void *) GLUT_BITMAP_8_BY_13;
@@ -922,7 +922,7 @@ int run(int argc, char** argv, const bool with_graphics)
 			muscle_activation_signal_cpp = fluid_simulation->getMuscleAtcivationSignal();
 		}
 		else{
-			localConfig = new owConfigProrerty(argc, argv);
+			localConfig = new owConfigProperty(argc, argv);
 			muscle_activation_signal_cpp = new float [localConfig->MUSCLE_COUNT];
 			for(int i=0;i<localConfig->MUSCLE_COUNT;i++)
 			{

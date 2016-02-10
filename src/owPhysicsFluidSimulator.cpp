@@ -37,6 +37,7 @@
 
 #include "PyramidalSimulation.h"
 #include "owPhysicsFluidSimulator.h"
+#include "owVtkExport.h"
 
 
 /** Constructor method for owPhysicsFluidSimulator.
@@ -52,7 +53,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 
 	try{
 		iterationCount = 0;
-		config = new owConfigProrerty(argc, argv);
+		config = new owConfigProperty(argc, argv);
 		// LOAD FROM FILE
 		owHelper::preLoadConfiguration(config);
 
@@ -230,6 +231,15 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 			}
 		}
 	}
+	if(owVtkExport::isActive){
+		if(iterationCount % config->getLogStep() == 0){
+			getvelocity_cpp();
+			owVtkExport::exportState(iterationCount, config, position_cpp,
+									 elasticConnectionsData_cpp, velocity_cpp,
+									 membraneData_cpp, muscle_activation_signal_cpp);
+		}
+	}
+
 	//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
 
 	config->updatePyramidalSimulation(muscle_activation_signal_cpp);
