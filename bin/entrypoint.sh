@@ -22,4 +22,4 @@ fi
 
 export PYTHONPATH=./src
 
-./Release/Sibernetic -f worm -no_g -l_to lpath=/data
+./Release/Sibernetic -f worm -no_g -l_to lpath=/data >>/data/log.out 2>&1
