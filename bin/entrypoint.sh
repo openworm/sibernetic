@@ -3,6 +3,7 @@
 export LIBRARY_PATH=/opt/AMDAPPSDK-3.0/lib/x86_64
 export LD_LIBRARY_PATH=/opt/AMDAPPSDK-3.0/lib/x86_64
 export OPENCL_VENDOR_PATH=/etc/OpenCL/vendors
+export DATA_PATH=/data
 
 cd /sibernetic
 
@@ -20,6 +21,11 @@ make clean
 make all
 fi
 
+#If the SIBERNETIC_NAME environment variable is set, use it to define the name of the data directory
+if [ -n "$SIBERNETIC_NAME" ]; then 
+export DATA_PATH=/data-$SIBERNETIC_NAME
+fi
+
 export PYTHONPATH=./src
 
-./Release/Sibernetic -f worm -no_g -l_to lpath=/data >>/data/log.out 2>&1
+./Release/Sibernetic -f worm -no_g -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
