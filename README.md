@@ -130,6 +130,7 @@ Available options:
  timestep=<value>      Start simulation with time step = <value> in seconds.
  timelimit=<value>     Run simulation until <value> will be reached in seconds.
  leapfrog              Use for integration LeapFrog method
+ oclsourcepath=<value> You can indicate path to you'r OpenCL program just using this option
  -help                 Print this information on screen.
 ```
 
