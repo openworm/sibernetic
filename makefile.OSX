@@ -2,7 +2,7 @@ TARGET = Sibernetic
 RM := rm -rf
 
 # All of the sources participating in the build are defined here
-SOURCES = src/PyramidalSimulation.cpp \
+SOURCES = src/owSignalSimulator.cpp \
 src/owVtkExport.cpp \
 src/main.cpp \
 src/owHelper.cpp \

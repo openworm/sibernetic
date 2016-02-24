@@ -56,7 +56,7 @@ owHelper::owHelper(void)
 {
 	refreshTime();
 }
-/** owHelper class destructor
+/** owHelpre class destructor
  */
 owHelper::~owHelper(void)
 {

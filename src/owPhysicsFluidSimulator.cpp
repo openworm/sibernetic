@@ -31,11 +31,11 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
+#include <owSignalSimulator.h>
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
 
-#include "PyramidalSimulation.h"
 #include "owPhysicsFluidSimulator.h"
 #include "owVtkExport.h"
 
@@ -240,9 +240,18 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 		}
 	}
 
-	//for(int i=0;i<MUSCLE_COUNT;i++) { muscle_activation_signal_cpp[i] *= 0.9f; }
+	float correction_coeff;
+	
+	for(int i=0;i<config->MUSCLE_COUNT;i++) 
+	{ 
+		correction_coeff = sqrt( 1.f - ((1+i%24-12.5f)/12.5f)*((1+i%24-12.5f)/12.5f) );
+		//printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);
+		muscle_activation_signal_cpp[i] *= correction_coeff; 
+
+	}
 
 	config->updatePyramidalSimulation(muscle_activation_signal_cpp);
+
 	ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
 	iterationCount++;
 	return helper->getElapsedTime();

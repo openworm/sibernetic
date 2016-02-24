@@ -1,7 +1,7 @@
 TARGET = Sibernetic
 RM := rm -rf
 
-SOURCES = src/PyramidalSimulation.cpp \
+SOURCES = src/owSignalSimulator.cpp \
 src/owVtkExport.cpp \
 src/main.cpp \
 src/owHelper.cpp \

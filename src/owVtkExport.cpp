@@ -191,9 +191,8 @@ namespace owVtkExport {
 	}
 
 
-	template <typename T>
-	string to_string(T val, int width, char fill) {
-		stringstream stream;
+	template <typename T> std::string to_string(T val, int width, char fill) {
+		std::stringstream stream;
 		stream << std::setw(width) << std::setfill(fill) << val;
 		return stream.str();
 	}

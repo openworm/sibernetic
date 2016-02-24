@@ -309,7 +309,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty * config)
 		std::cerr << "Compilation failed: " << std::endl << compilationErrors << std::endl;
 		throw std::runtime_error( "failed to build program" );
 	}
-	std::cout<<"OPENCL program was successfully build." << std::endl;
+	std::cout<<"OPENCL program was successfully build. Program file oclsourcepath: " << config->getSourceFileName() << std::endl;
 	return;
 }
 /** Create error message

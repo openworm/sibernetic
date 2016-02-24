@@ -1,7 +1,7 @@
 TARGET = Sibernetic
 RM := rm -rf
 
-SOURCES = src/PyramidalSimulation.cpp \
+SOURCES = src/owSignalSimulator.cpp \
 src/owVtkExport.cpp \
 src/main.cpp \
 src/owHelper.cpp \
@@ -40,7 +40,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
-	@echo 'Invoking: GCC C++ Compiler'
+	@echo 'Invoking: Clang C++ Compiler'
 	$(COMPILER) -I/usr/include/python2.7 -I$(INCDIR) -O3 -Wall -c  -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<" #-fsanitize=address -g -O0
 	@echo 'Finished building: $<'
 	@echo ' '
