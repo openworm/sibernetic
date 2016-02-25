@@ -20,7 +20,7 @@ BINARYTESTDIR = $(BINARYDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
 
-COMPILER :=clang++
+COMPILER :=clang++ # select clang as compiler
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
