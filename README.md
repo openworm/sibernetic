@@ -156,6 +156,11 @@ To run the worm body simulation you need run Sibernetic with key:
 ```
 It loads the [worm body configuration](configuration/worm) and initialises and runs the [Python module](src/main_sim.py) which is
 responsible for muscle signal updating.
+For run simulation with crawling worm on carpet like surface or swiming in deep water you need run sibenretic with next command arguments:
+```
+./Release/Sibernetic -f worm_crawling oclsourcepath=src/sphFluid_crawling.cl
+./Release/Sibernetic -f worm_deep_water oclsourcepath=src/sphFluid_crawling.cl
+```
 
 Control in graphical mode
 ---------------
