@@ -49,10 +49,6 @@
 #include "owPhysicsConstant.h"
 #include "owConfigProperty.h"
 
-#if generateWormBodyConfiguration
-	#define PY_NETWORK_SIMULATION
-#endif
-
 //OpenCL solver class
 class owOpenCLSolver
 {

@@ -36,7 +36,6 @@
 #ifndef OWCONFIGURATION_H_
 #define OWCONFIGURATION_H_
 
-#include <owSignalSimulator.h>
 #include <vector>
 #include <string>
 #include <ctime>
@@ -46,7 +45,7 @@
 
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
-
+#include "owSignalSimulator.h"
 
 struct owConfigProperty{
 	//This value defines boundary of box in which simulation is
