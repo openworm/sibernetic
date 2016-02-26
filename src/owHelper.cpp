@@ -47,8 +47,6 @@
 #include "owHelper.h"
 #include "owPhysicsConstant.h"
 
-using namespace std;
-
 
 /** owHelpre class constructor
  */
@@ -402,7 +400,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProperty * conf
 	positionFile.close();
 	if(firstIteration){
 		std::string connectionFileName = config->getLoadPath() + std::string("/connection_buffer.txt");
-		ofstream connectionFile(connectionFileName.c_str(), std::ofstream::trunc);
+		std::ofstream connectionFile(connectionFileName.c_str(), std::ofstream::trunc);
 		if(!connectionFile)
 			throw std::runtime_error("There was a problem with creation of connection data file for logging. Check the path.");
 		int con_num = MAX_NEIGHBOR_COUNT * config->numOfElasticP;
@@ -410,7 +408,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProperty * conf
 			connectionFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
 		connectionFile.close();
 		std::string membraneFileName = config->getLoadPath() + std::string("/membranes_buffer.txt");
-		ofstream membranesFile(membraneFileName.c_str(), std::ofstream::trunc);
+		std::ofstream membranesFile(membraneFileName.c_str(), std::ofstream::trunc);
 		if(!membranesFile)
 			throw std::runtime_error("There was a problem with creation of membrane data file for logging. Check the path.");
 		membranesFile << config->numOfMembranes << "\n";
@@ -463,7 +461,7 @@ void owHelper::loadConfigurationToFile(float * position, float * velocity, float
 }
 //This function needed for visualiazation buffered data
 long position_index = 0;
-ifstream positionFile;
+std::ifstream positionFile;
 /** Load configuration from file to simulation
  *
  *  This method is required for work with "load config from file" mode.
@@ -533,7 +531,7 @@ bool owHelper::loadConfigurationFromFile(float *& position, float *& connections
 		}
 		if(iteration == 0){
 			std::string connectionFileName = config->getLoadPath() + std::string("/connection_buffer.txt");
-			ifstream connectionFile(connectionFileName.c_str());
+			std::ifstream connectionFile(connectionFileName.c_str());
 			connections = new float[MAX_NEIGHBOR_COUNT * config->numOfElasticP * 4];
 			if( connectionFile.is_open() )
 			{
@@ -550,7 +548,7 @@ bool owHelper::loadConfigurationFromFile(float *& position, float *& connections
 			}
 			connectionFile.close();
 			std::string membraneFileName = config->getLoadPath() + std::string("/membranes_buffer.txt");
-			ifstream membranesFile(membraneFileName.c_str());
+			std::ifstream membranesFile(membraneFileName.c_str());
 			if(membranesFile.is_open()){
 				int m_count = 0;
 				//membranesFile >> m_count;
