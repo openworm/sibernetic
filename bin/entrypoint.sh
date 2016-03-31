@@ -28,16 +28,16 @@ fi
 
 export PYTHONPATH=./src
 
-if [ -n "$OCL_FILE" ] && [-n "$CONF" ] && [-n "$TIMELIMIT" ]; then
+if [ -n "$OCL_FILE" ] && [ -n "$CONF" ] && [ -n "$TIMELIMIT" ]; then
 echo "Using OCL_FILE, CONF, and TIMELIMIT variables"
 ./Release/Sibernetic -f $CONF timelimit=$TIMELIMIT -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
-elif [ -n "$OCL_FILE" ] && [-n "$TIMELIMIT" ]; then
+elif [ -n "$OCL_FILE" ] && [ -n "$TIMELIMIT" ]; then
 echo "Using OCL_FILE, and TIMELIMIT variables"
 ./Release/Sibernetic -f worm timelimit=$TIMELIMIT -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
-elif [ -n "$OCL_FILE" ] && [-n "$CONF" ]; then
+elif [ -n "$OCL_FILE" ] && [ -n "$CONF" ]; then
 echo "Using OCL_FILE, and CONF variables"
 ./Release/Sibernetic -f $CONF -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
-elif [ -n "$TIMELIMIT" ] && [-n "$CONF" ]; then
+elif [ -n "$TIMELIMIT" ] && [ -n "$CONF" ]; then
 echo "Using TIMELIMIT, and CONF variables"
 ./Release/Sibernetic -f $CONF -no_g timelimit=$TIMELIMIT -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
 elif [ -n "$OCL_FILE" ]; then
