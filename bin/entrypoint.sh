@@ -36,11 +36,11 @@ elif [ -n "$OCL_FILE" ] && [-n "$CONF" ]; then
 ./Release/Sibernetic -f $CONF -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
 elif [ -n "$TIMELIMIT" ] && [-n "$CONF" ]; then
 ./Release/Sibernetic -f $CONF -no_g timelimit=$TIMELIMIT -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
-elif [-n "$OCL_FILE" ]; then
+elif [ -n "$OCL_FILE" ]; then
 ./Release/Sibernetic -f worm -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
-elif [-n "$CONF" ]; then
+elif [ -n "$CONF" ]; then
 ./Release/Sibernetic -f $CONF -no_g -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
-elif [-n "$TIMELIMIT" ]; then
+elif [ -n "$TIMELIMIT" ]; then
 ./Release/Sibernetic -f worm -no_g -l_to timelimit=$TIMELIMIT lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
 else
 ./Release/Sibernetic -f worm -no_g -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
