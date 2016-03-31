@@ -52,6 +52,7 @@ struct owConfigProperty{
 	//Sizes of the box containing simulated 'world'
 	//Sizes choice is realized this way because it should be proportional to smoothing radius h
 public:
+	typedef unsigned int uint;
 	const int getParticleCount(){ return PARTICLE_COUNT; }
 	void setParticleCount(int value){
 		PARTICLE_COUNT = value;
@@ -186,21 +187,28 @@ public:
 				simulation.setup(simName);
 		}
 	}
+	void initGridCells(){
+		//TODO move initialization to configuration class
+		gridCellsX = static_cast<uint>( ( xmax - xmin ) / h ) + 1;
+		gridCellsY = static_cast<uint>( ( ymax - ymin ) / h ) + 1;
+		gridCellsZ = static_cast<uint>( ( zmax - zmin ) / h ) + 1;
+		gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
+	}
 	float xmin;
 	float xmax;
 	float ymin;
 	float ymax;
 	float zmin;
 	float zmax;
-	int gridCellsX;
-	int gridCellsY;
-	int gridCellsZ;
-	int gridCellCount;
-	int numOfElasticP;
-	int numOfLiquidP;
-	int numOfBoundaryP;
-	int numOfMembranes;
-	int MUSCLE_COUNT;
+	uint gridCellsX;
+	uint gridCellsY;
+	uint gridCellsZ;
+	uint gridCellCount;
+	uint numOfElasticP;
+	uint numOfLiquidP;
+	uint numOfBoundaryP;
+	uint numOfMembranes;
+	uint MUSCLE_COUNT;
 private:
 	/** Calculating delta parameter.
 	 *

@@ -31,11 +31,11 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include <owSignalSimulator.h>
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
 
+#include "owSignalSimulator.h"
 #include "owPhysicsFluidSimulator.h"
 #include "owVtkExport.h"
 
@@ -56,13 +56,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 		config = new owConfigProperty(argc, argv);
 		// LOAD FROM FILE
 		owHelper::preLoadConfiguration(config);
-
-		//TODO move initialization to configuration class
-		config->gridCellsX = (int)( ( config->xmax - config->xmin ) / h ) + 1;
-		config->gridCellsY = (int)( ( config->ymax - config->ymin ) / h ) + 1;
-		config->gridCellsZ = (int)( ( config->zmax - config->zmin ) / h ) + 1;
-		config->gridCellCount = config->gridCellsX * config->gridCellsY * config->gridCellsZ;
-		//
+		config->initGridCells();
 		position_cpp = new float[ 4 * config->getParticleCount() ];
 		velocity_cpp = new float[ 4 * config->getParticleCount() ];
 		muscle_activation_signal_cpp = new float [config->MUSCLE_COUNT];
@@ -76,7 +70,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper * helper,int argc, cha
 			particleMembranesList_cpp = NULL;
 		else
 			particleMembranesList_cpp = new int [config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
-		for(int i=0;i<config->MUSCLE_COUNT;i++)
+		for(unsigned int i=0;i<config->MUSCLE_COUNT;++i)
 		{
 			muscle_activation_signal_cpp[i] = 0.f;
 		}
@@ -119,28 +113,19 @@ void owPhysicsFluidSimulator::reset(){
 	config->numOfMembranes = 0;
 	// LOAD FROM FILE
 	owHelper::preLoadConfiguration(config);
-	//TODO move initialization to configuration class
-	config->gridCellsX = (int)( ( config->xmax - config->xmin ) / h ) + 1;
-	config->gridCellsY = (int)( ( config->ymax - config->ymin ) / h ) + 1;
-	config->gridCellsZ = (int)( ( config->zmax - config->zmin ) / h ) + 1;
-	config->gridCellCount = config->gridCellsX * config->gridCellsY * config->gridCellsZ;
-	//
+	config->initGridCells();
 	position_cpp = new float[ 4 * config->getParticleCount() ];
 	velocity_cpp = new float[ 4 * config->getParticleCount() ];
-
 	muscle_activation_signal_cpp = new float [config->MUSCLE_COUNT];
 	if(config->numOfElasticP != 0) elasticConnectionsData_cpp = new float[ 4 * config->numOfElasticP * MAX_NEIGHBOR_COUNT ];
 	if(config->numOfMembranes<=0) membraneData_cpp = NULL; else membraneData_cpp = new int [ config->numOfMembranes * 3 ];
 	if(config->numOfElasticP<=0)  particleMembranesList_cpp = NULL; else particleMembranesList_cpp = new int [config->numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
-	for(int i=0;i<config->MUSCLE_COUNT;i++)
-	{
+	for(unsigned int i=0;i<config->MUSCLE_COUNT;++i){
 		muscle_activation_signal_cpp[i] = 0.f;
 	}
-
 	//The buffers listed below are only for usability and debug
 	density_cpp = new float[ 1 * config->getParticleCount() ];
 	particleIndex_cpp = new unsigned int[config->getParticleCount() * 2];
-
 	// LOAD FROM FILE
 	owHelper::loadConfiguration( position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp, particleMembranesList_cpp, config );		//Load configuration from file to buffer
 	if(config->numOfElasticP != 0){
@@ -242,7 +227,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 
 	float correction_coeff;
 	
-	for(int i=0;i<config->MUSCLE_COUNT;i++) 
+	for(unsigned int i=0;i<config->MUSCLE_COUNT;++i)
 	{ 
 		correction_coeff = sqrt( 1.f - ((1+i%24-12.5f)/12.5f)*((1+i%24-12.5f)/12.5f) );
 		//printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);

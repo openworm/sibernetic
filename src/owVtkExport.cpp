@@ -46,7 +46,7 @@ namespace owVtkExport {
 
 	void countExistingConnections(float * connections, owConfigProperty * config) {
 		numConns = 0;
-		for (int i = 0; i < MAX_NEIGHBOR_COUNT * config->numOfElasticP; i++) {
+		for (unsigned int i = 0; i < MAX_NEIGHBOR_COUNT * config->numOfElasticP; ++i) {
 			if (connections[4 * i + 0] != -1) {
 				numConns += 1;
 			}
@@ -99,7 +99,7 @@ namespace owVtkExport {
 		outFile << "<Polys>\n";
 		outFile << "<DataArray type=\"Int32\" Name=\"connectivity\""
 				<< " format=\"ascii\">";
-		for (int i = 0; i < config->numOfMembranes; i++) {
+		for (unsigned int i = 0; i < config->numOfMembranes; ++i) {
 			outFile << membranes[i * 3 + 0] << " "
 					<< membranes[i * 3 + 1] << " "
 					<< membranes[i * 3 + 2] << " ";
@@ -107,7 +107,7 @@ namespace owVtkExport {
 		outFile << "</DataArray>\n";
 		outFile << "<DataArray type=\"Int32\" Name=\"offsets\""
 				<< " format=\"ascii\">";
-		for (int i = 0; i < config->numOfMembranes; i++) {
+		for (unsigned int i = 0; i < config->numOfMembranes; ++i) {
 			outFile << 3*(i + 1) << " ";
 		}
 		outFile << "</DataArray>\n";
@@ -119,7 +119,7 @@ namespace owVtkExport {
 		outFile << "<Lines>\n";
 		outFile << "<DataArray type=\"Int32\" Name=\"connectivity\""
 				<< " format=\"ascii\">";
-		for (int i = 0; i < MAX_NEIGHBOR_COUNT * config->numOfElasticP; i++) {
+		for (unsigned int i = 0; i < MAX_NEIGHBOR_COUNT * config->numOfElasticP; ++i) {
 			if (connections[4 * i + 0] != -1) {
 				outFile << i / MAX_NEIGHBOR_COUNT << " "
 						<< (int) connections[4 * i + 0] << " ";
@@ -140,7 +140,7 @@ namespace owVtkExport {
 		for (int i = 0; i < numConns; i++) {
 			outFile << "1.0 ";
 		}
-		for (int i = 0; i < config->numOfMembranes; i++) {
+		for (unsigned int i = 0; i < config->numOfMembranes; ++i) {
 			outFile << "2.0 ";
 		}
 		outFile << "</DataArray>";
@@ -150,7 +150,7 @@ namespace owVtkExport {
 							owConfigProperty * config) {
 		outFile << "<DataArray type=\"Float32\" Name=\"MuscleNumber\""
 				<< " format=\"ascii\">";
-		for (int i = 0; i < MAX_NEIGHBOR_COUNT * config->numOfElasticP; i++) {
+		for (unsigned int i = 0; i < MAX_NEIGHBOR_COUNT * config->numOfElasticP; ++i) {
 			if (((int) connections[4 * i + 0]) >= 0) {
 				int muscleId = floor(connections[4 * i + 2]) - 1;
 				if (muscleId >= 0) {
@@ -162,7 +162,7 @@ namespace owVtkExport {
 				}
 			}
 		}
-		for (int i = 0; i < config->numOfMembranes; i++) {
+		for (unsigned int i = 0; i < config->numOfMembranes; ++i) {
 			outFile << "-2.0 ";
 		}
 		outFile << "</DataArray>";
@@ -173,7 +173,7 @@ namespace owVtkExport {
 							   owConfigProperty * config) {
 		outFile << "<DataArray type=\"Float32\" Name=\"MuscleActivation\""
 				<< " format=\"ascii\">";
-		for (int i = 0; i < MAX_NEIGHBOR_COUNT * config->numOfElasticP; i++) {
+		for (unsigned int i = 0; i < MAX_NEIGHBOR_COUNT * config->numOfElasticP; ++i) {
 			if (((int) connections[4 * i + 0]) >= 0) {
 				int muscleId = floor(connections[4 * i + 2]) - 1;
 				if (muscleId >= 0) {
@@ -184,7 +184,7 @@ namespace owVtkExport {
 				}
 			}
 		}
-		for (int i = 0; i < config->numOfMembranes; i++) {
+		for (unsigned int i = 0; i < config->numOfMembranes; ++i) {
 			outFile << "-2.0 ";
 		}
 		outFile << "</DataArray>";

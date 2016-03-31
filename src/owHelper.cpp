@@ -412,7 +412,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProperty * conf
 		if(!membranesFile)
 			throw std::runtime_error("There was a problem with creation of membrane data file for logging. Check the path.");
 		membranesFile << config->numOfMembranes << "\n";
-		for(int i = 0; i < config->numOfMembranes; i++)
+		for(unsigned int i = 0; i < config->numOfMembranes; i++)
 			membranesFile << membranes[3 * i + 0] << "\t" << membranes[3 * i + 1] << "\t" << membranes[3 * i + 2] << "\n";
 		membranesFile.close();
 	}
@@ -450,11 +450,11 @@ void owHelper::loadConfigurationToFile(float * position, float * velocity, float
 	for(int i = 0; i < con_num; i++)
 		configFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] / simulationScale << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
 	configFile << "[membranes]\n";
-	for(int i = 0; i < config->numOfMembranes; i++)
+	for(unsigned int i = 0; i < config->numOfMembranes; ++i)
 		configFile << membranes[3 * i + 0] << "\t" << membranes[3 * i + 1] << "\t" << membranes[3 * i + 2] << "\n";
 	configFile << "[particleMemIndex]\n";
 	int particleMemIndexCount = config->numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE;
-	for(int i = 0; i < particleMemIndexCount; i++)
+	for(int i = 0; i < particleMemIndexCount; ++i)
 		configFile << particleMemIndex[i] << "\n";
 	configFile << "[end]";
 	configFile.close();
@@ -488,7 +488,7 @@ bool owHelper::loadConfigurationFromFile(float *& position, float *& connections
 			std::string positionFileName = config->getLoadPath() + std::string("/position_buffer.txt");
 			positionFile.open(positionFileName.c_str());
 		}
-		int i = 0;
+		unsigned int i = 0;
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
@@ -535,7 +535,7 @@ bool owHelper::loadConfigurationFromFile(float *& position, float *& connections
 			connections = new float[MAX_NEIGHBOR_COUNT * config->numOfElasticP * 4];
 			if( connectionFile.is_open() )
 			{
-				int i = 0;
+				i = 0;
 				float jd, rij0, val1, val2;
 				while(connectionFile.good() && i < MAX_NEIGHBOR_COUNT * config->numOfElasticP){
 					connectionFile >> jd >> rij0 >> val1 >> val2;
