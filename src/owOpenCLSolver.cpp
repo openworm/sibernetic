@@ -665,7 +665,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProperty *
 	pcisph_computeElasticForces.setArg( 2, sortedVelocity );
 	pcisph_computeElasticForces.setArg( 3, acceleration );
 	pcisph_computeElasticForces.setArg( 4, particleIndexBack );
-	pcisph_computeElasticForces.setArg( 5, velocity );
+	pcisph_computeElasticForces.setArg( 5, particleIndex );
 	pcisph_computeElasticForces.setArg( 6, h );
 	pcisph_computeElasticForces.setArg( 7, mass );
 	pcisph_computeElasticForces.setArg( 8, simulationScale );

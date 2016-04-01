@@ -619,7 +619,7 @@ __kernel void pcisph_computeElasticForces(
 								  __global float4 * sortedVelocity,
 								  __global float4 * acceleration,
 								  __global uint * particleIndexBack,
-								  __global float4 * velocity,
+								  __global uint2 * particleIndex,
 								  float h,
 								  float mass,
 								  float simulationScale,

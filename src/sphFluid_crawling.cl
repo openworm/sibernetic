@@ -97,7 +97,7 @@
  */
 __kernel void clearBuffers(
 							__global float2 * neighborMap,
-							int PARTICLE_COUNT
+							uint PARTICLE_COUNT
 						   )
 {
 	int id = get_global_id( 0 );
@@ -127,9 +127,9 @@ __kernel void clearBuffers(
 
 int cellId(
 		   int4 cellFactors_,
-		   int gridCellsX,
-		   int gridCellsY,
-		   int gridCellsZ//don't use
+		   uint gridCellsX,
+		   uint gridCellsY,
+		   uint gridCellsZ//don't use
 		   )
 {
 	int cellId_ = cellFactors_.x + cellFactors_.y * gridCellsX
@@ -156,15 +156,15 @@ int cellId(
 }
 __kernel void hashParticles(
 							__global float4 * position,
-							int gridCellsX,
-							int gridCellsY,
-							int gridCellsZ,
+							uint gridCellsX,
+							uint gridCellsY,
+							uint gridCellsZ,
 							float hashGridCellSizeInv,
 							float xmin,
 							float ymin,
 							float zmin,
 							__global uint2 * particleIndex,
-							int   PARTICLE_COUNT
+							uint   PARTICLE_COUNT
 							)
 {
 	int id = get_global_id( 0 );
@@ -195,7 +195,7 @@ __kernel void sortPostPass(
 						   __global float4 * velocity,
 						   __global float4 * sortedPosition,
 						   __global float4 * sortedVelocity,
-						   int PARTICLE_COUNT
+						   uint PARTICLE_COUNT
 						   )
 {
 	int id = get_global_id( 0 );
@@ -216,9 +216,9 @@ __kernel void sortPostPass(
  */
 __kernel void indexx(
 					 __global uint2 * particleIndex,
-			 		int gridCellCount,
+			 		uint gridCellCount,
 			 		__global uint * gridCellIndex,
-			 		int PARTICLE_COUNT
+			 		uint PARTICLE_COUNT
 			 		)
 {
 	//fill up gridCellIndex
@@ -333,10 +333,10 @@ int searchCell(
 			   int deltaX,
 			   int deltaY,
 			   int deltaZ,
-			   int gridCellsX,
-			   int gridCellsY,
-			   int gridCellsZ,
-			   int gridCellCount
+			   uint gridCellsX,
+			   uint gridCellsY,
+			   uint gridCellsZ,
+			   uint gridCellCount
 			   )
 {
 	int dx = deltaX;
@@ -355,10 +355,10 @@ int searchCell(
 __kernel void findNeighbors(
 							__global uint * gridCellIndexFixedUp,
 							__global float4 * sortedPosition,
-							int gridCellCount,
-							int gridCellsX,
-							int gridCellsY,
-							int gridCellsZ,
+							uint gridCellCount,
+							uint gridCellsX,
+							uint gridCellsY,
+							uint gridCellsZ,
 							float h,
 							float hashGridCellSize,
 							float hashGridCellSizeInv,
@@ -367,7 +367,7 @@ __kernel void findNeighbors(
 							float ymin,
 							float zmin,
 							__global float2 * neighborMap,
-							int	  PARTICLE_COUNT
+							uint	  PARTICLE_COUNT
 							)
 {
 	int id = get_global_id( 0 );
@@ -476,7 +476,7 @@ __kernel void pcisph_computeDensity(
 									 float hScaled2,
 									 __global float * rho,
 									 __global uint * particleIndexBack,
-									 int PARTICLE_COUNT )
+									 uint PARTICLE_COUNT )
 {
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
@@ -533,7 +533,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 								  float gravity_z,
 								  __global float4 * position,
 								  __global uint2 * particleIndex,
-								  int PARTICLE_COUNT,
+								  uint PARTICLE_COUNT,
 								  float mass
 								  //__global float4 * elasticConnectionsData
 								  )
@@ -677,7 +677,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 
 	accel_surfTensForce.w = 0.f;
 	accel_surfTensForce /= mass;
-	accel_viscosityForce *= mass_mult_divgradWviscosityCoefficient / 1000;//rho[id];
+	accel_viscosityForce *= mass_mult_divgradWviscosityCoefficient / 1000.0f;//rho[id];
 	// apply external forces
 	acceleration_i = accel_viscosityForce;
 	acceleration_i += (float4)( gravity_x, gravity_y, gravity_z, 0.0f );
@@ -822,7 +822,7 @@ void computeInteractionWithBoundaryParticles(
 									   float4 * pos_,
 									   bool tangVel,
 									   float4 * vel,
-									   int PARTICLE_COUNT
+									   uint PARTICLE_COUNT
 									   )
 {
 	//track selected particle (indices are not shuffled anymore)
@@ -894,7 +894,7 @@ __kernel void pcisph_predictPositions(
 						__global float4 * velocity,
 						float r0,
 						__global float2 * neighborMap,
-						int PARTICLE_COUNT
+						uint PARTICLE_COUNT
 						)
 {
 	int id = get_global_id( 0 );
@@ -934,7 +934,7 @@ __kernel void pcisph_predictDensity(
 									 __global float4 * sortedPosition,
 									 __global float * pressure,
 									 __global float * rho,
-									 int PARTICLE_COUNT
+									 uint PARTICLE_COUNT
 									 )
 {
 	int id = get_global_id( 0 );
@@ -990,7 +990,7 @@ __kernel void pcisph_correctPressure(
 									 __global float * pressure,
 									 __global float * rho,
 									 float delta,
-									 int PARTICLE_COUNT
+									 uint PARTICLE_COUNT
 									 )
 {
 	int id = get_global_id( 0 );
@@ -1025,7 +1025,7 @@ __kernel void pcisph_computePressureForceAcceleration(
 								  float rho0,
 								  __global float4 * position,
 								  __global uint2 * particleIndex,
-								  int PARTICLE_COUNT
+								  uint PARTICLE_COUNT
 								  )
 {
 	int id = get_global_id( 0 );
@@ -1406,7 +1406,7 @@ __kernel void pcisph_integrate(
 						__global float * rho,
 						float r0,
 						__global float2 * neighborMap,
-						int PARTICLE_COUNT,
+						uint PARTICLE_COUNT,
 						int iterationCount,
 						int mode
 						)
