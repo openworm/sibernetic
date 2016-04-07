@@ -30,26 +30,26 @@ export PYTHONPATH=./src
 
 if [ -n "$OCL_FILE" ] && [ -n "$CONF" ] && [ -n "$TIMELIMIT" ]; then
 echo "Using OCL_FILE, CONF, and TIMELIMIT variables"
-./Release/Sibernetic -f $CONF timelimit=$TIMELIMIT -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
+./Release/Sibernetic -f $CONF timelimit=$TIMELIMIT -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH logstep=1000 >>$DATA_PATH/log.out 2>&1
 elif [ -n "$OCL_FILE" ] && [ -n "$TIMELIMIT" ]; then
 echo "Using OCL_FILE, and TIMELIMIT variables"
-./Release/Sibernetic -f worm timelimit=$TIMELIMIT -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
+./Release/Sibernetic -f worm timelimit=$TIMELIMIT -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH logstep=1000 >>$DATA_PATH/log.out 2>&1
 elif [ -n "$OCL_FILE" ] && [ -n "$CONF" ]; then
 echo "Using OCL_FILE, and CONF variables"
-./Release/Sibernetic -f $CONF -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
+./Release/Sibernetic -f $CONF -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH logstep=1000 >>$DATA_PATH/log.out 2>&1
 elif [ -n "$TIMELIMIT" ] && [ -n "$CONF" ]; then
 echo "Using TIMELIMIT, and CONF variables"
-./Release/Sibernetic -f $CONF -no_g timelimit=$TIMELIMIT -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
+./Release/Sibernetic -f $CONF -no_g timelimit=$TIMELIMIT -l_to lpath=$DATA_PATH logstep=1000 >>$DATA_PATH/log.out 2>&1
 elif [ -n "$OCL_FILE" ]; then
 echo "Using OCL_FILE variable"
-./Release/Sibernetic -f worm -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
+./Release/Sibernetic -f worm -no_g oclsourcepath=src/$OCL_FILE -l_to lpath=$DATA_PATH logstep=1000 >>$DATA_PATH/log.out 2>&1
 elif [ -n "$CONF" ]; then
 echo "Using CONF variable"
-./Release/Sibernetic -f $CONF -no_g -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
+./Release/Sibernetic -f $CONF -no_g -l_to lpath=$DATA_PATH logstep=1000 >>$DATA_PATH/log.out 2>&1
 elif [ -n "$TIMELIMIT" ]; then
 echo "Using TIMELIMIT variable"
-./Release/Sibernetic -f worm -no_g -l_to timelimit=$TIMELIMIT lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
+./Release/Sibernetic -f worm -no_g -l_to timelimit=$TIMELIMIT lpath=$DATA_PATH logstep=1000 >>$DATA_PATH/log.out 2>&1
 else
 echo "Using no command-line variables"
-./Release/Sibernetic -f worm -no_g -l_to lpath=$DATA_PATH >>$DATA_PATH/log.out 2>&1
+./Release/Sibernetic -f worm -no_g -l_to lpath=$DATA_PATH logstep=1000 >>$DATA_PATH/log.out 2>&1
 fi
