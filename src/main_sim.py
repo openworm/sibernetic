@@ -6,7 +6,7 @@ from pylab import *
 
 muscle_row_count = 24
 
-default_time_per_step = 0.000005  #  s
+default_time_per_step = 0.000001  #  s
 time_per_step = default_time_per_step  #  s
 
 quadrant0 = 'MDR'
@@ -40,11 +40,12 @@ def get_muscle_names():
 def get_muscle_name(quadrant, index):
     return "%s%s"%(quadrant, index+1 if index>8 else ("0%i"%(index+1)))
 
-def parallel_waves(n=muscle_row_count, #26 for our first test?
+def parallel_waves(n=muscle_row_count, #24 for our first test?
                    step=0, 
                    phi=math.pi,
                    amplitude=1,
-                   velocity=0.0001):
+				   #velocity=0.000008):
+                   velocity =0.000015):
     """
     Array of two travelling waves, second one starts
     half way through the array
@@ -55,7 +56,7 @@ def parallel_waves(n=muscle_row_count, #26 for our first test?
 
     j = n/2
 
-    row_positions = np.linspace(0,1.5*2*math.pi,j)
+    row_positions = np.linspace(0,0.75*1.5*2*math.pi,j)
 
     wave_1 = (map(math.sin,(row_positions - velocity*step)))
     wave_2 = (map(math.sin,(row_positions + (math.pi) - velocity*step)))
@@ -83,9 +84,44 @@ class MuscleSimulation():
         self.increment = increment
         self.step = 0
 
-    def run(self, skip_to_time=0):
+
+    def run(self,do_plot = True):
+        """
+		if(iterationCount<400000)
+		{
+
+			//muscle_activation_signal_cpp[0*24+20] = 0;
+			//muscle_activation_signal_cpp[0*24+21] = 0;
+			muscle_activation_signal_cpp[0*24+22] = 0;
+			muscle_activation_signal_cpp[0*24+23] = 0;
+
+			//muscle_activation_signal_cpp[1*24+20] = 0;
+			//muscle_activation_signal_cpp[1*24+21] = 0;
+			muscle_activation_signal_cpp[1*24+22] = 0;
+			muscle_activation_signal_cpp[1*24+23] = 0;
+
+			//muscle_activation_signal_cpp[2*24+20] = 0;
+			//muscle_activation_signal_cpp[2*24+21] = 0;
+			muscle_activation_signal_cpp[2*24+22] = 0;
+			muscle_activation_signal_cpp[2*24+23] = 0;
+
+			//muscle_activation_signal_cpp[3*24+20] = 0;
+			//muscle_activation_signal_cpp[3*24+21] = 0;
+			muscle_activation_signal_cpp[3*24+22] = 0;
+			muscle_activation_signal_cpp[3*24+23] = 0;
+		}
+        """
         self.contraction_array =  parallel_waves(step = self.step)
         self.step += self.increment
+		# for reversal movment after 40000 steps it will switch sinusoid
+        if (self.step>400000):
+            self.increment = -1.0
+        else:
+            self.contraction_array[0][muscle_row_count - 2] = 0
+            self.contraction_array[0][muscle_row_count - 1] = 0
+            self.contraction_array[1][muscle_row_count - 2] = 0
+            self.contraction_array[1][muscle_row_count - 1] = 0
+
         return list(np.concatenate([self.contraction_array[0],
                                     self.contraction_array[1],
                                     self.contraction_array[1],
