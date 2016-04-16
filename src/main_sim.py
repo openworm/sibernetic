@@ -6,8 +6,7 @@ from pylab import *
 
 muscle_row_count = 24
 
-default_time_per_step = 0.000001  #  s
-time_per_step = default_time_per_step  #  s
+time_per_step = 0.000001  #  s
 
 quadrant0 = 'MDR'
 quadrant1 = 'MVR'
