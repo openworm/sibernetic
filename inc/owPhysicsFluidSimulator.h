@@ -111,13 +111,13 @@ public:
 	/** Getter for config
 	 *  @return config
 	 */
-	owConfigProrerty * getConfig() const { return config; };
+	owConfigProperty * getConfig() const { return config; };
 	/** Getter for iteration
 	 *  @return iteration
 	 */
 	const int getIteration() const { return iterationCount; };
 	void reset();
-	void makeSnapshot(const std::string & filename="./configuration/snapshot/configuration_default");
+	void makeSnapshot();
 private:
 	owOpenCLSolver * ocl_solver;
 	float * position_cpp;				// everywhere in the code %variableName%_cpp means that we create
@@ -130,10 +130,10 @@ private:
 	//Helper arrays for displaying information about density changes
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;
-	owConfigProrerty * config;
+	owConfigProperty * config;
 	owHelper * helper;
 	int iterationCount;
-	void cleanBuffers();
+	void destroy();
 };
 
 #endif //OW_PHYSICS_SIMULATOR_H
