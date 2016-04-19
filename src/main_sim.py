@@ -133,7 +133,7 @@ class C302Simulation():
     def __init__(self, 
                  activity_file='configuration/test/c302/c302_C1_Muscles.muscles.activity.dat', 
                  dt=0.0001,
-                 scale_to_max=False):
+                 scale_to_max=True):
                      
         self.step = 0
         self.dt = dt
@@ -152,6 +152,8 @@ class C302Simulation():
             
         print("Loaded a list of %i activity traces (values %s->%s) at %i time points from %s"%(len(self.values[0]), min_, max_, len(self.values), activity_file))
         
+        max_ = 8e-8
+        
         if scale_to_max:
             vals_scaled = []
             for vv in self.values:
@@ -161,7 +163,7 @@ class C302Simulation():
                 
             self.values = vals_scaled
 
-    def run(self, skip_to_time=0):
+    def run(self, skip_to_time=0.05):
         t = skip_to_time + self.step*time_per_step
         
         index = int(t/self.dt)
@@ -172,7 +174,7 @@ class C302Simulation():
             v.extend(self.values[index][48:])
         else:
             v = np.zeros(96)
-        #print("Returning %i values at time: %f s, step: %i (index %i): [%f, %f, %f, ...]"%(len(v), t, self.step, index, v[0], v[1], v[2]))
+        print("Returning %i values at time: %f s, step: %i (index %i): [%f, %f, %f, ...]"%(len(v), t, self.step, index, v[0], v[1], v[2]))
         #print v
         self.step += 1
         return list(v)  
@@ -203,8 +205,8 @@ if __name__ == '__main__':
         ms = C302Simulation('configuration/test/c302/c302_C1_Muscles.muscles.activity.dat', scale_to_max=True)
         #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
         #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Oscillator.muscles.activity.dat')
-        skip_to_time = 0.0
-        max_time = 1.7
+        skip_to_time = 0.05
+        max_time = 0.2
         
     
     activation = {}
