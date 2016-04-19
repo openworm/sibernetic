@@ -6,7 +6,8 @@ from pylab import *
 
 muscle_row_count = 24
 
-time_per_step = 0.000001  #  s
+default_time_per_step = 0.000001  #  s  
+time_per_step = default_time_per_step  #  s 
 
 quadrant0 = 'MDR'
 quadrant1 = 'MVR'
@@ -84,7 +85,7 @@ class MuscleSimulation():
         self.step = 0
 
 
-    def run(self,do_plot = True):
+    def run(self, skip_to_time=0, do_plot = True):
         """
 		if(iterationCount<400000)
 		{
@@ -129,19 +130,36 @@ class C302Simulation():
     
     values = []
 
-    def __init__(self, activity_file='configuration/test/c302/c302_B_Muscles.muscles.activity.dat', dt=0.0001):
+    def __init__(self, 
+                 activity_file='configuration/test/c302/c302_C1_Muscles.muscles.activity.dat', 
+                 dt=0.0001,
+                 scale_to_max=False):
+                     
         self.step = 0
         self.dt = dt
         data = open(activity_file, 'r')
+        min_ = 1e19
+        max_ = -1e19
         for line in data:
             vv = []
             vs = line.strip().split('\t')
             for v in vs:
-                vv.append(float(v))
+                vf = float(v)
+                vv.append(vf)
+                min_ = min(min_,vf)
+                max_ = max(max_,vf)
             self.values.append(vv)
             
-        print("Loaded a list of %i activity traces at %i time points from %s"%(len(self.values[0]), len(self.values), activity_file))
+        print("Loaded a list of %i activity traces (values %s->%s) at %i time points from %s"%(len(self.values[0]), min_, max_, len(self.values), activity_file))
         
+        if scale_to_max:
+            vals_scaled = []
+            for vv in self.values:
+                vv2 = [v/max_ for v in vv] 
+                
+                vals_scaled.append(vv2)
+                
+            self.values = vals_scaled
 
     def run(self, skip_to_time=0):
         t = skip_to_time + self.step*time_per_step
@@ -176,16 +194,17 @@ if __name__ == '__main__':
     num_plots = 1
     
     try_c302 = True
-    try_c302 = False
+    #try_c302 = False
     
     ms = MuscleSimulation(increment=increment)
     
     if try_c302:
-        ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
+        #ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat', scale_to_max=True)
+        ms = C302Simulation('configuration/test/c302/c302_C1_Muscles.muscles.activity.dat', scale_to_max=True)
         #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
         #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Oscillator.muscles.activity.dat')
         skip_to_time = 0.0
-        max_time = 0.1
+        max_time = 1.7
         
     
     activation = {}
