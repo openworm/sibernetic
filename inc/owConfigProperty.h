@@ -181,7 +181,7 @@ public:
 			if( strTemp.find("lpath=") != std::string::npos ){
 				loadPath = strTemp.substr(strTemp.find('=')+1).c_str();
 			}
-			if( s_temp.find("-gmode") != std::string::npos ){
+			if( strTemp.find("-gmode") != std::string::npos ){
 				gmode = true;
 			}
 			if(strTemp == "-f"){
@@ -196,7 +196,7 @@ public:
 				else
 					throw std::runtime_error("You forget add configuration file name. Please add it and try again");
 			}
-			if(s_temp.find("--geppetto_mode")){
+			if(strTemp.find("--geppetto_mode")){
 				/* In this case simulation puts all result in special format into file
 				 * Than this file is reading by geppetto interpreting and transferring on client side
 				 *

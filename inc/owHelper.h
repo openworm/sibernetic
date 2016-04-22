@@ -69,7 +69,7 @@ public:
 	static bool loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProperty * config,int iteration = 0);
 	static void loadConfigurationFromFile(float *& position, float *& velocity,float *& connections, int *& membranes, int *& particleMemIndex, owConfigProperty * config);
 	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProperty * config);
-	static void loadConfigurationToGeppettoFile(owConfigProrerty *, map<std::string, std::vector<owParticle> > &, float *, int);
+	static void loadConfigurationToGeppettoFile(owConfigProperty *, std::map<std::string, std::vector<owParticle> > &, float *, int);
 	void watch_report(const char *str);
 	double getElapsedTime() { return elapsedTime; };
 	void refreshTime();

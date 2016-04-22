@@ -572,41 +572,42 @@ bool owHelper::loadConfigurationFromFile(float *& position, float *& connections
 
 std::ofstream gConfigFile;
 
-void owHelper::loadConfigurationToGeppettoFile(owConfigProrerty * config, map<std::string, std::vector<owParticle> > &particlesList, float * position, int iteration){
-	try{
-		if(iteration == 0){
-			gConfigFile.open("./gresult/gresult", std::ofstream::trunc);
-			gConfigFile << "{"<< "\n";
-			gConfigFile << " \"sibernetic_parameters\": {"<< "\n";
-			gConfigFile << "  \"xmin\": " << config->xmin << "," << "\n";
-			gConfigFile << "  \"xmax\": " << config->xmax << "," << "\n";
-			gConfigFile << "  \"ymin\": " << config->ymin << "," << "\n";
-			gConfigFile << "  \"ymax\": " << config->ymax << "," << "\n";
-			gConfigFile << "  \"zmin\": " << config->zmin << "," << "\n";
-			gConfigFile << "  \"zmax\": " << config->zmax << "," << "\n";
-			gConfigFile << "  \"viscosity\": " << viscosity << "\n";
-			gConfigFile << " },"<< "\n";
-			gConfigFile << " \"particles_position\": [{\n";
-		}
-		for(std::map<std::string, std::vector<owParticle> >::iterator it = particlesList.begin(); it != particlesList.end(); ++it){
-			gConfigFile << "  \"" << it->first << "\": [\n";
-			for(std::vector<owParticle>::iterator particle = it->second.begin(); particle != it->second.end(); ++particle){
-				gConfigFile << "   " << position[4 * particle->getId() + 0] << ",\n";
-				gConfigFile << "   " << position[4 * particle->getId() + 1] << ",\n";
-				gConfigFile << "   " << position[4 * particle->getId() + 2] << ",\n";
-			}
-			gConfigFile << " ],\n";
-		}
-		if(iteration + 1 == config->getNumberOfIteration()){ // in case if we don't indicate timeLimit getNumberOfIteration() return 0 TODO neet to be fixed
-			gConfigFile << " }]\n";
-			gConfigFile << "}";
-			gConfigFile.close();
-		}else
-			gConfigFile << " }, {\n";
-	}catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );
+void owHelper::loadConfigurationToGeppettoFile(owConfigProperty * config, std::map<std::string, std::vector<owParticle> > &particlesList, float * position, int iteration){
+	if(iteration == 0){
+		gConfigFile.open("./gresult/gresult", std::ofstream::trunc);
+		gConfigFile << "{"<< "\n";
+		gConfigFile << " \"sibernetic_parameters\": {"<< "\n";
+		gConfigFile << "  \"xmin\": " << config->xmin << "," << "\n";
+		gConfigFile << "  \"xmax\": " << config->xmax << "," << "\n";
+		gConfigFile << "  \"ymin\": " << config->ymin << "," << "\n";
+		gConfigFile << "  \"ymax\": " << config->ymax << "," << "\n";
+		gConfigFile << "  \"zmin\": " << config->zmin << "," << "\n";
+		gConfigFile << "  \"zmax\": " << config->zmax << "," << "\n";
+		gConfigFile << "  \"viscosity\": " << viscosity << "\n";
+		gConfigFile << " },"<< "\n";
+		gConfigFile << " \"particles_position\": [{\n";
 	}
+	for(std::map<std::string, std::vector<owParticle> >::iterator it = particlesList.begin(); it != particlesList.end(); ++it){
+		gConfigFile << "  \"" << it->first << "\": [\n";
+		for(std::vector<owParticle>::iterator particleIt = it->second.begin(); particleIt != it->second.end(); ++particleIt){
+			gConfigFile << "   " << position[4 * particleIt->getId() + 0] << ",\n";
+			gConfigFile << "   " << position[4 * particleIt->getId() + 1] << ",\n";
+			if( std::distance(particleIt, it->second.end()) > 1)
+				gConfigFile << "   " << position[4 * particleIt->getId() + 2] << ",\n";
+			else
+				gConfigFile << "   " << position[4 * particleIt->getId() + 2] << "\n";
+		}
+		if( std::distance(it, particlesList.end()) > 1)
+			gConfigFile << " ],\n";
+		else
+			gConfigFile << " ]\n";
+	}
+	if(iteration + 1 == config->getNumberOfIteration()){ // in case if we don't indicate timeLimit getNumberOfIteration() return 0 TODO neet to be fixed
+		gConfigFile << " }]\n";
+		gConfigFile << "}";
+		gConfigFile.close();
+	}else
+		gConfigFile << " }, {\n";
 }
 
 /** Print value of elapsed time from last handling to watch_report method.
