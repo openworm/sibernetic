@@ -136,7 +136,7 @@ private:
 	owConfigProperty * config;
 	owHelper * helper;
 	int iterationCount;
-	map<std::string, std::vector<owParticle> > particleList;
+	std::map<std::string, std::vector<owParticle> > particleList;
 	void destroy();
 	void initParticleList();
 };
