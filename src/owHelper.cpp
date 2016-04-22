@@ -47,8 +47,6 @@
 #include "owHelper.h"
 #include "owPhysicsConstant.h"
 
-using namespace std;
-
 //TODO FIX this shit
 /*std::ostream& operator<<(std::ostream &out, const owParticle &p){
 	out << p.getPosition()[0] << "\t" << p.getPosition()[1] << "\t" << p.getPosition()[2] << "\t" << p.getType() << "\t" << p.getMuscleIndex();
@@ -112,15 +110,6 @@ void findVali(std::string & str, char delimiter, size_t & start, int & val){
 	}else // it means usualy that we reached the end of string and there are no \t
 		val = std::atoi(str.substr(start).c_str());
 }
-bool my_strcmp(const char * str1, const char * str2){
-	while(*str2){
-		if(*str1 != *str2)
-			return false;
-		str2++;
-		str1++;
-	}
-	return true;
-}
 /** Preparing initial data before load full configuration
  *
  *  Before load configuration data from file (initial position and velocity,
@@ -132,10 +121,10 @@ bool my_strcmp(const char * str1, const char * str2){
  *  for counting membranes numbers.
  *
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  *  boundary box dimensions
  */
-void owHelper::preLoadConfiguration(owConfigProrerty * config)
+void owHelper::preLoadConfiguration(owConfigProperty * config)
 {
 	int p_count = 0;
 	std::string file_name = config->getCofigPath() + config->getCofigFileName();
@@ -228,9 +217,9 @@ void owHelper::preLoadConfiguration(owConfigProrerty * config)
  *  @param particleMembranesList_cpp
  *  pointer to particleMembranesList_cpp buffer
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  */
-void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config)
+void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProperty * config)
 {
 	std::string file_name = config->getCofigPath() + config->getCofigFileName();
 	std::string inputStr;
@@ -359,7 +348,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
  *  @param position
  *  pointer to position buffer
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  *  @param connections
  *  reference on pointer to elasticConnections buffer.
  *  @param membranes
@@ -375,7 +364,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float
  *  @param size
  *  size of filter_p array
  */
-void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
+void owHelper::loadConfigurationToFile(float * position, owConfigProperty * config, float * connections, int * membranes, bool firstIteration, int * filter_p, int size ){
 	std::ofstream positionFile;
 	std::string positionFileName = config->getLoadPath() + std::string("/position_buffer.txt");
 	if(firstIteration){
@@ -416,7 +405,7 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 	positionFile.close();
 	if(firstIteration){
 		std::string connectionFileName = config->getLoadPath() + std::string("/connection_buffer.txt");
-		ofstream connectionFile(connectionFileName.c_str(), std::ofstream::trunc);
+		std::ofstream connectionFile(connectionFileName.c_str(), std::ofstream::trunc);
 		if(!connectionFile)
 			throw std::runtime_error("There was a problem with creation of connection data file for logging. Check the path.");
 		int con_num = MAX_NEIGHBOR_COUNT * config->numOfElasticP;
@@ -424,11 +413,11 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
 			connectionFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
 		connectionFile.close();
 		std::string membraneFileName = config->getLoadPath() + std::string("/membranes_buffer.txt");
-		ofstream membranesFile(membraneFileName.c_str(), std::ofstream::trunc);
+		std::ofstream membranesFile(membraneFileName.c_str(), std::ofstream::trunc);
 		if(!membranesFile)
 			throw std::runtime_error("There was a problem with creation of membrane data file for logging. Check the path.");
 		membranesFile << config->numOfMembranes << "\n";
-		for(int i = 0; i < config->numOfMembranes; i++)
+		for(unsigned int i = 0; i < config->numOfMembranes; i++)
 			membranesFile << membranes[3 * i + 0] << "\t" << membranes[3 * i + 1] << "\t" << membranes[3 * i + 2] << "\n";
 		membranesFile.close();
 	}
@@ -439,13 +428,13 @@ void owHelper::loadConfigurationToFile(float * position, owConfigProrerty * conf
  *  @param position
  *  pointer to position buffer
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  *  @param connections
  *  reference on pointer to elasticConnections buffer.
  *  @param membranes
  *  pointer to membranes buffer
  */
-void owHelper::loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex,const char * filename, owConfigProrerty * config){
+void owHelper::loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex,const char * filename, owConfigProperty * config){
 	std::ofstream configFile(filename, std::ofstream::trunc);
 	if(!configFile)
 		throw std::runtime_error("There was a problem with creation of file for saving configuration. Check the path.");
@@ -466,18 +455,18 @@ void owHelper::loadConfigurationToFile(float * position, float * velocity, float
 	for(int i = 0; i < con_num; i++)
 		configFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1] / simulationScale << "\t" << connections[4 * i + 2] << "\t" << connections[4 * i + 3] << "\n";
 	configFile << "[membranes]\n";
-	for(int i = 0; i < config->numOfMembranes; i++)
+	for(unsigned int i = 0; i < config->numOfMembranes; ++i)
 		configFile << membranes[3 * i + 0] << "\t" << membranes[3 * i + 1] << "\t" << membranes[3 * i + 2] << "\n";
 	configFile << "[particleMemIndex]\n";
 	int particleMemIndexCount = config->numOfElasticP*MAX_MEMBRANES_INCLUDING_SAME_PARTICLE;
-	for(int i = 0; i < particleMemIndexCount; i++)
+	for(int i = 0; i < particleMemIndexCount; ++i)
 		configFile << particleMemIndex[i] << "\n";
 	configFile << "[end]";
 	configFile.close();
 }
 //This function needed for visualiazation buffered data
 long position_index = 0;
-ifstream positionFile;
+std::ifstream positionFile;
 /** Load configuration from file to simulation
  *
  *  This method is required for work with "load config from file" mode.
@@ -493,19 +482,18 @@ ifstream positionFile;
  *  @param membranes
  *  pointer to membranes buffer
  *  @param config
- *  pointer to owConfigProrerty object it includes information about
+ *  pointer to owConfigProperty object it includes information about
  *  @param iteration
  *  if iteration==0 it means that we first time record information
  *  to a file and on first iteration it put to
  *  the file info about dimensions of boundary box
  */
-void owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config, int iteration){
-	try{
+bool owHelper::loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProperty * config, int iteration){
 		if(iteration == 0){
 			std::string positionFileName = config->getLoadPath() + std::string("/position_buffer.txt");
 			positionFile.open(positionFileName.c_str());
 		}
-		int i = 0;
+		unsigned int i = 0;
 		float x, y, z, p_type;
 		if( positionFile.is_open() )
 		{
@@ -544,15 +532,15 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 		}
 		if(!positionFile.good()){
 			positionFile.close();
-			exit(0); //TODO make more correct
+			return false;
 		}
 		if(iteration == 0){
 			std::string connectionFileName = config->getLoadPath() + std::string("/connection_buffer.txt");
-			ifstream connectionFile(connectionFileName.c_str());
+			std::ifstream connectionFile(connectionFileName.c_str());
 			connections = new float[MAX_NEIGHBOR_COUNT * config->numOfElasticP * 4];
 			if( connectionFile.is_open() )
 			{
-				int i = 0;
+				i = 0;
 				float jd, rij0, val1, val2;
 				while(connectionFile.good() && i < MAX_NEIGHBOR_COUNT * config->numOfElasticP){
 					connectionFile >> jd >> rij0 >> val1 >> val2;
@@ -565,7 +553,7 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 			}
 			connectionFile.close();
 			std::string membraneFileName = config->getLoadPath() + std::string("/membranes_buffer.txt");
-			ifstream membranesFile(membraneFileName.c_str());
+			std::ifstream membranesFile(membraneFileName.c_str());
 			if(membranesFile.is_open()){
 				int m_count = 0;
 				//membranesFile >> m_count;
@@ -578,10 +566,7 @@ void owHelper::loadConfigurationFromFile(float *& position, float *& connections
 			}
 			membranesFile.close();
 		}
-	}catch(std::exception &e){
-		std::cout << "ERROR: " << e.what() << std::endl;
-		exit( -1 );//TODO make more correct
-	}
+		return true;
 }
 
 

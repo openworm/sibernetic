@@ -46,8 +46,8 @@
 #include "owPhysicTest.h"
 
 
-float calcPotentialEnergy( owConfigProrerty *, float * );
-float calcKineticEnergy( owConfigProrerty *, float *, float * );
+float calcPotentialEnergy( owConfigProperty *, float * );
+float calcKineticEnergy( owConfigProperty *, float *, float * );
 float get_len( float * );
 
 float gravity = 9.81f;
@@ -93,7 +93,7 @@ void test_energy_conservation(int argc, char **argv){
 	delete p_buffer;
 	delete v_buffer;
 }
-float calcPotentialEnergy(owConfigProrerty * config, float * p_buffer){
+float calcPotentialEnergy(owConfigProperty * config, float * p_buffer){
 	float e = 0.f;
 	float l = 0.f;
 	for(int i=0;i<config->getParticleCount();i++){
@@ -104,7 +104,7 @@ float calcPotentialEnergy(owConfigProrerty * config, float * p_buffer){
 	}
 	return e;
 }
-float calcKineticEnergy(owConfigProrerty * config, float * v_buffer, float * p_buffer){
+float calcKineticEnergy(owConfigProperty * config, float * v_buffer, float * p_buffer){
 	float e = 0.f;
 	for(int i=0;i < config->getParticleCount();i++){
 		if((int)(p_buffer[4 * i + 3]) != BOUNDARY_PARTICLE){

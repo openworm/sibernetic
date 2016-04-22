@@ -1,8 +1,8 @@
 ![Sibernetic](http://i.imgur.com/Hbsw6Zs.png)
 
-Sibernetic is physical simulator of biomechanical matter (membranes, elastic matter, contractile matter) and environments (liquids, solids and elastic matter with variable physical properties) developed for simulations of C. elegans physical body dynamics within the [OpenWorm project](http://www.openworm.org) by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python module for external muscle activating signals generation and input) as part of the [OpenWorm team](http://www.openworm.org/people.html). At its core, Sibernetic is built as an extension to Predictive-Corrective Incompressible Smoothed Particle Hydrodynamics (PCISPH). It is primarily written in  C++ and OpenCL, which makes possible to run simulations on CPUs or GPUs, and has 3D visualization support built on top of OpenGL. 
+Sibernetic is physical simulator of biomechanical matter (membranes, elastic matter, contractile matter) and environments (liquids, solids and elastic matter with variable physical properties) developed for simulations of C. elegans physical body dynamics within the [OpenWorm project](http://www.openworm.org) by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python module for external muscle activating signals generation and input) as part of the [OpenWorm team](http://www.openworm.org/people.html). At its core, Sibernetic is built as an extension to Predictive-Corrective Incompressible Smoothed Particle Hydrodynamics (PCISPH). It is primarily written in  C++ and OpenCL, which makes possible to run simulations on CPUs or GPUs, and has 3D visualization support built on top of OpenGL.
 
-There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](http://www.geppetto.org/). 
+There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](http://www.geppetto.org/).
 
 Compiling / running (Linux/mac)
 ------------------------------
@@ -27,7 +27,7 @@ make all
 ```
 
 **Mac**: stay in the top-level folder. You need before run export several environment variables:
- 
+
 ```
 export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
 export PYTHONLIBDIR=/usr/local/lib/python2...
@@ -81,7 +81,7 @@ chmod +x ./Release/Sibernetic
 If you do not run from the top-level folder you will see an error which looks something like this:
 
 ```
-Compilation failed: 
+Compilation failed:
 "/tmp/OCLQ1BaOw.cl", line 8: catastrophic error: cannot open source file
 "src//owOpenCLConstant.h"
 #include "src//owOpenCLConstant.h"
@@ -99,7 +99,7 @@ Physical Algorithms:
 - Boundary handling [2]
 - Surface tension [3]
 
-There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to boundary (one of it has a liquid-impermeable membranes covering and another one hasn't such). 
+There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to boundary (one of it has a liquid-impermeable membranes covering and another one hasn't such).
 
 The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).
 
@@ -107,7 +107,7 @@ To switch between demos you need to press the 1 or 2 keys respectively. To pause
 
 References
 
-1. B. Solenthaler, Predictive-Corrective Incompressible SPH. ACM Transactions on Graphics (Proceedings of SIGGRAPH), 28(3), 2009. 
+1. B. Solenthaler, Predictive-Corrective Incompressible SPH. ACM Transactions on Graphics (Proceedings of SIGGRAPH), 28(3), 2009.
 2. M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 3. M. Becker, M. Teschner. Weakly compressible SPH for free surface flows // Proceedings of the 2007 ACM SIGGRAPH/Eurographics symposium on Computer animation, pages 209-217.
 
@@ -116,19 +116,21 @@ Main command options
 To start Sibernetic with argument print in command prompt next ./Release/Sibernetic -whatever
 Available options:
 ```
- -g_no                 Run without graphics
+ -no_g                 Run without graphics
  -l_to                 Save simulation results to disk.
+ -export_vtk           Save simulation results to VTK files.
      logstep=<value>   Log every <value> steps
  -l_from               Load simulation results from disk.
-     lpath=<value>     Indicates path where result of simulation will be stored. 
+     lpath=<value>     Indicates path where result of simulation will be stored.
                        This option work only for -l_to and -l_from options
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file <filename>.
- device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu 
+ device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu
                        default-ALL (it will try to init most powerful available device).
  timestep=<value>      Start simulation with time step = <value> in seconds.
  timelimit=<value>     Run simulation until <value> will be reached in seconds.
  leapfrog              Use for integration LeapFrog method
+ oclsourcepath=<value> You can indicate path to you'r OpenCL program just using this option
  -help                 Print this information on screen.
 ```
 
@@ -141,26 +143,31 @@ LeapFrog integration
 
 Run simulation from configuration file
 --------------
-All configuration is stored in the [configuration folder](configuration). There are two demo configurations [demo1](configuration/demo1) 
-and [demo2](configuration/demo2) (demo1 is the default configuration). You can switch between two demo configurations 
-directly inside the working Sibernetic - just push button '1' or '2' respectively. To run your configuration put your configuration file 
+All configuration is stored in the [configuration folder](configuration). There are two demo configurations [demo1](configuration/demo1)
+and [demo2](configuration/demo2) (demo1 is the default configuration). You can switch between two demo configurations
+directly inside the working Sibernetic - just push button '1' or '2' respectively. To run your configuration put your configuration file
 into the configuration folder and run Sibernetic using:
 ```
-./Release/Sibernetic -f <configuration_file_name>. 
+./Release/Sibernetic -f <configuration_file_name>.
 ```
 To run the worm body simulation you need run Sibernetic with key:
 ```
 ./Release/Sibernetic -f worm
 ```
-It loads the [worm body configuration](configuration/worm) and initialises and runs the [Python module](src/main_sim.py) which is 
+It loads the [worm body configuration](configuration/worm) and initialises and runs the [Python module](src/main_sim.py) which is
 responsible for muscle signal updating.
+For run simulation with crawling worm on carpet like surface or swimming in deep water you need run sibenretic with next command arguments:
+```
+./Release/Sibernetic -f worm_crawling oclsourcepath=src/sphFluid_crawling.cl
+./Release/Sibernetic -f worm_deep_water oclsourcepath=src/sphFluid_crawling.cl
+```
 
 Control in graphical mode
 ---------------
 If you run Sibernetic with graphics you can work with scene rotation and scaling using the mouse. There are also several control button options available:
 ```
-'Space' - pause the simulation 
-'s'     - save current configuration into file 
+'Space' - pause the simulation
+'s'     - save current configuration into file
           ./configuration/snapshot/configuration_name_current_time_and_date you can run this
 than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 'q' or 'Esc'     - quit the sibernetic
@@ -221,9 +228,9 @@ To record configurations to file you need to run simulation with key -l_to:
 
 This create 3 new files in the folder ./buffers:
 - connection_buffers.txt - stores information about connection among the elastic particles
-- membranes_buffer.txt   - stores information about membranes 
-- position_buffer.txt    - stores information about current position of all of the non boundary particles it save information to this file every 10 steps of simulation. You should remember that the more info you 
-want to store than bigger output file is. 
+- membranes_buffer.txt   - stores information about membranes
+- position_buffer.txt    - stores information about current position of all of the non boundary particles it save information to this file every 10 steps of simulation. You should remember that the more info you
+want to store than bigger output file is.
 
 For view result you should run simulation with:
 ```
@@ -232,14 +239,24 @@ For view result you should run simulation with:
 It get positions from position_buffer.txt file and displays the evolution of system in time
 
 
+Output to the VTK files
+-----------------------
+Results of the simulation can be saved to the VTK files, allowing visualisation e.g. in [Paraview](http://www.paraview.org/).
+To save the VTK files, run the program with the parameter `-export_vtk`,
+```
+./Release/Sibernetic -export_vtk
+```
+
+For each saved timestep number N a file `state_N.vtp` is created in the directory `./buffers`. Storing interval is given by the parameter `logstep`.
+
 Making videos (*nix)
 --------------------
-If you run a simulation you may be interested in recording the graphical output. Making such videos is a bit tricky 
-because they need to be speeded up, so far I have found the following two commands do a decent job (change folder 
-names accordingly) after you have used a screen record program:
+If you run a simulation you may be interested in recording the graphical output.
+You can either save the results to VTK files and use Paraview to create the video, or create the video using the default OpenGL visualisation.
+Making such videos is a bit tricky because they need to be speeded up, so far I have found the following two commands do a decent job (change folder names accordingly) after you have used a screen record program:
 
 
-If your video is in OGV format (if you used [recordmydesktop](http://recordmydesktop.sourceforge.net/about.php) for instance), 
+If your video is in OGV format (if you used [recordmydesktop](http://recordmydesktop.sourceforge.net/about.php) for instance),
 use the following script to convert to avi:
 
 ```
