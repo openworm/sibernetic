@@ -1,0 +1,131 @@
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"  xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 https://raw.github.com/NeuroML/NeuroML2/development/Schemas/NeuroML2/NeuroML_v2beta4.xsd" id="cell_C">
+
+    <!-- Note: Not fully valid NML2: <customHGate> -->
+
+    <!--
+    
+    Parameters C for c302 still under developemnt!!
+    
+    Subject to change without notice!!
+    
+  
+    The fixed values for the parameters here will have to be replaced by parameters set in parameters_C.py & 
+    built using libNeuroML classes
+    
+    -->
+    
+    
+    <ionChannel id="Leak" conductance="10pS" type="ionChannelPassive"/>
+    
+    
+    <ionChannel id="k_fast" conductance="10pS" type="ionChannelHH" species="k">
+
+        <notes>K fast channel from Boyle and Cohen 2008</notes>
+
+        <gateHHtauInf id="p" instances="4">
+
+            <timeCourse type="fixedTimeCourse" tau="2.25518 ms"/>
+            <steadyState type="HHSigmoidVariable" rate="1" scale="7.42636 mV" midpoint="-8.05232 mV"/>
+
+        </gateHHtauInf>
+        
+        <gateHHtauInf id="q" instances="1">
+
+            <timeCourse type="fixedTimeCourse" tau="149.963 ms"/>
+            <steadyState type="HHSigmoidVariable" rate="1" scale="-9.97468 mV" midpoint="-15.6456 mV"/>
+
+        </gateHHtauInf>
+
+    </ionChannel>
+    
+    
+    <ionChannel id="k_slow" conductance="10pS" type="ionChannelHH" species="k">
+
+        <notes>K slow channel from Boyle and Cohen 2008</notes>
+
+        <gateHHtauInf id="n" instances="1">
+
+            <timeCourse type="fixedTimeCourse" tau="25.0007 ms"/>
+            <steadyState type="HHSigmoidVariable" rate="1" scale="15.8512 mV" midpoint="19.8741 mV"/>
+            
+        </gateHHtauInf>
+        
+    </ionChannel>
+    
+    
+    <ionChannel id="ca_boyle" conductance="10pS" type="ionChannelHH" species="ca">
+
+        <notes>Ca channel from Boyle and Cohen 2008</notes>
+
+        <gateHHtauInf id="e" instances="2">
+
+            <timeCourse type="fixedTimeCourse" tau="0.100027 ms"/>
+            <steadyState type="HHSigmoidVariable" rate="1" scale="6.74821 mV" midpoint="-3.3568 mV"/>
+
+        </gateHHtauInf>
+
+        <gateHHtauInf id="f" instances="1">
+
+            <timeCourse type="fixedTimeCourse" tau="150.88 ms"/>
+            
+            <!-- Note!!! 
+
+                f gate is "inactivation" a/c B&C 2008 p172 
+                but the scale value from Table A1 (kf) is positive (5mV), i.e. steady 
+                state is zero for v << midpoint and 1 for v >> midpoint 
+                Couple this with a very slow time course & the ion channel never 
+                conducts as e^2 x f is always ~0 
+
+                Using -5.03176mV NOT 5mV for k/scale to make this INACTIVATION 
+                
+                This is suggested by the value used here:
+                https://github.com/openworm/muscle_model/blob/master/BoyleCohen2008/MatlabSupport/Main_Version/data/input.csv#L20
+                
+                see also
+                https://github.com/openworm/muscle_model/blob/master/BoyleCohen2008/PythonSupport/Main_Version/compareToNeuroML2.py
+            -->
+            <steadyState type="HHSigmoidVariable" rate="1" scale="-5.03176 mV" midpoint="25.1815 mV"/>
+
+        </gateHHtauInf>
+
+        <customHGate id="h" instances="1" alpha="0.282473" ca_half="6.41889e-8 mM" k="-1.00056e-8 mM"/>
+
+    </ionChannel>
+
+    
+    <fixedFactorConcentrationModel id="CaPool" ion="ca" restingConc="0 mM" decayConstant="11.5943 ms" rho="0.000238919 mol_per_m_per_A_per_s"/>
+    
+
+    <ComponentType name="customHGate"
+                   extends="gateHHtauInf"
+                   description="Custom gate for h">
+
+        <Parameter name="alpha" dimension="none"/>
+        <Parameter name="k" dimension="concentration"/>
+        <Parameter name="ca_half" dimension="concentration"/>
+
+
+        <Constant name="SEC" dimension="time" value="1s"/>
+
+
+        <Exposure name="tau" dimension="time"/>
+        <Exposure name="inf" dimension="none"/>
+
+        <Requirement name="caConc" dimension="concentration"/>
+
+        <Dynamics>
+
+            <DerivedVariable name="rateScale" exposure="rateScale" dimension="none" value="1"/>
+
+            <DerivedVariable name="inf" dimension="none" exposure="inf" value="1 / (1 + (exp( (ca_half - caConc) / k)))"/>
+
+
+            <DerivedVariable name="tau" dimension="time" exposure="tau" value="0 * SEC"/>
+            <DerivedVariable name="q" exposure="q" dimension="none" value="inf"/>
+            <DerivedVariable name="fcond" exposure="fcond" dimension="none" value="1 +((q-1) * alpha)"/>
+
+        </Dynamics>
+    </ComponentType>
+    
+    
+</neuroml>
