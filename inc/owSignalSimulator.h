@@ -57,7 +57,7 @@ class SignalSimulator{
   std::vector<float> unpackPythonList(PyObject*);
 
  public:
-  int setup(const std::string & simFileName = "main_sim", const std::string & simClassName = "C302RealTimeSimulation");
+  int setup(const std::string & simFileName = "main_sim", const std::string & simClassName = "MuscleSimulation");
   std::vector<float> run();
 };
 
