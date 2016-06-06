@@ -52,4 +52,7 @@ build
 /debug
 /Release
 
+x86_64
+src/*.dat
+
 

@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import sys
 
 import matplotlib.pyplot as plt
 from pylab import *
@@ -19,6 +20,10 @@ colours[quadrant0] = '#000000'
 colours[quadrant1] = '#00ff00'
 colours[quadrant2] = '#0000ff'
 colours[quadrant3] = '#ff0000'
+
+def print_(msg):
+    pre = "Python >> "
+    print('%s %s'%(pre,msg.replace('\n','\n'+pre)))
 
 """
 
@@ -114,13 +119,11 @@ class MuscleSimulation():
         self.contraction_array =  parallel_waves(step = self.step)
         self.step += self.increment
 		# for reversal movment after 40000 steps it will switch sinusoid
-        if (self.step>400000):
-            self.increment = -1.0
-        else:
-            self.contraction_array[0][muscle_row_count - 2] = 0
-            self.contraction_array[0][muscle_row_count - 1] = 0
-            self.contraction_array[1][muscle_row_count - 2] = 0
-            self.contraction_array[1][muscle_row_count - 1] = 0
+        
+        self.contraction_array[0][muscle_row_count - 2] = 0
+        self.contraction_array[0][muscle_row_count - 1] = 0
+        self.contraction_array[1][muscle_row_count - 2] = 0
+        self.contraction_array[1][muscle_row_count - 1] = 0
 
         return list(np.concatenate([self.contraction_array[0],
                                     self.contraction_array[1],
@@ -150,7 +153,7 @@ class C302Simulation():
                 max_ = max(max_,vf)
             self.values.append(vv)
             
-        print("Loaded a list of %i activity traces (values %s->%s) at %i time points from %s"%(len(self.values[0]), min_, max_, len(self.values), activity_file))
+        print_("Loaded a list of %i activity traces (values %s->%s) at %i time points from %s"%(len(self.values[0]), min_, max_, len(self.values), activity_file))
         
         max_ = 8e-8
         
@@ -174,29 +177,164 @@ class C302Simulation():
             v.extend(self.values[index][48:])
         else:
             v = np.zeros(96)
-        print("Returning %i values at time: %f s, step: %i (index %i): [%f, %f, %f, ...]"%(len(v), t, self.step, index, v[0], v[1], v[2]))
+        print_("Returning %i values at time: %f s, step: %i (index %i): [%f, %f, %f, ...]"%(len(v), t, self.step, index, v[0], v[1], v[2]))
         #print v
         self.step += 1
         return list(v)  
+    
+    
+    
+class C302NRNSimulation():
+
+    max_ca = 1.7e-11
+    max_ca_found = -1
+    
+    def __init__(self, tstop=1e6, dt=0.1, activity_file=None):
+        
+        from LEMS_c302_C1_Full_nrn import NeuronSimulation
+        
+        import neuron
+        self.h = neuron.h
+        
+        self.ns = NeuronSimulation(tstop, dt)
+        print_("Initialised C302NRNSimulation of length %s ms and dt = %s ms..."%(tstop,dt))
+        
+        
+    def run(self, skip_to_time=0):
+        
+        print_("> Current NEURON time: %s"%self.h.t)
+        
+        self.h.fadvance()
+        
+        print_("< Current NEURON time: %s"%self.h.t)
+                  
+        values = list([self._scale(self.h.a_MDR01[0].soma.cai,print_it=True), \
+                 self._scale(self.h.a_MVR01[0].soma.cai), \
+                 self._scale(self.h.a_MVL01[0].soma.cai), \
+                 self._scale(self.h.a_MDL01[0].soma.cai), \
+                 self._scale(self.h.a_MDR02[0].soma.cai), \
+                 self._scale(self.h.a_MVR02[0].soma.cai), \
+                 self._scale(self.h.a_MVL02[0].soma.cai), \
+                 self._scale(self.h.a_MDL02[0].soma.cai), \
+                 self._scale(self.h.a_MDR03[0].soma.cai), \
+                 self._scale(self.h.a_MVR03[0].soma.cai), \
+                 self._scale(self.h.a_MVL03[0].soma.cai), \
+                 self._scale(self.h.a_MDL03[0].soma.cai), \
+                 self._scale(self.h.a_MDR04[0].soma.cai), \
+                 self._scale(self.h.a_MVR04[0].soma.cai), \
+                 self._scale(self.h.a_MVL04[0].soma.cai), \
+                 self._scale(self.h.a_MDL04[0].soma.cai), \
+                 self._scale(self.h.a_MDR05[0].soma.cai), \
+                 self._scale(self.h.a_MVR05[0].soma.cai), \
+                 self._scale(self.h.a_MVL05[0].soma.cai), \
+                 self._scale(self.h.a_MDL05[0].soma.cai), \
+                 self._scale(self.h.a_MDR06[0].soma.cai), \
+                 self._scale(self.h.a_MVR06[0].soma.cai), \
+                 self._scale(self.h.a_MVL06[0].soma.cai), \
+                 self._scale(self.h.a_MDL06[0].soma.cai), \
+                 self._scale(self.h.a_MDR07[0].soma.cai), \
+                 self._scale(self.h.a_MVR07[0].soma.cai), \
+                 self._scale(self.h.a_MVL07[0].soma.cai), \
+                 self._scale(self.h.a_MDL07[0].soma.cai), \
+                 self._scale(self.h.a_MDR08[0].soma.cai), \
+                 self._scale(self.h.a_MVR08[0].soma.cai), \
+                 self._scale(self.h.a_MVL08[0].soma.cai), \
+                 self._scale(self.h.a_MDL08[0].soma.cai), \
+                 self._scale(self.h.a_MDR09[0].soma.cai), \
+                 self._scale(self.h.a_MVR09[0].soma.cai), \
+                 self._scale(self.h.a_MVL09[0].soma.cai), \
+                 self._scale(self.h.a_MDL09[0].soma.cai), \
+                 self._scale(self.h.a_MDR10[0].soma.cai), \
+                 self._scale(self.h.a_MVR10[0].soma.cai), \
+                 self._scale(self.h.a_MVL10[0].soma.cai), \
+                 self._scale(self.h.a_MDL10[0].soma.cai), \
+                 self._scale(self.h.a_MDR11[0].soma.cai), \
+                 self._scale(self.h.a_MVR11[0].soma.cai), \
+                 self._scale(self.h.a_MVL11[0].soma.cai), \
+                 self._scale(self.h.a_MDL11[0].soma.cai), \
+                 self._scale(self.h.a_MDR12[0].soma.cai), \
+                 self._scale(self.h.a_MVR12[0].soma.cai), \
+                 self._scale(self.h.a_MVL12[0].soma.cai), \
+                 self._scale(self.h.a_MDL12[0].soma.cai), \
+                 self._scale(self.h.a_MDR13[0].soma.cai), \
+                 self._scale(self.h.a_MVR13[0].soma.cai), \
+                 self._scale(self.h.a_MVL13[0].soma.cai), \
+                 self._scale(self.h.a_MDL13[0].soma.cai), \
+                 self._scale(self.h.a_MDR14[0].soma.cai), \
+                 self._scale(self.h.a_MVR14[0].soma.cai), \
+                 self._scale(self.h.a_MVL14[0].soma.cai), \
+                 self._scale(self.h.a_MDL14[0].soma.cai), \
+                 self._scale(self.h.a_MDR15[0].soma.cai), \
+                 self._scale(self.h.a_MVR15[0].soma.cai), \
+                 self._scale(self.h.a_MVL15[0].soma.cai), \
+                 self._scale(self.h.a_MDL15[0].soma.cai), \
+                 self._scale(self.h.a_MDR16[0].soma.cai), \
+                 self._scale(self.h.a_MVR16[0].soma.cai), \
+                 self._scale(self.h.a_MVL16[0].soma.cai), \
+                 self._scale(self.h.a_MDL16[0].soma.cai), \
+                 self._scale(self.h.a_MDR17[0].soma.cai), \
+                 self._scale(self.h.a_MVR17[0].soma.cai), \
+                 self._scale(self.h.a_MVL17[0].soma.cai), \
+                 self._scale(self.h.a_MDL17[0].soma.cai), \
+                 self._scale(self.h.a_MDR18[0].soma.cai), \
+                 self._scale(self.h.a_MVR18[0].soma.cai), \
+                 self._scale(self.h.a_MVL18[0].soma.cai), \
+                 self._scale(self.h.a_MDL18[0].soma.cai), \
+                 self._scale(self.h.a_MDR19[0].soma.cai), \
+                 self._scale(self.h.a_MVR19[0].soma.cai), \
+                 self._scale(self.h.a_MVL19[0].soma.cai), \
+                 self._scale(self.h.a_MDL19[0].soma.cai), \
+                 self._scale(self.h.a_MDR20[0].soma.cai), \
+                 self._scale(self.h.a_MVR20[0].soma.cai), \
+                 self._scale(self.h.a_MVL20[0].soma.cai), \
+                 self._scale(self.h.a_MDL20[0].soma.cai), \
+                 self._scale(self.h.a_MDR21[0].soma.cai), \
+                 self._scale(self.h.a_MVR21[0].soma.cai), \
+                 self._scale(self.h.a_MVL21[0].soma.cai), \
+                 self._scale(self.h.a_MDL21[0].soma.cai), \
+                 self._scale(self.h.a_MDR22[0].soma.cai), \
+                 self._scale(self.h.a_MVR22[0].soma.cai), \
+                 self._scale(self.h.a_MVL22[0].soma.cai), \
+                 self._scale(self.h.a_MDL22[0].soma.cai), \
+                 self._scale(self.h.a_MDR23[0].soma.cai), \
+                 self._scale(self.h.a_MVR23[0].soma.cai), \
+                 self._scale(self.h.a_MVL23[0].soma.cai), \
+                 self._scale(self.h.a_MDL23[0].soma.cai), \
+                 self._scale(self.h.a_MDR24[0].soma.cai), \
+                 self._scale(0), \
+                 self._scale(self.h.a_MVL24[0].soma.cai), \
+                 self._scale(self.h.a_MDL24[0].soma.cai)])
+                 
+        print_("Returning %s values: %s"%(len(values),values))
+        return values
+        
+    
+    def _scale(self,ca,print_it=False):
+        
+        self.max_ca_found = max(ca,self.max_ca_found)
+        scaled = min(1,(ca/self.max_ca))
+        if print_it: 
+            print_("- Scaling %s to %s (max found: %s)"%(ca,scaled,self.max_ca_found))
+        return scaled
         
 
 
 if __name__ == '__main__':
     
-    print("This script is used by the Sibernetic C++ application")
-    print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
+    print_("This script is used by the Sibernetic C++ application")
+    print_("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
+    
+    try_c302 = '-c302dat' in sys.argv
+    try_c302_nrn = '-c302nrn' in sys.argv
+    testnrn = '-testnrn' in sys.argv
     
     skip_to_time = 0
     
-    max_time = 0.4 # s
-    max_time = 0.4 # s
+    max_time = 1 # s
     
     time_per_step = 0.001  #  s
     increment = time_per_step/default_time_per_step
     num_plots = 1
-    
-    try_c302 = True
-    #try_c302 = False
     
     ms = MuscleSimulation(increment=increment)
     
@@ -207,6 +345,15 @@ if __name__ == '__main__':
         #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Oscillator.muscles.activity.dat')
         skip_to_time = 0.05
         max_time = 0.2
+    elif try_c302_nrn:
+        dt = 0.1
+        max_time = .5
+        maxt = max_time*1000
+
+        time_per_step = 0.0001  #  s
+        increment = time_per_step/default_time_per_step
+
+        ms = C302NRNSimulation(tstop=maxt, dt=dt)
         
     
     activation = {}
@@ -224,11 +371,9 @@ if __name__ == '__main__':
     num_steps = int(max_time/time_per_step)
     steps_between_plots = int(num_steps/num_plots)
     
-    
-    
     show_all = True
         
-        
+    
     for step in range(num_steps):
         t = step*time_per_step
         
@@ -247,7 +392,7 @@ if __name__ == '__main__':
         times.append(t)
         
         if step==0 or step%steps_between_plots == 0:
-            print "At step %s (%s s)"%(step, t)
+            print_("At step %s (%s s)"%(step, t))
             if show_all:
                 figV = plt.figure()
                 figV.suptitle("Muscle activation waves at step %s (%s s)"%(step, t))
