@@ -189,7 +189,7 @@ class C302NRNSimulation():
     max_ca = 2e-12
     max_ca_found = -1
     
-    def __init__(self, tstop=1e6, dt=0.1, activity_file=None, verbose=True):
+    def __init__(self, tstop=100, dt=0.005, activity_file=None, verbose=True):
         
         #from LEMS_c302_C1_Full_nrn import NeuronSimulation
         from LEMS_c302_C1_Muscles_nrn import NeuronSimulation
