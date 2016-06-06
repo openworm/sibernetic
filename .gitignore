@@ -53,6 +53,7 @@ build
 /Release
 
 x86_64
+/*.dat
 src/*.dat
 
 

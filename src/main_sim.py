@@ -186,21 +186,29 @@ class C302Simulation():
     
 class C302NRNSimulation():
 
-    max_ca = 1.7e-11
+    max_ca = 2e-12
     max_ca_found = -1
     
-    def __init__(self, tstop=1e6, dt=0.1, activity_file=None):
+    def __init__(self, tstop=1e6, dt=0.1, activity_file=None, verbose=True):
         
-        from LEMS_c302_C1_Full_nrn import NeuronSimulation
+        #from LEMS_c302_C1_Full_nrn import NeuronSimulation
+        from LEMS_c302_C1_Muscles_nrn import NeuronSimulation
         
         import neuron
         self.h = neuron.h
         
+        self.verbose = verbose
+        
         self.ns = NeuronSimulation(tstop, dt)
         print_("Initialised C302NRNSimulation of length %s ms and dt = %s ms..."%(tstop,dt))
         
+        self.h.finitialize()
         
-    def run(self, skip_to_time=0):
+    def save_results(self):
+        
+        self.ns.save_results()
+        
+    def run(self, skip_to_time=-1):
         
         print_("> Current NEURON time: %s"%self.h.t)
         
@@ -305,7 +313,8 @@ class C302NRNSimulation():
                  self._scale(self.h.a_MVL24[0].soma.cai), \
                  self._scale(self.h.a_MDL24[0].soma.cai)])
                  
-        print_("Returning %s values: %s"%(len(values),values))
+        if self.verbose:
+            print_("Returning %s values: %s"%(len(values),values))
         return values
         
     
@@ -330,7 +339,7 @@ if __name__ == '__main__':
     
     skip_to_time = 0
     
-    max_time = 1 # s
+    max_time = 1.0 # s
     
     time_per_step = 0.001  #  s
     increment = time_per_step/default_time_per_step
@@ -345,15 +354,16 @@ if __name__ == '__main__':
         #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Oscillator.muscles.activity.dat')
         skip_to_time = 0.05
         max_time = 0.2
-    elif try_c302_nrn:
-        dt = 0.1
-        max_time = .5
+        
+    elif try_c302_nrn or testnrn:
+        dt = 0.1  # ms
+        max_time = .5  # s
         maxt = max_time*1000
 
-        time_per_step = 0.0001  #  s
+        time_per_step = dt/1000  #  s
         increment = time_per_step/default_time_per_step
 
-        ms = C302NRNSimulation(tstop=maxt, dt=dt)
+        ms = C302NRNSimulation(tstop=maxt, dt=dt, verbose=False)
         
     
     activation = {}
@@ -372,6 +382,16 @@ if __name__ == '__main__':
     steps_between_plots = int(num_steps/num_plots)
     
     show_all = True
+    
+
+    if testnrn:
+        for step in range(num_steps):
+
+            ms.run()
+            
+        ms.save_results()
+
+        quit()
         
     
     for step in range(num_steps):
