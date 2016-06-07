@@ -56,4 +56,7 @@ x86_64
 /*.dat
 src/*.dat
 
+simulations/Sim*
+simulations/Muscle*
+
 

@@ -192,7 +192,7 @@ class C302NRNSimulation():
     def __init__(self, tstop=100, dt=0.005, activity_file=None, verbose=True):
         
         #from LEMS_c302_C1_Full_nrn import NeuronSimulation
-        from LEMS_c302_C1_Muscles_nrn import NeuronSimulation
+        from LEMS_c302_nrn import NeuronSimulation
         
         import neuron
         self.h = neuron.h
@@ -202,7 +202,6 @@ class C302NRNSimulation():
         self.ns = NeuronSimulation(tstop, dt)
         print_("Initialised C302NRNSimulation of length %s ms and dt = %s ms..."%(tstop,dt))
         
-        self.h.finitialize()
         
     def save_results(self):
         
@@ -212,7 +211,7 @@ class C302NRNSimulation():
         
         print_("> Current NEURON time: %s"%self.h.t)
         
-        self.h.fadvance()
+        self.ns.advance()
         
         print_("< Current NEURON time: %s"%self.h.t)
                   
@@ -363,7 +362,7 @@ if __name__ == '__main__':
         time_per_step = dt/1000  #  s
         increment = time_per_step/default_time_per_step
 
-        ms = C302NRNSimulation(tstop=maxt, dt=dt, verbose=False)
+        ms = C302NRNSimulation(tstop=maxt, dt=dt, verbose=False) 
         
     
     activation = {}
