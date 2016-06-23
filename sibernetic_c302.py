@@ -132,7 +132,7 @@ def run(a=None,**kwargs):
     os.rename(lems_file0,lems_file)
     
     print_("Generating NEURON files from: %s"%lems_file)
-    '''
+    
     pynml.run_lems_with_jneuroml_neuron(lems_file,
                                         only_generate_scripts=True,
                                         nogui=True, 
@@ -143,12 +143,12 @@ def run(a=None,**kwargs):
     command = 'nrnivmodl'
 
     print_("Executing: %s in %s"%(command, run_dir))
-    pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")'''
+    pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
     command = '../../Release/Sibernetic -f worm timelimit=%s timestep=%s'%(a.duration/1000.0,a.dt/1000)
 
     print_("Executing: %s in %s"%(command, run_dir))
-    pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",verbose=True)
+    #pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",verbose=True)
 
 
 
