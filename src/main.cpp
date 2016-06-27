@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
     } else {
         bool graph = true;
         bool run_tests = false;
-        std::string version = "0.0.4b";
+        std::string version = "0.0.4c";
         std::string helpFlag = "-help";
         std::string helpFlag2 = "-h";
         std::string helpFlag3 = "-?";
@@ -78,9 +78,9 @@ int main(int argc, char **argv) {
                 std::cout << "    " << noGraphicsFlag << "                      Run without graphics\n\n";
                 std::cout << "    " << saveFlag << "                      Save simulation results to disk\n\n";
 				std::cout << "    " << exportVtkFlag << "                Save simulation results to VTK files\n\n";
-                std::cout << "        " << logStepFlag << "           Set frequency of logging data into file in -l_to and -export_vtk modes by default it equals to 10\n\n";
+                std::cout << "        " << logStepFlag << "            Set frequency of logging data into file in -l_to and -export_vtk modes by default it equals to 10\n\n";
                 std::cout << "    " << loadFlag << "                    Load simulation results from disk\n\n";
-                std::cout << "        " << loadFlagPath << "                    Indicates path where all buffers will be stored this option also works for -l_to and -l_from options\n\n";
+                std::cout << "        " << loadFlagPath << "              Indicates path where all buffers will be stored this option also works for -l_to and -l_from options\n\n";
                 std::cout << "    " << testFlag << "                      Run some tests\n\n";
                 std::cout << "    " << configFileFlag << "              Load configuration from file ./configuration/<filename>\n\n";
                 std::cout << "        " << configFileWorm << "                    **Load Worm Body Simulation**\n\n";
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
                 std::cout << "    " << timeStepFlag << "           Start simulation with time step = <value> in seconds\n\n";
                 std::cout << "    " << timeLimitFlag << "          Run simulation until <value> will be reached in seconds\n\n";
                 std::cout << "    " << integrationMethodFlag << "                   Run simulation using Leapfrog integration method for time integration\n\n";
-                std::cout << "    " << oclSourcePath << "      You can indicate path to you'r OpenCL program just using this option\n\n";
+                std::cout << "    " << oclSourcePath << "      You can indicate path to your OpenCL program just using this option\n\n";
                 std::cout << "    " << helpFlag << "                      Print this information\n\n";
                 std::cout << "  Please report any bugs/issues on: https://github.com/openworm/sibernetic/issues\n\n";
                 return 0;

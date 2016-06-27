@@ -2,15 +2,14 @@ from pyneuroml import pynml
 import argparse
 import re
 import os
+import sys
 import time
 
-import c302
-
-DEFAULTS = {'duration': 100.0,
+DEFAULTS = {'duration': 1.0,
             'dt': 0.005,
             'dtNrn': 0.05,
-            'reference': 'Social',
-            'c302params': 'parameters_C1',
+            'reference': 'Muscles',
+            'c302params': 'C1',
             'verbose': False} 
             
             
@@ -44,21 +43,22 @@ def process_args():
                         type=str,
                         metavar='<reference>',
                         default=DEFAULTS['reference'],
-                        help="String to use in simulation results directory, default: %s"%DEFAULTS['reference'])
+                        help="Reference for network subset (Muscles, Full, etc.), default: %s"%DEFAULTS['reference'])
                         
     parser.add_argument('-c302params', 
                         type=str,
                         metavar='<c302params>',
                         default=DEFAULTS['c302params'],
-                        help="Parameter set from c302, default: %s"%DEFAULTS['c302params'])
+                        help="Parameter set from c302 (A, B, C, C1), default: %s"%DEFAULTS['c302params'])
                         
     return parser.parse_args()
                         
 
 
+
 def print_(msg):
-    pre = "Sib_c302  >>> "
-    print('%s %s'%(pre,msg.replace('\n','\n'+pre)))
+    pre = "Sib_c302  >>>"
+    print('%s %s'%(pre,msg.replace('\n','\n'+pre+' ')))
 
 
 def main(args=None):
@@ -97,6 +97,19 @@ def convert_case(name):
 
 
 def run(a=None,**kwargs): 
+    
+    try:
+        if os.environ.has_key('C302_HOME'):
+            os.environ['C302_HOME']
+            sys.path.append(os.environ['C302_HOME'])
+            print_('Python path now: %s'%sys.path)
+        import c302
+    except:
+        print_("Cannot import c302!\n"
+             +"Please set environment variable C302_HOME to point to the directory: CElegansNeuroML/CElegans/pythonScripts/c302!\n")
+             
+        exit()
+        
     a = build_namespace(a,**kwargs)
     
     
@@ -105,32 +118,27 @@ def run(a=None,**kwargs):
     if not os.path.isdir('simulations'):
         os.mkdir('simulations')
     
-    run_dir = "simulations/%s_%s"%(ref, time.ctime().replace(' ','_' ).replace(':','.' ))
-    os.mkdir(run_dir)
+    sim_dir = "simulations/%s_%s"%(ref, time.ctime().replace(' ','_' ).replace(':','.' ))
+    os.mkdir(sim_dir)
     
-    exec('from %s import ParameterisedModel'%a.c302params)
-    params = ParameterisedModel()
+    #exec('from %s import ParameterisedModel'%a.c302params)
+    #params = ParameterisedModel()
     
-    id = '%s_%s'%(ref,a.c302params.split('_')[1])
+    id = '%s_%s'%(a.c302params,ref)
     
-    c302.generate(id,
-             params,
-             cells = None,
-             cells_to_plot = None,
-             cells_to_stimulate = None,
-             include_muscles=False,
-             conn_number_override = None,
-             conn_number_scaling = None,
-             duration = a.duration,
-             dt = a.dt,
-             seed = 1234,
-             validate=True, 
-             test=False,
-             verbose=True,
-             target_directory=run_dir)
+    
+    exec('from c302_%s import setup'%ref)
+    
+    setup(a.c302params, 
+          generate=True,
+          duration = a.duration,
+          dt = a.dt,
+          target_directory=sim_dir)
+    
              
-    lems_file0 = '%s/LEMS_%s.xml'%(run_dir,id)
-    lems_file = '%s/LEMS_c302.xml'%(run_dir)
+    lems_file0 = '%s/LEMS_c302_%s.xml'%(sim_dir,id)
+    lems_file = '%s/LEMS_c302.xml'%(sim_dir)
+    print_("Renaming %s -> %s"%(lems_file0,lems_file))
     os.rename(lems_file0,lems_file)
     
     print_("Generating NEURON files from: %s"%lems_file)
@@ -140,17 +148,28 @@ def run(a=None,**kwargs):
                                         nogui=True, 
                                         load_saved_data=False, 
                                         verbose=True)
+                                        
+    main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'r')
+    updated =''
+    for line in main_nrn_py:
+        updated += '%s'%line.replace('GenericCell.hoc','%s/GenericCell.hoc'%sim_dir)
+    main_nrn_py.close() 
     
+    main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'w')
+    main_nrn_py.write(updated)
+    main_nrn_py.close() 
+    
+    run_dir = '.'
+    command = 'nrnivmodl %s'%sim_dir
 
-    command = 'nrnivmodl'
-
-    print_("Executing: %s in %s"%(command, run_dir))
+    print_("Executing: %s in %s"%(command, ''))
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
-    command = '../../Release/Sibernetic -f worm timelimit=%s timestep=%s'%(a.duration/1000.0,a.dt/1000)
-
-    print_("Executing: %s in %s"%(command, run_dir))
-    #pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",verbose=True)
+    command = './Release/Sibernetic -f worm -no_g timelimit=%s timestep=%s'%(a.duration/1000.0,a.dt/1000)
+    env={"PYTHONPATH":"./src:./%s"%sim_dir}
+    print_("Executing: %s in %s with %s"%(command, run_dir, env))
+    #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
+    pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
 
 
 
