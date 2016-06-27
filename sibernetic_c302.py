@@ -165,11 +165,14 @@ def run(a=None,**kwargs):
     print_("Executing: %s in %s"%(command, ''))
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
-    command = './Release/Sibernetic -f worm -no_g timelimit=%s timestep=%s'%(a.duration/1000.0,a.dt/1000)
+    command = './Release/Sibernetic -f worm -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir,a.duration/1000.0,a.dt/1000)
     env={"PYTHONPATH":"./src:./%s"%sim_dir}
     print_("Executing: %s in %s with %s"%(command, run_dir, env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
+    
+    
+    print_("Finished!|\nRerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
 
 
 
