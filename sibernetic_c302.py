@@ -9,7 +9,7 @@ import c302
 DEFAULTS = {'duration': 100.0,
             'dt': 0.005,
             'dtNrn': 0.05,
-            'reference': 'Muscles',
+            'reference': 'Social',
             'c302params': 'parameters_C1',
             'verbose': False} 
             
@@ -57,7 +57,7 @@ def process_args():
 
 
 def print_(msg):
-    pre = "Sib_c302 >> "
+    pre = "Sib_c302  >>> "
     print('%s %s'%(pre,msg.replace('\n','\n'+pre)))
 
 
@@ -102,9 +102,11 @@ def run(a=None,**kwargs):
     
     ref = a.reference
     
+    if not os.path.isdir('simulations'):
+        os.mkdir('simulations')
+    
     run_dir = "simulations/%s_%s"%(ref, time.ctime().replace(' ','_' ).replace(':','.' ))
     os.mkdir(run_dir)
-    run_dir = "simulations/%s_%s"%(ref, 0)
     
     exec('from %s import ParameterisedModel'%a.c302params)
     params = ParameterisedModel()
@@ -116,7 +118,7 @@ def run(a=None,**kwargs):
              cells = None,
              cells_to_plot = None,
              cells_to_stimulate = None,
-             include_muscles=True,
+             include_muscles=False,
              conn_number_override = None,
              conn_number_scaling = None,
              duration = a.duration,
