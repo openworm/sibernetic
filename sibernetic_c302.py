@@ -99,13 +99,22 @@ def convert_case(name):
 def run(a=None,**kwargs): 
     
     try:
+        import neuroml
+        import pyneuroml
+        import xlrd
+    except Exception as e:
+        print_("Cannot import one of the required packages. Please install!\n"
+             "Exception: %s\n"%e)
+    
+    try:
         if os.environ.has_key('C302_HOME'):
             os.environ['C302_HOME']
             sys.path.append(os.environ['C302_HOME'])
             print_('Python path now: %s'%sys.path)
         import c302
-    except:
+    except Exception as e:
         print_("Cannot import c302!\n"
+             "Exception: %s\n"%e
              +"Please set environment variable C302_HOME to point to the directory: CElegansNeuroML/CElegans/pythonScripts/c302!\n")
              
         exit()
