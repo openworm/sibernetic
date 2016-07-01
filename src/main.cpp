@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
         std::string logStepFlag = "logstep=<value>";
         std::string loadFlagPath = "lpath=<value>";
         std::string oclSourcePath = "oclsourcepath=<value>";
+        std::string nrnFlag = "nrn <value>";
         for (int i = 1; i < argc; i++) {
             if (helpFlag.compare(argv[i]) == 0 ||
             	helpFlag2.compare(argv[i]) == 0||
@@ -89,6 +90,7 @@ int main(int argc, char **argv) {
                 std::cout << "    " << timeLimitFlag << "          Run simulation until <value> will be reached in seconds\n\n";
                 std::cout << "    " << integrationMethodFlag << "                   Run simulation using Leapfrog integration method for time integration\n\n";
                 std::cout << "    " << oclSourcePath << "      You can indicate path to you'r OpenCL program just using this option\n\n";
+                std::cout << "    " << nrnFlag << "      Indicates that you plan run simulation with NEURON simulation = <value> value should be a file which can be run by NEURON simulator and also you should have installed neuron and sibernetic_neuron bridg\n\n";
                 std::cout << "    " << helpFlag << "                      Print this information\n\n";
                 std::cout << "  Please report any bugs/issues on: https://github.com/openworm/sibernetic/issues\n\n";
                 return 0;

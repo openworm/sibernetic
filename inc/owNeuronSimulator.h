@@ -30,32 +30,32 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
+/* 	owNeuronSimulator.h
+ * 	C++ part of NEURON <-> sibernetic bridge
+ * 	It will work if yo have NEURON simulator installed
+ * 	on your OS also you need install sibernetic_neuron bridge
+ * 	you can download it from github https://github.com/openworm/sibernetic_NEURON
+ *  Created on: Jun 27, 2016
+ *      Author: serg
+ */
 
-#ifndef PYRAMIDALSIMULATION_H
-#define PYRAMIDALSIMULATION_H
-//#include "/usr/include/python2.7/Python.h"  //need to fix
-//#define MS_NO_COREDLL
+#ifndef INC_OWNEURONSIMULATOR_H_
+#define INC_OWNEURONSIMULATOR_H_
+
 #if defined(_WIN32) || defined (_WIN64)
   #include "C:/Python27/include/Python.h" // TODO make it optional
 #else
   #include <Python.h>
 #endif
-#include <iostream>
 #include <vector>
+#include <iostream>
+#include "owINeuronSimulator.h"
 
-#include <owINeuronSimulator.h>
-//#pragma comment( lib, "C:\\Python27\\libs\\python27.lib" )
-//#pragma comment( lib, "C:/Python26/libs/python26.lib" )
-//#pragma comment( lib, "C:/Python26/libs/python26.lib" )
-
-
-
-
-class SignalSimulator: public owINeuronSimulator{
+class owNeuronSimulator: public owINeuronSimulator {
 public:
-  SignalSimulator(const std::string & simFileName = "main_sim", const std::string & simClassName = "MuscleSimulation");
-  std::vector<float> run();
-  ~SignalSimulator(){}
+	owNeuronSimulator(int muscleNumber, float timeStep, const std::string & modelFileName, const std::string & simFileName = "main");
+	std::vector<float> run();
+	virtual ~owNeuronSimulator();
 };
 
-#endif
+#endif /* INC_OWNEURONSIMULATOR_H_ */

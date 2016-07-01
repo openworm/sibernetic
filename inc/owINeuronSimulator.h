@@ -30,32 +30,34 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
+/*
+ * owINeuronSimulator.h
+ * Interface for simulator of neuronal activity
+ *  Created on: Jun 27, 2016
+ *      Author: Sergey Khayrulin
+ */
 
-#ifndef PYRAMIDALSIMULATION_H
-#define PYRAMIDALSIMULATION_H
-//#include "/usr/include/python2.7/Python.h"  //need to fix
-//#define MS_NO_COREDLL
-#if defined(_WIN32) || defined (_WIN64)
-  #include "C:/Python27/include/Python.h" // TODO make it optional
-#else
-  #include <Python.h>
-#endif
-#include <iostream>
-#include <vector>
+#ifndef INC_OWINEURONSIMULATOR_H_
+#define INC_OWINEURONSIMULATOR_H_
 
-#include <owINeuronSimulator.h>
-//#pragma comment( lib, "C:\\Python27\\libs\\python27.lib" )
-//#pragma comment( lib, "C:/Python26/libs/python26.lib" )
-//#pragma comment( lib, "C:/Python26/libs/python26.lib" )
-
-
-
-
-class SignalSimulator: public owINeuronSimulator{
+class owINeuronSimulator {
+protected:
+	std::vector<float> unpackPythonList(PyObject* pValue, size_t musclesNum=96){
+		Py_ssize_t size = PyList_Size(pValue);
+		std::vector<float> test(musclesNum); //needs to change! 96 is hardcoded
+		printf("====\n");
+		for (Py_ssize_t i = 0; i < size; i++) {
+			float value;
+			value = (float)PyFloat_AsDouble(PyList_GetItem(pValue, i));
+			test[i]= value;
+		}
+		Py_DECREF(pValue);
+		return test;
+	}
+	PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pClass, *pInstance, * nrn_sim;
 public:
-  SignalSimulator(const std::string & simFileName = "main_sim", const std::string & simClassName = "MuscleSimulation");
-  std::vector<float> run();
-  ~SignalSimulator(){}
+	virtual std::vector<float> run() = 0;
+	virtual ~owINeuronSimulator(){}
 };
 
-#endif
+#endif /* INC_OWINEURONSIMULATOR_H_ */
