@@ -235,7 +235,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to)
 
 	}
 
-	config->updatePyramidalSimulation(muscle_activation_signal_cpp);
+	config->updateNeuronSimulation(muscle_activation_signal_cpp);
 
 	ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
 	iterationCount++;
