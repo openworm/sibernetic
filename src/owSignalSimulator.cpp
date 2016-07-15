@@ -45,7 +45,7 @@
 #include "owSignalSimulator.h"
 
 
-int SignalSimulator::setup(const std::string & simFileName, const std::string & simClassName){
+SignalSimulator::SignalSimulator(const std::string & simFileName, const std::string & simClassName){
 
   //char pyClass[] = "SiberneticNEURONWrapper";
   //char pyClass[] = "C302Simulation";
@@ -82,22 +82,8 @@ int SignalSimulator::setup(const std::string & simFileName, const std::string & 
   else {
     throw std::runtime_error("Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src");
   }
-  return 0;
-};
+}
 
-std::vector<float> SignalSimulator::unpackPythonList(PyObject* pValue){
-
-	Py_ssize_t size = PyList_Size(pValue);
-	std::vector<float> test(96); //needs to change! 96 is hardcoded
-	printf("====\n");
-	for (Py_ssize_t i = 0; i < size; i++) {
-		float value;
-		value = (float)PyFloat_AsDouble(PyList_GetItem(pValue, i));
-		test[i]= value;
-	}
-	Py_DECREF(pValue);
-	return test;
-};
 
 std::vector<float> SignalSimulator::run(){
 // Call a method of the class
@@ -108,11 +94,10 @@ std::vector<float> SignalSimulator::run(){
 	  std::vector<float> value_array;
 	  value_array = SignalSimulator::unpackPythonList(pValue);
 	  return value_array;
-
 	}
 	else {
 	  std::vector<float> single_element_array(0);
 	  single_element_array[0] = (float)PyFloat_AsDouble(pValue);
 	  return single_element_array;
 	}
-};
+}

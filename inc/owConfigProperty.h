@@ -46,6 +46,7 @@
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
 #include "owSignalSimulator.h"
+#include "owNeuronSimulator.h"
 
 struct owConfigProperty{
 	//This value defines boundary of box in which simulation is
@@ -71,20 +72,27 @@ public:
 	const std::string & getCofigFileName() const { return configFileName; }
 	const std::string & getCofigPath() const { return path; }
 	const std::string & getLoadPath() const { return loadPath; }
-	SignalSimulator & getPyramidalSimulation() { return simulation; }
-	void updatePyramidalSimulation(float * muscleActivationSignal){
-		if(isWormConfig()){
-			std::vector<float> muscle_vector = simulation.run();
+	//SignalSimulator & getPyramidalSimulation() { return simulation; }
+	owINeuronSimulator * getPyramidalSimulation() { return simulation; }
+	void updateNeuronSimulation(float * muscleActivationSignal){
+		if(isWormConfig() || nrnSimRun){
+			std::vector<float> muscle_vector = simulation->run();
 			for (unsigned int index = 0; index < muscle_vector.size(); index++){
 				muscleActivationSignal[index] = muscle_vector[index];
 			}
 		}
 	}
-	bool isWormConfig(){ return (configFileName.find("worm") != std::string::npos); }//   == "worm" || configFileName == "worm_no_water")? true:false; }
+	bool isWormConfig(){ return (configFileName.find("worm") != std::string::npos);}//   == "worm" || configFileName == "worm_no_water")? true:false; }
 	void setCofigFileName( const char * name ) { configFileName = name; }
 	void resetNeuronSimulation(){
-		if(isWormConfig())
-			simulation.setup();
+		if(isWormConfig() || nrnSimRun){
+			delete simulation;
+			if(!isWormConfig()){
+				simulation = new SignalSimulator();
+			}
+			else
+				simulation = new owNeuronSimulator(1,this->timeStep, nrnSimulationFileName);
+		}
 	}
 	void setTimeStep(float value){
 		this->timeStep = value;
@@ -126,6 +134,8 @@ public:
 		std::string strTemp;
 		configFileName = "demo1"; // by default
 		std::string simName = "";
+		nrnSimRun = false;
+		nrnSimulationFileName = "";
 		for(int i = 1; i<argc; i++){
 			strTemp = argv[i];
 			if(strTemp.find("device=") == 0){
@@ -177,14 +187,27 @@ public:
 			if(strTemp.find("sigsim=") == 0){
 				simName = strTemp.substr(strTemp.find('=')+1).c_str();
 			}
+			if(strTemp.find("-nrn") == 0){
+				nrnSimRun = true;
+				//Next step load custom model file
+				if(i + 1 < argc){
+					nrnSimulationFileName = argv[i+1];
+				}
+				else
+					throw std::runtime_error("You forget add NEURON model file name. Please add it and try again");
+			}
 		}
 		totalNumberOfIteration = timeLim/this->timeStep; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
-		if(isWormConfig()){ // in case if we run worm configuration TODO make it optional
-			if(simName.compare("") == 0)
-				simulation.setup();
+		if(isWormConfig() || nrnSimRun){ // in case if we run worm configuration TODO make it optional
+			if(isWormConfig()){
+				if(simName.compare("") == 0)
+					simulation = new SignalSimulator();
+				else
+					simulation = new SignalSimulator(simName);
+			}
 			else
-				simulation.setup(simName);
+				simulation = new owNeuronSimulator(1,this->timeStep, nrnSimulationFileName);
 		}
 	}
 	void initGridCells(){
@@ -193,6 +216,9 @@ public:
 		gridCellsY = static_cast<uint>( ( ymax - ymin ) / h ) + 1;
 		gridCellsZ = static_cast<uint>( ( zmax - zmin ) / h ) + 1;
 		gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
+	}
+	~owConfigProperty(){
+		delete simulation;
 	}
 	float xmin;
 	float xmax;
@@ -275,9 +301,12 @@ private:
 	std::string configFileName;
 	std::string path;              // PATH to configuration files
 	std::string loadPath;          // PATH to load buffer files
-	SignalSimulator simulation;
+	//SignalSimulator simulation;
+	owINeuronSimulator * simulation;
 	std::string devFullName;
 	std::string sourceFileName;
+	bool nrnSimRun; //indicates if we also ran NEURON simulation
+	std::string nrnSimulationFileName;
 };
 
 #endif /* OWCONFIGURATION_H_ */
