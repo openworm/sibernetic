@@ -5,6 +5,9 @@ import os
 import sys
 import time
 
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+
 DEFAULTS = {'duration': 1.0,
             'dt': 0.005,
             'dtNrn': 0.05,
@@ -121,13 +124,15 @@ def run(a=None,**kwargs):
         
     a = build_namespace(a,**kwargs)
     
+    gen_start = time.time()
     
     ref = a.reference
     
     if not os.path.isdir('simulations'):
         os.mkdir('simulations')
     
-    sim_dir = "simulations/%s_%s"%(ref, time.ctime().replace(' ','_' ).replace(':','.' ))
+    sim_ref = "%s_%s_%s"%(a.c302params,ref, time.ctime().replace(' ','_' ).replace(':','.' ))
+    sim_dir = "simulations/%s"%(sim_ref)
     os.mkdir(sim_dir)
     
     #exec('from %s import ParameterisedModel'%a.c302params)
@@ -161,7 +166,10 @@ def run(a=None,**kwargs):
     main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'r')
     updated =''
     for line in main_nrn_py:
-        updated += '%s'%line.replace('GenericCell.hoc','%s/GenericCell.hoc'%sim_dir)
+        line = line.replace('GenericCell.hoc','%s/GenericCell.hoc'%sim_dir)
+        line = line.replace("open('time.dat","open('%s/time.dat"%sim_dir)
+        line = line.replace("open('c302_","open('%s/c302_"%sim_dir)
+        updated += line
     main_nrn_py.close() 
     
     main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'w')
@@ -176,13 +184,36 @@ def run(a=None,**kwargs):
 
     command = './Release/Sibernetic -f worm -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir,a.duration/1000.0,a.dt/1000)
     env={"PYTHONPATH":"./src:./%s"%sim_dir}
-    print_("Executing: %s in %s with %s"%(command, run_dir, env))
+    
+    sim_start = time.time()
+    
+    print_("************************************************************************")
+    print_("*  Executing main Sibernetic simulation: %s in %s with %s"%(command, run_dir, env))
+    print_("************************************************************************")
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     
     
-    print_("Finished!|\nRerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
+    print_("\nFinished!\n\nSimulation saved in: %s\n\n"%(sim_dir))
+    print_("Report of simulation at: %s/report.json\n\n"%(sim_dir))
+    print_("Rerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n\n"%(sim_dir))
 
+    sim_end = time.time()
+    
+    reportj = {}
+    
+    reportj['duration'] = '%s ms'%a.duration
+    reportj['dt'] = '%s ms'%a.dt
+    reportj['sim_ref'] = sim_ref
+    reportj['reference'] = a.reference
+    reportj['c302params'] = a.c302params
+    reportj['generation_time'] = '%s s'%(sim_start-gen_start)
+    reportj['run_time'] = '%s s'%(sim_end-sim_start)
+    
+    
+    report_file = open("%s/report.json"%sim_dir,'w')
+    report_file.write(pp.pformat(reportj))
+    report_file.close()
 
 
 if __name__ == '__main__':

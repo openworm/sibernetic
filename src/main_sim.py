@@ -155,7 +155,7 @@ class C302Simulation():
             
         print_("Loaded a list of %i activity traces (values %s->%s) at %i time points from %s"%(len(self.values[0]), min_, max_, len(self.values), activity_file))
         
-        max_ = 8e-8
+        max_ = 4e-7
         
         if scale_to_max:
             vals_scaled = []
@@ -186,7 +186,7 @@ class C302Simulation():
     
 class C302NRNSimulation():
 
-    max_ca = 2e-12
+    max_ca = 4e-7
     max_ca_found = -1
     
     def __init__(self, tstop=100, dt=0.005, activity_file=None, verbose=True):
@@ -211,11 +211,11 @@ class C302NRNSimulation():
         
     def run(self, skip_to_time=-1):
         
-        print_("> Current NEURON time: %s"%self.h.t)
+        print_("> Current NEURON time: %s ms"%self.h.t)
         
         self.ns.advance()
         
-        print_("< Current NEURON time: %s"%self.h.t)
+        print_("< Current NEURON time: %s ms"%self.h.t)
                   
         values = list([self._scale(self.h.a_MDR01[0].soma.cai,print_it=True), \
                  self._scale(self.h.a_MVR01[0].soma.cai), \
