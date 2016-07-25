@@ -101,3 +101,12 @@ std::vector<float> SignalSimulator::run(){
 	  return single_element_array;
 	}
 }
+
+SignalSimulator::~SignalSimulator() {
+    
+	  std::cout << "Killing SignalSimulator!"<< std::endl;
+      
+	  PyObject_CallMethod(pInstance, const_cast<char *>("save_results"), NULL);
+      if( PyErr_Occurred() ) PyErr_Print();  
+	// TODO Auto-generated destructor stub
+}

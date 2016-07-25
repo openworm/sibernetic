@@ -205,6 +205,8 @@ class C302NRNSimulation():
         
     def save_results(self):
         
+        print_("> Saving results at time: %s"%self.h.t)
+        
         self.ns.save_results()
         
     def run(self, skip_to_time=-1):
