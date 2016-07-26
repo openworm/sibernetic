@@ -60,5 +60,4 @@ src/*.dat
 simulations/Sim*
 simulations/Muscle*
 simulations/C1_Muscle*
-
-
+/figure_1.png

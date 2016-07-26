@@ -187,9 +187,9 @@ def run(a=None,**kwargs):
     
     sim_start = time.time()
     
-    print_("************************************************************************")
-    print_("*  Executing main Sibernetic simulation: %s in %s with %s"%(command, run_dir, env))
-    print_("************************************************************************")
+    print_("\n************************************************************************\n*")
+    print_("*  Executing main Sibernetic simulation using: \n*\n*    %s \n*\n*  in %s with %s"%(command, run_dir, env))
+    print_("*\n************************************************************************")
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     

@@ -128,7 +128,13 @@ class MuscleSimulation():
         return list(np.concatenate([self.contraction_array[0],
                                     self.contraction_array[1],
                                     self.contraction_array[1],
-                                    self.contraction_array[0]]))  
+                                    self.contraction_array[0]])) 
+                                    
+    def save_results(self):
+        
+        print_("> NOT saving results for MuscleSimulation")
+        
+        
 class C302Simulation():
     
     values = []

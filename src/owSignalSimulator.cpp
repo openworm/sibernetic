@@ -70,7 +70,7 @@ SignalSimulator::SignalSimulator(const std::string & simFileName, const std::str
 	if( PyErr_Occurred() ) PyErr_Print();  
   }
   else {
-    throw std::runtime_error("Module not loaded, have you set PYTHONPATH?");
+    throw std::runtime_error("Python module not loaded, have you set PYTHONPATH?\nTry: \n\n   export PYTHONPATH=$PYTHONPATH:./src\n");
   }
   // Create an instance of the class
   if (PyCallable_Check(pClass))

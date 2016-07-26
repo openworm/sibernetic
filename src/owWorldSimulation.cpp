@@ -37,7 +37,6 @@
 #include <cmath>
 
 #include "owWorldSimulation.h"
-#include "owINeuronSimulator.h"
 
 extern bool load_from_file;
 extern bool load_to;
