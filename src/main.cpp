@@ -61,6 +61,7 @@ int main(int argc, char **argv) {
         std::string testFlag = "-test";
         std::string configFileFlag = "-f <filename>";
         std::string configFileWorm = "-f worm";
+        std::string c302Flag = "-c302";
         std::string deviceTypeFlag = "device=<device_type>";
         std::string timeStepFlag = "timestep=<value>";
         std::string timeLimitFlag = "timelimit=<value>";
@@ -85,6 +86,7 @@ int main(int argc, char **argv) {
                 std::cout << "    " << testFlag << "                      Run some tests\n\n";
                 std::cout << "    " << configFileFlag << "              Load configuration from file ./configuration/<filename>\n\n";
                 std::cout << "        " << configFileWorm << "                    **Load Worm Body Simulation**\n\n";
+                std::cout << "    " << c302Flag << "                      Run worm model with c302 (use sibernetic_c302.py)\n\n";
                 std::cout << "    " << deviceTypeFlag << "       Trying to init OpenCL on device <type> it could be cpu or gpu default-ALL (it try to init most powerful available device)\n\n";
                 std::cout << "    " << timeStepFlag << "           Start simulation with time step = <value> in seconds\n\n";
                 std::cout << "    " << timeLimitFlag << "          Run simulation until <value> will be reached in seconds\n\n";

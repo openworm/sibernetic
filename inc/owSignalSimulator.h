@@ -53,7 +53,7 @@
 
 class SignalSimulator: public owINeuronSimulator{
 public:
-  SignalSimulator(const std::string & simFileName = "main_sim", const std::string & simClassName = "C302NRNSimulation");
+  SignalSimulator(const std::string & simFileName = "main_sim", const std::string & simClassName = "MuscleSimulation");
   std::vector<float> run();
   ~SignalSimulator();
 };

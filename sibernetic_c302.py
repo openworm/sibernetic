@@ -167,6 +167,8 @@ def run(a=None,**kwargs):
     updated =''
     for line in main_nrn_py:
         line = line.replace('GenericCell.hoc','%s/GenericCell.hoc'%sim_dir)
+        line = line.replace('GenericNeuronCell.hoc','%s/GenericNeuronCell.hoc'%sim_dir)
+        line = line.replace('GenericMuscleCell.hoc','%s/GenericMuscleCell.hoc'%sim_dir)
         line = line.replace("open('time.dat","open('%s/time.dat"%sim_dir)
         line = line.replace("open('c302_","open('%s/c302_"%sim_dir)
         updated += line
@@ -182,7 +184,7 @@ def run(a=None,**kwargs):
     print_("Executing: %s in %s"%(command, ''))
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
-    command = './Release/Sibernetic -f worm -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir,a.duration/1000.0,a.dt/1000)
+    command = './Release/Sibernetic -c302 -f worm -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir,a.duration/1000.0,a.dt/1000)
     env={"PYTHONPATH":"./src:./%s"%sim_dir}
     
     sim_start = time.time()
@@ -209,6 +211,7 @@ def run(a=None,**kwargs):
     reportj['c302params'] = a.c302params
     reportj['generation_time'] = '%s s'%(sim_start-gen_start)
     reportj['run_time'] = '%s s'%(sim_end-sim_start)
+    reportj['command'] = '%s'%(command)
     
     
     report_file = open("%s/report.json"%sim_dir,'w')
