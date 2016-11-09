@@ -42,6 +42,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <iostream>
+#include <algorithm>
 
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
@@ -139,9 +140,10 @@ public:
 		for(int i = 1; i<argc; i++){
 			strTemp = argv[i];
 			if(strTemp.find("device=") == 0){
-				if(strTemp.find("GPU") != std::string::npos || strTemp.find("gpu") != std::string::npos)
+				std::transform(strTemp.begin(), strTemp.end(), strTemp.begin(), ::tolower);
+				if(strTemp.find("gpu") != std::string::npos)
 					prefDeviceType = GPU;
-				if(strTemp.find("CPU") != std::string::npos || strTemp.find("cpu") != std::string::npos)
+				if(strTemp.find("cpu") != std::string::npos)
 					prefDeviceType = CPU;
 			}
 			if(strTemp.find("timestep=") == 0){
