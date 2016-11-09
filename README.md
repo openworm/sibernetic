@@ -131,6 +131,7 @@ Available options:
  timelimit=<value>     Run simulation until <value> will be reached in seconds.
  leapfrog              Use for integration LeapFrog method
  oclsourcepath=<value> You can indicate path to you'r OpenCL program just using this option
+ -nrn <value>           Indicates that you plan run simulation with NEURON simulation = <value> value should be a file which                        can be run by NEURON simulator and also you should have installed neuron and sibernetic_neuron bridge
  -help                 Print this information on screen.
 ```
 
@@ -248,6 +249,10 @@ To save the VTK files, run the program with the parameter `-export_vtk`,
 ```
 
 For each saved timestep number N a file `state_N.vtp` is created in the directory `./buffers`. Storing interval is given by the parameter `logstep`.
+
+Run with Sibernetic-NEURON bridge
+---------------------------------
+Now it's possible to run physical simulation and neuronal together for this you need at the same time don't forget add sibernetic_NEURON into PYTHONPATH. You just need run Sibernetic with command argument '-nrn <value>' where value it's a path to NEURON simulation file (*.hoc e.g.). After that Sibernetic will init sibernetic_NEURON with appropriate simulation file and same timeStep also you're should indicate from what segments of NEURON's model you'de like to read data (current Voltage). After each one step of Sibernetic simulation it will run one step of NEURON simulation and read data from it and update signal array in Sibernetic. For now, it actually works in test mode list of segments is [hardcoded](https://github.com/openworm/sibernetic/blob/development/src/owNeuronSimulator.cpp#L70) so if you'de like to work with other list of segments you need rewrite this part of code and recompile Sibernetic.
 
 Making videos (*nix)
 --------------------
