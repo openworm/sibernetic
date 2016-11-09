@@ -202,7 +202,7 @@ public:
 		totalNumberOfIteration = timeLim/this->timeStep; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
 		if(isWormConfig() || nrnSimRun){ // in case if we run worm configuration TODO make it optional
-			if(isWormConfig()){
+			if(isWormConfig() && !nrnSimRun){
 				if(simName.compare("") == 0)
 					simulation = new SignalSimulator();
 				else
