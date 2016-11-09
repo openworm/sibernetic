@@ -1,4 +1,4 @@
-repo: openworm/PyOpenWorm
+repo: openworm/sibernetic
 shortDescription: "This is a C++/OpenCL implementation of the PCISPH algorithm supplemented with a set of biomechanics simulations related features applied to C. elegans locomotion"
 coordinator: palyanov.andrey@openworm.org
 documentation: "https://openworm.github.io/sibernetic/"
