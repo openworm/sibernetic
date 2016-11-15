@@ -47,7 +47,7 @@
 
 const float rho0 = 1000.0f;                         // Standard value of liquid density for water (kg/m^3)
 
-const float mass = 3.25e-14f;                       // Mass for one particle (kg).
+const float mass = 0.54e-13f;                       // Mass for one particle (kg).
                                                     // Some facts about C. elegans:
                                                     // Adult worm mass = 3.25e-06 grams = 3.25e-09 kg
                                                     // worm density is around 1000 kg/m3
@@ -93,8 +93,8 @@ const float timeStep = 5.0e-06f;                    // Time step of simulation (
                                                     // TODO: find dependence and make choice automatically
                                                     // [1] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
                                                     // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
-
-const float simulationScale = 0.004f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);//pow(mass,1.f/3.f)/pow(rho0,1.f/3.f); // Simulation scale coefficient. It means that N * simulationScale
+							/*0.00411**/
+const float simulationScale = 0.0041f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);//pow(mass,1.f/3.f)/pow(rho0,1.f/3.f); // Simulation scale coefficient. It means that N * simulationScale
                                                                    // converts from simulation scale to meters N / simulationScale convert from meters simulation scale
                                                                    // If you want to take real value of distance in meters you need multiple on simulation scale
                                                                    // NOTE: simulationScale depends from mass of particle. If we place one particle
@@ -146,8 +146,8 @@ const float _hScaled2 = _hScaled*_hScaled;          // squared scaled smoothing 
 const float surfTensCoeff = mass_mult_Wpoly6Coefficient * simulationScale;
 //const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale; // Surface coefficient. Actually it is -1.5e-09f * 0.3f
                                                                                                                                                // But for decreasing number of repeating calculation we suppose that
-                                                                                                                                               // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
-const float elasticityCoefficient = 1.95e-05f / mass; // Elasticity coefficient. Actually it isn't
+                                  /*5.00e-05*/                                                                                                            // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
+const float elasticityCoefficient = 3.00e-05f / mass; // Elasticity coefficient. Actually it isn't
                                                       // elasticity coefficient (elasticity coefficient = 1.95e-05f)
                                                       // But for decreasing number of repeating calculation we suppose that  elasticityCoefficient = 1.95e-05f / mass
 #endif // #ifndef OW_PHYSICS_CONSTANT_H

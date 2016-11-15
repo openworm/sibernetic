@@ -38,102 +38,205 @@
 
 #include <vector>
 #include <string>
+#include <ctime>
+#include <sstream>
+#include <stdexcept>
+#include <iostream>
+#include <algorithm>
 
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
-#include "PyramidalSimulation.h"
+#include "owSignalSimulator.h"
+#include "owNeuronSimulator.h"
 
-extern int MUSCLE_COUNT;
-
-struct owConfigProrerty{
+struct owConfigProperty{
 	//This value defines boundary of box in which simulation is
 	//Sizes of the box containing simulated 'world'
 	//Sizes choice is realized this way because it should be proportional to smoothing radius h
 public:
+	typedef unsigned int uint;
 	const int getParticleCount(){ return PARTICLE_COUNT; }
 	void setParticleCount(int value){
 		PARTICLE_COUNT = value;
 		PARTICLE_COUNT_RoundedUp = ((( PARTICLE_COUNT - 1 ) / local_NDRange_size ) + 1 ) * local_NDRange_size;
 	}
-	void setDeviceType(DEVICE type) { preferable_device_type = type; }
+	void setDeviceType(DEVICE type) { prefDeviceType = type; }
 	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; }
-	const int getDeviceType() const { return preferable_device_type; };
+	const int getDeviceType() const { return prefDeviceType; };
 	const int getNumberOfIteration() const { return totalNumberOfIteration ;}
-	const char * getDeviceName() const { return device_full_name.c_str(); }
-	void setDeviceName(char * name) {
-		device_full_name = name;
+	const char * getDeviceName() const { return devFullName.c_str(); }
+	const std::string & getSourceFileName() const { return sourceFileName; }
+	void setDeviceName(const char * name) {
+		devFullName = name;
 	}
-	INTEGRATOR getIntegrationMethod() const { return integration_method; }
+	INTEGRATOR getIntegrationMethod() const { return integrationMethod; }
 	const std::string & getCofigFileName() const { return configFileName; }
-	PyramidalSimulation & getPyramidalSimulation() { return simulation; }
-	void updatePyramidalSimulation(float * muscleActivationSignal){
-		if(configFileName == "worm"){
-			std::vector<float> muscle_vector = simulation.run();
-			for(int i=0; i < MUSCLE_COUNT; i++){
-				for (unsigned int index = 0; index < muscle_vector.size(); index++){
-					muscleActivationSignal[index] = muscle_vector[index];
-				}
+	const std::string & getCofigPath() const { return path; }
+	const std::string & getLoadPath() const { return loadPath; }
+	//SignalSimulator & getPyramidalSimulation() { return simulation; }
+	owINeuronSimulator * getPyramidalSimulation() { return simulation; }
+	void updateNeuronSimulation(float * muscleActivationSignal){
+		if(isWormConfig() || nrnSimRun){
+			std::vector<float> muscle_vector = simulation->run();
+			for (unsigned int index = 0; index < muscle_vector.size(); index++){
+				muscleActivationSignal[index] = muscle_vector[index];
 			}
 		}
 	}
-	bool isWormConfig(){ return (configFileName == "worm")? true:false; }
+	bool isWormConfig(){ return (configFileName.find("worm") != std::string::npos);}//   == "worm" || configFileName == "worm_no_water")? true:false; }
 	void setCofigFileName( const char * name ) { configFileName = name; }
+	void resetNeuronSimulation(){
+		if(isWormConfig() || nrnSimRun){
+			delete simulation;
+			if(!isWormConfig()){
+				simulation = new SignalSimulator();
+			}
+			else
+				simulation = new owNeuronSimulator(1,this->timeStep, nrnSimulationFileName);
+		}
+	}
+	void setTimeStep(float value){
+		this->timeStep = value;
+	}
+	void setLogStep(int value){
+		logStep = value;
+	}
+	int getLogStep(){ return logStep; }
+	float getTimeStep() const { return this->timeStep; }
+	float getDelta() const { return delta; }
+	std::string getSnapshotFileName() {
+		std::string fileName = "./configuration/snapshot/" + configFileName + "_";
+		std::stringstream ss;
+		time_t t = time(0);   // get time now
+		struct tm * now = localtime( & t );
+		ss << now->tm_hour;
+		ss << "-";
+		ss << now->tm_min;
+		ss << "-";
+		ss << now->tm_sec;
+		ss << "_";
+		ss << now->tm_mday;
+		ss << ".";
+		ss << (now->tm_mon + 1);
+		ss << ".";
+		ss << (now->tm_year + 1900);
+		fileName += ss.str();
+		return fileName;
+	}
 	// Constructor
-	owConfigProrerty(int argc, char** argv){
-		preferable_device_type = ALL;
-		time_step = timeStep;
-		time_limit = 0.f;
+	owConfigProperty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0),
+											numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"),
+											loadPath("./buffers/"), sourceFileName( OPENCL_PROGRAM_PATH ){
+		prefDeviceType = ALL;
+		this->timeStep = ::timeStep;
+		timeLim = 0.f;
 		beta = ::beta;
-		integration_method = EULER;
-		std::string s_temp;
-		configFileName = "demo1";
+		integrationMethod = EULER;
+		std::string strTemp;
+		configFileName = "demo1"; // by default
+		std::string simName = "";
+		nrnSimRun = false;
+		nrnSimulationFileName = "";
 		for(int i = 1; i<argc; i++){
-			s_temp = argv[i];
-			if(s_temp.find("device=") == 0){
-				if(s_temp.find("GPU") != std::string::npos || s_temp.find("gpu") != std::string::npos)
-					preferable_device_type = GPU;
-				if(s_temp.find("CPU") != std::string::npos || s_temp.find("cpu") != std::string::npos)
-					preferable_device_type = CPU;
+			strTemp = argv[i];
+			if(strTemp.find("device=") == 0){
+				std::transform(strTemp.begin(), strTemp.end(), strTemp.begin(), ::tolower);
+				if(strTemp.find("gpu") != std::string::npos)
+					prefDeviceType = GPU;
+				if(strTemp.find("cpu") != std::string::npos)
+					prefDeviceType = CPU;
 			}
-			if(s_temp.find("timestep=") == 0){
+			if(strTemp.find("timestep=") == 0){
 
-				time_step = ::atof( s_temp.substr(s_temp.find('=')+1).c_str());
-				time_step = (time_step > 0) ? time_step : timeStep;
-				//also we should recalculate beta if time_step is different from default value of timeStep in owPhysicsConstant
-				beta = time_step*time_step*mass*mass*2/(rho0*rho0);
+				this->timeStep = ::atof( strTemp.substr(strTemp.find('=')+1).c_str());
+				if(this->timeStep < 0.0f)
+					std::cout << "timeStep < 0 using default value" << timeStep << std::endl;
+				this->timeStep = (this->timeStep > 0) ? this->timeStep : ::timeStep;
+				//also we shoisSimulationRun = true;uld recalculate beta if time_step is different from default value of timeStep in owPhysicsConstant
+				beta = this->timeStep*this->timeStep*mass*mass*2/(rho0*rho0);
 			}
-			if(s_temp.find("timelimit=") == 0){
-				time_limit = ::atof( s_temp.substr(s_temp.find('=')+1).c_str());
+			if( strTemp.find("timelimit=") == 0 ){
+				timeLim = ::atof( strTemp.substr(strTemp.find('=')+1).c_str());
+				if(timeLim < 0.0)
+					throw std::runtime_error("timelimit could not be less than 0 check input parameters");
 			}
-			if(s_temp.find("LEAPFROG") != std::string::npos || s_temp.find("leapfrog") != std::string::npos){
-				integration_method = LEAPFROG;
+			if( strTemp.find("LEAPFROG") != std::string::npos || strTemp.find("leapfrog") != std::string::npos ){
+				integrationMethod = LEAPFROG;
 			}
-			if(s_temp == "-f"){
+			if( strTemp.find("logstep=") == 0 ){
+				logStep = ::atoi(strTemp.substr(strTemp.find('=')+1).c_str());
+				if(logStep < 1)
+					throw std::runtime_error("logStep could not be less than 1 check input parameters");
+			}
+			if( strTemp.find("lpath=") != std::string::npos ){
+				loadPath = strTemp.substr(strTemp.find('=')+1).c_str();
+			}
+			if( strTemp.find("oclsourcepath=") != std::string::npos ){
+				sourceFileName = strTemp.substr(strTemp.find('=')+1).c_str();
+			}
+			if(strTemp == "-f"){
 				if(i + 1 < argc){
 					configFileName = argv[i+1];
+					if(configFileName.find("\\") != std::string::npos || configFileName.find("/") != std::string::npos){
+						std::size_t found = configFileName.find_last_of("/\\");
+						path = configFileName.substr(0,found + 1);
+						configFileName = configFileName.substr(found + 1);
+					}
 				}
 				else
 					throw std::runtime_error("You forget add configuration file name. Please add it and try again");
 			}
+			if(strTemp.find("sigsim=") == 0){
+				simName = strTemp.substr(strTemp.find('=')+1).c_str();
+			}
+			if(strTemp.find("-nrn") == 0){
+				nrnSimRun = true;
+				//Next step load custom model file
+				if(i + 1 < argc){
+					nrnSimulationFileName = argv[i+1];
+				}
+				else
+					throw std::runtime_error("You forget add NEURON model file name. Please add it and try again");
+			}
 		}
-		if(configFileName == "worm"){ // in case if we run worm configuration TODO make it optional
-			simulation.setup();
-		}
-		totalNumberOfIteration = time_limit/time_step; // if it equals to 0 it means that simulation will work infinitely
+		totalNumberOfIteration = timeLim/this->timeStep; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
-	};
-	float getTimeStep() const { return timeStep; };
-	float getDelta() const { return delta; };
+		if(isWormConfig() || nrnSimRun){ // in case if we run worm configuration TODO make it optional
+			if(isWormConfig() && !nrnSimRun){
+				if(simName.compare("") == 0)
+					simulation = new SignalSimulator();
+				else
+					simulation = new SignalSimulator(simName);
+			}
+			else
+				simulation = new owNeuronSimulator(1,this->timeStep, nrnSimulationFileName);
+		}
+	}
+	void initGridCells(){
+		//TODO move initialization to configuration class
+		gridCellsX = static_cast<uint>( ( xmax - xmin ) / h ) + 1;
+		gridCellsY = static_cast<uint>( ( ymax - ymin ) / h ) + 1;
+		gridCellsZ = static_cast<uint>( ( zmax - zmin ) / h ) + 1;
+		gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
+	}
+	~owConfigProperty(){
+		delete simulation;
+	}
 	float xmin;
 	float xmax;
 	float ymin;
 	float ymax;
 	float zmin;
 	float zmax;
-	int gridCellsX;
-	int gridCellsY;
-	int gridCellsZ;
-	int gridCellCount;
+	uint gridCellsX;
+	uint gridCellsY;
+	uint gridCellsZ;
+	uint gridCellCount;
+	uint numOfElasticP;
+	uint numOfLiquidP;
+	uint numOfBoundaryP;
+	uint numOfMembranes;
+	uint MUSCLE_COUNT;
 private:
 	/** Calculating delta parameter.
 	 *
@@ -190,15 +293,22 @@ private:
 	int PARTICLE_COUNT;
 	int PARTICLE_COUNT_RoundedUp;
 	int totalNumberOfIteration;
-	float time_step;
-	float time_limit;
+	int logStep;
+	float timeStep;
+	float timeLim;
 	float beta;
 	float delta;
-	DEVICE preferable_device_type;// 0-CPU, 1-GPU
-	INTEGRATOR integration_method; //DEFAULT is EULER
+	DEVICE prefDeviceType; // 0-CPU, 1-GPU
+	INTEGRATOR integrationMethod; //DEFAULT is EULER
 	std::string configFileName;
-	PyramidalSimulation simulation;
-	std::string device_full_name;
+	std::string path;              // PATH to configuration files
+	std::string loadPath;          // PATH to load buffer files
+	//SignalSimulator simulation;
+	owINeuronSimulator * simulation;
+	std::string devFullName;
+	std::string sourceFileName;
+	bool nrnSimRun; //indicates if we also ran NEURON simulation
+	std::string nrnSimulationFileName;
 };
 
 #endif /* OWCONFIGURATION_H_ */

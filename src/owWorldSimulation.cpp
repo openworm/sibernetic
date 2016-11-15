@@ -34,15 +34,10 @@
 #include <stdio.h>
 #include <sstream>
 #include <csignal>
+#include <cmath>
 
 #include "owWorldSimulation.h"
 
-#include "owWorldSimulation.h"
-
-extern int numOfLiquidP;
-extern int numOfElasticP;
-extern int numOfBoundaryP;
-extern int numOfMembranes;
 extern bool load_from_file;
 extern bool load_to;
 
@@ -51,22 +46,10 @@ float camera_trans[] = {0, 0, -8.0};
 float camera_rot[]   = {0, 0, 0};
 float camera_trans_lag[] = {0, 0, -8.0};
 float camera_rot_lag[] = {0, 0, 0};
-const float inertia = 1.0f;
-float modelView[16];
 int buttonState = 0;
-
 float sc = 0.045f;		//0.0145;//0.045;//0.07
-
-float sc_scale = 1.0f;
-
-Vector3D ort1(1,0,0),ort2(0,1,0),ort3(0,0,1);
-GLsizei viewHeight, viewWidth;
-int winIdMain;
-int MUSCLE_COUNT = 100;//increase this value and modify corresponding code if you plan to add more than 10 muscles
 double totalTime = 0;
 int frames_counter = 0;
-double calculationTime;
-double renderTime;
 double fps;
 double prevTime;
 unsigned int * p_indexb;
@@ -77,21 +60,21 @@ float * muscle_activation_signal_cpp;
 int   * md_cpp;// pointer to membraneData_cpp
 owPhysicsFluidSimulator * fluid_simulation;
 owHelper * helper;
-owConfigProrerty * localConfig;
-bool flag = false;
-bool sPause = false;
-void * m_font = (void *) GLUT_BITMAP_8_BY_13;
+owConfigProperty * localConfig;
 int iteration = 0;
 
+static char label[1000];                            /* Storage for current string   */
+bool showInfo = true;
+bool sPause = false;
 
 void calculateFPS();
 void drawScene();
-void renderInfo(int,int);
+inline void renderInfo(int,int);
 void glPrint(float,float,const char *, void*);
 void glPrint3D(float,float,float,const char *, void*);
-void Cleanup(int);
-//float muscle_activation_signal [10] = {0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f,0.f};
-void beginWinCoords(void)
+void cleanupSimulation();
+
+inline void beginWinCoords(void)
 {
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
@@ -107,7 +90,7 @@ void beginWinCoords(void)
     glMatrixMode(GL_MODELVIEW);
 }
 
-void endWinCoords(void)
+inline void endWinCoords(void)
 {
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
@@ -119,7 +102,7 @@ void glPrint(float x, float y, const char *s, void *font)
 {
 	glRasterPos2f((GLfloat)x, (GLfloat)y);
     int len = (int) strlen(s);
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < len; ++i) {
         glutBitmapCharacter(font, s[i]);
     }
 }
@@ -127,7 +110,7 @@ void glPrint3D(float x, float y, float z, const char *s, void *font)
 {
 	glRasterPos3f((GLfloat)x, (GLfloat)y, (GLfloat)z);
     int len = (int) strlen(s);
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < len; ++i) {
         glutBitmapCharacter(font, s[i]);
     }
 }
@@ -138,27 +121,50 @@ void display(void)
 	//Update Scene if not paused
 	int i,j,k;
 	int err_coord_cnt = 0;
+	double calculationTime;
+	double renderTime;
+    void * m_font = GLUT_BITMAP_8_BY_13;
 	if(!sPause){
-		if(load_from_file){
-			owHelper::loadConfigurationFromFile(p_cpp,ec_cpp,md_cpp, localConfig,iteration);
-			iteration++;
-		}else{
-			calculationTime = fluid_simulation->simulationStep(load_to); // Run one simulation step
+		if(!load_from_file){
+			try{
+				calculationTime = fluid_simulation->simulationStep(load_to); // Run one simulation step
+				p_indexb = fluid_simulation->getParticleIndex_cpp();
+				p_cpp = fluid_simulation->getPosition_cpp();
+				d_cpp = fluid_simulation->getDensity_cpp();
+				ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+				if(!load_from_file)
+					md_cpp = fluid_simulation->getMembraneData_cpp();
+			}catch(std::runtime_error & ex){
+				cleanupSimulation();
+				std::cout << "ERROR: " << ex.what() << std::endl;
+				exit (EXIT_FAILURE); // unfortunately we cannot leave glutmain loop by the other way
+			}
 			int pib;
-			p_indexb = fluid_simulation->getParticleIndex_cpp();
-			for(i=0;i<localConfig->getParticleCount();i++)
+			for(i=0;i<localConfig->getParticleCount();++i)
 			{
 				pib = p_indexb[2*i + 1];
 				p_indexb[2*pib + 0] = i;
 			}
-			p_cpp = fluid_simulation->getPosition_cpp();
-			d_cpp = fluid_simulation->getDensity_cpp();
-			ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
 				std::cout << "Simulation is reached time limit" << std::endl;
-				Cleanup(EXIT_SUCCESS);
+				cleanupSimulation();
+				exit (EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by the other way
 			}
-
+		}else{
+			try{
+				if(owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp, localConfig, iteration)){
+					iteration++;
+				}else{
+				  cleanupSimulation();
+				  std::cout << "Simulation has reached end of file" << std::endl;
+				  exit(EXIT_SUCCESS);
+				}
+			 }catch(std::exception &e){
+				  cleanupSimulation();
+				  std::cout << "ERROR: " << e.what() << std::endl;
+				  exit (EXIT_FAILURE);
+			 }
 		}
 		helper->refreshTime();
 	}
@@ -169,7 +175,7 @@ void display(void)
 	glBegin(GL_POINTS);
 	float dc, rho;
 	//Display all particles
-	for(i = 0; i<localConfig->getParticleCount(); i++)
+	for(i = 0; i<localConfig->getParticleCount(); ++i)
 	{
 		if(!load_from_file){
 			rho = d_cpp[ p_indexb[ i * 2 + 0 ] ];
@@ -219,9 +225,8 @@ void display(void)
 		}
 	}
 	glLineWidth((GLfloat)0.1);
-	int ecc=0;//elastic connections counter;
 	//Display elastic connections
-	for(int i_ec=0; i_ec < numOfElasticP * MAX_NEIGHBOR_COUNT; i_ec++)
+	for(int i_ec=0; i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT; ++i_ec)
 	{
 		//offset = 0
 		if((j=(int)ec_cpp[ 4 * i_ec + 0 ])>=0)
@@ -302,16 +307,12 @@ void display(void)
 					glVertex3f( (p_cpp[j*4+0]-localConfig->xmax/2)*sc , (p_cpp[j*4+1]-localConfig->ymax/2)*sc, (p_cpp[j*4+2]-localConfig->zmax/2)*sc );
 					glEnd();
 				}
-
-				ecc++;
 			}
 		}
 	}
 	// Draw membranes
-	if(!load_from_file)
-		md_cpp = fluid_simulation->getMembraneData_cpp();
 	glColor4b(0, 200/2, 150/2, 255/2/*alpha*/);
-	for(int i_m = 0; i_m < numOfMembranes; i_m++)
+	for(unsigned int i_m = 0; i_m < localConfig->numOfMembranes; ++i_m)
 	{
 		i = md_cpp [i_m*3+0];
 		j = md_cpp [i_m*3+1];
@@ -331,7 +332,7 @@ void display(void)
 	glLineWidth((GLfloat)1.0);
 	glutSwapBuffers();
 	helper->watch_report("graphics: \t\t%9.3f ms\n====================================\n");
-	renderTime = helper->get_elapsedTime();
+	renderTime = helper->getElapsedTime();
 	totalTime += calculationTime + renderTime;
 	calculateFPS();
 }
@@ -454,6 +455,7 @@ inline void drawScene()
 
 	glEnd();
 	glLineWidth((GLfloat)1.0);
+	void * m_font = GLUT_BITMAP_8_BY_13;
 	std::stringstream ss;
 	std::string s;
 	ss << order;
@@ -472,27 +474,22 @@ inline void drawScene()
 	}
 }
 
-int count_s = 0;
-float current_sv ;
-static char label[1000];                            /* Storage for current string   */
-bool showInfo = true;
-bool showRuler = false;
 /** Render addition test information
  */
-void renderInfo(int x, int y)
+inline void renderInfo(int x, int y)
 {
 	beginWinCoords();
-	int y_m = y;
+	void * m_font = GLUT_BITMAP_8_BY_13;
 	int i_shift = 0;
 	if(showInfo){
 		glColor3f (0.5F, 1.0F, 1.0F);
-		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", numOfLiquidP,
-																													 numOfElasticP,
-																													 numOfBoundaryP,localConfig->getParticleCount());
+		sprintf(label,"Liquid particles: %d, elastic matter particles: %d, boundary particles: %d; total count: %d", localConfig->numOfLiquidP,
+																													 localConfig->numOfElasticP,
+																													 localConfig->numOfBoundaryP,localConfig->getParticleCount());
 		glPrint( 0 , 2 , label, m_font);
 		glColor3f (1.0F, 1.0F, 1.0F);
 		if(load_from_file)
-			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", localConfig->getDeviceName(), fps, iteration, iteration * localConfig->getTimeStep());
+			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", localConfig->getDeviceName(), fps, iteration, iteration * localConfig->getTimeStep() * localConfig->getLogStep());
 		else
 			sprintf(label,"Selected device: %s FPS = %.2f, time step: %d (%f s)", localConfig->getDeviceName(), fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*localConfig->getTimeStep());
 		glPrint( 0 , 17 , label, m_font);
@@ -617,49 +614,6 @@ void renderInfo(int x, int y)
 				muscle_activation_signal_cpp[21+i_shift],
 				muscle_activation_signal_cpp[23+i_shift]);
 			glPrint( 0 , 119+15 , label, m_font);
-
-			y_m = 40;
-		}
-	}
-	if(showRuler){
-		glColor3ub(255, 0, 0);
-		float accuracy = 100;//what it it?
-		float s_v = 1 * sc_scale * (1 /( accuracy * simulationScale));
-		float s_v_10 = s_v / 10;
-		std::stringstream ss;
-		std::string s;
-		glBegin(GL_LINES);
-			glColor3f(1.0f,0.0f,0.0f);
-			glVertex2f((GLfloat) 0.f,(GLfloat)y_m );
-			glVertex2f((GLfloat) s_v,(GLfloat)y_m );
-			glVertex2f((GLfloat) s_v,(GLfloat)y_m );
-			glVertex2f((GLfloat) s_v,(GLfloat)y_m + 5.f );
-		glEnd();
-			glPrint( s_v , y_m + 15.f , "1E-02 m", m_font);
-		glBegin(GL_LINES);
-			glVertex2f((GLfloat) s_v_10,(GLfloat)y_m + 0.f);
-			glVertex2f((GLfloat) s_v_10,(GLfloat)y_m + 5.f);
-		glEnd();
-		if( 8 * s_v/pow(10.f,count_s) >= glutGet(GLUT_WINDOW_WIDTH)/2 ){
-			count_s++;
-			flag = true;
-		}else{
-			if(count_s != 0 && 8 * s_v/pow(10.f,count_s - 1) < glutGet(GLUT_WINDOW_WIDTH)/2){
-				//flag = false;
-				count_s--;
-			}
-		}
-		if(flag){
-			for(int i = 1;i <= count_s; i++){
-				glBegin(GL_LINES);
-					glVertex2f((GLfloat) s_v/pow(10.f,i + 1),(GLfloat)y_m + 0.f);
-					glVertex2f((GLfloat) s_v/pow(10.f,i + 1),(GLfloat)y_m + 5.f);
-				glEnd();
-				ss << i + 1 + 2;
-				s = "1E-" + ss.str() + "m";
-				ss.str("");
-				glPrint( s_v/pow(10.f,i + 1) , y_m + 15.f , s.c_str(), m_font);
-			}
 		}
 	}
 	endWinCoords();
@@ -681,13 +635,12 @@ void calculateFPS()
 }
 void respond_mouse(int button, int state, int x, int y)
 {
-	if (button == GLUT_LEFT_BUTTON)
-		buttonState = 1;
 	if (button == GLUT_RIGHT_BUTTON)
 		buttonState = 3;
-	int mods;
-	mods = glutGetModifiers();
-    if (mods & GLUT_ACTIVE_CTRL)
+	if (button == GLUT_LEFT_BUTTON)
+		buttonState = 1;
+	int mods = glutGetModifiers();
+	if (mods & GLUT_ACTIVE_CTRL)
     {
         buttonState = 2;
     }
@@ -698,14 +651,11 @@ void respond_mouse(int button, int state, int x, int y)
 	if (button == 3)     // mouse wheel up
     {
         sc *= 1.1f;		 // Zoom in
-		sc_scale *= 1.1f;// Zoom in
     }
-    else
 	if (button == 4)	 // mouse wheel down
-    {
-        sc /= 1.1f;		 // Zoom out
-		sc_scale /= 1.1f;// Zoom out
-    }
+	{
+		sc /= 1.1f;		 // Zoom out
+	}
 }
 
 // GLUT callback
@@ -714,8 +664,8 @@ void respond_mouse(int button, int state, int x, int y)
 void mouse_motion (int x, int y)
 {
 	float dx,dy;
-	dy = (float)(y - old_y);
-	dx = (float)(x - old_x);
+	dy = static_cast<float>(y - old_y);
+	dx = static_cast<float>(x - old_x);
 
 	if(buttonState == 1)
 	{
@@ -723,16 +673,14 @@ void mouse_motion (int x, int y)
 		camera_rot[1] += dx / 5.0f;
 	}
 	if(buttonState == 3){
-		// middle = translate
+
 		camera_trans[0] += dx / 100.0f;
 		camera_trans[1] -= dy / 100.0f;
-		//camera_trans[2] += (dy / 100.0f) * 0.5f * fabs(camera_trans[2]);
+
 	}
 	if(buttonState == 2){
-		// middle = translate
-		//camera_trans[0] += dx / 100.0f;
-		//camera_trans[1] -= dy / 100.0f;
-		camera_trans[2] += (dy / 100.0f) * 0.5f * fabs(camera_trans[2]);
+		camera_trans[0] += dx / 100.0f;
+		camera_trans[1] -= dy / 100.0f;
 	}
 	old_x=x;
 	old_y=y;
@@ -740,22 +688,36 @@ void mouse_motion (int x, int y)
 	glLoadIdentity();
 	for (int c = 0; c < 3; ++c)
 	{
-	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]) * inertia;
-		camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]) * inertia;
+	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]);
+		camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]);
 	}
-    glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
+	glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
 	glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
-	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 
-extern float *muscle_activation_signal_cpp;
-void Cleanup(int exitCode){
-	delete fluid_simulation;
-	delete helper;
-	exit (exitCode);
+/*This function run every
+* time when we need exit simulation
+* It clean all memory for all allocated objects
+*/
+void cleanupSimulation(){
+	if(!load_from_file){
+		delete fluid_simulation;
+		delete helper;
+	}else{
+		//If we load simulation data from input file simulation doesn't create
+		//fluid_simulation and helper objects so simulation doesn't need delete them
+		//but simulation allocate memory for position elastic connection  etc. in heap
+		//and we should deallocate memory when simulation will be over
+		delete localConfig;
+		delete [] p_cpp;
+		delete [] ec_cpp;
+		delete [] md_cpp;
+		delete [] muscle_activation_signal_cpp;
+	}
+	return;
 }
-void RespondKey(unsigned char key, int x, int y)
+void respondKey(unsigned char key, int x, int y)
 {
 	switch(key)
 	{
@@ -775,8 +737,9 @@ void RespondKey(unsigned char key, int x, int y)
 	case '\033':// Escape quits
 	case 'Q':   // Q quits
 	case 'q':   // q quits
-		Cleanup(EXIT_SUCCESS);
-		break;
+		cleanupSimulation();
+		//break;
+		exit (EXIT_SUCCESS);
 	case ' ':
 		sPause = !sPause;
 		std::cout << "\nSimulation Is Paused" << std::endl;
@@ -784,30 +747,27 @@ void RespondKey(unsigned char key, int x, int y)
 	case 's':
 		fluid_simulation->makeSnapshot();
 		break;
-	}
-
-	if(key == 'i')
-	{
+	case 'r': // reset simulation
+		helper->refreshTime();
+		try{
+			fluid_simulation->reset();
+		}catch(std::runtime_error &ex){
+			cleanupSimulation();
+			std::cout << "ERROR: " << ex.what() << std::endl;
+			exit (EXIT_FAILURE);
+		}
+		break;
+	case 'i':
 		showInfo = !showInfo;
-	}
-	if(key == 'r')
-	{
-		showRuler = !showRuler;
+		break;
 	}
 	glutPostRedisplay();
 }
 
-//Auxiliary function
-/** There can be only one idle() callback function. In an
- *  animation, this idle() function must update not only the
- *  main window but also all derived subwindows
- */
 void idle (void)
 {
-  glutSetWindow (winIdMain);
   glutPostRedisplay ();
 }
-//static char label[1000];                            /* Storage for current string   */
 
 void Timer(int value)
 {
@@ -835,13 +795,12 @@ GLvoid resize(GLsizei width, GLsizei height){
 
 	for (int c = 0; c < 3; ++c)
 	{
-	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]) * inertia;
-		camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]) * inertia;
+	    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]);
+		camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]);
 	}
     glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
 	glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
 	glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
-	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
 }
 inline void init(void){
 	glEnable(GL_LIGHTING);
@@ -865,8 +824,9 @@ inline void init(void){
 
 }
 void sighandler(int s){
-	std::cerr << "\nCaught signal CTRL+C. Exit Simulation..." << "\n"; // this is undefined behaviour should check signal value
-	Cleanup(EXIT_SUCCESS);
+	std::cout << "\nCaught signal CTRL+C. Exit Simulation...\n"; // this is undefined behaviour should check signal value
+	cleanupSimulation();
+	exit(EXIT_SUCCESS);
 }
 /** Init & start simulation and graphic component if with_graphics==true
  *
@@ -877,21 +837,28 @@ void sighandler(int s){
  * 	@param load_to
  * 	Flag indicates that simulation will in "load configuration to file" mode
  */
-void run(int argc, char** argv, const bool with_graphics)
+int run(int argc, char** argv, const bool with_graphics)
 {
+
 	helper = new owHelper();
-	if(!load_from_file){
-		fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
-		localConfig = fluid_simulation->getConfig();
-		muscle_activation_signal_cpp = fluid_simulation->getMuscleAtcivationSignal();
-	}
-	else{
-		localConfig = new owConfigProrerty(argc, argv);
-		muscle_activation_signal_cpp = new float [MUSCLE_COUNT];
-		for(int i=0;i<MUSCLE_COUNT;i++)
-		{
-			muscle_activation_signal_cpp[i] = 0.f;
+	try{
+		if(!load_from_file){
+			fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
+			localConfig = fluid_simulation->getConfig();
+			muscle_activation_signal_cpp = fluid_simulation->getMuscleAtcivationSignal();
 		}
+		else{
+			localConfig = new owConfigProperty(argc, argv);
+			muscle_activation_signal_cpp = new float [localConfig->MUSCLE_COUNT];
+			for(unsigned int i=0;i<localConfig->MUSCLE_COUNT;++i)
+			{
+				muscle_activation_signal_cpp[i] = 0.f;
+			}
+		}
+	}catch(std::runtime_error & ex){
+		cleanupSimulation();
+		std::cout << "ERROR: " << ex.what() << std::endl;
+		return EXIT_FAILURE;
 	}
 	std::signal(SIGINT,sighandler);
 	if(with_graphics){
@@ -899,30 +866,36 @@ void run(int argc, char** argv, const bool with_graphics)
 		glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 		glutInitWindowSize(1024, 1024);
 		glutInitWindowPosition(100, 100);
-		winIdMain = glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
+		glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + elastic matter + membranes [2013]: C.elegans body generator demo");
 		glutIdleFunc (idle);
-		//Init physic Simulation
 		init();
 		glutDisplayFunc(display);
 		glutReshapeFunc(resize);
 		glutMouseFunc(respond_mouse);
 		glutMotionFunc(mouse_motion);	//process movement in case if the mouse is clicked,
-		glutKeyboardFunc(RespondKey);
+		glutKeyboardFunc(respondKey);
 		glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 		glutMainLoop();
 		if(!load_from_file){
-			Cleanup(EXIT_SUCCESS);
+			cleanupSimulation();
+			return EXIT_SUCCESS;
 		}
 	}else{
 		while(1){
-			fluid_simulation->simulationStep(load_to);
+			try{
+				fluid_simulation->simulationStep(load_to);
+			}catch(std::runtime_error & ex){
+				cleanupSimulation();
+				std::cout << "ERROR: " << ex.what() << std::endl;
+				return EXIT_FAILURE;
+			}
 			helper->refreshTime();
-			if(load_to && fluid_simulation->getIteration() == 40000){
-				delete fluid_simulation;
-				delete helper;
-				exit(EXIT_SUCCESS);
+			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
+				std::cout << "Simulation has been reached time limit" << std::endl;
+				cleanupSimulation();
+				return EXIT_SUCCESS;
 			}
 		}
 	}
-    exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }

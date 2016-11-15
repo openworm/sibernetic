@@ -49,63 +49,59 @@
 #include "owPhysicsConstant.h"
 #include "owConfigProperty.h"
 
-extern int MUSCLE_COUNT;
-
-#if generateWormBodyConfiguration
-	#define PY_NETWORK_SIMULATION
-#endif
-
-#if INTEL_OPENCL_DEBUG
-//FOR DEBUGGING OPENCL CODE ON YOUR INTEL DEVICE PUT FULL PATH TO OPENCL FILE
-//#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\Users\\Serg\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program
-//#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\Users\\������\\Documents\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program
-#define  OPENCL_DEBUG_PROGRAM_PATH "-g -s \"C:\\GitHub\\Smoothed-Particle-Hydrodynamics\\src\\sphFluid.cl\"" // if you debuging with intel opencl debuger you need past here full path to you opencl program
-#endif
-#define OPENCL_PROGRAM_PATH "src/sphFluid.cl"
-
 //OpenCL solver class
 class owOpenCLSolver
 {
 public:
-	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL, const int * particleMembranesList_cpp = NULL);
+	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp,
+				   owConfigProperty * config, const 
+				   float * elasticConnectionsData_cpp = NULL,
+				   const int * membraneData_cpp = NULL,
+				   const int * particleMembranesList_cpp = NULL);
 	owOpenCLSolver(void);
 	~owOpenCLSolver(void);
-	// Initialize OPENCL device, context, queue, program...
-	void initializeOpenCL(owConfigProrerty * config);
 	//Kernels functions definition for neighbor search algorithm
-	unsigned int _runClearBuffers(owConfigProrerty * config);
-	unsigned int _runHashParticles(owConfigProrerty * config);
-	unsigned int _runSort(owConfigProrerty * config);
-	unsigned int _runSortPostPass(owConfigProrerty * config);
-	unsigned int _runIndexx(owConfigProrerty * config);
-	unsigned int _runIndexPostPass(owConfigProrerty * config);
-	unsigned int _runFindNeighbors(owConfigProrerty * config);
+	unsigned int _runClearBuffers(owConfigProperty * config);
+	unsigned int _runHashParticles(owConfigProperty * config);
+	void _runSort(owConfigProperty * config);
+	unsigned int _runSortPostPass(owConfigProperty * config);
+	unsigned int _runIndexx(owConfigProperty * config);
+	void _runIndexPostPass(owConfigProperty * config);
+	unsigned int _runFindNeighbors(owConfigProperty * config);
 	//PCISPH kernels for physics-related calculations
-	unsigned int _run_pcisph_computeDensity(owConfigProrerty * config);
-	unsigned int _run_pcisph_computeForcesAndInitPressure(owConfigProrerty * config);
-	unsigned int _run_pcisph_computeElasticForces(owConfigProrerty * config);
-	unsigned int _run_pcisph_predictPositions(owConfigProrerty * config);
-	unsigned int _run_pcisph_predictDensity(owConfigProrerty * config);
-	unsigned int _run_pcisph_correctPressure(owConfigProrerty * config);
-	unsigned int _run_pcisph_computePressureForceAcceleration(owConfigProrerty * config);
-	unsigned int _run_pcisph_integrate(int iterationCount, int pcisph_integrate_mode, owConfigProrerty * config);
+	unsigned int _run_pcisph_computeDensity(owConfigProperty * config);
+	unsigned int _run_pcisph_computeForcesAndInitPressure(owConfigProperty * config);
+	unsigned int _run_pcisph_computeElasticForces(owConfigProperty * config);
+	unsigned int _run_pcisph_predictPositions(owConfigProperty * config);
+	unsigned int _run_pcisph_predictDensity(owConfigProperty * config);
+	unsigned int _run_pcisph_correctPressure(owConfigProperty * config);
+	unsigned int _run_pcisph_computePressureForceAcceleration(owConfigProperty * config);
+	unsigned int _run_pcisph_integrate(int iterationCount, int pcisph_integrate_mode, owConfigProperty * config);
 	//Kernels for membrane handling interaction
-	unsigned int _run_clearMembraneBuffers(owConfigProrerty * config);
-	unsigned int _run_computeInteractionWithMembranes(owConfigProrerty * config);
-	unsigned int _run_computeInteractionWithMembranes_finalize(owConfigProrerty * config);
+	unsigned int _run_clearMembraneBuffers(owConfigProperty * config);
+	unsigned int _run_computeInteractionWithMembranes(owConfigProperty * config);
+	unsigned int _run_computeInteractionWithMembranes_finalize(owConfigProperty * config);
 	//
-	unsigned int updateMuscleActivityData(float *_muscle_activation_signal_cpp);
+	void updateMuscleActivityData(float *_muscle_activation_signal_cpp, owConfigProperty * config);
 
-	void read_position_buffer( float * position_cpp, owConfigProrerty * config) { copy_buffer_from_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 ); };
-	void read_velocity_buffer( float * velocity_cpp, owConfigProrerty * config) { copy_buffer_from_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 ); };
-	void read_density_buffer( float * density_cpp, owConfigProrerty * config ) { copy_buffer_from_device( density_cpp, rho, config->getParticleCount() * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
-	void read_particleIndex_buffer( unsigned int * particleIndexBuffer, owConfigProrerty * config ) { copy_buffer_from_device( particleIndexBuffer, particleIndex, config->getParticleCount() * sizeof( unsigned int ) * 2 ); }; // This need only for visualization current density of particle (graphic effect)
-	void reset(const float * position_cpp, const float * velocity_cpp, owConfigProrerty * config, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL, const int * particleMembranesList_cpp = NULL);
+	void read_position_buffer( float * position_cpp, owConfigProperty * config) { copy_buffer_from_device( position_cpp, position, config->getParticleCount() * sizeof( float ) * 4 ); };
+	void read_velocity_buffer( float * velocity_cpp, owConfigProperty * config) { copy_buffer_from_device( velocity_cpp, velocity, config->getParticleCount() * sizeof( float ) * 4 ); };
+	void read_density_buffer( float * density_cpp, owConfigProperty * config ) { copy_buffer_from_device( density_cpp, rho, config->getParticleCount() * sizeof( float ) * 1 ); }; // This need only for visualization current density of particle (graphic effect)
+	void read_particleIndex_buffer( unsigned int * particleIndexBuffer, owConfigProperty * config ) { copy_buffer_from_device( particleIndexBuffer, particleIndex, config->getParticleCount() * sizeof( unsigned int ) * 2 ); }; // This need only for visualization current density of particle (graphic effect)
+	void reset(const float * position_cpp, const float * velocity_cpp, owConfigProperty * config, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL, const int * particleMembranesList_cpp = NULL);
 private:
 	void create_ocl_kernel( const char *name, cl::Kernel &k );
 	void create_ocl_buffer(const char *name, cl::Buffer &b, const cl_mem_flags flags,const int size);
-	int copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,const int size);
-	int copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b, const int size );
+	void copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,const int size);
+	void copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b, const int size );
+	void destroy(){
+		delete [] gridNextNonEmptyCellBuffer;
+		delete [] _particleIndex;
+	}
+	// Initialization of openCl data buffers
+	void initializeBuffers(const float * , const float * , owConfigProperty * , const float * , const int * , const int * );
+	// Initialize OPENCL device, context, queue, program...
+	void initializeOpenCL(owConfigProperty * config);
 	cl::Context context;
 	std::vector< cl::Device > devices;
 	cl::CommandQueue		  queue;
@@ -160,7 +156,7 @@ private:
 
 	//Needed for sorting stuff
 	int * _particleIndex;
-	unsigned int * gridNextNonEmptyCellBuffer;
+	int * gridNextNonEmptyCellBuffer;
 };
 
 #endif //OW_OPENCL_SOLVER_H

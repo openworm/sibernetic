@@ -1,47 +1,50 @@
-
+TARGET = Sibernetic
 RM := rm -rf
 
 # All of the sources participating in the build are defined here
-SOURCES = src/PyramidalSimulation.cpp \
+SOURCES = src/owSignalSimulator.cpp \
+src/owVtkExport.cpp \
 src/main.cpp \
 src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \
-src/owWorldSimulation.cpp
+src/owWorldSimulation.cpp \
+src/owNeuronSimulator.cpp
 
 TEST_SOURCES = src/test/owPhysicTest.cpp
 
 SRCEXT := cpp
 SRCDIR := src
 INCDIR := inc
-BUILDDIR := build
-BINARYTESTDIR = $(BUILDDIR)/test
-OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
-OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
+BUILDDIR = ./Release
+BINARYDIR = $(BUILDDIR)/obj
+BINARYTESTDIR = $(BINARYDIR)/test
+OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
+OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
 
 CPP_DEPS = $(OBJECTS:.o=.d)
-	
+
 # Change these to set the different python directories
-PYTHONHEADERDIR = /usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/
-PYTHONLIBDIR = /usr/local/lib/python2.7
-PYTHONFRAMEWORKDIR = /usr/local/Library/Frameworks
+#PYTHONHEADERDIR = /usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/
+#PYTHONLIBDIR = /usr/local/lib/python2.7
+#PYTHONFRAMEWORKDIR = /usr/local/Library/Frameworks
 
 LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
 
 
 # All Target
-all: Smoothed-Particle-Hydrodynamics
+all: $(TARGET)
 
 # Tool invocations
-Smoothed-Particle-Hydrodynamics: $(OBJECTS)
+$(TARGET): $(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: clang C++ Linker'
-	g++ -L/usr/lib -F$(PYTHONFRAMEWORKDIR) -L$(PYTHONLIBDIR) -o $(BUILDDIR)/Smoothed-Particle-Hydrodynamics $(OBJECTS) $(LIBS)
+	g++ -L/usr/lib -F$(PYTHONFRAMEWORKDIR) -L$(PYTHONLIBDIR) -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
-	@mkdir -p $(BUILDDIR)
+$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
+	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: clang C++ Compiler'
@@ -53,7 +56,7 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
 
 # Other Targets
 clean:
-	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/Smoothed-Particle-Hydrodynamics
+	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
 .PHONY: all clean dependents

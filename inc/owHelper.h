@@ -57,44 +57,41 @@ class owHelper
 public:
 	owHelper(void);
 	~owHelper(void);
-	static void preLoadConfiguration( int & numOfMembranes, owConfigProrerty * config, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP );
-	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections,int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections, int & numOfMembranes,int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProrerty * config );
-	static void loadConfigurationFromOneFile(float * position, float  * velocity, float *& elasticConnectionsData_cpp, int & numOfLiquidP, int & numOfElasticP, int & numOfBoundaryP, int & numOfElasticConnections);
-	static void loadConfigurationToFile(float * position, owConfigProrerty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true, int * filter_p=NULL, int size=0);
+	static void preLoadConfiguration( owConfigProperty * config );
+	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProperty * config );
+	static void loadConfigurationToFile(float * position, owConfigProperty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true, int * filter_p=NULL, int size=0);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration = 0);
-	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProrerty * config,int iteration = 0);
-	static void loadConfigurationFromFile(float *& position, float *& velocity,float *& connections, int *& membranes, int *& particleMemIndex, owConfigProrerty * config);
-	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProrerty * config);
+	static bool loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProperty * config,int iteration = 0);
+	static void loadConfigurationFromFile(float *& position, float *& velocity,float *& connections, int *& membranes, int *& particleMemIndex, owConfigProperty * config);
+	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProperty * config);
 	void watch_report(const char *str);
-	double get_elapsedTime() { return elapsedTime; };
+	double getElapsedTime() { return elapsedTime; };
 	void refreshTime();
 	//For output buffer
 	//Create File in which line element_size elements
 	//global_size - size of buffer / element_size
 	template<typename T> static void log_buffer(const T * buffer, const int element_size, const int global_size, const char * fileName)
 	{
-		try{
-			std::ofstream outFile (fileName);
-			for(int i = 0; i < global_size; i++)
-			{
-				for(int j = 0; j < element_size; j++)
-				{
-					if(j < element_size - 1 )
-						outFile << buffer[ i * element_size + j ] << "\t";
-					else
-						outFile << buffer[ i * element_size + j ] << "\n";
-				}
-			}
-			outFile.close();
-		}catch(std::exception &e){
-			std::cout << "ERROR: " << e.what() << std::endl;
-			exit( -1 );
+		std::ofstream outFile (fileName);
+		if(!outFile){
+			std::string error = "Couldn't create file check the file name: ";
+			error += fileName;
+			throw std::runtime_error(error);
 		}
+		for(int i = 0; i < global_size; i++)
+		{
+			for(int j = 0; j < element_size; j++)
+			{
+				if(j < element_size - 1 )
+					outFile << buffer[ i * element_size + j ] << "\t";
+				else
+					outFile << buffer[ i * element_size + j ] << "\n";
+			}
+		}
+		outFile.close();
 	}
-	static std::string path;
-	static std::string configFileName;
 private:
-	enum ELOADMODE { NOMODE=-1, POSITION, VELOCITY, CONNECTION, MEMBRANE, PMEMINDEX };
+	enum LOADMODE { NOMODE=-1, POSITION, VELOCITY, CONNECTION, MEMBRANE, PMEMINDEX };
 	double elapsedTime;
 #if defined(_WIN32) || defined (_WIN64)
 	LARGE_INTEGER frequency;				// ticks per second

@@ -1,12 +1,14 @@
 TARGET = Sibernetic
 RM := rm -rf
 
-SOURCES = src/PyramidalSimulation.cpp \
+SOURCES = src/owSignalSimulator.cpp \
+src/owVtkExport.cpp \
 src/main.cpp \
 src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \
-src/owWorldSimulation.cpp
+src/owWorldSimulation.cpp \
+src/owNeuronSimulator.cpp
 
 TEST_SOURCES = src/test/owPhysicTest.cpp
 
@@ -17,7 +19,7 @@ BUILDDIR = ./Release
 BINARYDIR = $(BUILDDIR)/obj
 BINARYTESTDIR = $(BINARYDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
-OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
+OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
@@ -29,11 +31,11 @@ all : $(TARGET)
 $(TARGET):$(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ -L/opt/AMDAPP/lib/x86_64/  -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
+	g++ -L/usr/lib/x86_64-linux-gnu/  -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp 
+$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
@@ -43,7 +45,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo ' '
 
 
-clean : 
+clean :
 	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
