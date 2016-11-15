@@ -1,8 +1,11 @@
+from __future__ import with_statement
+
 import math
 import numpy as np
 
 import matplotlib.pyplot as plt
 from pylab import *
+import os
 
 muscle_row_count = 24
 
@@ -21,7 +24,7 @@ colours[quadrant3] = '#ff0000'
 
 """
 
-Get list of muscle names in same order as waves generated below. 
+Get list of muscle names in same order as waves generated below.
 Based on info here:
 https://github.com/openworm/Smoothed-Particle-Hydrodynamics/blob/3da1edc3b018c2e5c7c1a25e2f8d44b54b1a1c47/src/owWorldSimulation.cpp#L475
 
@@ -36,12 +39,12 @@ def get_muscle_names():
         names.append("%s%s"%(quadrant2, i+1 if i>8 else ("0%i"%(i+1))))
     for i in range(muscle_row_count):
         names.append("%s%s"%(quadrant3, i+1 if i>8 else ("0%i"%(i+1))))
-    
+
     return names
 
 
 def parallel_waves(n=muscle_row_count, #24 for our first test?
-                   step=0, 
+                   step=0,
                    phi=math.pi,
                    amplitude=1,
 				   #velocity=0.000008):
@@ -75,7 +78,7 @@ def parallel_waves(n=muscle_row_count, #24 for our first test?
     for i in wave_2:
         double_wave_2.append(i)
         double_wave_2.append(i)
-        
+
     return (double_wave_1,double_wave_2)
 
 class MuscleSimulation():
@@ -124,9 +127,9 @@ class MuscleSimulation():
         return list(np.concatenate([self.contraction_array[0],
                                     self.contraction_array[1],
                                     self.contraction_array[1],
-                                    self.contraction_array[0]]))  
+                                    self.contraction_array[0]]))
 class C302Simulation():
-    
+
     values = []
 
     def __init__(self, activity_file='configuration/test/c302/c302_B_Muscles.muscles.activity.dat', dt=0.0001):
@@ -139,15 +142,15 @@ class C302Simulation():
             for v in vs:
                 vv.append(float(v))
             self.values.append(vv)
-            
+
         print("Loaded a list of %i activity traces at %i time points"%(len(self.values[0]), len(self.values)))
-        
+
 
     def run(self, skip_to_time=0):
         t = skip_to_time + self.step*time_per_step
-        
+
         index = int(t/self.dt)
-        
+
         if (index<len(self.values)):
             v = self.values[index][1:48]
             v.append(0)
@@ -157,23 +160,77 @@ class C302Simulation():
         #print("Returning %i values at time: %f s, step: %i (index %i): [%f, %f, %f, ...]"%(len(v), t, self.step, index, v[0], v[1], v[2]))
         #print v
         self.step += 1
-        return list(v)  
-        
+        return list(v)
+
+
+class C302RealTimeSimulation():
+    values = []
+
+    def __init__(self, activity_file='configuration/test/c302/muscles_c1/LEMS_c302_C1_Muscles_nrn.py'):
+        desired_cells = ["MDR01", "MDR02", "MDR03", "MDR04", "MDR05", "MDR06", "MDR07", "MDR08", "MDR09", "MDR10", "MDR11",
+                         "MDR12", "MDR13", "MDR14", "MDR15", "MDR16", "MDR17", "MDR18", "MDR19", "MDR20", "MDR21", "MDR22",
+                         "MDR23", "MDR24", "MVR01", "MVR02", "MVR03", "MVR04", "MVR05", "MVR06", "MVR07", "MVR08", "MVR09",
+                         "MVR10", "MVR11", "MVR12", "MVR13", "MVR14", "MVR15", "MVR16", "MVR17", "MVR18", "MVR19", "MVR20",
+                         "MVR21", "MVR22", "MVR23", "MVL01", "MVL02", "MVL03", "MVL04", "MVL05", "MVL06", "MVL07", "MVL08",
+                         "MVL09", "MVL10", "MVL11", "MVL12", "MVL13", "MVL14", "MVL15", "MVL16", "MVL17", "MVL18", "MVL19",
+                         "MVL20", "MVL21", "MVL22", "MVL23", "MVL24", "MDL01", "MDL02", "MDL03", "MDL04", "MDL05", "MDL06",
+                         "MDL07", "MDL08", "MDL09", "MDL10", "MDL11", "MDL12", "MDL13", "MDL14", "MDL15", "MDL16", "MDL17",
+                         "MDL18", "MDL19", "MDL20", "MDL21", "MDL22", "MDL23", "MDL24"]
+        path, filename = os.path.split(str(activity_file))
+        old_dir = os.path.abspath(os.getcwd())
+        self.actual_real_time = False
+        os.chdir(path)
+        osplatform = sys.platform
+        if osplatform.find('linux') != -1 or osplatform.find('darwin') != -1:
+            os.system('nrnivmodl')
+            pass
+        elif osplatform.find('win'):
+            pass
+        print 'Current work directory is ' + os.getcwd()
+        from c302_realtime import C302NrnSimulator
+        # Gets rid of extra code at the bottom of the python file that displays the neuron graph,
+        # and saves all the values to a data file
+        with open(filename, 'r') as content_file:
+            content = content_file.read()
+            if "# Display: display_neurons" in content:
+                content = content.split("# Display: display_neurons")
+                with open(filename, 'w') as f:
+                    f.write(content[0])
+        self.nrn = C302NrnSimulator(filename, tstop=1000, cell_names=desired_cells)
+        # max = self.nrn.get_max(desired_cells)
+        # print max
+        os.chdir(old_dir)
+
+
+    def run(self, skip_to_time=0):
+        max = 1.56005925429e-12
+        scale = lambda x: x / max
+        if self.actual_real_time:
+            pass
+        else:
+            self.nrn.one_step()
+            values = self.nrn.get_data()
+            v = values[1:48]
+            v.append(0)
+            v.extend(values[48:])
+            v = map(scale, v)
+            return v
+
 
 
 if __name__ == '__main__':
-    
+
     print("This script is used by the Sibernetic C++ application")
     print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
-    
+
     ms = MuscleSimulation()
     ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
     #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
     #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
-    
+
     max_time = 0.4 # s
     num_plots = 4
-    
+
     activation = {}
     row = '02'
     row_int=int(row)
@@ -186,14 +243,14 @@ if __name__ == '__main__':
     activation[m2] = []
     activation[m3] = []
     times = []
-    
+
     num_steps = int(max_time/time_per_step)
     steps_between_plots = int(num_steps/num_plots)
-    
-    
+
+
     l = ms.run(skip_to_time=0.03)
-        
-        
+
+
     for step in range(num_steps):
         t = step*time_per_step
         activation[m0].append(l[row_int])
@@ -206,15 +263,15 @@ if __name__ == '__main__':
             figV = plt.figure()
             figV.suptitle("Muscle activation waves at step %s (%s s)"%(step, t))
             plV = figV.add_subplot(111, autoscale_on=True)
-            
+
             plV.plot(l[0:muscle_row_count], label='%s*'%quadrant0,  color=colours[quadrant0], linestyle='-', marker='o')
             plV.plot(l[muscle_row_count:2*muscle_row_count], label='%s*'%quadrant1,  color=colours[quadrant1], linestyle='-', marker='o')
             plV.plot(l[2*muscle_row_count:3*muscle_row_count], label='%s*'%quadrant2,  color=colours[quadrant2], linestyle='-')
             plV.plot(l[3*muscle_row_count:4*muscle_row_count], label='%s*'%quadrant3,  color=colours[quadrant3], linestyle='-')
-            
+
             plV.legend()
-    
-    
+
+
     fig0 = plt.figure()
     fig0.suptitle("Muscle activation waves vs time")
     pl0 = fig0.add_subplot(111, autoscale_on=True)
@@ -222,9 +279,9 @@ if __name__ == '__main__':
     pl0.plot(times, activation[m1], label=m1, color=colours[quadrant1], linestyle='-')
     pl0.plot(times, activation[m2], label=m2, color=colours[quadrant2], linestyle='--')
     pl0.plot(times, activation[m3], label=m3, color=colours[quadrant3], linestyle='--')
-    
+
     pl0.legend()
 
     plt.show()
-    
-    
+
+
