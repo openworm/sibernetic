@@ -53,7 +53,11 @@
 class owOpenCLSolver
 {
 public:
-	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp, owConfigProperty * config, const float * elasticConnectionsData_cpp = NULL, const int * membraneData_cpp = NULL, const int * particleMembranesList_cpp = NULL);
+	owOpenCLSolver(const float * position_cpp, const float * velocity_cpp,
+				   owConfigProperty * config, const 
+				   float * elasticConnectionsData_cpp = NULL,
+				   const int * membraneData_cpp = NULL,
+				   const int * particleMembranesList_cpp = NULL);
 	owOpenCLSolver(void);
 	~owOpenCLSolver(void);
 	//Kernels functions definition for neighbor search algorithm

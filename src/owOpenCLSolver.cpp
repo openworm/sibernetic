@@ -38,7 +38,7 @@
 
 #include "owOpenCLSolver.h"
 
-int myCompare( const void * v1, const void * v2 );
+int comparator( const void * v1, const void * v2 );
 
 /** Constructor of class owOpenCLSolver
  *
@@ -261,28 +261,55 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty * config)
 	context = cl::Context( device_type[config->getDeviceType()], cprops, NULL, NULL, &err );
 	devices = context.getInfo< CL_CONTEXT_DEVICES >();
 	if( devices.size() < 1 ){
-		throw std::runtime_error( "No OpenCL devices found" );
+		throw std::runtime_error( "No OpenCL devices were found" );
 	}
 	//Print some information about chosen platform
-	int value;
-	unsigned long val2;
-	size_t val3;
+	size_t compUnintsCount, memoryInfo, workGroupSize;
 	result = devices[deviceNum].getInfo(CL_DEVICE_NAME,&cBuffer);// CL_INVALID_VALUE = -30;
-	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_NAME [" << deviceNum << "]:\t" << cBuffer << "\n" << std::endl;
-	if(strlen(cBuffer)<1000) config->setDeviceName(cBuffer);
+	if(result == CL_SUCCESS){
+		std::cout << "CL_CONTEXT_PLATFORM ["<< plList
+		<< "]: CL_DEVICE_NAME [" << deviceNum
+		<< "]:\t" << cBuffer << "\n" << std::endl;
+	}
+	if(strlen(cBuffer)<1000){
+		config->setDeviceName(cBuffer);
+	}
 	result = devices[deviceNum].getInfo(CL_DEVICE_TYPE,&cBuffer);
-	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_TYPE [" << deviceNum << "]:\t" << (((int)cBuffer[0] == CL_DEVICE_TYPE_CPU)? "CPU" : "GPU") << std::endl;
-	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&val3);
-	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_MAX_WORK_GROUP_SIZE [" <<  deviceNum <<"]: \t" << val3 <<std::endl;
-	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&value);
-	if(result == CL_SUCCESS) std::cout<<"CL_CONTEXT_PLATFORM [" << plList << "]: CL_DEVICE_MAX_COMPUTE_UNITS [" << deviceNum << "]: \t" << value  << std::endl;
-	result = devices[deviceNum].getInfo(CL_DEVICE_GLOBAL_MEM_SIZE,&val2);
-	if(result == CL_SUCCESS) std::cout<<"CL_CONTEXT_PLATFORM [" << plList <<"]: CL_DEVICE_GLOBAL_MEM_SIZE ["<< deviceNum <<"]: \t" << deviceNum <<std::endl;
-	result = devices[deviceNum].getInfo(CL_DEVICE_GLOBAL_MEM_CACHE_SIZE,&val2);
-	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM [" << plList <<"]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE [" << deviceNum <<"]:\t" << val2 <<std::endl;
-	result = devices[deviceNum].getInfo(CL_DEVICE_LOCAL_MEM_SIZE,&val2);
-	if(result == CL_SUCCESS) std::cout << "CL_CONTEXT_PLATFORM " << plList <<": CL_DEVICE_LOCAL_MEM_SIZE ["<< deviceNum <<"]:\t" << val2 << std::endl;
-
+	if(result == CL_SUCCESS){
+		std::cout << "CL_CONTEXT_PLATFORM ["<< plList << "]: CL_DEVICE_TYPE ["
+		<< deviceNum << "]:\t"
+		<< (((int)cBuffer[0] == CL_DEVICE_TYPE_CPU)? "CPU" : "GPU") << std::endl;
+	}
+	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE,&workGroupSize);
+	if(result == CL_SUCCESS){
+		std::cout << "CL_CONTEXT_PLATFORM ["<< plList
+		<< "]: CL_DEVICE_MAX_WORK_GROUP_SIZE [" <<  deviceNum
+		<<"]: \t" << workGroupSize <<std::endl;
+	}
+	result = devices[deviceNum].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&compUnintsCount);
+	if(result == CL_SUCCESS){
+		std::cout<<"CL_CONTEXT_PLATFORM [" << plList
+		<< "]: CL_DEVICE_MAX_COMPUTE_UNITS [" << deviceNum
+		<< "]: \t" << compUnintsCount  << std::endl;
+	}
+	result = devices[deviceNum].getInfo(CL_DEVICE_GLOBAL_MEM_SIZE,&memoryInfo);
+	if(result == CL_SUCCESS){
+		std::cout<<"CL_CONTEXT_PLATFORM [" << plList
+		<<"]: CL_DEVICE_GLOBAL_MEM_SIZE ["<< deviceNum
+		<<"]: \t" << deviceNum <<std::endl;
+	}
+	result = devices[deviceNum].getInfo(CL_DEVICE_GLOBAL_MEM_CACHE_SIZE,&memoryInfo);
+	if(result == CL_SUCCESS){
+		std::cout << "CL_CONTEXT_PLATFORM [" << plList
+		<<"]: CL_DEVICE_GLOBAL_MEM_CACHE_SIZE ["
+		<< deviceNum <<"]:\t" << memoryInfo <<std::endl;
+	}
+	result = devices[deviceNum].getInfo(CL_DEVICE_LOCAL_MEM_SIZE,&memoryInfo);
+	if(result == CL_SUCCESS){
+		std::cout << "CL_CONTEXT_PLATFORM "
+		<< plList <<": CL_DEVICE_LOCAL_MEM_SIZE ["
+		<< deviceNum <<"]:\t" << memoryInfo << std::endl;
+	}
 	queue = cl::CommandQueue( context, devices[ deviceNum ], 0, &err );
 	if( err != CL_SUCCESS ){
 		throw std::runtime_error( "Failed to create command queue" );
@@ -467,7 +494,7 @@ void owOpenCLSolver::_runIndexPostPass(owConfigProperty * config)
 void owOpenCLSolver::_runSort(owConfigProperty * config)
 {
 	copy_buffer_from_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
-	qsort( _particleIndex, config->getParticleCount(), 2 * sizeof( int ), myCompare );
+	qsort( _particleIndex, config->getParticleCount(), 2 * sizeof( int ), comparator );
 	copy_buffer_to_device( _particleIndex, particleIndex, config->getParticleCount() * 2 * sizeof( int ) );
 }
 /** Run sorting of position and velocity arrays
@@ -1017,7 +1044,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount, int pcisp
  *  @param v2
  *  @return -1 if value v1[0] > v2[0], +1 v1[0] < v2[0] else 0.
  */
-int myCompare( const void * v1, const void * v2 ){
+int comparator( const void * v1, const void * v2 ){
 	const int * f1 = static_cast<const int *>(v1);
 	const int * f2 = static_cast<const int *>(v2);
 	if( f1[ 0 ] < f2[ 0 ] ) return -1;
