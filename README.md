@@ -131,7 +131,8 @@ Available options:
  timelimit=<value>     Run simulation until <value> will be reached in seconds.
  leapfrog              Use for integration LeapFrog method
  oclsourcepath=<value> You can indicate path to you'r OpenCL program just using this option
- -nrn <value>           Indicates that you plan run simulation with NEURON simulation = <value> value should be a file which                        can be run by NEURON simulator and also you should have installed neuron and sibernetic_neuron bridge
+ -nrn <value>          Indicates that you plan run simulation with NEURON simulation = <value> value should be a file which
+                       can be run by NEURON simulator and also you should have installed neuron and sibernetic_neuron bridge.
  -help                 Print this information on screen.
 ```
 

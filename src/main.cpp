@@ -40,6 +40,48 @@
 bool load_from_file = false;
 bool load_to = false;
 
+int usage(){
+	std::string version = "0.0.4b";
+	std::cout << "\nSibernetic v" << version << "\n  This is a C++ "
+	          << "implementation of the Contractile SPH (Electrofluid) "
+			  << "algorithm applied to C. elegans locomotion\n\n"
+	 		  << "Usage: ./Release/Sibernetic [OPTION]\n\n"
+			  << "    -no_g                      Run without graphics\n\n"
+			  << "    -l_to                      Save simulation results to disk\n\n"
+			  << "    -export_vtk                Save simulation results to VTK files\n\n"
+			  << "    logstep=<value>            Set frequency of logging data into file in -l_to\n"
+			  << "                               and -export_vtk modes by default it equals to 10\n\n"
+			  << "    -l_from                    Load simulation results from disk\n\n"
+			  << "    lpath=<value>              Indicates path where all buffers will be stored \n"
+			  << "                               this option also works for -l_to and -l_from options\n\n"
+			  << "    -test                      Run some physical tests\n\n"
+			  << "    -f <filename>              Load configuration from file "
+			  << "./configuration/<filename>\n\n"
+			  << "    -f worm                    **Load Worm Body Simulation**\n\n"
+			  << "    device=<device_type>       Trying to init OpenCL on device <type>\n"
+			  << "                               it could be cpu or gpu default-ALL (it try to init "
+			  << "most powerful available device)\n\n"
+			  << "    timestep=<value>           Start simulation with time "
+			  << "step = <value> in seconds\n\n"
+			  << "    timelimit=<value>          Run simulation until <value> will be "
+			  << "reached in seconds\n\n"
+			  << "    leapfrog                   Run simulation using Leapfrog integration "
+			  << "method for time integration\n\n"
+			  << "    oclsourcepath=<value>      You can indicate path to you'r "
+			  << "OpenCL program just using this option\n\n"
+			  << "    -nrn <value>                Indicates that you plan run simulation with "
+			  << "NEURON simulation = <value> \n"
+			  << "                               value should be a file which "
+			  << "can be run by NEURON simulator and \n"
+			  << "                               also you should have installed neuron\n"
+			  << "                               and sibernetic_neuron bridge\n\n"
+			  << "    -c302                      Run worm model with c302 (use sibernetic_c302.py)\n\n"
+			  << "    -help, -h, -?, --help      Print this information\n\n"
+			  << "Full documentation at: <https://github.com/openworm/sibernetic>\n"
+			  << "Please report any bugs/issues "
+			  << "on: <https://github.com/openworm/sibernetic/issues>\n";
+	return EXIT_SUCCESS;
+}
 
 int main(int argc, char **argv) {
 	int exitStatus;
@@ -49,68 +91,28 @@ int main(int argc, char **argv) {
     } else {
         bool graph = true;
         bool run_tests = false;
-        std::string version = "0.0.4c";
-        std::string helpFlag = "-help";
-        std::string helpFlag2 = "-h";
-        std::string helpFlag3 = "-?";
-        std::string helpFlag4 = "--help";
-        std::string noGraphicsFlag = "-no_g";
-        std::string saveFlag = "-l_to";
-        std::string loadFlag = "-l_from";
-		std::string exportVtkFlag = "-export_vtk";
-        std::string testFlag = "-test";
-        std::string configFileFlag = "-f <filename>";
-        std::string configFileWorm = "-f worm";
-        std::string c302Flag = "-c302";
-        std::string deviceTypeFlag = "device=<device_type>";
-        std::string timeStepFlag = "timestep=<value>";
-        std::string timeLimitFlag = "timelimit=<value>";
-        std::string integrationMethodFlag = "leapfrog";
-        std::string logStepFlag = "logstep=<value>";
-        std::string loadFlagPath = "lpath=<value>";
-        std::string oclSourcePath = "oclsourcepath=<value>";
-        std::string nrnFlag = "nrn <value>";
+
         for (int i = 1; i < argc; i++) {
-            if (helpFlag.compare(argv[i]) == 0 ||
-            	helpFlag2.compare(argv[i]) == 0||
-				helpFlag3.compare(argv[i]) == 0||
-				helpFlag4.compare(argv[i]) == 0) { // print usage information
-                std::cout << "\nSibernetic v" << version << "\n  This is a C++ implementation of the Contractile SPH (Electrofluid) algorithm applied to C. elegans locomotion\n\n";
-                std::cout << "  Usage:  ./Release/Sibernetic [OPTION]\n\n";
-                std::cout << "    " << noGraphicsFlag << "                      Run without graphics\n\n";
-                std::cout << "    " << saveFlag << "                      Save simulation results to disk\n\n";
-				std::cout << "    " << exportVtkFlag << "                Save simulation results to VTK files\n\n";
-                std::cout << "        " << logStepFlag << "            Set frequency of logging data into file in -l_to and -export_vtk modes by default it equals to 10\n\n";
-                std::cout << "    " << loadFlag << "                    Load simulation results from disk\n\n";
-                std::cout << "        " << loadFlagPath << "              Indicates path where all buffers will be stored this option also works for -l_to and -l_from options\n\n";
-                std::cout << "    " << testFlag << "                      Run some tests\n\n";
-                std::cout << "    " << configFileFlag << "              Load configuration from file ./configuration/<filename>\n\n";
-                std::cout << "        " << configFileWorm << "                    **Load Worm Body Simulation**\n\n";
-                std::cout << "    " << c302Flag << "                      Run worm model with c302 (use sibernetic_c302.py)\n\n";
-                std::cout << "    " << deviceTypeFlag << "       Trying to init OpenCL on device <type> it could be cpu or gpu default-ALL (it try to init most powerful available device)\n\n";
-                std::cout << "    " << timeStepFlag << "           Start simulation with time step = <value> in seconds\n\n";
-                std::cout << "    " << timeLimitFlag << "          Run simulation until <value> will be reached in seconds\n\n";
-                std::cout << "    " << integrationMethodFlag << "                   Run simulation using Leapfrog integration method for time integration\n\n";
-                std::cout << "    " << oclSourcePath << "      You can indicate path to your OpenCL program just using this option\n\n";
-                std::cout << "    " << nrnFlag << "      Indicates that you plan to run simulation with NEURON simulation = <value> value should be a file which can be run by NEURON simulator and also you should have installed neuron and sibernetic_neuron bridge\n\n";
-                std::cout << "    " << helpFlag << "                      Print this information\n\n";
-                std::cout << "  Please report any bugs/issues on: https://github.com/openworm/sibernetic/issues\n\n";
-                return 0;
+            if (std::string("-help").compare(argv[i]) == 0 ||
+				std::string("-?").compare(argv[i]) == 0 ||
+				std::string("--help").compare(argv[i]) == 0 ||
+				std::string("-h").compare(argv[i]) == 0) { // print usage information
+				return usage();
             }
-            if (noGraphicsFlag.compare(argv[i]) == 0) // run without graphics
+			if (std::string("-no_g").compare(argv[i]) == 0) // run without graphics
                 graph = false;
-            if (saveFlag.compare(argv[i]) == 0) { // run load config to file mode
-                std::cout << saveFlag << " flag: Sibernetic will save simulation results to disk\n";
+            if (std::string("-l_to").compare(argv[i]) == 0) { // run load config to file mode
+                std::cout << "-l_to flag: Sibernetic will save simulation results to disk\n";
                 load_to = true;
             }
-			if (exportVtkFlag.compare(argv[i]) == 0) {
+			if (std::string("-export_vtk").compare(argv[i]) == 0) {
 				owVtkExport::isActive = true;
 			}
-            if (loadFlag.compare(argv[i]) == 0) { // run load config from file mode
+            if (std::string("-l_from").compare(argv[i]) == 0) { // run load config from file mode
                 graph = true;
                 load_from_file = true;
             }
-            if (testFlag.compare(argv[i]) == 0) { // run tests
+            if (std::string("-test").compare(argv[i]) == 0) { // run tests
                 run_tests = true;
             }
         }

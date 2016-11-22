@@ -42,6 +42,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <iostream>
+#include <algorithm>
 
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
@@ -140,9 +141,10 @@ public:
 		for(int i = 1; i<argc; i++){
 			strTemp = argv[i];
 			if(strTemp.find("device=") == 0){
-				if(strTemp.find("GPU") != std::string::npos || strTemp.find("gpu") != std::string::npos)
+				std::transform(strTemp.begin(), strTemp.end(), strTemp.begin(), ::tolower);
+				if(strTemp.find("gpu") != std::string::npos)
 					prefDeviceType = GPU;
-				if(strTemp.find("CPU") != std::string::npos || strTemp.find("cpu") != std::string::npos)
+				if(strTemp.find("cpu") != std::string::npos)
 					prefDeviceType = CPU;
 			}
 			if(strTemp.find("timestep=") == 0){
@@ -204,7 +206,8 @@ public:
 		totalNumberOfIteration = timeLim/this->timeStep; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
 		if(isWormConfig() || nrnSimRun){ // in case if we run worm configuration TODO make it optional
-			if(isWormConfig()){
+
+			if(isWormConfig() && !nrnSimRun){
                 std::string pythonClass = "MuscleSimulation";
                 if (isC302())
                     pythonClass = "C302NRNSimulation";
@@ -213,8 +216,9 @@ public:
 				else
 					simulation = new SignalSimulator(simName, pythonClass);
 			}
-			else
+			else {
 				simulation = new owNeuronSimulator(1,this->timeStep, nrnSimulationFileName);
+            }
 		}
 	}
 	void initGridCells(){
