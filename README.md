@@ -253,7 +253,47 @@ For each saved timestep number N a file `state_N.vtp` is created in the director
 
 Run with Sibernetic-NEURON bridge
 ---------------------------------
-Now it's possible to run physical simulation and neuronal together for this you need at the same time don't forget add sibernetic_NEURON into PYTHONPATH. You just need run Sibernetic with command argument '-nrn <value>' where value it's a path to NEURON simulation file (*.hoc e.g.). After that Sibernetic will init sibernetic_NEURON with appropriate simulation file and same timeStep also you're should indicate from what segments of NEURON's model you'de like to read data (current Voltage). After each one step of Sibernetic simulation it will run one step of NEURON simulation and read data from it and update signal array in Sibernetic. For now, it actually works in test mode list of segments is [hardcoded](https://github.com/openworm/sibernetic/blob/development/src/owNeuronSimulator.cpp#L70) so if you'de like to work with other list of segments you need rewrite this part of code and recompile Sibernetic.
+
+Now it's possible to run the physical and neuronal simulations together. For this you need 
+[sibernetic_NEURON](https://github.com/openworm/sibernetic_NEURON) also.  Don't forget to 
+add the path of sibernetic_NEURON into your PYTHONPATH. You just need to run Sibernetic with 
+command argument '-nrn <value>' where value is the path to NEURON simulation file (*.hoc e.g.). 
+After that Sibernetic will initialise sibernetic_NEURON with the appropriate simulation file and 
+same timeStep also. You should indicate from what segments of NEURON's model you'd like to read 
+data (currently Voltage). After each step of the Sibernetic simulation it will run one step of 
+the NEURON simulation and read data from it and update the signal array in Sibernetic. For now, 
+it actually works in test mode list of segments is [hardcoded](https://github.com/openworm/sibernetic/blob/development/src/owNeuronSimulator.cpp#L70) 
+so if you'd like to work with another list of segments you need rewrite this part of code and 
+recompile Sibernetic.
+
+If you have Sibernetic and [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron) 
+correctly installed, the following should be sufficient to get this running:
+
+    git clone https://github.com/openworm/sibernetic_NEURON.git
+    export PYTHONPATH=./sibernetic_NEURON:./src
+    ./Release/Sibernetic -nrn ./sibernetic_NEURON/models/celegans/_ria.hoc  -f worm
+
+
+Run with c302
+---------------------------------
+
+You can run Sibernetic with [c302](https://github.com/openworm/CElegansNeuroML/blob/master/CElegans/pythonScripts/c302/README.md) 
+providing the input which will drive the contraction of the muscle cells.
+
+If you have Sibernetic, [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron) 
+and [pyNeuroML](https://github.com/NeuroML/pyNeuroML) correctly installed, the following should be sufficient to get this running:
+
+    git clone https://github.com/openworm/CElegansNeuroML.git
+    export C302_HOME=./CElegansNeuroML/CElegans/pythonScripts/c302
+    export PYTHONPATH=$PYTHONPATH:$C302_HOME:./src
+    python sibernetic_c302.py
+
+This will generate the NEURON code for the c302 simulation (using pyNeuroML), run Sibernetic with the neuronal simulation of c302 running in 
+Python Neuron in the background, and save the results to files in the *simulations* directory (no Sibernetic gui will be shown). The 
+simulation can be rerun with:
+
+    ./Release/Sibernetic -l_from lpath=simulations/SimulationName_SimulationDate
+
 
 Making videos (*nix)
 --------------------
