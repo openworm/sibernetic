@@ -294,6 +294,11 @@ simulation can be rerun with:
 
     ./Release/Sibernetic -l_from lpath=simulations/SimulationName_SimulationDate
 
+For more information on options type:
+
+    python sibernetic_c302.py -?
+
+
 
 Making videos (*nix)
 --------------------

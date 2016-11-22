@@ -98,6 +98,12 @@ def convert_case(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
+def announce(message):
+    
+    print_("\n************************************************************************\n*")
+    print_("*  %s"%message.replace('\n','\n*  '))
+    print_("*\n************************************************************************")
+
 
 def run(a=None,**kwargs): 
     
@@ -155,7 +161,7 @@ def run(a=None,**kwargs):
     print_("Renaming %s -> %s"%(lems_file0,lems_file))
     os.rename(lems_file0,lems_file)
     
-    print_("Generating NEURON files from: %s"%lems_file)
+    announce("Generating NEURON files from: %s"%lems_file)
     
     pynml.run_lems_with_jneuroml_neuron(lems_file,
                                         only_generate_scripts=True,
@@ -181,7 +187,7 @@ def run(a=None,**kwargs):
     run_dir = '.'
     command = 'nrnivmodl %s'%sim_dir
 
-    print_("Executing: %s in %s"%(command, ''))
+    announce("Compiling NMODL files for NEURON")
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
     command = './Release/Sibernetic -c302 -f worm -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir,a.duration/1000.0,a.dt/1000)
@@ -189,16 +195,14 @@ def run(a=None,**kwargs):
     
     sim_start = time.time()
     
-    print_("\n************************************************************************\n*")
-    print_("*  Executing main Sibernetic simulation using: \n*\n*    %s \n*\n*  in %s with %s"%(command, run_dir, env))
-    print_("*\n************************************************************************")
+    announce("Executing main Sibernetic simulation using: \n\n    %s \n\n  in %s with %s"%(command, run_dir, env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     
     
-    print_("\nFinished!\n\nSimulation saved in: %s\n\n"%(sim_dir))
-    print_("Report of simulation at: %s/report.json\n\n"%(sim_dir))
-    print_("Rerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n\n"%(sim_dir))
+    announce("Finished!\n\nSimulation saved in: %s\n\n"%(sim_dir) + \
+             "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \
+             "Rerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
 
     sim_end = time.time()
     
