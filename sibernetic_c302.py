@@ -121,6 +121,7 @@ def run(a=None,**kwargs):
             sys.path.append(os.environ['C302_HOME'])
             print_('Python path now: %s'%sys.path)
         import c302
+        import c302_utils
     except Exception as e:
         print_("Cannot import c302!\n"
              "Exception: %s\n"%e
@@ -161,7 +162,7 @@ def run(a=None,**kwargs):
     print_("Renaming %s -> %s"%(lems_file0,lems_file))
     os.rename(lems_file0,lems_file)
     
-    announce("Generating NEURON files from: %s"%lems_file)
+    announce("Generating NEURON files from: %s..."%lems_file)
     
     pynml.run_lems_with_jneuroml_neuron(lems_file,
                                         only_generate_scripts=True,
@@ -187,7 +188,7 @@ def run(a=None,**kwargs):
     run_dir = '.'
     command = 'nrnivmodl %s'%sim_dir
 
-    announce("Compiling NMODL files for NEURON")
+    announce("Compiling NMODL files for NEURON...")
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
     command = './Release/Sibernetic -c302 -f worm -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir,a.duration/1000.0,a.dt/1000)
@@ -195,15 +196,10 @@ def run(a=None,**kwargs):
     
     sim_start = time.time()
     
-    announce("Executing main Sibernetic simulation using: \n\n    %s \n\n  in %s with %s"%(command, run_dir, env))
+    announce("Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"%(a.duration, command, run_dir, env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     
-    
-    announce("Finished!\n\nSimulation saved in: %s\n\n"%(sim_dir) + \
-             "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \
-             "Rerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
-
     sim_end = time.time()
     
     reportj = {}
@@ -221,6 +217,27 @@ def run(a=None,**kwargs):
     report_file = open("%s/report.json"%sim_dir,'w')
     report_file.write(pp.pformat(reportj))
     report_file.close()
+    
+    announce("Generating images for neuronal activity...")
+    
+    results = pynml.reload_saved_data(lems_file, 
+                      plot=False, 
+                      show_plot_already=False, 
+                      simulator=None, 
+                      reload_events=False, 
+                      verbose=True)
+                      
+    c302_utils.plot_c302_results(results,
+                                 config=a.reference, 
+                                 parameter_set=a.c302params, 
+                                 directory=sim_dir,
+                                 save=True,
+                                 show_plot_already=False)
+
+    
+    announce("Finished!\n\nSimulation saved in: %s\n\n"%(sim_dir) + \
+             "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \
+             "Rerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
 
 
 if __name__ == '__main__':
