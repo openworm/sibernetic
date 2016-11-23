@@ -41,7 +41,7 @@ bool load_from_file = false;
 bool load_to = false;
 
 int usage(){
-	std::string version = "0.0.4b";
+	std::string version = "0.0.5b";
 	std::cout << "\nSibernetic v" << version << "\n  This is a C++ "
 	          << "implementation of the Contractile SPH (Electrofluid) "
 			  << "algorithm applied to C. elegans locomotion\n\n"
