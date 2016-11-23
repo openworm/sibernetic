@@ -224,7 +224,6 @@ def run(a=None,**kwargs):
                       plot=False, 
                       show_plot_already=False, 
                       simulator=None, 
-                      reload_events=False, 
                       verbose=True)
                       
     c302_utils.plot_c302_results(results,
@@ -233,9 +232,19 @@ def run(a=None,**kwargs):
                                  directory=sim_dir,
                                  save=True,
                                  show_plot_already=False)
-
+                                 
     
-    announce("Finished!\n\nSimulation saved in: %s\n\n"%(sim_dir) + \
+    pos_file_name = os.path.abspath('%s/position_buffer.txt'%sim_dir)
+    announce("Plotting positions of worm body particles in %s..."%pos_file_name)
+    
+    from plot_positions import plot_positions
+    
+    if not os.path.isfile(pos_file_name):
+        time.sleep(2)
+    
+    plot_positions(pos_file_name,rate_to_plot = int(a.duration/5))
+    
+    announce("Finished in %s sec!\n\nSimulation saved in: %s\n\n"%((sim_end-sim_start),sim_dir) + \
              "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \
              "Rerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
 
