@@ -84,6 +84,7 @@ public:
 		}
 	}
 	bool isWormConfig(){ return (configFileName.find("worm") != std::string::npos);}//   == "worm" || configFileName == "worm_no_water")? true:false; }
+	bool isC302(){ return c302;}
 	void setCofigFileName( const char * name ) { configFileName = name; }
 	void resetNeuronSimulation(){
 		if(isWormConfig() || nrnSimRun){
@@ -198,18 +199,26 @@ public:
 				else
 					throw std::runtime_error("You forget add NEURON model file name. Please add it and try again");
 			}
+			if(strTemp.find("-c302") == 0){
+				c302 = true;
+			}
 		}
 		totalNumberOfIteration = timeLim/this->timeStep; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
 		if(isWormConfig() || nrnSimRun){ // in case if we run worm configuration TODO make it optional
+
 			if(isWormConfig() && !nrnSimRun){
+                std::string pythonClass = "MuscleSimulation";
+                if (isC302())
+                    pythonClass = "C302NRNSimulation";
 				if(simName.compare("") == 0)
-					simulation = new SignalSimulator();
+					simulation = new SignalSimulator("main_sim", pythonClass);
 				else
-					simulation = new SignalSimulator(simName);
+					simulation = new SignalSimulator(simName, pythonClass);
 			}
-			else
+			else {
 				simulation = new owNeuronSimulator(1,this->timeStep, nrnSimulationFileName);
+            }
 		}
 	}
 	void initGridCells(){
@@ -308,6 +317,7 @@ private:
 	std::string devFullName;
 	std::string sourceFileName;
 	bool nrnSimRun; //indicates if we also ran NEURON simulation
+	bool c302; //indicates if we also ran NEURON simulation
 	std::string nrnSimulationFileName;
 };
 

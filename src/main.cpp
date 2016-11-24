@@ -41,7 +41,7 @@ bool load_from_file = false;
 bool load_to = false;
 
 int usage(){
-	std::string version = "0.0.4b";
+	std::string version = "0.0.5b";
 	std::cout << "\nSibernetic v" << version << "\n  This is a C++ "
 	          << "implementation of the Contractile SPH (Electrofluid) "
 			  << "algorithm applied to C. elegans locomotion\n\n"
@@ -69,12 +69,13 @@ int usage(){
 			  << "method for time integration\n\n"
 			  << "    oclsourcepath=<value>      You can indicate path to you'r "
 			  << "OpenCL program just using this option\n\n"
-			  << "    nrn <value>                Indicates that you plan run simulation with "
+			  << "    -nrn <value>                Indicates that you plan run simulation with "
 			  << "NEURON simulation = <value> \n"
 			  << "                               value should be a file which "
 			  << "can be run by NEURON simulator and \n"
 			  << "                               also you should have installed neuron\n"
-			  << "                               and sibernetic_neuron bridg\n\n"
+			  << "                               and sibernetic_neuron bridge\n\n"
+			  << "    -c302                      Run worm model with c302 (use sibernetic_c302.py)\n\n"
 			  << "    -help, -h, -?, --help      Print this information\n\n"
 			  << "Full documentation at: <https://github.com/openworm/sibernetic>\n"
 			  << "Please report any bugs/issues "
@@ -90,6 +91,7 @@ int main(int argc, char **argv) {
     } else {
         bool graph = true;
         bool run_tests = false;
+
         for (int i = 1; i < argc; i++) {
             if (std::string("-help").compare(argv[i]) == 0 ||
 				std::string("-?").compare(argv[i]) == 0 ||

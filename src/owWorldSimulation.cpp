@@ -147,7 +147,7 @@ void display(void)
 			}
 
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
-				std::cout << "Simulation is reached time limit" << std::endl;
+				std::cout << "Simulation has reached the time limit..." << std::endl;
 				cleanupSimulation();
 				exit (EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by the other way
 			}
@@ -701,7 +701,7 @@ void mouse_motion (int x, int y)
 * It clean all memory for all allocated objects
 */
 void cleanupSimulation(){
-	if(!load_from_file){
+	if(!load_from_file){        
 		delete fluid_simulation;
 		delete helper;
 	}else{
@@ -883,7 +883,7 @@ int run(int argc, char** argv, const bool with_graphics)
 	}else{
 		while(1){
 			try{
-				fluid_simulation->simulationStep(load_to);
+				fluid_simulation->simulationStep(load_to);              
 			}catch(std::runtime_error & ex){
 				cleanupSimulation();
 				std::cout << "ERROR: " << ex.what() << std::endl;
@@ -891,7 +891,7 @@ int run(int argc, char** argv, const bool with_graphics)
 			}
 			helper->refreshTime();
 			if(fluid_simulation->getIteration() == localConfig->getNumberOfIteration()){
-				std::cout << "Simulation has been reached time limit" << std::endl;
+				std::cout << "Simulation has reached the time limit" << std::endl;
 				cleanupSimulation();
 				return EXIT_SUCCESS;
 			}

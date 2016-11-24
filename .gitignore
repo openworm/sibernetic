@@ -1,3 +1,5 @@
+/src/main_sim.py3
+/src/main_sim2.py
 /src/main_sim.py~
 /Release/Sibernetic
 *~
@@ -51,4 +53,12 @@ build
 /debug
 /Release
 
+x86_64
+/*.dat
+src/*.dat
 
+simulations
+/figure_1.png
+/sibernetic_NEURON/
+/CElegansNeuroML/
+/sib.env
