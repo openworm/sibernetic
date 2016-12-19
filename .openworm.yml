@@ -3,14 +3,13 @@ shortDescription: "This is a C++/OpenCL implementation of the PCISPH algorithm s
 coordinator: palyanov.andrey@openworm.org
 documentation: "https://openworm.github.io/sibernetic/"
 gitter: "http://gitter.im/openworm/sibernetic"
-inputs: 
-  - openworm/CElegansNeuroML
 keywords: 
   - simulation
   - physics
   - particles
   - worm body
 languages: 
+  - c++
   - python
 latest-release:
   - 0.0.3
