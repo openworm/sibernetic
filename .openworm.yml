@@ -17,9 +17,13 @@ latest-release:
 members: 
   - stephen@openworm.org
   - skhayrulin@openworm.org
+inputs: 
+  - openworm/CElegansNeuroML
 outputs: 
   - openworm/CElegansNeuroML
+  - openworm/skeletonExtraction
 parent: 
   - openworm/OpenWorm
 children: 
   - openworm/sibernetic_NEURON
+  - openworm/sibernetic_config_gen
