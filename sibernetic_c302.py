@@ -13,7 +13,9 @@ DEFAULTS = {'duration': 1.0,
             'dtNrn': 0.05,
             'reference': 'Muscles',
             'c302params': 'C1',
-            'verbose': False} 
+            'verbose': False,
+            'device': 'ALL',
+            'configuration': 'worm'} 
             
             
 def process_args():
@@ -42,11 +44,23 @@ def process_args():
                         default=DEFAULTS['dtNrn'],
                         help="Time step for NEURON in ms, default: %sms"%DEFAULTS['dtNrn'])
                         
+    parser.add_argument('-device', 
+                        type=str,
+                        metavar='<device>',
+                        default=DEFAULTS['device'],
+                        help="Tell OpenCL to run on this device (could be cpu or gpu), default: %s"%DEFAULTS['device'])
+                        
+    parser.add_argument('-configuration', 
+                        type=str,
+                        metavar='<configuration>',
+                        default=DEFAULTS['configuration'],
+                        help="Run Sibernetic with this configuration (e.g. worm_no_water, worm_deep_water), default: %s"%DEFAULTS['configuration'])
+                        
     parser.add_argument('-reference', 
                         type=str,
                         metavar='<reference>',
                         default=DEFAULTS['reference'],
-                        help="Reference for network subset (Muscles, Full, etc.), default: %s"%DEFAULTS['reference'])
+                        help="Reference for c302 network subset (Muscles, Full, etc.), default: %s"%DEFAULTS['reference'])
                         
     parser.add_argument('-c302params', 
                         type=str,
@@ -191,7 +205,7 @@ def run(a=None,**kwargs):
     announce("Compiling NMODL files for NEURON...")
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
-    command = './Release/Sibernetic -c302 -f worm -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir,a.duration/1000.0,a.dt/1000)
+    command = './Release/Sibernetic -c302 -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s device=%s'%(a.configuration, sim_dir,a.duration/1000.0,a.dt/1000,a.device)
     env={"PYTHONPATH":"./src:./%s"%sim_dir}
     
     sim_start = time.time()
@@ -211,7 +225,8 @@ def run(a=None,**kwargs):
     reportj['c302params'] = a.c302params
     reportj['generation_time'] = '%s s'%(sim_start-gen_start)
     reportj['run_time'] = '%s s'%(sim_end-sim_start)
-    reportj['command'] = '%s'%(command)
+    reportj['device'] = '%s'%(a.device)
+    reportj['configuration'] = '%s'%(a.configuration)
     
     
     report_file = open("%s/report.json"%sim_dir,'w')
