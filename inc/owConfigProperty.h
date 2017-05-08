@@ -138,6 +138,7 @@ public:
 		std::string simName = "";
 		nrnSimRun = false;
 		nrnSimulationFileName = "";
+		simulation = NULL;
 		for(int i = 1; i<argc; i++){
 			strTemp = argv[i];
 			if(strTemp.find("device=") == 0){
@@ -229,7 +230,8 @@ public:
 		gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
 	}
 	~owConfigProperty(){
-		delete simulation;
+		if(simulation != NULL)
+			delete simulation;
 	}
 	float xmin;
 	float xmax;

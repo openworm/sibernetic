@@ -99,9 +99,7 @@ Physical Algorithms:
 - Boundary handling [2]
 - Surface tension [3]
 
-There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to boundary (one of it has a liquid-impermeable membranes covering and another one hasn't such).
-
-The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).
+There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).
 
 To switch between demos you need to press the 1 or 2 keys respectively. To pause simulation you may press space bar.
 
