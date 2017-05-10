@@ -171,7 +171,7 @@ __kernel void hashParticles(
 	if( id >= PARTICLE_COUNT ) return;
 	float4 _position = position[ id ];
 	int4 cellFactors_ = cellFactors( _position, xmin, ymin, zmin, hashGridCellSizeInv );
-	int cellId_ = cellId( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffff; // truncate to low 16 bits
+	int cellId_ = cellId( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffffff; // truncate to low 16 bits
 	uint2 result;
 	PI_CELL_ID( result ) = cellId_;
 	PI_SERIAL_ID( result ) = id;
