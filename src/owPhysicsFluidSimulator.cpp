@@ -31,12 +31,12 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include <stdexcept>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <stdexcept>
 
-#include "owSignalSimulator.h"
 #include "owPhysicsFluidSimulator.h"
+#include "owSignalSimulator.h"
 #include "owVtkExport.h"
 
 /** Constructor method for owPhysicsFluidSimulator.
@@ -177,16 +177,15 @@ void owPhysicsFluidSimulator::reset() {
  */
 double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   int iter = 0; // PCISPH prediction-correction iterations counter
-                //
+  //
   // now we will implement sensory system of the c. elegans worm, mechanosensory
   // one
   // here we plan to implement the part of openworm sensory system, which is
   // still
   // one of the grand challenges of this project
-  /*uncomment this block to stop movement of the scene
-          ++iterationCount;
-          return 0.0;
-  /**/
+
+  // if(iterationCount==0) return 0.0;//uncomment this line to stop movement of
+  // the scene
 
   helper->refreshTime();
   std::cout << "\n[[ Step " << iterationCount << " ]]\n";
