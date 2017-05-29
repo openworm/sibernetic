@@ -26,12 +26,18 @@ CPP_DEPS = $(OBJECTS:.o=.d)
 LIBS := -lpython2.7 -lGL -lGLU -lOpenCL -lrt -lglut
 
 
+CXXCOMPILER = g++
+CXXFLAGS = $(CXXCOMPILER)
+
 all : $(TARGET)
+all:  CXXFLAGS += -O3 -Wall 
+debug: CXXFLAGS += -g -O0
+debug: $(TARGET)
 
 $(TARGET):$(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++  -L/usr/lib64/OpenCL/vendors/amd/ -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
+	$(CXXCOMPILER) -L/usr/lib64/OpenCL/vendors/amd/ -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -40,13 +46,12 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	g++ -I/usr/include/python2.7 -I/opt/AMDAPPSDK-3.0/include/ -I$(INCDIR) -O3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	$(CXXFLAGS) -I/usr/include/python2.7 -I/opt/AMDAPPSDK-3.0/include/ -I$(INCDIR) -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
-
 clean : 
-	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
+	-$(RM) $(OBJECTS) $(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
 .PHONY: all clean dependents

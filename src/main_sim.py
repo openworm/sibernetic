@@ -45,43 +45,53 @@ def get_muscle_names():
 def get_muscle_name(quadrant, index):
     return "%s%s"%(quadrant, index+1 if index>8 else ("0%i"%(index+1)))
 
-def parallel_waves(n=muscle_row_count, #24 for our first test?
+def parallel_waves(n=muscle_row_count, #26 for our first test?
                    step=0, 
                    phi=math.pi,
                    amplitude=1,
 				   #velocity=0.000008):
-                   velocity =0.000015):
-    """
-    Array of two travelling waves, second one starts
+                   velocity_s =0.000015*3.7, #swimming
+				   velocity_c =0.000015*0.72): #crawling // 0.9 // 0.65
+	"""
+	Array of two travelling waves, second one starts
     half way through the array
-    """
+	"""
+	if (step<1200000):
+		velocity =0.000015*0.72#crawling
+	else:
+		velocity =0.000015*3.7#swimming
 
-    if n % 2 != 0:
-        raise NotImplementedError("Currently only supports even number of muscles!")
+	if n % 2 != 0:
+		raise NotImplementedError("Currently only supports even number of muscles!")
 
-    j = n/2
+	j = n/2
 
-    row_positions = np.linspace(0,0.75*1.5*2*math.pi,j)
+	if (step<1200000):
+		row_positions = np.linspace(0,1.32*0.75*1.5*2*math.pi,j)#crawling		
+	else:
+		row_positions = np.linspace(0,1.0*0.75*1.5*2*math.pi*2/5.57,j)#swimming new
 
-    wave_1 = (map(math.sin,(row_positions - velocity*step)))
-    wave_2 = (map(math.sin,(row_positions + (math.pi) - velocity*step)))
+#	row_positions = np.linspace(0,(1.38/1.54)*0.75*1.5*2*math.pi*2/5.57,j) #swimming // 1/wavelength 
+#	row_positions = np.linspace(0,     0.75*1.5*2*math.pi,j) #crawling old		
 
-    normalize_sine = lambda x : (x + 1)/2
-    wave_1 = map(normalize_sine, wave_1)
-    wave_2 = map(normalize_sine, wave_2)
+	wave_1 = (map(math.sin,(row_positions - velocity*step)))
+	wave_2 = (map(math.sin,(row_positions + (math.pi) - velocity*step)))
 
-    double_wave_1 = []
-    double_wave_2 = []
+	normalize_sine = lambda x : (x + 1)/2
+	wave_1 = map(normalize_sine, wave_1)
+	wave_2 = map(normalize_sine, wave_2)
 
-    for i in wave_1:
-        double_wave_1.append(i)
-        double_wave_1.append(i)
+	double_wave_1 = []
+	double_wave_2 = []
 
-    for i in wave_2:
-        double_wave_2.append(i)
-        double_wave_2.append(i)
-        
-    return (double_wave_1,double_wave_2)
+	for i in wave_1:
+		double_wave_1.append(i)
+		double_wave_1.append(i)
+	for i in wave_2:
+		double_wave_2.append(i)
+		double_wave_2.append(i)
+
+	return (double_wave_1,double_wave_2)
 
 class MuscleSimulation():
 
@@ -89,52 +99,18 @@ class MuscleSimulation():
         self.increment = increment
         self.step = 0
 
-
-    def run(self, skip_to_time=0, do_plot = True):
-        """
-		if(iterationCount<400000)
-		{
-
-			//muscle_activation_signal_cpp[0*24+20] = 0;
-			//muscle_activation_signal_cpp[0*24+21] = 0;
-			muscle_activation_signal_cpp[0*24+22] = 0;
-			muscle_activation_signal_cpp[0*24+23] = 0;
-
-			//muscle_activation_signal_cpp[1*24+20] = 0;
-			//muscle_activation_signal_cpp[1*24+21] = 0;
-			muscle_activation_signal_cpp[1*24+22] = 0;
-			muscle_activation_signal_cpp[1*24+23] = 0;
-
-			//muscle_activation_signal_cpp[2*24+20] = 0;
-			//muscle_activation_signal_cpp[2*24+21] = 0;
-			muscle_activation_signal_cpp[2*24+22] = 0;
-			muscle_activation_signal_cpp[2*24+23] = 0;
-
-			//muscle_activation_signal_cpp[3*24+20] = 0;
-			//muscle_activation_signal_cpp[3*24+21] = 0;
-			muscle_activation_signal_cpp[3*24+22] = 0;
-			muscle_activation_signal_cpp[3*24+23] = 0;
-		}
-        """
+    def run(self,do_plot = True):
         self.contraction_array =  parallel_waves(step = self.step)
         self.step += self.increment
-		# for reversal movment after 40000 steps it will switch sinusoid
-        
-        self.contraction_array[0][muscle_row_count - 2] = 0
-        self.contraction_array[0][muscle_row_count - 1] = 0
-        self.contraction_array[1][muscle_row_count - 2] = 0
-        self.contraction_array[1][muscle_row_count - 1] = 0
+        #if (self.step>1000000):
+        #    self.increment = -1.0
+        #else:
+		#    self.increment = self.increment
 
         return list(np.concatenate([self.contraction_array[0],
                                     self.contraction_array[1],
                                     self.contraction_array[1],
-                                    self.contraction_array[0]])) 
-                                    
-    def save_results(self):
-        
-        print_("> NOT saving results for MuscleSimulation")
-        
-        
+                                    self.contraction_array[0]]))  
 class C302Simulation():
     
     values = []

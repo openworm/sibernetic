@@ -31,10 +31,10 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include <stdio.h>
-#include <sstream>
-#include <csignal>
 #include <cmath>
+#include <csignal>
+#include <sstream>
+#include <stdio.h>
 
 #include "owWorldSimulation.h"
 
@@ -43,34 +43,44 @@ extern bool load_to;
 
 int old_x = 0, old_y = 0; // Used for mouse event
 float camera_trans[] = {0, 0, -8.0};
-float camera_rot[] = {0, 0, 0};
+float camera_rot[] = {90 * 0, 0, 0};
 float camera_trans_lag[] = {0, 0, -8.0};
 float camera_rot_lag[] = {0, 0, 0};
+const float inertia = 1.0f;
+float modelView[16];
 int buttonState = 0;
 float sc = 0.045f; // 0.0145;//0.045;//0.07
+float sc_scale = 1.0f;
+Vector3D ort1(1, 0, 0), ort2(0, 1, 0), ort3(0, 0, 1);
+GLsizei viewHeight, viewWidth;
+int winIdMain;
 double totalTime = 0;
 int frames_counter = 0;
+double calculationTime;
+double renderTime;
 double fps;
 double prevTime;
 unsigned int *p_indexb;
 float *d_cpp;
 float *p_cpp;
 float *ec_cpp;
-float *v_cpp;
 float *muscle_activation_signal_cpp;
 int *md_cpp; // pointer to membraneData_cpp
 owPhysicsFluidSimulator *fluid_simulation;
 owHelper *helper;
 owConfigProperty *localConfig;
+bool flag = false;
+bool sPause = false;
+void *m_font = (void *)GLUT_BITMAP_8_BY_13;
+void *m_font2 = (void *)GLUT_BITMAP_9_BY_15;
 int iteration = 0;
 
 static char label[1000]; /* Storage for current string   */
 bool showInfo = true;
-bool sPause = false;
 
 void calculateFPS();
 void drawScene();
-inline void renderInfo(int, int);
+void renderInfo(int, int);
 void glPrint(float, float, const char *, void *);
 void glPrint3D(float, float, float, const char *, void *);
 void cleanupSimulation();
@@ -129,7 +139,6 @@ void display(void) {
         p_cpp = fluid_simulation->getPosition_cpp();
         d_cpp = fluid_simulation->getDensity_cpp();
         ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
-        v_cpp = fluid_simulation->getvelocity_cpp();
         if (!load_from_file)
           md_cpp = fluid_simulation->getMembraneData_cpp();
       } catch (std::runtime_error &ex) {

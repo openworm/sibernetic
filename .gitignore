@@ -25,7 +25,7 @@ buffers/position_buffer.txt
 #Python bytecode
 *.pyc
 
-#MY OTHER FILTERS
+#OTHER FILTERS
 *.ncb
 *.suo
 *.user
@@ -45,6 +45,10 @@ buffers/position_buffer.txt
 rebuild.sh
 rebuildandrun.sh
 ./x86_64
+.settings/*
+.vscode/*
+/gresult
+*.gch
 
 #Apple stuff
 .DS_Store
@@ -62,3 +66,5 @@ simulations
 /sibernetic_NEURON/
 /CElegansNeuroML/
 /sib.env
+
+

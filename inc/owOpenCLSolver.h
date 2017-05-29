@@ -70,7 +70,7 @@ public:
   // PCISPH kernels for physics-related calculations
   unsigned int _run_pcisph_computeDensity(owConfigProperty *config);
   unsigned int
-  _run_pcisph_computeForcesAndInitPressure(owConfigProperty *config);
+  _run_pcisph_computeForcesAndInitPressure(owConfigProperty *config, int);
   unsigned int _run_pcisph_computeElasticForces(owConfigProperty *config);
   unsigned int _run_pcisph_predictPositions(owConfigProperty *config);
   unsigned int _run_pcisph_predictDensity(owConfigProperty *config);

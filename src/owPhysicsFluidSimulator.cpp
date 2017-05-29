@@ -188,7 +188,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   // the scene
 
   helper->refreshTime();
-  std::cout << "\n[[ Step " << iterationCount << " ]]\n";
+  std::cout << "\n[[ Step " << iterationCount << ", sim. phys. time: " << iterationCount*timeStep << " s ]]\n";
   // SEARCH FOR NEIGHBOURS PART
   // ocl_solver->_runClearBuffers();
   // helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
@@ -213,7 +213,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
                                       config);
   }
   ocl_solver->_run_pcisph_computeDensity(config);
-  ocl_solver->_run_pcisph_computeForcesAndInitPressure(config);
+  ocl_solver->_run_pcisph_computeForcesAndInitPressure(config, iterationCount);
   ocl_solver->_run_pcisph_computeElasticForces(config);
   do {
     // printf("\n^^^^ iter %d ^^^^\n",iter);
@@ -270,16 +270,155 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
     }
   }
 
+  //==================================================================
+  // writing locomotion log
+  //==================================================================
+
+  if (iterationCount % 1000 == 0) {
+    char f_motion_log_filename[256];
+    char f_motion_log_mode[10] = "wt";
+    sprintf(f_motion_log_filename, "visc_coeff=%.3e m.m.f.=%4d motion log.txt",
+            viscosity, (int)max_muscle_force); // everywhere here log is for
+                                               // log-file, not logarithm
+    float log_x[200], log_y[200], log_z[200], log_n[200];
+
+    if (iterationCount > 0)
+      sprintf(f_motion_log_mode, "a+");
+
+    FILE *f_motion_log = fopen(f_motion_log_filename, f_motion_log_mode);
+
+    fprintf(f_motion_log, "%e\tX:\t",
+            (float)iterationCount * timeStep); // timeStep);
+
+    float *ec_cpp = getElasticConnectionsData_cpp();
+    float *p_cpp = getPosition_cpp();
+    int L_index_i, i, ecc = 0; // elastic connections counter;
+
+    // for(int i_ec=0; i_ec < config->numOfElasticP * MAX_NEIGHBOR_COUNT;
+    // i_ec++)
+    //{i = (i_ec / MAX_NEIGHBOR_COUNT);
+
+    for (i = 0; i < 200; i++) {
+      log_x[i] = log_y[i] = log_z[i] = 0.f;
+      log_n[i] = 0;
+    }
+
+    for (i = 0; i < config->numOfElasticP; i++) {
+      if ((p_cpp[i * 4 + 3] > 2.05f) && (p_cpp[i * 4 + 3] < 2.25f)) {
+        if ((p_cpp[i * 4 + 3] > 2.05f) && (p_cpp[i * 4 + 3] < 2.15f))
+          L_index_i = (int)((p_cpp[i * 4 + 3] - 2.1f) * 10000.f) + 1.f; //-100;
+        else
+          L_index_i = (int)((p_cpp[i * 4 + 3] - 2.2f) * 10000.f) + 1.f; //-100;
+
+        if ((L_index_i >= 1) && (L_index_i < 200 /*100*/)) {
+          log_x[L_index_i] += p_cpp[i * 4 + 0];
+          log_y[L_index_i] += p_cpp[i * 4 + 1];
+          log_z[L_index_i] += p_cpp[i * 4 + 2];
+          log_n[L_index_i]++;
+        }
+      }
+    }
+
+    for (i = 0; i < 200; i++) {
+      if (log_n[i] > 0) {
+        log_x[i] /= (float)log_n[i];
+        log_y[i] /= (float)log_n[i];
+        log_z[i] /= (float)log_n[i];
+      }
+    }
+
+    for (i = 1; i < 100; i++) {
+      fprintf(f_motion_log, "%e\t",
+              log_z[i + 50 /*2*/] * simulationScale * 1000.f);
+    }
+    fprintf(f_motion_log, "\tY:\t");
+
+    for (i = 1; i < 100; i++) {
+      fprintf(f_motion_log, "%e\t",
+              log_x[i + 50 /*2*/] * simulationScale * 1000.f);
+    }
+    fprintf(f_motion_log, "\tZ:\t");
+
+    for (i = 1; i < 100; i++) {
+      fprintf(f_motion_log, "%e\t",
+              log_y[i + 50 /*2*/] * simulationScale * 1000.f);
+    }
+    fprintf(f_motion_log, "\n");
+
+    fclose(f_motion_log);
+  }
+
+  //==================================================================
+
   float correction_coeff;
 
-  for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
+  /*for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
     correction_coeff = sqrt(
         1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f) / 12.5f));
     // printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);
     muscle_activation_signal_cpp[i] *= correction_coeff;
-  }
+  }*/
 
   config->updateNeuronSimulation(muscle_activation_signal_cpp);
+
+  int half_i;
+
+  for (int i = 0; i < config->MUSCLE_COUNT; i++) {
+    half_i = (i % 24) / 2;
+    muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
+    // if(muscle_activation_signal_cpp[i]<0.5) muscle_activation_signal_cpp[i] =
+    // 0;
+
+    // correction_coeff = sqrt( 1.f -
+    // ((1+i%24-12.5f)/12.5f)*((1+i%24-12.5f)/12.5f) );
+
+    // correction_coeff = 1.0f;
+
+    /*
+    correction_coeff = 1.0f*sqrt( 1.f -
+    ((1+half_i-6.5f)/6.5f)*((1+half_i-6.5f)/6.5f)) - 0.0;
+
+    if(half_i>=6)
+    {
+            correction_coeff = (1.5f*sqrt( 1.f -
+    ((1+half_i-6.5f)/6.5f)*((1+half_i-6.5f)/6.5f)) - 0.5f)*0.8f ;
+            //if( ((i>=0)&&(i<=3)) || ((i>=20)&&(i<=23)) )
+    correction_coeff*=0.5;
+            //printf("\n%d\t%d\t%f\n",i,half_i,correction_coeff);
+            muscle_activation_signal_cpp[i] *=
+    correction_coeff;//*correction_coeff;
+    }*/
+
+    // if(half_i>=6)
+    /**/
+    {
+      // correction_coeff = 1.05*sin((half_i+1)/5.5f+0.7f);
+      // correction_coeff = 1.05*sin((half_i+1)/5.5f+0.7f);
+
+      if (iterationCount > 1200000)
+        correction_coeff = 1.2f * sin((half_i + 0) / 5.4f + 0.95f); // swimming
+      else
+        correction_coeff = (2500 / 2000) * 1.2f *
+                           (1 + sin((half_i + 0) / 5.4f + 0.95f)) /
+                           2.f; // crawling
+      // printf("\n%d\t%d\t%f\n",i,half_i,correction_coeff);
+      muscle_activation_signal_cpp[i] *= correction_coeff;
+    } /**/
+
+    /*
+    if(iterationCount<5000)
+    muscle_activation_signal_cpp[i] = 0.0f;//1.f;
+    else
+    muscle_activation_signal_cpp[i] = 0.75f;//1.f;
+    /**/
+  }
+
+  /**/
+  if (iterationCount < 10000) {
+    for (int i = 0; i < config->MUSCLE_COUNT; i++) {
+      muscle_activation_signal_cpp[i] *= (float)iterationCount / 10000.f;
+    }
+  } /**/
 
   ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
   iterationCount++;

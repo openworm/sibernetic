@@ -554,11 +554,9 @@ unsigned int owOpenCLSolver::_runIndexx(owConfigProperty *config) {
  *  Fill up all empty cell in gridCellIndex. If value in particular cell == -1
  *  it fills with value from last non empty cell. It need for optimization
  *  of neighbor search.
- *  EXAMPLE: particleIndex after sorting
- * [[1,1],[1,2],[2,3],[3,0],[3,7],[4,5],[6,8]...]
- *                                          ^           ^     ^           ^ ^
- *           gridCellIndex               [  0,          2,    3,          5,-1,
- * 6,....]
+ *  EXAMPLE: particleIndex after sorting [[1,1],[1,2],[2,3],[3,0],[3,7],[4,5],[6,8]...]
+ *                                          ^           ^     ^           ^     ^
+ *           gridCellIndex               [  0,          2,    3,          5,-1, 6,....]
  *
  *  @param config
  *  Contain information about simulating configuration
@@ -572,7 +570,7 @@ void owOpenCLSolver::_runIndexPostPass(owConfigProperty *config) {
   copy_buffer_from_device(gridNextNonEmptyCellBuffer, gridCellIndex,
                           (config->gridCellCount + 1) * sizeof(int) * 1);
   int recentNonEmptyCell = config->gridCellCount;
-  for (int i = config->gridCellCount; i >= 0; i--) {
+  for (int i = config->gridCellCount; i >= 0; --i) {
     if (gridNextNonEmptyCellBuffer[i] == NO_CELL_ID)
       gridNextNonEmptyCellBuffer[i] = recentNonEmptyCell;
     else
@@ -613,14 +611,11 @@ void owOpenCLSolver::_runSort(owConfigProperty *config) {
  *  It also need to be arranged in correct order.
  *  NOTE: this kernel doesn't change an order of position and velocity buffers,
  *  it's using special created buffers sortedPosition and sortedVelocity.
- *  NOTE: for tracking info about particular particle using particleIndexBack
- * list
+ *  NOTE: for tracking info about particular particle using particleIndexBack list
  *  which == particleIndex before sorting.
  *  EXAMPLE:  particleIndex list after sorting  [[1,1],[1,2],[2,3],[3,0],..]
- *            position list                     [ pos_0, pos_1, pos_2, pos_3,
- * ...]
- *            sortingPosition list after sorting[ pos_1, pos_2, pos_3, pos_0,
- * ...]
+ *            position list                     [ pos_0, pos_1, pos_2, pos_3, ...]
+ *            sortingPosition list after sorting[ pos_1, pos_2, pos_3, pos_0, ...]
  *
  *  @param config
  *  Contain information about simulating configuration
@@ -763,7 +758,7 @@ owOpenCLSolver::_run_pcisph_computeDensity(owConfigProperty *config) {
  * (http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clEnqueueNDRangeKernel.html)
  */
 unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(
-    owConfigProperty *config) {
+    owConfigProperty *config, int iterationCount) {
   pcisph_computeForcesAndInitPressure.setArg(0, neighborMap);
   pcisph_computeForcesAndInitPressure.setArg(1, rho);
   pcisph_computeForcesAndInitPressure.setArg(2, pressure);
@@ -783,6 +778,7 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(
   pcisph_computeForcesAndInitPressure.setArg(15, particleIndex);
   pcisph_computeForcesAndInitPressure.setArg(16, config->getParticleCount());
   pcisph_computeForcesAndInitPressure.setArg(17, mass);
+  pcisph_computeForcesAndInitPressure.setArg(18, iterationCount);
   int err = queue.enqueueNDRangeKernel(
       pcisph_computeForcesAndInitPressure, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
@@ -826,7 +822,7 @@ owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProperty *config) {
   pcisph_computeElasticForces.setArg(3, acceleration);
   pcisph_computeElasticForces.setArg(4, particleIndexBack);
   pcisph_computeElasticForces.setArg(5, particleIndex);
-  pcisph_computeElasticForces.setArg(6, h);
+  pcisph_computeElasticForces.setArg(6, max_muscle_force);
   pcisph_computeElasticForces.setArg(7, mass);
   pcisph_computeElasticForces.setArg(8, simulationScale);
   pcisph_computeElasticForces.setArg(9, config->numOfElasticP);
