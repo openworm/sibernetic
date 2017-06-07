@@ -282,6 +282,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\owVtkExport.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\sphFluid.cl"
 				>
 				<FileConfiguration
@@ -343,6 +347,10 @@
 			</File>
 			<File
 				RelativePath=".\inc\VectorMath.h"
+				>
+			</File>
+			<File
+				RelativePath=".\inc\owVtkExport.h"
 				>
 			</File>
 		</Filter>
