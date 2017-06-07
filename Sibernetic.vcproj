@@ -286,6 +286,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\owNeuronSimulator.cpp"
+				>
+			</File>
+			
+			<File
+				RelativePath=".\src\owSignalSimulator.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\sphFluid.cl"
 				>
 				<FileConfiguration
@@ -342,7 +351,15 @@
 				>
 			</File>
 			<File
-				RelativePath=".\inc\PyramidalSimulation.h"
+				RelativePath=".\inc\owINeuronSimulator.h"
+				>
+			</File>
+			<File
+				RelativePath=".\inc\owNeuronSimulator.h"
+				>
+			</File>
+			<File
+				RelativePath=".\inc\owSignalSimulator.h"
 				>
 			</File>
 			<File
