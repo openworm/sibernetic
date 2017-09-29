@@ -40,6 +40,7 @@
 
 extern bool load_from_file;
 extern bool load_to;
+extern bool show_activation_during_rerun;
 
 int old_x = 0, old_y = 0; // Used for mouse event
 float camera_trans[] = {0, 0, -8.0};
@@ -620,7 +621,7 @@ inline void renderInfo(int x, int y) {
                   localConfig->getTimeStep());
     glPrint(0, 17, label, m_font);
 
-    if (localConfig->isWormConfig()) {
+    if (localConfig->isWormConfig() || show_activation_during_rerun) {
       i_shift = 0;
       sprintf(label, "MDR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
                      "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "

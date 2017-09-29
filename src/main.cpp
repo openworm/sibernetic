@@ -39,6 +39,7 @@
 
 bool load_from_file = false;
 bool load_to = false;
+bool show_activation_during_rerun = false;
 
 int usage(){
 	std::string version = "0.0.5b";
@@ -54,6 +55,7 @@ int usage(){
 			  << "    -l_from                    Load simulation results from disk\n\n"
 			  << "    lpath=<value>              Indicates path where all buffers will be stored \n"
 			  << "                               this option also works for -l_to and -l_from options\n\n"
+			  << "    -verbose_rerun             Show muscle activation during a rerun of the simulation using -l_from \n"
 			  << "    -test                      Run some physical tests\n\n"
 			  << "    -f <filename>              Load configuration from file "
 			  << "./configuration/<filename>\n\n"
@@ -111,6 +113,9 @@ int main(int argc, char **argv) {
             if (std::string("-l_from").compare(argv[i]) == 0) { // run load config from file mode
                 graph = true;
                 load_from_file = true;
+            }
+            if (std::string("-verbose_rerun").compare(argv[i]) == 0) { // show muscle activation during sim rerun
+                show_activation_during_rerun = true;
             }
             if (std::string("-test").compare(argv[i]) == 0) { // run tests
                 run_tests = true;
