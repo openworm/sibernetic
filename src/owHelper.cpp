@@ -122,7 +122,7 @@ void findVali(std::string & str, char delimiter, size_t & start, int & val){
 void owHelper::preLoadConfiguration(owConfigProperty * config)
 {
 	int p_count = 0;
-	std::string file_name = config->getCofigPath() + config->getCofigFileName();
+	std::string file_name = config->getConfigPath() + config->getConfigFileName();
 	std::string inputStr;
 	std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
 	float x, y, z, p_type;
@@ -216,7 +216,7 @@ void owHelper::preLoadConfiguration(owConfigProperty * config)
  */
 void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProperty * config)
 {
-	std::string file_name = config->getCofigPath() + config->getCofigFileName();
+	std::string file_name = config->getConfigPath() + config->getConfigFileName();
 	std::string inputStr;
 	std::ifstream configFile (file_name.c_str(), std::ios_base::binary);
 	char delimiter = '\t';
@@ -462,10 +462,11 @@ void owHelper::loadConfigurationToFile(float * position, float * velocity, float
 //This function needed for visualiazation buffered data
 long position_index = 0;
 std::ifstream positionFile;
+
 /** Load configuration from file to simulation
  *
  *  This method is required for work with "load config from file" mode.
- *  In this mode information about simulation's evolution is taking from file
+ *  In this mode information about simulation's evolution is being taken from file
  *  on every step (every time it reads data block with size = PARTICLE_COUNT).
  *  If Sibernetic runs in this mode it means that
  *  no calculation on OpenCL device runs.

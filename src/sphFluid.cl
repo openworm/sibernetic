@@ -577,7 +577,50 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				vj = sortedVelocity[jd];
     			jd_source_particle = PI_SERIAL_ID( particleIndex[jd] );
 				not_bp = (float)((int)(position[ jd_source_particle ].w) != BOUNDARY_PARTICLE);
-				accel_viscosityForce += (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/rho[jd];   // Caculating viscosity forces impact to acceleration
+				
+				//elastic carpet
+				if( ( ((position[id_source_particle].w > 2.05f)&&(position[id_source_particle].w < 2.25f)) && 
+				    ( ( position[jd_source_particle].w > 2.25f)&&(position[jd_source_particle].w < 2.35f)) ) ||
+					( ((position[id_source_particle].w > 2.25f)&&(position[id_source_particle].w < 2.35f)) && 
+				    ( ( position[jd_source_particle].w > 2.05f)&&(position[jd_source_particle].w < 2.25f)) ) )
+				{
+					// viscosity between agar and worm shell - very low
+					//accel_viscosityForce += 0*1.0e-7f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+
+					if( ((position[id_source_particle].w > 2.25f)&&(position[id_source_particle].w < 2.35f)) )
+					{
+						position[id_source_particle].w = 2.32;
+					}
+				}
+				/*
+				if( ( ((position[id_source_particle].w > 2.25f)&&(position[id_source_particle].w < 2.35f)) && 
+				    ( ( position[jd_source_particle].w > 2.25f)&&(position[jd_source_particle].w < 2.35f)) )  )
+				{
+					// 2 agar particles 
+					accel_viscosityForce += 1.0e-4f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+				}
+				else
+				if( ( ((position[id_source_particle].w > 2.0f)&&(position[id_source_particle].w < 2.25f)) && 
+				    ( ( position[jd_source_particle].w > 2.0f)&&(position[jd_source_particle].w < 2.25f)) )  )
+				{
+					// 2 worm body elastic particles particles
+					accel_viscosityForce += 3.0e-4f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+				}
+				else
+				if( ( ((int)position[id_source_particle].w) == 1 ) || ( ((int)position[jd_source_particle].w) == 1 ) )
+				{
+					//accel_viscosityForce += 4.0e-5f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;//rho[jd];   // Calculating viscosity forces impact to acceleration
+					accel_viscosityForce += 1.5e-4f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;//rho[jd];   // Calculating viscosity forces impact to acceleration
+					//accel_viscosityForce += 10.0e-5f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;//rho[jd];   // Calculating viscosity forces impact to acceleration
+					//cnt3++;
+				}
+				else 
+				{
+					accel_viscosityForce += 1.0e-6f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000.f;//rho[jd];   // Calculating viscosity forces impact to acceleration
+					//cnt4++;
+				}*/
+
+				accel_viscosityForce += 0.05f*(sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/rho[jd];   // Caculating viscosity forces impact to acceleration
 																												 // formula 2.19 [1]
 				//29aug_A.Palyanov_start_block
 				// M.Beckner & M.Teschner / Weakly compressible SPH for free surface flows. 2007.
@@ -590,7 +633,11 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				//accel_surfTensForce += surfTensCoeff * (sortedPosition[id]-sortedPosition[jd]); // Caculating surface tension forces impact to acceleration
 																								// formula (16) [5]
 				float surffKern = (hScaled2 -r_ij2) * (hScaled2 -r_ij2) * (hScaled2 -r_ij2);
-				accel_surfTensForce += -1.7e-09f /*-1.9e-09f*/ * surfTensCoeff * surffKern * (sortedPosition[id]-sortedPosition[jd]);
+				//high resolution?
+				accel_surfTensForce += -1.7e-09f * surfTensCoeff * surffKern * (sortedPosition[id]-sortedPosition[jd]);
+
+				//low (1/2) resolution?
+				//accel_surfTensForce += - 0.25f * 1.7e-09f /*-1.9e-09f*/ * surfTensCoeff * surffKern * (sortedPosition[id]-sortedPosition[jd]);
 			}
 		}
 	}while(  ++nc < MAX_NEIGHBOR_COUNT );
@@ -666,7 +713,7 @@ __kernel void pcisph_computeElasticForces(
 					if((int)(elasticConnectionsData[idx+nc].z)==(i+1))//contractible spring, = muscle
 					{
 						if(muscle_activation_signal[i]>0.f)
-							acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal[i] * (1300.0f + 500.f) * 3.25e-14f / mass; // mass was forgotten here
+							acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal[i] * 1.5f * (1300.0f + 500.f) * 3.25e-14f / mass; // mass was forgotten here
 					}
 				}
 			}

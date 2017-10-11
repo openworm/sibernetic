@@ -106,7 +106,7 @@ public:
 	 *
 	 *  @return membraneData_cpp
 	 */
-	float * getMuscleAtcivationSignal() const { return muscle_activation_signal_cpp; }
+	float * getMuscleActivationSignal() const { return muscle_activation_signal_cpp; }
 	double  simulationStep(const bool load_to = false);
 	/** Getter for config
 	 *  @return config

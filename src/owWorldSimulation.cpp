@@ -43,11 +43,11 @@ extern bool load_to;
 
 int old_x = 0, old_y = 0; // Used for mouse event
 float camera_trans[] = {0, 0, -8.0};
-float camera_rot[] = {0, 0, 0};
+float camera_rot[] = {60, -90, 0}; //camera rotation settings at start
 float camera_trans_lag[] = {0, 0, -8.0};
 float camera_rot_lag[] = {0, 0, 0};
 int buttonState = 0;
-float sc = 0.045f; // 0.0145;//0.045;//0.07
+float sc = 0.025f; // 0.0145;//0.045;//0.07
 double totalTime = 0;
 int frames_counter = 0;
 double fps;
@@ -111,6 +111,27 @@ void glPrint3D(float x, float y, float z, const char *s, void *font) {
     glutBitmapCharacter(font, s[i]);
   }
 }
+
+std::ifstream musclesActivityFile;
+
+int read_muscles_activity_signals_from_log_file(int iterationCount, float *muscle_activation_signal_cpp, owConfigProperty * config)
+{
+	std::string musclesActivityFileName = config->getLoadPath() + std::string("/muscles_activity_buffer.txt");
+	if(iterationCount==0) musclesActivityFile.open(musclesActivityFileName.c_str());
+	if(!musclesActivityFile) throw std::runtime_error("A problem with creation of muscles activity log file occured. Please check the path.");
+	unsigned int i = 0;
+	//printf("\niterationCount = %d",iterationCount);
+	if( musclesActivityFile.is_open() )
+	{
+		while( musclesActivityFile.good() &&  (i < config->MUSCLE_COUNT) )
+		{
+			musclesActivityFile >> muscle_activation_signal_cpp[i];
+			i++;
+		}
+	}
+
+	if(!musclesActivityFile.good())	musclesActivityFile.close();
+}
 /** Main displaying function
  */
 void display(void) {
@@ -145,7 +166,7 @@ void display(void) {
       }
 
       if (fluid_simulation->getIteration() ==
-          localConfig->getNumberOfIteration()) {
+          localConfig->getNumberOfIterations()) {
         std::cout << "Simulation has reached the time limit..." << std::endl;
         cleanupSimulation();
         exit(EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by
@@ -153,9 +174,9 @@ void display(void) {
       }
     } else {
       try {
-        if (owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp,
-                                                localConfig, iteration)) {
-          iteration++;
+        if (owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp, localConfig, iteration)) {
+			read_muscles_activity_signals_from_log_file(iteration,muscle_activation_signal_cpp,localConfig);
+			iteration++;
         } else {
           cleanupSimulation();
           std::cout << "Simulation has reached end of file" << std::endl;
@@ -333,14 +354,14 @@ void display(void) {
           glLineWidth((GLfloat)0.1);
           glBegin(GL_LINES);
           glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
-          if (p_cpp[i * 4 + 3] > 2.15)
-            glColor4b(50 / 2, 125 / 2, 0, 100 / 2);
+          if (p_cpp[i * 4 + 3] > 2.15)					glColor4b(50 / 2, 125 / 2, 0, 100 / 2);
+		  if((p_cpp[i*4+3]>2.31) &&(p_cpp[i*4+3]<2.33))	glColor4b( 130/2, 190/2, 250/2, 255/2); 
           glVertex3f((p_cpp[i * 4 + 0] - localConfig->xmax / 2) * sc,
                      (p_cpp[i * 4 + 1] - localConfig->ymax / 2) * sc,
                      (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
-          glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
-          if (p_cpp[j * 4 + 3] > 2.15)
-            glColor4b(50 / 2, 125 / 2, 0, 100 / 2);
+          //glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
+          if (p_cpp[j * 4 + 3] > 2.15)					glColor4b(50 / 2, 125 / 2, 0, 100 / 2);
+		  if((p_cpp[j*4+3]>2.31) &&(p_cpp[j*4+3]<2.33))	glColor4b( 130/2, 190/2, 250/2, 255/2); 
           glVertex3f((p_cpp[j * 4 + 0] - localConfig->xmax / 2) * sc,
                      (p_cpp[j * 4 + 1] - localConfig->ymax / 2) * sc,
                      (p_cpp[j * 4 + 2] - localConfig->zmax / 2) * sc);
@@ -592,24 +613,29 @@ inline void renderInfo(int x, int y) {
   int i_shift = 0;
   if (showInfo) {
     glColor3f(0.5F, 1.0F, 1.0F);
-    sprintf(label, "Liquid particles: %d, elastic matter particles: %d, "
-                   "boundary particles: %d; total count: %d",
-            localConfig->numOfLiquidP, localConfig->numOfElasticP,
-            localConfig->numOfBoundaryP, localConfig->getParticleCount());
-    glPrint(0, 2, label, m_font);
+		sprintf(label,"Liquid particles: %d, elastic matter p.: %d, boundary p.: %d; total count: %d :: SIBERNETIC (sibernetic.org) 2011-2017 ::", 
+					   localConfig->numOfLiquidP,
+					   localConfig->numOfElasticP,
+					   localConfig->numOfBoundaryP,localConfig->getParticleCount());
+
+    glPrint(2, 12, label, m_font);
     glColor3f(1.0F, 1.0F, 1.0F);
     if (load_from_file)
-      sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
-              localConfig->getDeviceName(), fps, iteration,
-              iteration * localConfig->getTimeStep() *
-                  localConfig->getLogStep());
+      //sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
+      //        localConfig->getDeviceName(), fps, iteration,
+      //        iteration * localConfig->getTimeStep() *
+      //            localConfig->getLogStep());
+	  sprintf(label,"time step: %d, physical time: %.3f s"/*  :: SIBERNETIC (sibernetic.org) by A.Palyanov and S.Khayrulin, 2011-2017 :: "*/,
+	  iteration, iteration * localConfig->getTimeStep() * localConfig->getLogStep());
     else
-      sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
-              localConfig->getDeviceName(), fps,
-              fluid_simulation->getIteration(),
-              ((float)fluid_simulation->getIteration()) *
-                  localConfig->getTimeStep());
-    glPrint(0, 17, label, m_font);
+      //sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
+      //        localConfig->getDeviceName(), fps,
+      //        fluid_simulation->getIteration(),
+      //        ((float)fluid_simulation->getIteration()) *
+      //            localConfig->getTimeStep());
+	  sprintf(label,"Selected device: %s, FPS = %.2f, time step: %8d (phys. time = %8f s)"/* :: by A.Palyanov and S.Khayrulin ::"*/, /*viscosity,*/ 
+	  localConfig->getDeviceName(), fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*localConfig->getTimeStep());
+    glPrint(2, 25, label, m_font);
 
     if (localConfig->isWormConfig()) {
       i_shift = 0;
@@ -628,7 +654,7 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[18 + i_shift],
               muscle_activation_signal_cpp[20 + i_shift],
               muscle_activation_signal_cpp[22 + i_shift]);
-      glPrint(0, 32, label, m_font);
+      glPrint(2, 42, label, m_font);
       sprintf(label, "MDR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
                      "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
                      "%.2f[24] indexes: +0",
@@ -644,7 +670,7 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[19 + i_shift],
               muscle_activation_signal_cpp[21 + i_shift],
               muscle_activation_signal_cpp[23 + i_shift]);
-      glPrint(0, 45, label, m_font);
+      glPrint(2, 55, label, m_font);
 
       i_shift = 24;
       sprintf(label, "MVR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
@@ -662,7 +688,7 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[18 + i_shift],
               muscle_activation_signal_cpp[20 + i_shift],
               muscle_activation_signal_cpp[22 + i_shift]);
-      glPrint(0, 60, label, m_font);
+      glPrint(2, 73, label, m_font);
       sprintf(label, "MVR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
                      "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
                      "%.2f[24] indexes: +24",
@@ -678,7 +704,7 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[19 + i_shift],
               muscle_activation_signal_cpp[21 + i_shift],
               muscle_activation_signal_cpp[23 + i_shift]);
-      glPrint(0, 62 + 15, label, m_font);
+      glPrint(2, 87, label, m_font);
 
       i_shift = 24 * 2;
       sprintf(label, "MVL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
@@ -696,7 +722,7 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[18 + i_shift],
               muscle_activation_signal_cpp[20 + i_shift],
               muscle_activation_signal_cpp[22 + i_shift]);
-      glPrint(0, 62 + 15 + 12, label, m_font);
+      glPrint(2, 105, label, m_font);
       sprintf(label, "MVL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
                      "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
                      "%.2f[24] indexes: +48",
@@ -712,7 +738,7 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[19 + i_shift],
               muscle_activation_signal_cpp[21 + i_shift],
               muscle_activation_signal_cpp[23 + i_shift]);
-      glPrint(0, 91 + 15, label, m_font);
+      glPrint(2, 118, label, m_font);
 
       i_shift = 24 * 3;
       sprintf(label, "MDL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
@@ -730,7 +756,7 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[18 + i_shift],
               muscle_activation_signal_cpp[20 + i_shift],
               muscle_activation_signal_cpp[22 + i_shift]);
-      glPrint(0, 91 + 15 + 12, label, m_font);
+      glPrint(2, 136, label, m_font);
       sprintf(label, "MDL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
                      "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
                      "%.2f[24] indexes: +72",
@@ -746,7 +772,7 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[19 + i_shift],
               muscle_activation_signal_cpp[21 + i_shift],
               muscle_activation_signal_cpp[23 + i_shift]);
-      glPrint(0, 119 + 15, label, m_font);
+      glPrint(2, 149, label, m_font);
     }
   }
   endWinCoords();
@@ -847,14 +873,14 @@ void cleanupSimulation() {
 void respondKey(unsigned char key, int x, int y) {
   switch (key) {
   case '1':
-    localConfig->setCofigFileName("demo1");
+    localConfig->setConfigFileName("demo1");
     helper->refreshTime();
     fluid_simulation->reset();
     sPause = false;
     break;
   case '2':
     // owHelper::configFileName = "demo2";
-    localConfig->setCofigFileName("demo2");
+    localConfig->setConfigFileName("demo2");
     helper->refreshTime();
     fluid_simulation->reset();
     sPause = false;
@@ -927,24 +953,23 @@ GLvoid resize(GLsizei width, GLsizei height) {
   glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 }
 inline void init(void) {
-  glEnable(GL_LIGHTING);
-  glEnable(GL_LIGHT0);
-  glEnable(GL_COLOR_MATERIAL);
-  glEnable(GL_NORMALIZE);
-  glEnable(GL_AUTO_NORMAL);
-  float ambient[4] = {1.0, 1.0, 1.0, 1};
-  glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
-  glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
-  glClearDepth(1.0f);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_COLOR_MATERIAL);
+	glEnable(GL_NORMALIZE);
+	glEnable(GL_AUTO_NORMAL);
+	float ambient[4] = {1.0, 1.0, 1.0, 1};
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
+	glClearColor(0.7f, 0.7f, 0.7f, 1.0f); // background color
+	glClearDepth(1.0f);
 
-  glEnable(GL_DEPTH_TEST);
-  glDepthFunc(GL_LEQUAL);
-  glShadeModel(GL_SMOOTH);
-  glEnable(GL_LINE_SMOOTH);
-  glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glShadeModel(GL_SMOOTH);
+	glEnable(GL_LINE_SMOOTH);
+	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 void sighandler(int s) {
   std::cout << "\nCaught signal CTRL+C. Exit Simulation...\n"; // this is
@@ -972,7 +997,7 @@ int run(int argc, char **argv, const bool with_graphics) {
       fluid_simulation = new owPhysicsFluidSimulator(helper, argc, argv);
       localConfig = fluid_simulation->getConfig();
       muscle_activation_signal_cpp =
-          fluid_simulation->getMuscleAtcivationSignal();
+          fluid_simulation->getMuscleActivationSignal();
     } else {
       localConfig = new owConfigProperty(argc, argv);
       muscle_activation_signal_cpp = new float[localConfig->MUSCLE_COUNT];
@@ -989,11 +1014,9 @@ int run(int argc, char **argv, const bool with_graphics) {
   if (with_graphics) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(1024, 1024);
+    glutInitWindowSize(1200, 800);
     glutInitWindowPosition(100, 100);
-    glutCreateWindow("Palyanov Andrey for OpenWorm: OpenCL PCISPH fluid + "
-                     "elastic matter + membranes [2013]: C.elegans body "
-                     "generator demo");
+    glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey Khayrulin. Build from 10/10/2017 sources (development branch)");
     glutIdleFunc(idle);
     init();
     glutDisplayFunc(display);
@@ -1019,7 +1042,7 @@ int run(int argc, char **argv, const bool with_graphics) {
       }
       helper->refreshTime();
       if (fluid_simulation->getIteration() ==
-          localConfig->getNumberOfIteration()) {
+          localConfig->getNumberOfIterations()) {
         std::cout << "Simulation has reached the time limit" << std::endl;
         cleanupSimulation();
         return EXIT_SUCCESS;
