@@ -41,10 +41,11 @@ bool load_from_file = false;
 bool load_to = false;
 
 int usage(){
-	std::string version = "0.0.5b";
-	std::cout << "\nSibernetic v" << version << "\n  This is a C++ "
-	          << "implementation of the Contractile SPH (Electrofluid) "
-			  << "algorithm applied to C. elegans locomotion\n\n"
+	std::string version = "0.0.5b"; 
+	std::cout << "\nSibernetic v" << version << "\n  This is a C++/OpenCL "
+	          << "implementation of the PCISPH algorithm supplemented with"
+			  << "a set of biomechanics related features"
+			  << "applied to C. elegans locomotion\n\n"
 	 		  << "Usage: ./Release/Sibernetic [OPTION]\n\n"
 			  << "    -no_g                      Run without graphics\n\n"
 			  << "    -l_to                      Save simulation results to disk\n\n"
@@ -67,7 +68,7 @@ int usage(){
 			  << "reached in seconds\n\n"
 			  << "    leapfrog                   Run simulation using Leapfrog integration "
 			  << "method for time integration\n\n"
-			  << "    oclsourcepath=<value>      You can indicate path to you'r "
+			  << "    oclsourcepath=<value>      You can indicate path to your "
 			  << "OpenCL program just using this option\n\n"
 			  << "    -nrn <value>                Indicates that you plan run simulation with "
 			  << "NEURON simulation = <value> \n"
@@ -79,7 +80,7 @@ int usage(){
 			  << "    -help, -h, -?, --help      Print this information\n\n"
 			  << "Full documentation at: <https://github.com/openworm/sibernetic>\n"
 			  << "Please report any bugs/issues "
-			  << "on: <https://github.com/openworm/sibernetic/issues>\n";
+			  << "to: <https://github.com/openworm/sibernetic/issues>\n";
 	return EXIT_SUCCESS;
 }
 

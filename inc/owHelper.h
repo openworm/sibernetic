@@ -59,11 +59,11 @@ public:
 	~owHelper(void);
 	static void preLoadConfiguration( owConfigProperty * config );
 	static void loadConfiguration( float *position_cpp, float *velocity_cpp, float *& elasticConnections, int * membraneData_cpp, int *& particleMembranesList_cpp, owConfigProperty * config );
-	static void loadConfigurationToFile(float * position, owConfigProperty * config,float * connections=NULL, int * membranes=NULL, bool firstIteration = true, int * filter_p=NULL, int size=0);
+	static void loadConfigurationToFile(float * position, owConfigProperty * config, float * connections=NULL, int * membranes=NULL, bool firstIteration = true, int * filter_p=NULL, int size=0 );
+	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProperty * config);
 	static void loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, int iteration = 0);
 	static bool loadConfigurationFromFile(float *& position, float *& connections, int *& membranes, owConfigProperty * config,int iteration = 0);
 	static void loadConfigurationFromFile(float *& position, float *& velocity,float *& connections, int *& membranes, int *& particleMemIndex, owConfigProperty * config);
-	static void loadConfigurationToFile(float * position, float * velocity, float * connections, int * membranes, int * particleMemIndex, const char * filename, owConfigProperty * config);
 	void watch_report(const char *str);
 	double getElapsedTime() { return elapsedTime; };
 	void refreshTime();

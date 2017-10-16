@@ -25,9 +25,9 @@ OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
 CPP_DEPS = $(OBJECTS:.o=.d)
 
 # Change these to set the different python directories
-#PYTHONHEADERDIR = /usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/
-#PYTHONLIBDIR = /usr/local/lib/python2.7
-#PYTHONFRAMEWORKDIR = /usr/local/Library/Frameworks
+PYTHONHEADERDIR = /opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7/
+PYTHONLIBDIR = /opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/
+PYTHONFRAMEWORKDIR = /Library/Frameworks/
 
 LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
 

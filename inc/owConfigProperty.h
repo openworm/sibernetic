@@ -63,15 +63,15 @@ public:
 	void setDeviceType(DEVICE type) { prefDeviceType = type; }
 	const int getParticleCount_RoundUp(){ return PARTICLE_COUNT_RoundedUp; }
 	const int getDeviceType() const { return prefDeviceType; };
-	const int getNumberOfIteration() const { return totalNumberOfIteration ;}
+	const int getNumberOfIterations() const { return totalNumberOfIterations; }
 	const char * getDeviceName() const { return devFullName.c_str(); }
 	const std::string & getSourceFileName() const { return sourceFileName; }
 	void setDeviceName(const char * name) {
 		devFullName = name;
 	}
 	INTEGRATOR getIntegrationMethod() const { return integrationMethod; }
-	const std::string & getCofigFileName() const { return configFileName; }
-	const std::string & getCofigPath() const { return path; }
+	const std::string & getConfigFileName() const { return configFileName; }
+	const std::string & getConfigPath() const { return path; }
 	const std::string & getLoadPath() const { return loadPath; }
 	//SignalSimulator & getPyramidalSimulation() { return simulation; }
 	owINeuronSimulator * getPyramidalSimulation() { return simulation; }
@@ -83,9 +83,13 @@ public:
 			}
 		}
 	}
-	bool isWormConfig(){ return (configFileName.find("worm") != std::string::npos);}//   == "worm" || configFileName == "worm_no_water")? true:false; }
-	bool isC302(){ return c302;}
-	void setCofigFileName( const char * name ) { configFileName = name; }
+	bool isWormConfig() { return (configFileName.find("worm") != std::string::npos); }//   == "worm" || configFileName == "worm_no_water")? true:false; }
+	bool isC302()
+	{ 
+		//printf("\nisC302? nc302=%d\n",c302==true);
+		return c302; 
+	}
+	void setConfigFileName( const char * name ) { configFileName = name; }
 	void resetNeuronSimulation(){
 		if(isWormConfig() || nrnSimRun){
 			delete simulation;
@@ -126,7 +130,7 @@ public:
 	}
 	// Constructor
 	owConfigProperty(int argc, char** argv):numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0),
-											numOfMembranes(0), MUSCLE_COUNT(100), logStep(10), path("./configuration/"),
+											numOfMembranes(0), MUSCLE_COUNT(96), logStep(10), path("./configuration/"),
 											loadPath("./buffers/"), sourceFileName( OPENCL_PROGRAM_PATH ){
 		prefDeviceType = ALL;
 		this->timeStep = ::timeStep;
@@ -138,6 +142,7 @@ public:
 		std::string simName = "";
 		nrnSimRun = false;
 		nrnSimulationFileName = "";
+		simulation = NULL;
 		for(int i = 1; i<argc; i++){
 			strTemp = argv[i];
 			if(strTemp.find("device=") == 0){
@@ -199,18 +204,26 @@ public:
 				else
 					throw std::runtime_error("You forget add NEURON model file name. Please add it and try again");
 			}
+			
 			if(strTemp.find("-c302") == 0){
+			//int result = strTemp.find("-c302");
+			//printf("\n%s: %d c302=%d\n",strTemp.c_str(),result,c302==true);
+			//if(result == 0){
 				c302 = true;
 			}
 		}
-		totalNumberOfIteration = timeLim/this->timeStep; // if it equals to 0 it means that simulation will work infinitely
+		totalNumberOfIterations = timeLim/this->timeStep; // if it equals to 0 it means that simulation will work infinitely
 		calcDelta();
 		if(isWormConfig() || nrnSimRun){ // in case if we run worm configuration TODO make it optional
 
 			if(isWormConfig() && !nrnSimRun){
                 std::string pythonClass = "MuscleSimulation";
-                if (isC302())
+				//printf("\nc302=%d\n",(int)isC302());
+                if(isC302()==true)
+				{
                     pythonClass = "C302NRNSimulation";
+				}
+
 				if(simName.compare("") == 0)
 					simulation = new SignalSimulator("main_sim", pythonClass);
 				else
@@ -229,7 +242,8 @@ public:
 		gridCellCount = gridCellsX * gridCellsY * gridCellsZ;
 	}
 	~owConfigProperty(){
-		delete simulation;
+		if(simulation != NULL)
+			delete simulation;
 	}
 	float xmin;
 	float xmax;
@@ -301,7 +315,7 @@ private:
 
 	int PARTICLE_COUNT;
 	int PARTICLE_COUNT_RoundedUp;
-	int totalNumberOfIteration;
+	int totalNumberOfIterations;
 	int logStep;
 	float timeStep;
 	float timeLim;
@@ -316,8 +330,8 @@ private:
 	owINeuronSimulator * simulation;
 	std::string devFullName;
 	std::string sourceFileName;
-	bool nrnSimRun; //indicates if we also ran NEURON simulation
-	bool c302; //indicates if we also ran NEURON simulation
+	bool nrnSimRun; //indicates if we also run NEURON simulation
+	bool c302; //indicates if we also run NEURON simulation
 	std::string nrnSimulationFileName;
 };
 
