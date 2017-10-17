@@ -1,25 +1,31 @@
 import math
 import numpy as np
 
-"""
+
 import matplotlib.pyplot as plt
 from pylab import *
-"""
+
 
 muscle_row_count = 24
 
 time_per_step = 0.000001  #  s
 
-quadrant0 = 'MDR'
-quadrant1 = 'MVR'
-quadrant2 = 'MVL'
-quadrant3 = 'MDL'
+quadrant0 = 'MVR'
+quadrant1 = 'MDR'
+quadrant2 = 'MDL'
+quadrant3 = 'MVL'
 
 colours = {}
 colours[quadrant0] = '#000000'
 colours[quadrant1] = '#00ff00'
 colours[quadrant2] = '#0000ff'
 colours[quadrant3] = '#ff0000'
+
+
+def print_(msg):
+    pre = "Python >> "
+    print('%s %s'%(pre,msg.replace('\n','\n'+pre)))
+
 
 """
 
@@ -96,7 +102,8 @@ class MuscleSimulation():
         self.increment = increment
         self.step = 0
 
-    def run(self,do_plot = True):
+    def run(self,do_plot = True, skip_to_time=None):
+        #t = skip_to_time + self.step*time_per_step
         self.contraction_array =  parallel_waves(step = self.step)
         self.step += self.increment
         #if (self.step>1000000):
@@ -144,13 +151,85 @@ class C302Simulation():
         
 
 
+class C302NRNSimulation():
+
+    max_ca = 4e-7
+    max_ca_found = -1
+    
+    def __init__(self, tstop=100, dt=0.005, activity_file=None, verbose=True):
+        
+        #from LEMS_c302_C1_Full_nrn import NeuronSimulation
+        from LEMS_c302_nrn import NeuronSimulation
+        
+        import neuron
+        self.h = neuron.h
+        
+        self.verbose = verbose
+        
+        self.ns = NeuronSimulation(tstop, dt)
+        print_("Initialised C302NRNSimulation of length %s ms and dt = %s ms..."%(tstop,dt))
+        
+        
+    def save_results(self):
+        
+        print_("> Saving results at time: %s"%self.h.t)
+        
+        self.ns.save_results()
+        
+    def run(self, skip_to_time=-1):
+        
+        print_("> Current NEURON time: %s ms"%self.h.t)
+        
+        self.ns.advance()
+        
+        print_("< Current NEURON time: %s ms"%self.h.t)
+        
+        values = []
+        for i in range(24):
+            var = "a_MVR%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            if i == 23:
+                var = "a_MVR23"
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+        for i in range(24):
+            var = "a_MDR%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+        for i in range(24):
+            var = "a_MDL%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+        for i in range(24):
+            var = "a_MVL%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+                 
+        if self.verbose:
+            print_("Returning %s values: %s"%(len(values),values))
+        return values
+        
+    
+    def _scale(self,ca,print_it=False):
+        
+        self.max_ca_found = max(ca,self.max_ca_found)
+        scaled = min(1,(ca/self.max_ca))
+        if print_it: 
+            print_("- Scaling %s to %s (max found: %s)"%(ca,scaled,self.max_ca_found))
+        return scaled
+
+
+
 if __name__ == '__main__':
     
     print("This script is used by the Sibernetic C++ application")
     print("Running it directly in Python will only plot the waves being generated for sending to the muscle cells...")
     
     ms = MuscleSimulation()
-    ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
+    #ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat')
     #ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
     #ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Muscles.muscles.activity.dat')
     
@@ -158,7 +237,7 @@ if __name__ == '__main__':
     num_plots = 4
     
     activation = {}
-    row = '02'
+    row = '17'
     row_int=int(row)
     m0='%s%s'%(quadrant0,row)
     m1='%s%s'%(quadrant1,row)
