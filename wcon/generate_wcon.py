@@ -1,5 +1,6 @@
 import math
 import sys
+import numpy as np
 
 
 def dist(x1, y1, x2, y2):
@@ -32,6 +33,8 @@ def generate_wcon(pos_file_name,
     num_plotted_frames = 0
     points_plotted = 0
 
+    all_xs = {}
+    all_ys = {}
     middle_points = []
     ave_points = []
     middle_point_speed_x = []
@@ -41,6 +44,8 @@ def generate_wcon(pos_file_name,
     time_points = []
 
     num_frames = 0
+    
+    angles = {}
 
     for line in postions_file:
 
@@ -80,10 +85,11 @@ def generate_wcon(pos_file_name,
                     # Swap x and y so worm moves "up"
                     xs.append(y[t_s][i] + offset)
                     ys.append(x[t_s][i])
-
+                    
                     avx += xs[-1] - offset
                     avy += ys[-1]
                     points_plotted += 1
+                    
                 avx = avx / points
                 avy = avy / points
 
@@ -119,14 +125,41 @@ def generate_wcon(pos_file_name,
 
                 print("  Plot frame %i at %s s; l %i: [(%s,%s),...#%i]\n" % (
                     num_plotted_frames, t_s, line_num, xs[0], ys[0], len(xs)))
-                ax.plot(xs, ys, '-')
+                    
                 num_plotted_frames += 1
+                
+                ax.plot(xs, ys, '-')
                 if num_plotted_frames % 5 == 1:
                     time = '%ss' % t_s if not t_s == int(t_s) \
                         else '%ss' % int(t_s)
     
                     ax.text(50 + ((num_plotted_frames - 1) * spacing),
                             10, time, fontsize=12)
+                            
+    data = np.zeros((len(ts),len(xs)-2))
+    for ti in range(len(ts)):
+        
+        for i in range(len(y[0]))[1:-1]:
+            
+            x1 = x[ts[ti]][i-1]
+            xc = x[ts[ti]][i]
+            x2 = x[ts[ti]][i+1]
+            
+            y1 = y[ts[ti]][i-1]
+            yc = y[ts[ti]][i]
+            y2 = y[ts[ti]][i+1]
+            
+            a1 = math.atan2(y1-yc,x1-xc) 
+            a2 = math.atan2(y2-yc,x2-xc)
+            angle = a2-a1
+            if angle <0: angle+=2*math.pi
+            if angle >2*math.pi: angle= 2*math.pi-angle
+            
+            deg = 360*(angle/(2*math.pi))
+            
+            data[ti][i-1]= deg
+            
+            print("At t=%s, i=%s: angle from between (%s,%s) - (%s,%s) - (%s,%s) = %s, %sdeg"%(ts[ti], i, x1,y1,xc,yc,x2,y2,angle,deg))
 
     info = "Loaded: %s points from %s, saving %i frames" % (
         line_num, pos_file_name, num_frames)
@@ -176,6 +209,11 @@ def generate_wcon(pos_file_name,
         plt.plot(time_points[1:], ave_point_speed_y, 'green',
                  label='Speed in y of average of %i points' % points)
         plt.legend()
+        
+        fig = plt.figure()
+        plot0 = plt.imshow(data)
+        
+        fig.colorbar(plot0)
         plt.show()
         
 
@@ -213,7 +251,7 @@ if __name__ == '__main__':
 
     
     small_file = "small.wcon"
-    generate_wcon(pos_file_name, small_file, rate_to_plot=50, plot=True)
+    generate_wcon(pos_file_name, small_file, rate_to_plot=10, plot=True)
     validate(small_file)
     
     
