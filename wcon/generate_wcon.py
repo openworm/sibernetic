@@ -1,5 +1,6 @@
 import math
 import sys
+import os
 import numpy as np
 
 
@@ -136,18 +137,19 @@ def generate_wcon(pos_file_name,
                     ax.text(50 + ((num_plotted_frames - 1) * spacing),
                             10, time, fontsize=12)
                             
-    data = np.zeros((len(ts),len(xs)-2))
+    data = np.zeros((len(ts),len(xs)-4))
+    
     for ti in range(len(ts)):
         
-        for i in range(len(y[0]))[1:-1]:
+        for i in range(len(y[0]))[2:-2]:
             
-            x1 = x[ts[ti]][i-1]
+            x1 = x[ts[ti]][i-2]
             xc = x[ts[ti]][i]
-            x2 = x[ts[ti]][i+1]
+            x2 = x[ts[ti]][i+2]
             
-            y1 = y[ts[ti]][i-1]
+            y1 = y[ts[ti]][i-2]
             yc = y[ts[ti]][i]
-            y2 = y[ts[ti]][i+1]
+            y2 = y[ts[ti]][i+2]
             
             a1 = math.atan2(y1-yc,x1-xc) 
             a2 = math.atan2(y2-yc,x2-xc)
@@ -157,7 +159,7 @@ def generate_wcon(pos_file_name,
             
             deg = 360*(angle/(2*math.pi))
             
-            data[ti][i-1]= deg
+            data[ti][i-2]= deg
             
             print("At t=%s, i=%s: angle from between (%s,%s) - (%s,%s) - (%s,%s) = %s, %sdeg"%(ts[ti], i, x1,y1,xc,yc,x2,y2,angle,deg))
 
@@ -211,7 +213,7 @@ def generate_wcon(pos_file_name,
         plt.legend()
         
         fig = plt.figure()
-        plot0 = plt.imshow(data)
+        plot0 = plt.imshow(data, interpolation='nearest',norm=None)
         
         fig.colorbar(plot0)
         plt.show()
@@ -219,9 +221,15 @@ def generate_wcon(pos_file_name,
 
 def validate(wcon_file):
     import json, jsonschema
+    
+    wcon_schema = "wcon_schema.json"
+    
+    if not os.path.isfile("wcon_schema.json"):
+        print("Cannot validate file: %s!! WCON schema %s not found!!"%(wcon_file, wcon_schema))
+        return
 
     # The WCON schema
-    with open("wcon_schema.json", "r") as wcon_schema_file:
+    with open(wcon_schema, "r") as wcon_schema_file:
         schema = json.loads(wcon_schema_file.read())
 
     # Our example WCON file
@@ -240,10 +248,16 @@ def validate(wcon_file):
 if __name__ == '__main__':
 
     validate("test.wcon")
-    if len(sys.argv) == 2:
+    
+    if len(sys.argv) >1:
         pos_file_name = sys.argv[1]
     else:
         pos_file_name = '../buffers/worm_motion_log.txt'
+    
+    if len(sys.argv) >2:
+        rate_to_plot = int(sys.argv[2])
+    else:
+        rate_to_plot=100
 
     #generate_wcon(pos_file_name, "sibernetic_test_full.wcon", rate_to_plot=5)
     #generate_wcon(pos_file_name, "sibernetic_test_small.wcon",
@@ -251,7 +265,7 @@ if __name__ == '__main__':
 
     
     small_file = "small.wcon"
-    generate_wcon(pos_file_name, small_file, rate_to_plot=10, plot=True)
+    generate_wcon(pos_file_name, small_file, rate_to_plot=rate_to_plot, plot=True)
     validate(small_file)
     
     

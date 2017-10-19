@@ -323,7 +323,13 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   // the scene
 
   helper->refreshTime();
-  std::cout << "\n[[ Step " << iterationCount << " ]]\n";
+  std::cout << "\n[[ Step " << iterationCount << " (total steps: ";
+  if (config->getNumberOfIterations()==0) 
+      std::cout << "unlimited";
+  else 
+      std::cout << config->getNumberOfIterations();
+  std::cout << ", t in sim: " << iterationCount*config->getTimeStep() << "s) ]]\n";
+  
   // SEARCH FOR NEIGHBOURS PART
   // ocl_solver->_runClearBuffers();
   // helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
