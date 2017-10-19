@@ -3,9 +3,11 @@ import sys
 '''
     Plot the positions from a saved Sibernetic position_buffer.txt file
 '''
-def plot_positions(pos_file_name, rate_to_plot = 1):
+def plot_positions(pos_file_name, rate_to_plot = 100, save_figure=True, show_plot=True):
     
     postions_file = open(pos_file_name)
+    
+    rate_to_plot = max(1,int(rate_to_plot))
 
     index = 0
 
@@ -27,7 +29,7 @@ def plot_positions(pos_file_name, rate_to_plot = 1):
     #plt.ylim([-50, 750])
 
     max_lines = 2e121
-    max_time_ms = 100
+    max_time_ms = 10000
 
     #colors = {2.1:'blue', 2.2:'red',1.1:'black',3.0:'green'}
     points_plotted = 0
@@ -78,7 +80,7 @@ def plot_positions(pos_file_name, rate_to_plot = 1):
             if plot_frame:
                 w = line.split()
                 m = float(w[3])
-                if m==2.2:
+                if m>2 and m<3:
                     x = float(w[0])
                     y = float(w[1])
                     z = float(w[2])
@@ -109,7 +111,11 @@ def plot_positions(pos_file_name, rate_to_plot = 1):
 
     print("Loaded: %s points from %s, showing %s points in %i plots"%(index,pos_file_name,points_plotted,num_plotted_frames))
 
-    plt.show()
+    if save_figure:
+        plt.savefig('%s.png'%pos_file_name,bbox_inches='tight')
+  
+    if show_plot:
+        plt.show()
 
 
 if __name__ == '__main__':
@@ -118,11 +124,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         pos_file_name = sys.argv[1]
     else:
-        pos_file_name = '../buffers/position_buffer.txt'
-        #pos_file_name = '../buffers/position_buffer0.txt'
-        #pos_file_name = '../simulations/C1_Muscles_Mon_Jul_25_18.19.50_2016/position_buffer.txt'
-        pos_file_name = '../simulations/C1_Muscles_Mon_Aug__1_18.55.24_2016/position_buffer.txt'
-        pos_file_name = '../simulations/sine/position_buffer.txt'
+        pos_file_name = 'buffers/position_buffer.txt'
 
 
-    plot_positions(pos_file_name)
+    plot_positions(pos_file_name, rate_to_plot = 50, show_plot=True, save_figure=True)

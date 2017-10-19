@@ -77,10 +77,10 @@ SignalSimulator::SignalSimulator(const std::string & simFileName, const std::str
 	{
 	  pInstance = PyObject_CallObject(pClass, NULL);
 	  if( PyErr_Occurred() ) PyErr_Print(); 
-	  std::cout << "Pyramidal simulation class loaded!"<< std::endl;
+	  std::cout << "Python muscle signal generator class: " << simClassName << " loaded!"<< std::endl;
 	}
   else {
-    throw std::runtime_error("Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src");
+    throw std::runtime_error("Python muscle signal generator class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src");
   }
 }
 

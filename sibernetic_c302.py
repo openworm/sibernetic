@@ -11,6 +11,7 @@ pp = pprint.PrettyPrinter(indent=4)
 DEFAULTS = {'duration': 1.0,
             'dt': 0.005,
             'dtNrn': 0.05,
+            'logstep': 100,
             'reference': 'Muscles',
             'c302params': 'C1',
             'verbose': False,
@@ -43,6 +44,12 @@ def process_args():
                         metavar='<dtNrn>',
                         default=DEFAULTS['dtNrn'],
                         help="Time step for NEURON in ms, default: %sms"%DEFAULTS['dtNrn'])
+                        
+    parser.add_argument('-logstep', 
+                        type=int,
+                        metavar='<logstep>',
+                        default=DEFAULTS['logstep'],
+                        help="Frequency of logging data into file, default: %s (note: Sibernetic's is 10)"%DEFAULTS['logstep'])
                         
     parser.add_argument('-device', 
                         type=str,
@@ -151,9 +158,12 @@ def run(a=None,**kwargs):
     
     if not os.path.isdir('simulations'):
         os.mkdir('simulations')
+        
+    current_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
+     
+    sim_ref = "%s_%s_%s" % (a.c302params, ref, current_time)
+    sim_dir = "simulations/%s" % (sim_ref)
     
-    sim_ref = "%s_%s_%s"%(a.c302params,ref, time.ctime().replace(' ','_' ).replace(':','.' ))
-    sim_dir = "simulations/%s"%(sim_ref)
     os.mkdir(sim_dir)
     
     #exec('from %s import ParameterisedModel'%a.c302params)
@@ -205,7 +215,7 @@ def run(a=None,**kwargs):
     announce("Compiling NMODL files for NEURON...")
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
-    command = './Release/Sibernetic -c302 -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s device=%s'%(a.configuration, sim_dir,a.duration/1000.0,a.dt/1000,a.device)
+    command = './Release/Sibernetic -c302 -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%(a.configuration, sim_dir,a.duration/1000.0,a.dt/1000,a.logstep,a.device)
     env={"PYTHONPATH":"./src:./%s"%sim_dir}
     
     sim_start = time.time()
@@ -220,6 +230,7 @@ def run(a=None,**kwargs):
     
     reportj['duration'] = '%s ms'%a.duration
     reportj['dt'] = '%s ms'%a.dt
+    reportj['logstep'] = a.logstep
     reportj['sim_ref'] = sim_ref
     reportj['reference'] = a.reference
     reportj['c302params'] = a.c302params
@@ -227,6 +238,7 @@ def run(a=None,**kwargs):
     reportj['run_time'] = '%s s'%(sim_end-sim_start)
     reportj['device'] = '%s'%(a.device)
     reportj['configuration'] = '%s'%(a.configuration)
+    reportj['run_command'] = command
     
     
     report_file = open("%s/report.json"%sim_dir,'w')
@@ -236,6 +248,7 @@ def run(a=None,**kwargs):
     announce("Generating images for neuronal activity...")
     
     results = pynml.reload_saved_data(lems_file, 
+                      base_dir=sim_dir,
                       plot=False, 
                       show_plot_already=False, 
                       simulator=None, 
@@ -257,7 +270,7 @@ def run(a=None,**kwargs):
     if not os.path.isfile(pos_file_name):
         time.sleep(2)
     
-    plot_positions(pos_file_name,rate_to_plot = int(a.duration/5))
+    plot_positions(pos_file_name,rate_to_plot = int(a.duration/5), show_plot=False)
     
     announce("Finished in %s sec!\n\nSimulation saved in: %s\n\n"%((sim_end-sim_start),sim_dir) + \
              "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \

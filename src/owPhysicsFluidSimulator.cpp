@@ -411,25 +411,17 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
     }
  }
 
-  config->updateNeuronSimulation(muscle_activation_signal_cpp);
-
   float correction_coeff;
-  
+
   for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
-    //correction_coeff = sqrt( 1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f) / 12.5f));
+    correction_coeff = sqrt(
+        1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f) / 12.5f));
     // printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);
-    //muscle_activation_signal_cpp[i] *= correction_coeff;
-	  muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
-	  muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
+    muscle_activation_signal_cpp[i] *= correction_coeff;
   }
   
-	if(iterationCount<5000) //smooth start
-	{
-		for(int i=0;i<config->MUSCLE_COUNT;i++) 
-		{ 
-			muscle_activation_signal_cpp[i] *= (float)iterationCount/5000.f;
-		}
-	}
+  config->updateNeuronSimulation(muscle_activation_signal_cpp);
+
 
   if (iterationCount % config->getLogStep() == 0) {
 	  update_muscle_activity_signals_log_file(iterationCount,muscle_activation_signal_cpp,config);
