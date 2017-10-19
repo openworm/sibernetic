@@ -216,7 +216,7 @@ def run(a=None,**kwargs):
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
     command = './Release/Sibernetic -c302 -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%(a.configuration, sim_dir,a.duration/1000.0,a.dt/1000,a.logstep,a.device)
-    env={"PYTHONPATH":"./src:./%s"%sim_dir}
+    env={"PYTHONPATH":".:./%s"%sim_dir}
     
     sim_start = time.time()
     

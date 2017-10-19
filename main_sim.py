@@ -53,7 +53,7 @@ def parallel_waves(n=muscle_row_count, #24 for our first test?
 				   velocity_c =0.000015*0.72): #crawling // 0.9 // 0.65
     """
     Array of two travelling waves, second one starts
-    half way through the array
+    half way through the array. Note: plot these waves with: python main_sim.py!
     """
     if (step<1200000): #<
         velocity =0.000015*0.72#crawling
@@ -76,7 +76,9 @@ def parallel_waves(n=muscle_row_count, #24 for our first test?
     wave_1 = (map(math.sin,(row_positions - velocity*step)))
     wave_2 = (map(math.sin,(row_positions + (math.pi) - velocity*step)))
 
-    normalize_sine = lambda x : (x + 1)/2
+    smooth_start = 50000.
+    
+    normalize_sine = lambda x : (1 if step>smooth_start else step/smooth_start)*(x + 1)/2
     wave_1 = map(normalize_sine, wave_1)
     wave_2 = map(normalize_sine, wave_2)
 
@@ -90,6 +92,7 @@ def parallel_waves(n=muscle_row_count, #24 for our first test?
         double_wave_2.append(i)
         double_wave_2.append(i)
 
+    # Note: plot these waves with: python main_sim.py!
     return (double_wave_1,double_wave_2)
 
 class MuscleSimulation():
