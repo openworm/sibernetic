@@ -19,7 +19,7 @@ You'll also need a variety of libraries. In ubuntu, install the dependencies wit
 sudo apt-get install g++ python-dev freeglut3-dev nvidia-opencl-dev libglu1-mesa-dev libglew-dev python-numpy
 ```
 
-Next, navigate to the `Release` folder and run:
+Next, from the `sibernetic/` directory run:
 
 ```
 make clean
