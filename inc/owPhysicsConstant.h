@@ -37,17 +37,25 @@
 #include <math.h>
 
 #include "owOpenCLConstant.h"
-/** Main physical constants contain here
+//#include "owConfigProperty.h"
+/** Main physical constants are defined here
  */
 
 #ifndef M_PI
 #define M_PI 3.1415927f
 #endif
 
+/*
+inline float readDensityFromConfig()
+{
+	return 1000.f;
+}*/
 
 const float rho0 = 1000.0f;                         // Standard value of liquid density for water (kg/m^3)
+//const float rho0 = readDensityFromConfig();
 
-const float mass = 0.54e-13f;                       // Mass for one particle (kg).
+//const float mass = 0.54e-13f; // normal resolution  //Mass for one particle (kg).
+const float mass = 7.83e-13f; //  half  resolution  // Mass for one particle (kg).
                                                     // Some facts about C. elegans:
                                                     // Adult worm mass = 3.25e-06 grams = 3.25e-09 kg
                                                     // worm density is around 1000 kg/m3
@@ -93,8 +101,8 @@ const float timeStep = 5.0e-06f;                    // Time step of simulation (
                                                     // TODO: find dependence and make choice automatically
                                                     // [1] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
                                                     // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
-							/*0.00411**/
-const float simulationScale = 0.0041f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);//pow(mass,1.f/3.f)/pow(rho0,1.f/3.f); // Simulation scale coefficient. It means that N * simulationScale
+							/*0.0041*/
+const float simulationScale = 0.0037f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);//pow(mass,1.f/3.f)/pow(rho0,1.f/3.f); // Simulation scale coefficient. It means that N * simulationScale
                                                                    // converts from simulation scale to meters N / simulationScale convert from meters simulation scale
                                                                    // If you want to take real value of distance in meters you need multiple on simulation scale
                                                                    // NOTE: simulationScale depends from mass of particle. If we place one particle
@@ -150,4 +158,6 @@ const float surfTensCoeff = mass_mult_Wpoly6Coefficient * simulationScale;
 const float elasticityCoefficient = 3.00e-05f / mass; // Elasticity coefficient. Actually it isn't
                                                       // elasticity coefficient (elasticity coefficient = 1.95e-05f)
                                                       // But for decreasing number of repeating calculation we suppose that  elasticityCoefficient = 1.95e-05f / mass
+const float max_muscle_force = 300.f;
+
 #endif // #ifndef OW_PHYSICS_CONSTANT_H

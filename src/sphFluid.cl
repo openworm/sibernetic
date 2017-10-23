@@ -585,7 +585,8 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				    ( ( position[jd_source_particle].w > 2.05f)&&(position[jd_source_particle].w < 2.25f)) ) )
 				{
 					// viscosity between agar and worm shell - very low
-					//accel_viscosityForce += 0*1.0e-7f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+					//-f worm_swim_half_resolution -l_to logstep=1000
+					//accel_viscosityForce += 5.0e-6f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
 
 					if( ((position[id_source_particle].w > 2.25f)&&(position[id_source_particle].w < 2.35f)) )
 					{
@@ -613,14 +614,15 @@ __kernel void pcisph_computeForcesAndInitPressure(
 					accel_viscosityForce += 1.5e-4f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;//rho[jd];   // Calculating viscosity forces impact to acceleration
 					//accel_viscosityForce += 10.0e-5f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;//rho[jd];   // Calculating viscosity forces impact to acceleration
 					//cnt3++;
-				}
-				else 
-				{
-					accel_viscosityForce += 1.0e-6f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000.f;//rho[jd];   // Calculating viscosity forces impact to acceleration
-					//cnt4++;
 				}*/
 
-				accel_viscosityForce += 0.05f*(sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/rho[jd];   // Caculating viscosity forces impact to acceleration
+
+				//accel_viscosityForce += 1.0e-6f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000.f;//rho[jd];   // Calculating viscosity forces impact to acceleration
+				accel_viscosityForce += 5.0e-6f* /*mu * /*0.10f **/ (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000.f;//rho[jd];   // Calculating viscosity forces impact to acceleration
+				//cnt4++;
+
+
+				//accel_viscosityForce += 0.05f*(sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/rho[jd];   // Caculating viscosity forces impact to acceleration
 																												 // formula 2.19 [1]
 				//29aug_A.Palyanov_start_block
 				// M.Beckner & M.Teschner / Weakly compressible SPH for free surface flows. 2007.
@@ -643,7 +645,7 @@ __kernel void pcisph_computeForcesAndInitPressure(
 	}while(  ++nc < MAX_NEIGHBOR_COUNT );
 	accel_surfTensForce.w = 0.f;
 	accel_surfTensForce /= mass;
-	accel_viscosityForce *= mu * mass_mult_divgradWviscosityCoefficient / rho[id];
+	accel_viscosityForce *= /*mu*/ mass_mult_divgradWviscosityCoefficient / rho[id];
 	// apply external forces
 	acceleration_i = accel_viscosityForce;
 	acceleration_i += (float4)( gravity_x, gravity_y, gravity_z, 0.0f );
@@ -667,7 +669,7 @@ __kernel void pcisph_computeElasticForces(
 								  __global float4 * acceleration,
 								  __global uint * particleIndexBack,
 								  __global uint2 * particleIndex,
-								  float h,
+								  float max_muscle_force,
 								  float mass,
 								  float simulationScale,
 								  uint numOfElasticP,
@@ -712,8 +714,8 @@ __kernel void pcisph_computeElasticForces(
 				{
 					if((int)(elasticConnectionsData[idx+nc].z)==(i+1))//contractible spring, = muscle
 					{
-						if(muscle_activation_signal[i]>0.f)
-							acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal[i] * 1.5f * (1300.0f + 500.f) * 3.25e-14f / mass; // mass was forgotten here
+						if(muscle_activation_signal[i]>0.f) 
+							acceleration[ id ] += -(vect_r_ij/r_ij) * muscle_activation_signal[i] * max_muscle_force; 
 					}
 				}
 			}

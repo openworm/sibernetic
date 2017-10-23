@@ -253,6 +253,7 @@ int update_worm_motion_log_file(int iterationCount, float *ec_cpp /*getElasticCo
 	}
 
 	//fprintf(f_motion_log,"%e\tX:\t",(float)iterationCount*timeStep);
+	wormMotionLogFile << std::scientific;
 	wormMotionLogFile << (float)iterationCount*timeStep << "\tX:\t";
 	
 		for(i=0;i<config->numOfElasticP;i++)
@@ -398,7 +399,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   }
   if (owVtkExport::isActive) {
     if (iterationCount % config->getLogStep() == 0) {
-      getvelocity_cpp();
+      getVelocity_cpp();
       owVtkExport::exportState(iterationCount, config, position_cpp,
                                elasticConnectionsData_cpp, velocity_cpp,
                                membraneData_cpp, muscle_activation_signal_cpp);
@@ -406,7 +407,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
  }
 
   config->updateNeuronSimulation(muscle_activation_signal_cpp);
-
+/* // signal correction switched off
   float correction_coeff;
   
   for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
@@ -416,14 +417,16 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
 	  muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
 	  muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
   }
-  
-	if(iterationCount<5000) //smooth start
+*/
+
+  /* //smooth start switched off
+	if(iterationCount<5000) 
 	{
 		for(int i=0;i<config->MUSCLE_COUNT;i++) 
 		{ 
 			muscle_activation_signal_cpp[i] *= (float)iterationCount/5000.f;
 		}
-	}
+	}*/
 
   if (iterationCount % config->getLogStep() == 0) {
 	  update_muscle_activity_signals_log_file(iterationCount,muscle_activation_signal_cpp,config);
@@ -440,7 +443,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
  *  @param fileName - name of file where saved configuration will be stored
  */
 void owPhysicsFluidSimulator::makeSnapshot() {
-  getvelocity_cpp();
+  getVelocity_cpp();
   std::string fileName = config->getSnapshotFileName();
   owHelper::loadConfigurationToFile(
       position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp,

@@ -150,7 +150,7 @@ void display(void) {
         p_cpp = fluid_simulation->getPosition_cpp();
         d_cpp = fluid_simulation->getDensity_cpp();
         ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
-        v_cpp = fluid_simulation->getvelocity_cpp();
+        v_cpp = fluid_simulation->getVelocity_cpp();
         if (!load_from_file)
           md_cpp = fluid_simulation->getMembraneData_cpp();
       } catch (std::runtime_error &ex) {
@@ -1016,7 +1016,7 @@ int run(int argc, char **argv, const bool with_graphics) {
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(1200, 800);
     glutInitWindowPosition(100, 100);
-    glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey Khayrulin. Build from 10/10/2017 sources (development branch)");
+    glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey Khayrulin. Build from 23/10/2017 sources (development branch)");
     glutIdleFunc(idle);
     init();
     glutDisplayFunc(display);
