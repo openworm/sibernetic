@@ -211,6 +211,8 @@ int update_muscle_activity_signals_log_file(int iterationCount, float *muscle_ac
 		if(!musclesActivityFile)
 			throw std::runtime_error("There was a problem with creation of muscles activity file for logging. Please check the path."); }
 
+	musclesActivityFile << std::scientific;
+
 	if((muscle_activation_signal_cpp!=NULL))
 	{
 		for(unsigned int i=0;i<config->MUSCLE_COUNT;i++)
@@ -417,7 +419,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
 	  muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
 	  muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
   }
-*/
+/**/
 
   /* //smooth start switched off
 	if(iterationCount<5000) 
@@ -426,7 +428,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
 		{ 
 			muscle_activation_signal_cpp[i] *= (float)iterationCount/5000.f;
 		}
-	}*/
+	}/**/
 
   if (iterationCount % config->getLogStep() == 0) {
 	  update_muscle_activity_signals_log_file(iterationCount,muscle_activation_signal_cpp,config);

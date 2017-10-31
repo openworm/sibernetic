@@ -118,7 +118,7 @@ const float hashGridCellSize = 2.0f * h;            // All bounding box is divid
 const float r0 = 0.5f * h;                          // Standard distance between two boundary particle == equilibrium distance between 2 particles [1]
                                                     // [1] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 
-const float viscosity = 0.00005f;                   // liquid viscosity value //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
+const float viscosity = 0.1f*0.00004f;                   // liquid viscosity value //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
 const double beta = timeStep*timeStep*mass*mass*2/(rho0*rho0); // B. Solenthaler's dissertation, formula 3.6 (end of page 30)
 
 const double Wpoly6Coefficient = 315.0 / ( 64.0 * M_PI * pow( (double)(h*simulationScale), 9.0 ) ); // Wpoly6Coefficient for kernel Wpoly6 [1]
@@ -154,10 +154,10 @@ const float _hScaled2 = _hScaled*_hScaled;          // squared scaled smoothing 
 const float surfTensCoeff = mass_mult_Wpoly6Coefficient * simulationScale;
 //const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale; // Surface coefficient. Actually it is -1.5e-09f * 0.3f
                                                                                                                                                // But for decreasing number of repeating calculation we suppose that
-                                  /*5.00e-05*/                                                                                                            // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
-const float elasticityCoefficient = 3.00e-05f / mass; // Elasticity coefficient. Actually it isn't
+                                  /*3->6*/                                                                                                            // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
+const float elasticityCoefficient = 1.5e-04f / mass; // Elasticity coefficient. Actually it isn't
                                                       // elasticity coefficient (elasticity coefficient = 1.95e-05f)
                                                       // But for decreasing number of repeating calculation we suppose that  elasticityCoefficient = 1.95e-05f / mass
-const float max_muscle_force = 300.f;
+const float max_muscle_force = 2000.f;//1300
 
 #endif // #ifndef OW_PHYSICS_CONSTANT_H
