@@ -51,36 +51,51 @@ def parallel_waves(n=muscle_row_count, #24 for our first test?
 				   #velocity=0.000008):
                    velocity_s =0.000015*3.7, #swimming
 				   velocity_c =0.000015*0.72): #crawling // 0.9 // 0.65
+
     """
     Array of two travelling waves, second one starts
-    half way through the array. Note: plot these waves with: python main_sim.py!
+    half way through the array
     """
-    if (step<1200000): #<
+    j = n/2
+    max_muscle_force_coeff = 1.0
+
+    # "<" = first 6 seconds crawling, then swimming
+    # ">" = first 6 seconds swimming, then crawling
+    if (step>1200000): 
         velocity =0.000015*0.72#crawling
+        max_muscle_force_coeff = 1.0
+        row_positions = np.linspace(0,2.97*math.pi,j)		
+        wave_m = np.linspace(1,0.6,j) 		
     else:
         velocity =0.000015*3.7#swimming
+        max_muscle_force_coeff = 0.7
+        row_positions = np.linspace(0,0.81*math.pi,j)
+        wave_m = [0.8,0.7,0.8,0.93,1.0,1.0,1.0,1.0,0.93,0.8,0.65,0.5] 	
 
     if n % 2 != 0:
         raise NotImplementedError("Currently only supports even number of muscles!")
 
-    j = n/2
 
-    if (step<1200000): #<
-        row_positions = np.linspace(0,1.32*0.75*1.5*2*math.pi,j)#crawling		
-    else:
-        row_positions = np.linspace(0,1.0*0.75*1.5*2*math.pi*2/5.57,j)#swimming new
+    wave_1 = (map(math.sin, (row_positions - velocity*step) ))
+    wave_2 = (map(math.sin, (row_positions - velocity*step + (math.pi)) ))
 
-    #	row_positions = np.linspace(0,(1.38/1.54)*0.75*1.5*2*math.pi*2/5.57,j) #swimming // 1/wavelength 
-    #	row_positions = np.linspace(0,     0.75*1.5*2*math.pi,j) #crawling old		
-
-    wave_1 = (map(math.sin,(row_positions - velocity*step)))
-    wave_2 = (map(math.sin,(row_positions + (math.pi) - velocity*step)))
-
-    smooth_start = 50000.
-    
-    normalize_sine = lambda x : (1 if step>smooth_start else step/smooth_start)*(x + 1)/2
+    normalize_sine = lambda x : (x + 1)/2
     wave_1 = map(normalize_sine, wave_1)
     wave_2 = map(normalize_sine, wave_2)
+
+    ###### sinusoidal signal correction ##################################
+    normalize_sine = lambda x : x*x
+    wave_1 = map(normalize_sine, wave_1)
+    wave_2 = map(normalize_sine, wave_2)
+
+    wave_1 = map(lambda x,y: max_muscle_force_coeff*x*y, wave_1, wave_m)
+    wave_2 = map(lambda x,y: max_muscle_force_coeff*x*y, wave_2, wave_m)
+    ###### smooth start###################################################
+    if (step<5000):	
+        normalize_sine = lambda x : x*step/5000
+        wave_1 = map(normalize_sine, wave_1)
+        wave_2 = map(normalize_sine, wave_2)	
+    ######################################################################
 
     double_wave_1 = []
     double_wave_2 = []

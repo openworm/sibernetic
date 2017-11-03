@@ -150,7 +150,7 @@ void display(void) {
         p_cpp = fluid_simulation->getPosition_cpp();
         d_cpp = fluid_simulation->getDensity_cpp();
         ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
-        v_cpp = fluid_simulation->getvelocity_cpp();
+        v_cpp = fluid_simulation->getVelocity_cpp();
         if (!load_from_file)
           md_cpp = fluid_simulation->getMembraneData_cpp();
       } catch (std::runtime_error &ex) {
@@ -193,7 +193,7 @@ void display(void) {
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   drawScene();
-  glPointSize(3.f);
+  glPointSize(1.3f*sqrt(sc/0.025f));
   glBegin(GL_POINTS);
   float dc, rho;
   // Display all particles
@@ -228,12 +228,12 @@ void display(void) {
       glBegin(GL_POINTS);
       if ((int)p_cpp[i * 4 + 3] == 2) {
         glColor4f(0, 0, 0, 1.0f); // color of elastic particles
-        glPointSize(6.f);
+        glPointSize(1.3f*sqrt(sc/0.025f));
       }
       glVertex3f((p_cpp[i * 4] - localConfig->xmax / 2) * sc,
                  (p_cpp[i * 4 + 1] - localConfig->ymax / 2) * sc,
                  (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
-      glPointSize(3.f);
+      glPointSize(1.3f*sqrt(sc/0.025f));
       glEnd();
 
       if (!((p_cpp[i * 4] >= 0) && (p_cpp[i * 4] <= localConfig->xmax) &&
@@ -354,14 +354,16 @@ void display(void) {
           glLineWidth((GLfloat)0.1);
           glBegin(GL_LINES);
           glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
-          if (p_cpp[i * 4 + 3] > 2.15)					glColor4b(50 / 2, 125 / 2, 0, 100 / 2);
-		  if((p_cpp[i*4+3]>2.31) &&(p_cpp[i*4+3]<2.33))	glColor4b( 130/2, 190/2, 250/2, 255/2); 
+          if (p_cpp[i * 4 + 3] > 2.15)					glColor4b( 50/2, 125/2, 0, 255/2);
+		  if (p_cpp[j * 4 + 3] > 2.25)					glColor4b(250/2, 250/2, 200/2, 255/2);//agar
+		  if((p_cpp[i*4+3]>2.31) &&(p_cpp[i*4+3]<2.33))	glColor4b(200/2, 250/2, 000/2, 255/2);//agar particles which contacted the worm 
           glVertex3f((p_cpp[i * 4 + 0] - localConfig->xmax / 2) * sc,
                      (p_cpp[i * 4 + 1] - localConfig->ymax / 2) * sc,
                      (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
           //glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
-          if (p_cpp[j * 4 + 3] > 2.15)					glColor4b(50 / 2, 125 / 2, 0, 100 / 2);
-		  if((p_cpp[j*4+3]>2.31) &&(p_cpp[j*4+3]<2.33))	glColor4b( 130/2, 190/2, 250/2, 255/2); 
+          if (p_cpp[j * 4 + 3] > 2.15)					glColor4b( 50/2, 125/2, 0, 255/2);
+		  if (p_cpp[j * 4 + 3] > 2.25)					glColor4b(250/2, 250/2, 200/2, 255/2);//agar
+		  if((p_cpp[j*4+3]>2.31) &&(p_cpp[j*4+3]<2.33))	glColor4b(200/2, 250/2, 000/2, 255/2);//agar particles which contacted the worm 
           glVertex3f((p_cpp[j * 4 + 0] - localConfig->xmax / 2) * sc,
                      (p_cpp[j * 4 + 1] - localConfig->ymax / 2) * sc,
                      (p_cpp[j * 4 + 2] - localConfig->zmax / 2) * sc);
@@ -1016,7 +1018,7 @@ int run(int argc, char **argv, const bool with_graphics) {
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(1200, 800);
     glutInitWindowPosition(100, 100);
-    glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey Khayrulin. Build from 10/10/2017 sources (development branch)");
+    glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey Khayrulin. Build from 28/10/2017 sources (development branch)");
     glutIdleFunc(idle);
     init();
     glutDisplayFunc(display);

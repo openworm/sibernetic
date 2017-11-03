@@ -73,7 +73,7 @@ void test_energy_conservation(int argc, char **argv){
 	std::cout << "===================" << "CONSERVATION ENERGY TEST START" << "========================" << std::endl;
 	while(1){
 		p_buffer = fluid_simulation->getPosition_cpp();
-		v_buffer = fluid_simulation->getvelocity_cpp();
+		v_buffer = fluid_simulation->getVelocity_cpp();
 		potential_energy = calcPotentialEnergy(fluid_simulation->getConfig(),p_buffer);
 		kinetic_energy = calcKineticEnergy(fluid_simulation->getConfig(),v_buffer,p_buffer);
 		total_energy = kinetic_energy + potential_energy;
@@ -90,8 +90,8 @@ void test_energy_conservation(int argc, char **argv){
 	owHelper::log_buffer(&energy_evolution_potential[0], 1, energy_evolution_potential.size(), "./logs/potential_energy_distrib.txt");
 	std::cout << "===================" << "CONSERVATION ENERGY TEST END  " << "========================" << std::endl;
 	delete fluid_simulation;
-	delete p_buffer;
-	delete v_buffer;
+	//delete p_buffer;
+	//delete v_buffer;
 }
 float calcPotentialEnergy(owConfigProperty * config, float * p_buffer){
 	float e = 0.f;
