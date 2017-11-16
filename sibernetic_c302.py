@@ -11,7 +11,7 @@ pp = pprint.PrettyPrinter(indent=4)
 DEFAULTS = {'duration': 2.0,
             'dt': 0.005,
             'dtNrn': 0.05,
-            'logstep': 100,
+            'logstep': 1000,
             'reference': 'Muscles',
             'c302params': 'C1',
             'verbose': False,
@@ -195,7 +195,8 @@ def run(a=None,**kwargs):
           generate=True,
           duration = a.duration,
           dt = a.dt,
-          target_directory=sim_dir)
+          target_directory=sim_dir,
+          data_reader='UpdatedSpreadsheetDataReader')
     
 
         lems_file0 = '%s/LEMS_c302_%s.xml'%(sim_dir,id)
@@ -227,9 +228,15 @@ def run(a=None,**kwargs):
         main_nrn_py.close() 
 
         command = 'nrnivmodl %s'%sim_dir
+	
+	raw_input("Press Enter to continue...")
 
         announce("Compiling NMODL files for NEURON...")
-        pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
+        try:
+            pynml.execute_command_in_dir_with_realtime_output(command, run_dir, prefix="nrnivmodl: ")
+        except KeyboardInterrupt:
+            print_("\nCaught CTRL+C\n")
+            sys.exit()
 
     command = './Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%('' if a.noc302 else '-c302', a.configuration, sim_dir,a.duration/1000.0,a.dt/1000,a.logstep,a.device)
         
@@ -239,7 +246,10 @@ def run(a=None,**kwargs):
     
     announce("Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"%(a.duration, command, run_dir, env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
-    pynml.execute_command_in_dir(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
+    try:
+        pynml.execute_command_in_dir_with_realtime_output(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
+    except KeyboardInterrupt:
+        print_("\nCaught CTRL+C. Continue...\n")
     
     sim_end = time.time()
     
@@ -247,6 +257,7 @@ def run(a=None,**kwargs):
     
     reportj['duration'] = '%s ms'%a.duration
     reportj['dt'] = '%s ms'%a.dt
+    reportj['dtNrn'] = '%s ms'%a.dt_nrn
     reportj['logstep'] = a.logstep
     reportj['sim_ref'] = sim_ref
     reportj['noc302'] = a.noc302
