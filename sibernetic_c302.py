@@ -228,8 +228,6 @@ def run(a=None,**kwargs):
         main_nrn_py.close() 
 
         command = 'nrnivmodl %s'%sim_dir
-	
-	raw_input("Press Enter to continue...")
 
         announce("Compiling NMODL files for NEURON...")
         try:
