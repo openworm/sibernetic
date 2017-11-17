@@ -214,7 +214,7 @@ def run(a=None,**kwargs):
 
         announce("Generating NEURON files from: %s..."%lems_file)
 
-        pynml.run_lems_with_jneuroml_neuron(lems_file,
+        pynml.run_lems_with_jneuroml_neuron_with_realtime_output(lems_file,
                                             only_generate_scripts=True,
                                             nogui=True, 
                                             load_saved_data=False, 
@@ -250,7 +250,7 @@ def run(a=None,**kwargs):
     
     sim_start = time.time()
     
-    announce("Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"%(a.duration, command, run_dir, env))
+    announce("Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"%(a.duration, command, os.environ['SIBERNETIC_HOME'], env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     try:
         pynml.execute_command_in_dir_with_realtime_output(command, os.environ['SIBERNETIC_HOME'], prefix="Sibernetic: ",env=env,verbose=True)
