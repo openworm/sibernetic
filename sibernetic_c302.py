@@ -17,7 +17,8 @@ DEFAULTS = {'duration': 2.0,
             'verbose': False,
             'device': 'ALL',
             'configuration': 'worm',
-            'noc302': False} 
+            'noc302': False,
+            'outDir': 'simulations'} 
             
             
 def process_args():
@@ -80,6 +81,12 @@ def process_args():
                         metavar='<c302params>',
                         default=DEFAULTS['c302params'],
                         help="Parameter set from c302 (A, B, C, C1), default: %s"%DEFAULTS['c302params'])
+
+    parser.add_argument('-outDir', 
+                        type=str,
+                        metavar='<outDir>',
+                        default=DEFAULTS['outDir'],
+                        help="Output directory, default: %s"%DEFAULTS['outDir'])
                         
     return parser.parse_args()
                         
@@ -164,8 +171,8 @@ def run(a=None,**kwargs):
     gen_start = time.time()
     
     
-    if not os.path.isdir('simulations'):
-        os.mkdir('simulations')
+    if not os.path.isdir(a.out_dir):
+        os.mkdir(a.out_dir)
         
     current_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
      
@@ -178,7 +185,8 @@ def run(a=None,**kwargs):
     else:
         sim_ref = "Sibernetic_%s" % (current_time)
         
-    sim_dir = "simulations/%s" % (sim_ref)
+    #sim_dir = "simulations/%s" % (sim_ref)
+    sim_dir = os.path.join(a.out_dir, sim_ref)
     
     os.mkdir(sim_dir)
     
@@ -199,8 +207,8 @@ def run(a=None,**kwargs):
           data_reader='UpdatedSpreadsheetDataReader')
     
 
-        lems_file0 = '%s/LEMS_c302_%s.xml'%(sim_dir,id)
-        lems_file = '%s/LEMS_c302.xml'%(sim_dir)
+        lems_file0 = os.path.join(sim_dir, 'LEMS_c302_%s.xml' % id)
+        lems_file = os.path.join(sim_dir, 'LEMS_c302.xml')
         print_("Renaming %s -> %s"%(lems_file0,lems_file))
         os.rename(lems_file0,lems_file)
 
@@ -212,40 +220,40 @@ def run(a=None,**kwargs):
                                             load_saved_data=False, 
                                             verbose=True)
 
-        main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'r')
-        updated =''
-        for line in main_nrn_py:
-            line = line.replace('GenericCell.hoc','%s/GenericCell.hoc'%sim_dir)
-            line = line.replace('GenericNeuronCell.hoc','%s/GenericNeuronCell.hoc'%sim_dir)
-            line = line.replace('GenericMuscleCell.hoc','%s/GenericMuscleCell.hoc'%sim_dir)
-            line = line.replace("open('time.dat","open('%s/time.dat"%sim_dir)
-            line = line.replace("open('c302_","open('%s/c302_"%sim_dir)
-            updated += line
-        main_nrn_py.close() 
+        with open(os.path.join(sim_dir, 'LEMS_c302_nrn.py'), 'r') as main_nrn_py:
+            updated =''
+            for line in main_nrn_py:
+                line = line.replace('GenericCell.hoc','%s/GenericCell.hoc' % sim_dir)
+                line = line.replace('GenericNeuronCell.hoc','%s/GenericNeuronCell.hoc' % sim_dir)
+                line = line.replace('GenericMuscleCell.hoc','%s/GenericMuscleCell.hoc' % sim_dir)
+                line = line.replace("open('time.dat","open('%s/time.dat" % sim_dir)
+                line = line.replace("open('c302_","open('%s/c302_" % sim_dir)
+                updated += line
 
-        main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'w')
-        main_nrn_py.write(updated)
-        main_nrn_py.close() 
+        with open(os.path.join(sim_dir, 'LEMS_c302_nrn.py'), 'w') as main_nrn_py:
+            main_nrn_py.write(updated)
 
-        command = 'nrnivmodl %s'%sim_dir
+        command = 'nrnivmodl %s' % sim_dir
 
         announce("Compiling NMODL files for NEURON...")
         try:
-            pynml.execute_command_in_dir_with_realtime_output(command, run_dir, prefix="nrnivmodl: ")
+            pynml.execute_command_in_dir_with_realtime_output(command, '.', prefix="nrnivmodl: ")
         except KeyboardInterrupt:
             print_("\nCaught CTRL+C\n")
             sys.exit()
 
     command = './Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%('' if a.noc302 else '-c302', a.configuration, sim_dir,a.duration/1000.0,a.dt/1000,a.logstep,a.device)
         
-    env={"PYTHONPATH":".:./%s"%sim_dir}
+    env={"PYTHONPATH":".:%s" % sim_dir}
+
+    
     
     sim_start = time.time()
     
     announce("Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"%(a.duration, command, run_dir, env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     try:
-        pynml.execute_command_in_dir_with_realtime_output(command, run_dir, prefix="Sibernetic: ",env=env,verbose=True)
+        pynml.execute_command_in_dir_with_realtime_output(command, os.environ['SIBERNETIC_HOME'], prefix="Sibernetic: ",env=env,verbose=True)
     except KeyboardInterrupt:
         print_("\nCaught CTRL+C. Continue...\n")
     
@@ -269,12 +277,10 @@ def run(a=None,**kwargs):
     reportj['device'] = '%s'%(a.device)
     reportj['configuration'] = '%s'%(a.configuration)
     reportj['run_command'] = command
+    reportj['outDir'] = a.out_dir
     
-    
-    report_file = open("%s/report.json"%sim_dir,'w')
-    report_file.write(pp.pformat(reportj))
-    report_file.close()
-    
+    with open(os.path.join(sim_dir, 'report.json'), 'w') as report_file:
+        report_file.write(pp.pformat(reportj))
     
     if not a.noc302:
 
@@ -309,13 +315,13 @@ def run(a=None,**kwargs):
     num_steps_logged = num_steps/a.logstep
     rate = max(1,int(num_steps_logged/20.0))
     #print("%s, %s"%(num_steps, rate))
-    generate_wcon('%s/worm_motion_log.txt'%sim_dir,
-                  '%s/worm_motion_log.wcon'%sim_dir,
+    generate_wcon(os.path.join(sim_dir, 'worm_motion_log.txt'),
+                  os.path.join(sim_dir, 'worm_motion_log.wcon'),
                   rate_to_plot=rate,
                   plot=False,
-                  save_figure1_to='%s/worm_motion_1.png'%sim_dir,
-                  save_figure2_to='%s/worm_motion_2.png'%sim_dir,
-                  save_figure3_to='%s/worm_motion_3.png'%sim_dir)
+                  save_figure1_to=os.path.join(sim_dir, 'worm_motion_1.png'),
+                  save_figure2_to=os.path.join(sim_dir, 'worm_motion_2.png'),
+                  save_figure3_to=os.path.join(sim_dir, 'worm_motion_3.png'))
     
     announce("Finished in %s sec!\n\nSimulation saved in: %s\n\n"%((sim_end-sim_start),sim_dir) + \
              "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \
