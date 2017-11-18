@@ -214,11 +214,12 @@ def run(a=None,**kwargs):
 
         announce("Generating NEURON files from: %s..."%lems_file)
 
-        pynml.run_lems_with_jneuroml_neuron_with_realtime_output(lems_file,
+        pynml.run_lems_with_jneuroml_neuron(lems_file,
                                             only_generate_scripts=True,
                                             nogui=True, 
                                             load_saved_data=False, 
-                                            verbose=True)
+                                            verbose=True,
+                                            realtime_output=True)
 
         with open(os.path.join(sim_dir, 'LEMS_c302_nrn.py'), 'r') as main_nrn_py:
             updated =''
@@ -233,11 +234,11 @@ def run(a=None,**kwargs):
         with open(os.path.join(sim_dir, 'LEMS_c302_nrn.py'), 'w') as main_nrn_py:
             main_nrn_py.write(updated)
 
-        command = 'nrnivmodl %s' % sim_dir
+        command = 'nrnivmodl .'
 
         announce("Compiling NMODL files for NEURON...")
         try:
-            pynml.execute_command_in_dir_with_realtime_output(command, '.', prefix="nrnivmodl: ")
+            pynml.execute_command_in_dir_with_realtime_output(command, sim_dir, prefix="nrnivmodl: ")
         except KeyboardInterrupt:
             print_("\nCaught CTRL+C\n")
             sys.exit()
