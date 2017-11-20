@@ -178,6 +178,8 @@ def run(a=None,**kwargs):
     gen_start = time.time()
     
     
+    #if not os.path.isdir('simulations'):
+    #    os.mkdir('simulations')
     if not os.path.isdir(a.out_dir):
         os.mkdir(a.out_dir)
         
@@ -194,7 +196,7 @@ def run(a=None,**kwargs):
         
     #sim_dir = "simulations/%s" % (sim_ref)
     sim_dir = os.path.join(a.out_dir, sim_ref)
-    
+
     os.mkdir(sim_dir)
     
     run_dir = '.'
@@ -202,7 +204,6 @@ def run(a=None,**kwargs):
     if not a.noc302:
     
         id = '%s_%s'%(a.c302params,ref)
-    
     
         exec('from c302_%s import setup'%ref)
     
@@ -214,6 +215,8 @@ def run(a=None,**kwargs):
           data_reader=a.datareader)
     
 
+        #lems_file0 = '%s/LEMS_c302_%s.xml'%(sim_dir,id)
+        lems_file = '%s/LEMS_c302.xml'%(sim_dir)
         lems_file0 = os.path.join(sim_dir, 'LEMS_c302_%s.xml' % id)
         lems_file = os.path.join(sim_dir, 'LEMS_c302.xml')
         print_("Renaming %s -> %s"%(lems_file0,lems_file))
@@ -228,7 +231,7 @@ def run(a=None,**kwargs):
                                             verbose=True,
                                             realtime_output=True)
 
-        with open(os.path.join(sim_dir, 'LEMS_c302_nrn.py'), 'r') as main_nrn_py:
+        """with open(os.path.join(sim_dir, 'LEMS_c302_nrn.py'), 'r') as main_nrn_py:
             updated =''
             for line in main_nrn_py:
                 line = line.replace('GenericCell.hoc','%s/GenericCell.hoc' % sim_dir)
@@ -236,30 +239,46 @@ def run(a=None,**kwargs):
                 line = line.replace('GenericMuscleCell.hoc','%s/GenericMuscleCell.hoc' % sim_dir)
                 line = line.replace("open('time.dat","open('%s/time.dat" % sim_dir)
                 line = line.replace("open('c302_","open('%s/c302_" % sim_dir)
-                updated += line
+                updated += line"""
+        main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'r')
+        updated =''
+        for line in main_nrn_py:
+            line = line.replace('GenericCell.hoc','%s/GenericCell.hoc' % sim_dir)
+            line = line.replace('GenericNeuronCell.hoc','%s/GenericNeuronCell.hoc' % sim_dir)
+            line = line.replace('GenericMuscleCell.hoc','%s/GenericMuscleCell.hoc' % sim_dir)
+            line = line.replace("open('time.dat","open('%s/time.dat" % sim_dir)
+            line = line.replace("open('c302_","open('%s/c302_" % sim_dir)
+            updated += line
+        main_nrn_py.close()
 
-        with open(os.path.join(sim_dir, 'LEMS_c302_nrn.py'), 'w') as main_nrn_py:
-            main_nrn_py.write(updated)
+        """with open(os.path.join(sim_dir, 'LEMS_c302_nrn.py'), 'w') as main_nrn_py:
+            main_nrn_py.write(updated)"""
+        main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'w')
+        main_nrn_py.write(updated)
+        main_nrn_py.close() 
 
-        command = 'nrnivmodl .'
-
+        command = 'nrnivmodl %s' % sim_dir
+        #command = 'nrnivmodl .'
         announce("Compiling NMODL files for NEURON...")
         try:
-            pynml.execute_command_in_dir_with_realtime_output(command, sim_dir, prefix="nrnivmodl: ")
+            pynml.execute_command_in_dir_with_realtime_output(command, run_dir, prefix="nrnivmodl: ")
+            #pynml.execute_command_in_dir_with_realtime_output(command, sim_dir, prefix="nrnivmodl: ")
         except KeyboardInterrupt:
             print_("\nCaught CTRL+C\n")
             sys.exit()
 
     command = './Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%('' if a.noc302 else '-c302', a.configuration, sim_dir, a.duration/1000.0, a.dt/1000, a.logstep, a.device)
-        
-    env={"PYTHONPATH":".:%s" % sim_dir}
+    
+    #env={"PYTHONPATH":".:%s" % sim_dir}
+    env={"PYTHONPATH":".:%s" % os.path.abspath(sim_dir)}
     
     sim_start = time.time()
     
     announce("Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"%(a.duration, command, os.environ['SIBERNETIC_HOME'], env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     try:
-        pynml.execute_command_in_dir_with_realtime_output(command, os.environ['SIBERNETIC_HOME'], prefix="Sibernetic: ", env=env, verbose=True)
+        pynml.execute_command_in_dir_with_realtime_output(command, '.', prefix="Sibernetic: ", env=env, verbose=True)
+        #pynml.execute_command_in_dir_with_realtime_output(command, os.environ['SIBERNETIC_HOME'], prefix="Sibernetic: ", env=env, verbose=True)
     except KeyboardInterrupt:
         print_("\nCaught CTRL+C. Continue...\n")
     
