@@ -578,20 +578,23 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				not_bp = (float)((int)(position[ jd_source_particle ].w) != BOUNDARY_PARTICLE);
 				
 				if( ( ((position[id_source_particle].w > 2.05f)&&(position[id_source_particle].w < 2.25f)) && 
-				    ( ( position[jd_source_particle].w > 2.25f)&&(position[jd_source_particle].w < 2.35f)) ) ||
+				    ( ( position[jd_source_particle].w > 2.25f)&&(position[jd_source_particle].w < 2.35f+0.f)) ) ||
 					( ((position[id_source_particle].w > 2.25f)&&(position[id_source_particle].w < 2.35f)) && 
 				    ( ( position[jd_source_particle].w > 2.05f)&&(position[jd_source_particle].w < 2.25f)) ) )
 				{
 					// viscosity between agar and worm shell - very low
 					//-f worm_swim_half_resolution -l_to logstep=1000
-					accel_viscosityForce += 0*1.0e-6f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+					/*if(((int)position[id_source_particle].w)==3)
+					accel_viscosityForce += 1.0e-5f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000; // worm body -- floor (boundary particles)
+					else*/
+					accel_viscosityForce += 1.0e-5f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000; // worm body -- elastic matter (agar) // 1e-6 
 
 					if( ((position[id_source_particle].w > 2.25f)&&(position[id_source_particle].w < 2.35f)) )
 					{
 						position[id_source_particle].w = 2.32;
 					}
 				}
-				/**/
+				else
 				if( ( ((position[id_source_particle].w > 2.25f)&&(position[id_source_particle].w < 2.35f)) && 
 				    ( ( position[jd_source_particle].w > 2.25f)&&(position[jd_source_particle].w < 2.35f)) )  )
 				{
@@ -602,13 +605,23 @@ __kernel void pcisph_computeForcesAndInitPressure(
 				if( ( ((position[id_source_particle].w > 2.0f)&&(position[id_source_particle].w < 2.25f)) && 
 				    ( ( position[jd_source_particle].w > 2.0f)&&(position[jd_source_particle].w < 2.25f)) )  )
 				{
-					// 2 worm body elastic particles particles
-					accel_viscosityForce += 3.0e-4f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+					// 2 worm body elastic particles 
+					accel_viscosityForce += 1.0e-4f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
 				}
 				else
-				if( ( ((int)position[id_source_particle].w) == 1 ) || ( ((int)position[jd_source_particle].w) == 1 ) ) // viscosity between liquid and any other particle
-				{//1.5-->1.0 // !!! 1.5 -> 1.0
-					accel_viscosityForce += 1.5e-4f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+				if( ( ((int)position[id_source_particle].w) == 1 ) || ( ((int)position[jd_source_particle].w) == 1 ) ) 
+				{
+					// viscosity between liquid and any other particle
+					// and of course between 2 any liquid particles
+					//1.5-->1.0 // !!! 1.5 -> 1.0 -> 0.5
+					accel_viscosityForce += 1.0e-4f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+					//accel_viscosityForce += 3.0e-4f * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
+				}
+				else
+				{// viscosity between agar and boundary particles
+					//printf("[%.3f]-[%.3f]\n", position[id_source_particle].w, position[jd_source_particle].w);
+					//printf("@");
+					accel_viscosityForce += 1.0e-4f  * (sortedVelocity[jd]*not_bp-sortedVelocity[id])*(hScaled-r_ij)/1000;
 				}
 
 
@@ -640,7 +653,8 @@ __kernel void pcisph_computeForcesAndInitPressure(
 	}while(  ++nc < MAX_NEIGHBOR_COUNT );
 	accel_surfTensForce.w = 0.f;
 	accel_surfTensForce /= mass;
-	accel_viscosityForce *= /*mu*/ mass_mult_divgradWviscosityCoefficient / rho[id];
+	//accel_viscosityForce *= 4.f * mass_mult_divgradWviscosityCoefficient / rho[id];
+	accel_viscosityForce *= 1.5f * mass_mult_divgradWviscosityCoefficient / rho[id];
 	// apply external forces
 	acceleration_i = accel_viscosityForce;
 	acceleration_i += (float4)( gravity_x, gravity_y, gravity_z, 0.0f );
@@ -713,7 +727,7 @@ __kernel void pcisph_computeElasticForces(
 				}
 				else
 				{
-					acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * elasticityCoefficient*0.5f; // agar particles
+					acceleration[ id ] += -(vect_r_ij/r_ij) * delta_r_ij * elasticityCoefficient*0.25f; // agar particles
 				}
 
 
