@@ -4,15 +4,16 @@ import re
 import os
 import sys
 import time
+from time import gmtime, strftime
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
-DEFAULTS = {'duration': 1.0,
-            'dt': 0.005,
-            'dtNrn': 0.05,
+DEFAULTS = {'duration': 1000.0,
+            'dt': 0.05,
+            'dtNrn': 0.005,
             'reference': 'Muscles',
-            'c302params': 'C1',
+            'c302params': 'C2',
             'verbose': False} 
             
             
@@ -137,9 +138,11 @@ def run(a=None,**kwargs):
     
     if not os.path.isdir('simulations'):
         os.mkdir('simulations')
+
+    current_time = strftime("%Y-%m-%d_%H-%M-%S", gmtime())
     
-    sim_ref = "%s_%s_%s"%(a.c302params,ref, time.ctime().replace(' ','_' ).replace(':','.' ))
-    sim_dir = "simulations/%s"%(sim_ref)
+    sim_ref = "%s_%s_%s" % (a.c302params, ref, current_time)
+    sim_dir = "simulations/%s" % (sim_ref)
     os.mkdir(sim_dir)
     
     #exec('from %s import ParameterisedModel'%a.c302params)
@@ -154,7 +157,8 @@ def run(a=None,**kwargs):
           generate=True,
           duration = a.duration,
           dt = a.dt,
-          target_directory=sim_dir)
+          target_directory=sim_dir,
+          data_reader='UpdatedSpreadsheetDataReader')
     
              
     lems_file0 = '%s/LEMS_c302_%s.xml'%(sim_dir,id)
@@ -191,8 +195,17 @@ def run(a=None,**kwargs):
     announce("Compiling NMODL files for NEURON...")
     pynml.execute_command_in_dir(command, run_dir, prefix="nrnivmodl: ")
 
-    command = './Release/Sibernetic -c302 -f worm -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir,a.duration/1000.0,a.dt/1000)
-    env={"PYTHONPATH":"./src:./%s"%sim_dir}
+    #command = './Release/Sibernetic -c302 -f worm_alone_half_resolution -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir, a.duration/1000.0, a.dt/1000)
+    command = './Release/Sibernetic -c302 -f worm_alone_half_resolution -no_g -l_to lpath=%s timelimit=%s timestep=%s'%(sim_dir, a.duration/1000.0, 0.005/1000)
+
+    #path = "./src:./%s"%sim_dir
+    path = ".:./%s"%sim_dir
+    if 'PYTHONPATH' in os.environ.keys():
+        os.environ['PYTHONPATH'] += ':'+path
+    else:
+        os.environ['PYTHONPATH'] = path
+
+    env={"PYTHONPATH":os.environ['PYTHONPATH']}
     
     sim_start = time.time()
     
