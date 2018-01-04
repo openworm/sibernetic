@@ -37,17 +37,26 @@
 #include <math.h>
 
 #include "owOpenCLConstant.h"
-/** Main physical constants contain here
+//#include "owConfigProperty.h"
+/** Main physical constants are defined here
  */
 
 #ifndef M_PI
 #define M_PI 3.1415927f
 #endif
 
+/*
+inline float readDensityFromConfig()
+{
+	return 1000.f;
+}*/
 
 const float rho0 = 1000.0f;                         // Standard value of liquid density for water (kg/m^3)
+//const float rho0 = readDensityFromConfig();
 
-const float mass = 0.54e-13f;                       // Mass for one particle (kg).
+//const float mass = 0.54e-13f; // normal resolution  //Mass for one particle (kg).
+//const float mass = 7.83e-13f; //  half  resolution - 0.8 mm worm  // Mass for one particle (kg).
+const float mass = 20.00e-13f; //  half  resolution - 0.8 mm worm  // Mass for one particle (kg).
                                                     // Some facts about C. elegans:
                                                     // Adult worm mass = 3.25e-06 grams = 3.25e-09 kg
                                                     // worm density is around 1000 kg/m3
@@ -69,7 +78,7 @@ const float mass = 0.54e-13f;                       // Mass for one particle (kg
                                                     // C. elegans's body model. But we you can use your own value of mass
                                                     // TODO: make it as an input parameter
 
-const float timeStep = 5.0e-06f;                    // Time step of simulation (s)
+const float timeStep = 4.0f*5.0e-06f;                    // Time step of simulation (s)
                                                     // NOTE: "For numerical stability and convergence, several time step
                                                     // constraints must be satisfied. The Courant-Friedrich-Levy
                                                     // (CFL) condition for SPH (dt <= lambda_v*(h/v_max))
@@ -93,8 +102,8 @@ const float timeStep = 5.0e-06f;                    // Time step of simulation (
                                                     // TODO: find dependence and make choice automatically
                                                     // [1] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
                                                     // ATTENTION! too large values can lead to 'explosion' of elastic matter objects
-							/*0.00411**/
-const float simulationScale = 0.0041f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);//pow(mass,1.f/3.f)/pow(rho0,1.f/3.f); // Simulation scale coefficient. It means that N * simulationScale
+							/*0.0041*/
+const float simulationScale = 0.0037f*pow(mass,1.f/3.f)/pow(0.00025f,1.f/3.f);//pow(mass,1.f/3.f)/pow(rho0,1.f/3.f); // Simulation scale coefficient. It means that N * simulationScale
                                                                    // converts from simulation scale to meters N / simulationScale convert from meters simulation scale
                                                                    // If you want to take real value of distance in meters you need multiple on simulation scale
                                                                    // NOTE: simulationScale depends from mass of particle. If we place one particle
@@ -110,7 +119,7 @@ const float hashGridCellSize = 2.0f * h;            // All bounding box is divid
 const float r0 = 0.5f * h;                          // Standard distance between two boundary particle == equilibrium distance between 2 particles [1]
                                                     // [1] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
 
-const float viscosity = 0.00005f;                   // liquid viscosity value //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
+const float viscosity = 0.1f*0.00004f;                   // liquid viscosity value //why this value? Dynamic viscosity of water at 25 C = 0.89e-3 Pa*s
 const double beta = timeStep*timeStep*mass*mass*2/(rho0*rho0); // B. Solenthaler's dissertation, formula 3.6 (end of page 30)
 
 const double Wpoly6Coefficient = 315.0 / ( 64.0 * M_PI * pow( (double)(h*simulationScale), 9.0 ) ); // Wpoly6Coefficient for kernel Wpoly6 [1]
@@ -146,8 +155,10 @@ const float _hScaled2 = _hScaled*_hScaled;          // squared scaled smoothing 
 const float surfTensCoeff = mass_mult_Wpoly6Coefficient * simulationScale;
 //const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale; // Surface coefficient. Actually it is -1.5e-09f * 0.3f
                                                                                                                                                // But for decreasing number of repeating calculation we suppose that
-                                  /*5.00e-05*/                                                                                                            // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
-const float elasticityCoefficient = 3.00e-05f / mass; // Elasticity coefficient. Actually it isn't
+                                  /*3->6*/                                                                                                            // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
+const float elasticityCoefficient = 4*1.5e-04f / mass; // Elasticity coefficient. Actually it isn't
                                                       // elasticity coefficient (elasticity coefficient = 1.95e-05f)
                                                       // But for decreasing number of repeating calculation we suppose that  elasticityCoefficient = 1.95e-05f / mass
+const float max_muscle_force = 4000.f; //2300.f;//2000.f;//1300
+
 #endif // #ifndef OW_PHYSICS_CONSTANT_H
