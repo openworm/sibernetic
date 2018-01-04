@@ -175,8 +175,15 @@ void display(void) {
     } else {
       try {
         if (owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp, localConfig, iteration)) {
-			read_muscles_activity_signals_from_log_file(iteration,muscle_activation_signal_cpp,localConfig);
-			iteration++;
+            if (iteration == 0 && localConfig->getStartingTimeStep() > 0) {       
+                for (j = 0; j < localConfig->getStartingTimeStep(); j++) {
+			        read_muscles_activity_signals_from_log_file(iteration,muscle_activation_signal_cpp,localConfig);
+        			iteration++;
+                }
+            } else {
+                read_muscles_activity_signals_from_log_file(iteration,muscle_activation_signal_cpp,localConfig);
+                iteration++;
+            }
         } else {
           cleanupSimulation();
           std::cout << "Simulation has reached end of file" << std::endl;

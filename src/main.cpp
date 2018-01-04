@@ -55,6 +55,7 @@ int usage(){
 			  << "    -l_from                    Load simulation results from disk\n\n"
 			  << "    lpath=<value>              Indicates path where all buffers will be stored \n"
 			  << "                               this option also works for -l_to and -l_from options\n\n"
+			  << "    -s_step=<value>            Run a simulation starting from a specific timestep \n\n"
 			  << "    -test                      Run some physical tests\n\n"
 			  << "    -f <filename>              Load configuration from file "
 			  << "./configuration/<filename>\n\n"

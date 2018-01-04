@@ -108,6 +108,7 @@ public:
 	}
 	int getLogStep(){ return logStep; }
 	float getTimeStep() const { return this->timeStep; }
+    float getStartingTimeStep() const { return s_step; }
 	float getDelta() const { return delta; }
 	std::string getSnapshotFileName() {
 		std::string fileName = "./configuration/snapshot/" + configFileName + "_";
@@ -143,6 +144,7 @@ public:
 		nrnSimRun = false;
 		nrnSimulationFileName = "";
 		simulation = NULL;
+        s_step = 0;
 		for(int i = 1; i<argc; i++){
 			strTemp = argv[i];
 			if(strTemp.find("device=") == 0){
@@ -176,6 +178,14 @@ public:
 			}
 			if( strTemp.find("lpath=") != std::string::npos ){
 				loadPath = strTemp.substr(strTemp.find('=')+1).c_str();
+			}
+            if( strTemp.find("-s_step=") != std::string::npos ){
+				s_step = ::atoi(strTemp.substr(strTemp.find('=')+1).c_str());
+				if(s_step < 0)
+					throw std::runtime_error("s_step could not be less than 0. Check input parameters");
+                /*if (s_step > totalNumberOfIterations) {
+                    throw std::runtime_error("s_step could not be greater than the total number of steps. Check input parameters");
+                }*/
 			}
 			if( strTemp.find("oclsourcepath=") != std::string::npos ){
 				sourceFileName = strTemp.substr(strTemp.find('=')+1).c_str();
@@ -317,6 +327,7 @@ private:
 	int PARTICLE_COUNT_RoundedUp;
 	int totalNumberOfIterations;
 	int logStep;
+    int s_step;
 	float timeStep;
 	float timeLim;
 	float beta;
