@@ -17,7 +17,8 @@ DEFAULTS = {'duration': 2.0,
             'verbose': False,
             'device': 'ALL',
             'configuration': 'worm',
-            'noc302': False} 
+            'noc302': False,
+            'test': False} 
             
             
 def process_args():
@@ -27,6 +28,11 @@ def process_args():
     parser = argparse.ArgumentParser(
                 description=("A script which can run Sibernetic, controlled by a "+
                 "neuronal network in c302"))
+
+    parser.add_argument('-test', 
+                        action='store_true',
+                        default=DEFAULTS['test'],
+                        help="Use this flag to run some tests on the outputted files after the run, default: %s"%DEFAULTS['test'])
 
     parser.add_argument('-noc302', 
                         action='store_true',
@@ -130,7 +136,20 @@ def announce(message):
     print_("\n************************************************************************\n*")
     print_("*  %s"%message.replace('\n','\n*  '))
     print_("*\n************************************************************************")
+    
+def check_file_exists(file_name):
+    print_("Checking %s"%file_name)
+    
+    if not os.path.isfile(file_name):
+        print_("Error: File %s missing!!"%file_name)
+        return False
+    if not os.path.getsize(file_name)>0:
+        print_("Error: File %s is empty!!"%file_name)
+        return False
 
+    return True
+        
+    
 
 def run(a=None,**kwargs): 
     
@@ -308,9 +327,28 @@ def run(a=None,**kwargs):
                   save_figure2_to='%s/worm_motion_2.png'%sim_dir,
                   save_figure3_to='%s/worm_motion_3.png'%sim_dir)
     
-    announce("Finished in %s sec!\n\nSimulation saved in: %s\n\n"%((sim_end-sim_start),sim_dir) + \
+    announce("Finished run in %s sec!\n\nSimulation saved in: %s\n\n"%((sim_end-sim_start),sim_dir) + \
              "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \
              "Rerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
+             
+             
+    if a.test:
+        
+        announce("Running tests...")
+        passed = True
+        
+        passed = passed and check_file_exists('%s/worm_motion_log.txt'%sim_dir)
+        passed = passed and check_file_exists('%s/worm_motion_log.wcon'%sim_dir)
+        passed = passed and check_file_exists('%s/worm_motion_1.png'%sim_dir)
+        passed = passed and check_file_exists('%s/worm_motion_2.png'%sim_dir)
+        passed = passed and check_file_exists('%s/worm_motion_3.png'%sim_dir)
+        
+        if not passed:
+            announce("Failed tests!!")
+            exit(-1)
+        else:
+            announce("Passed all tests!!")
+            
 
 
 if __name__ == '__main__':
