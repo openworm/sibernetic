@@ -4,6 +4,7 @@ import re
 import os
 import sys
 import time
+import math
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
@@ -145,14 +146,17 @@ def convert_case(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
+
 def announce(message):
     
     print_("\n************************************************************************\n*")
     print_("*  %s"%message.replace('\n','\n*  '))
     print_("*\n************************************************************************")
 
-def check_file_exists(file_name):
-    print_("Checking %s"%file_name)
+
+def check_file(file_name, dir, line_num=None):
+    file_name = os.path.join(dir, file_name)
+    print_("Checking %s exists %s"%(file_name,'(and has %s lines)'%line_num if line_num else ''))
 
     if not os.path.isfile(file_name):
         print_("Error: File %s missing!!"%file_name)
@@ -160,11 +164,19 @@ def check_file_exists(file_name):
     if not os.path.getsize(file_name)>0:
         print_("Error: File %s is empty!!"%file_name)
         return False
+    if line_num:
+        count = 0
+        for line in open(file_name):
+            count+=1
+        if count!=line_num:
+            print_("Error: Expecting %s lines, but had %s!!"%(line_num,count))
+            return False
+            
+            
 
     return True
         
     
-
 def run(a=None,**kwargs): 
     
     try:
@@ -379,11 +391,23 @@ def run(a=None,**kwargs):
         announce("Running tests...")
         passed = True
         
-        passed = passed and check_file_exists('%s/worm_motion_log.txt'%sim_dir)
-        passed = passed and check_file_exists('%s/worm_motion_log.wcon'%sim_dir)
-        passed = passed and check_file_exists('%s/worm_motion_1.png'%sim_dir)
-        passed = passed and check_file_exists('%s/worm_motion_2.png'%sim_dir)
-        passed = passed and check_file_exists('%s/worm_motion_3.png'%sim_dir)
+        total_steps = int(a.duration/a.dt)
+        sib_recorded_steps = int(math.ceil(float(total_steps)/a.logstep))
+        
+        print_("Expected Sibernetic to have recorded %s steps of %s total in %s ms..."%(sib_recorded_steps,total_steps,a.duration))
+        
+        passed = passed and check_file('worm_motion_log.txt',sim_dir,line_num=sib_recorded_steps)
+        passed = passed and check_file('worm_motion_log.wcon',sim_dir)
+        passed = passed and check_file('worm_motion_1.png',sim_dir)
+        passed = passed and check_file('worm_motion_2.png',sim_dir)
+        passed = passed and check_file('worm_motion_3.png',sim_dir)
+        
+        passed = passed and check_file('connection_buffer.txt',sim_dir)
+        passed = passed and check_file('membranes_buffer.txt',sim_dir)  
+        passed = passed and check_file('muscles_activity_buffer.txt',sim_dir,line_num=sib_recorded_steps)  
+        passed = passed and check_file('position_buffer.txt',sim_dir)  
+        passed = passed and check_file('report.json',sim_dir) 
+
         
         if not passed:
             announce("Failed tests!!")
