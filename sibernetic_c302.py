@@ -335,6 +335,7 @@ def run(a=None,**kwargs):
     reportj['configuration'] = '%s'%(a.configuration)
     reportj['run_command'] = command
     reportj['outDir'] = a.out_dir
+    reportj['env'] = str(env)
     
     with open(os.path.join(sim_dir, 'report.json'), 'w') as report_file:
         report_file.write(pp.pformat(reportj))
