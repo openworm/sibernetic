@@ -369,7 +369,7 @@ def run(a=None,**kwargs):
     
     from plot_positions import plot_muscle_activity
     musc_act_file = os.path.join(sim_dir, 'muscles_activity_buffer.txt')
-    plot_muscle_activity(musc_act_file,a.dt,a.logstep)
+    plot_muscle_activity(musc_act_file,a.dt,a.logstep, show_plot=False)
     
     from wcon.generate_wcon import generate_wcon
     

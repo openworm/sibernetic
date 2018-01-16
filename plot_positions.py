@@ -118,7 +118,7 @@ def plot_positions(pos_file_name, rate_to_plot = 100, save_figure=True, show_plo
         plt.show()
 
 
-def plot_muscle_activity(muscle_file_name, dt, logstep, show_plot=True):
+def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_plot=True):
     muscle_file = open(muscle_file_name)
 
     count = 0
@@ -152,6 +152,9 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, show_plot=True):
     ax.set_yticklabels(muscle_names)
     
     fig.colorbar(plot0)
+    
+    if save_figure:
+        plt.savefig('%s.png'%muscle_file_name,bbox_inches='tight')
     
     if show_plot:
         plt.show()
