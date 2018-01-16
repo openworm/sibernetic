@@ -58,7 +58,7 @@ Finished building target:Sibernetic
 Then navigate to the top-level folder in the hierarchy (e.g `Sibernetic`) and set your `PYTHONPATH`:
 
 ```
-export PYTHONPATH=$PYTHONPATH:'./src'
+export PYTHONPATH=$PYTHONPATH:.
 ```
 
 Finally, to run, run the command:
