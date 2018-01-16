@@ -55,7 +55,8 @@ const float rho0 = 1000.0f;                         // Standard value of liquid 
 //const float rho0 = readDensityFromConfig();
 
 //const float mass = 0.54e-13f; // normal resolution  //Mass for one particle (kg).
-const float mass = 7.83e-13f; //  half  resolution  // Mass for one particle (kg).
+//const float mass = 7.83e-13f; //  half  resolution - 0.8 mm worm  // Mass for one particle (kg).
+const float mass = 20.00e-13f; //  half  resolution - 0.8 mm worm  // Mass for one particle (kg).
                                                     // Some facts about C. elegans:
                                                     // Adult worm mass = 3.25e-06 grams = 3.25e-09 kg
                                                     // worm density is around 1000 kg/m3
@@ -77,7 +78,7 @@ const float mass = 7.83e-13f; //  half  resolution  // Mass for one particle (kg
                                                     // C. elegans's body model. But we you can use your own value of mass
                                                     // TODO: make it as an input parameter
 
-const float timeStep = 5.0e-06f;                    // Time step of simulation (s)
+const float timeStep = 4.0f*5.0e-06f;                    // Time step of simulation (s)
                                                     // NOTE: "For numerical stability and convergence, several time step
                                                     // constraints must be satisfied. The Courant-Friedrich-Levy
                                                     // (CFL) condition for SPH (dt <= lambda_v*(h/v_max))
@@ -155,9 +156,9 @@ const float surfTensCoeff = mass_mult_Wpoly6Coefficient * simulationScale;
 //const float surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale; // Surface coefficient. Actually it is -1.5e-09f * 0.3f
                                                                                                                                                // But for decreasing number of repeating calculation we suppose that
                                   /*3->6*/                                                                                                            // surfTensCoeff = -1.5e-09f * 0.3f* (float)(Wpoly6Coefficient * pow(h*simulationScale*h*simulationScale/2.0,3.0)) * simulationScale
-const float elasticityCoefficient = 1.5e-04f / mass; // Elasticity coefficient. Actually it isn't
+const float elasticityCoefficient = 4*1.5e-04f / mass; // Elasticity coefficient. Actually it isn't
                                                       // elasticity coefficient (elasticity coefficient = 1.95e-05f)
                                                       // But for decreasing number of repeating calculation we suppose that  elasticityCoefficient = 1.95e-05f / mass
-const float max_muscle_force = 2000.f;//1300
+const float max_muscle_force = 4000.f; //2300.f;//2000.f;//1300
 
 #endif // #ifndef OW_PHYSICS_CONSTANT_H

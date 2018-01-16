@@ -58,7 +58,7 @@ Finished building target:Sibernetic
 Then navigate to the top-level folder in the hierarchy (e.g `Sibernetic`) and set your `PYTHONPATH`:
 
 ```
-export PYTHONPATH=$PYTHONPATH:'./src'
+export PYTHONPATH=$PYTHONPATH:.
 ```
 
 Finally, to run, run the command:
@@ -119,7 +119,7 @@ Available options:
  -export_vtk           Save simulation results to VTK files.
      logstep=<value>   Log every <value> steps
  -l_from               Load simulation results from disk.
-     lpath=<value>     Indicates path where result of simulation will be stored.
+     lpath=<value>     Indicates path to the directory (not the file) where result of simulation will be stored.  
                        This option work only for -l_to and -l_from options
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file <filename>.

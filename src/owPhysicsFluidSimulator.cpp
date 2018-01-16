@@ -383,7 +383,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
     ocl_solver->_run_computeInteractionWithMembranes(config);
     // compute change of coordinates due to interactions with membranes
     ocl_solver->_run_computeInteractionWithMembranes_finalize(config);
-    helper->watch_report("membraneHadling: \t%9.3f ms\n");
+    helper->watch_report("membraneHandling: \t%9.3f ms\n");
   }
   // END
   ocl_solver->read_position_buffer(position_cpp, config);
@@ -423,7 +423,10 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
     correction_coeff = sqrt(
         1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f) / 12.5f));
     // printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);
-    muscle_activation_signal_cpp[i] *= correction_coeff;
+    //muscle_activation_signal_cpp[i] *= correction_coeff;
+	  muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
+	  muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
+	//if(muscle_activation_signal_cpp[i]<0.25f*0.9f) muscle_activation_signal_cpp[i] = 0.f;
   }
 
 /**/
