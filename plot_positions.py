@@ -118,8 +118,48 @@ def plot_positions(pos_file_name, rate_to_plot = 100, save_figure=True, show_plo
         plt.show()
 
 
+def plot_muscle_activity(muscle_file_name, dt, logstep, show_plot=True):
+    muscle_file = open(muscle_file_name)
+
+    count = 0
+    a = []
+    times = []
+    muscle_names = []
+    for m in ['MDR','MVR','MVL','MDL']:
+        for i in range(24):
+            muscle_names.append('%s%s'%(m,i))
+            
+    for line in muscle_file:
+
+        acts = [float(w) for w in line.split()]
+        a.append(acts)
+        times.append(count*dt*logstep)
+
+        print("Found %s activation values (%s,...,%s) at line %s"%(len(acts),acts[0],acts[-1],count))
+        count+=1
+        
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    aa = np.array(a).transpose()
+    fig, ax = plt.subplots()
+    plot0 = ax.pcolormesh(aa)
+    ax.set_xticks(np.arange(aa.shape[1]) + 0.5, minor=False)
+    ax.set_xticklabels(times)
+    
+    ax.set_yticks(np.arange(aa.shape[0]) + 0.5, minor=False)
+    ax.set_yticklabels(muscle_names)
+    
+    fig.colorbar(plot0)
+    
+    if show_plot:
+        plt.show()
+
 if __name__ == '__main__':
     
+    plot_muscle_activity('simulations/C0_TargetMuscle_2018-01-16_17-03-35/muscles_activity_buffer.txt',0.005,1000)
+    exit()
 
     if len(sys.argv) == 2:
         pos_file_name = sys.argv[1]

@@ -367,6 +367,10 @@ def run(a=None,**kwargs):
     #    time.sleep(2)
     #plot_positions(pos_file_name,rate_to_plot = int(a.duration/5), show_plot=False)
     
+    from plot_positions import plot_muscle_activity
+    musc_act_file = os.path.join(sim_dir, 'muscles_activity_buffer.txt')
+    plot_muscle_activity(musc_act_file,a.dt,a.logstep)
+    
     from wcon.generate_wcon import generate_wcon
     
     num_steps = int(a.duration/a.dt)
