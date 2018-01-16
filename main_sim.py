@@ -167,103 +167,30 @@ class C302NRNSimulation():
         self.ns.advance()
         
         print_("< Current NEURON time: %s ms"%self.h.t)
-                  
-        values = list([self._scale(self.h.a_MDR01[0].soma.cai,print_it=True), \
-                 self._scale(self.h.a_MVR01[0].soma.cai), \
-                 self._scale(self.h.a_MVL01[0].soma.cai), \
-                 self._scale(self.h.a_MDL01[0].soma.cai), \
-                 self._scale(self.h.a_MDR02[0].soma.cai), \
-                 self._scale(self.h.a_MVR02[0].soma.cai), \
-                 self._scale(self.h.a_MVL02[0].soma.cai), \
-                 self._scale(self.h.a_MDL02[0].soma.cai), \
-                 self._scale(self.h.a_MDR03[0].soma.cai), \
-                 self._scale(self.h.a_MVR03[0].soma.cai), \
-                 self._scale(self.h.a_MVL03[0].soma.cai), \
-                 self._scale(self.h.a_MDL03[0].soma.cai), \
-                 self._scale(self.h.a_MDR04[0].soma.cai), \
-                 self._scale(self.h.a_MVR04[0].soma.cai), \
-                 self._scale(self.h.a_MVL04[0].soma.cai), \
-                 self._scale(self.h.a_MDL04[0].soma.cai), \
-                 self._scale(self.h.a_MDR05[0].soma.cai), \
-                 self._scale(self.h.a_MVR05[0].soma.cai), \
-                 self._scale(self.h.a_MVL05[0].soma.cai), \
-                 self._scale(self.h.a_MDL05[0].soma.cai), \
-                 self._scale(self.h.a_MDR06[0].soma.cai), \
-                 self._scale(self.h.a_MVR06[0].soma.cai), \
-                 self._scale(self.h.a_MVL06[0].soma.cai), \
-                 self._scale(self.h.a_MDL06[0].soma.cai), \
-                 self._scale(self.h.a_MDR07[0].soma.cai), \
-                 self._scale(self.h.a_MVR07[0].soma.cai), \
-                 self._scale(self.h.a_MVL07[0].soma.cai), \
-                 self._scale(self.h.a_MDL07[0].soma.cai), \
-                 self._scale(self.h.a_MDR08[0].soma.cai), \
-                 self._scale(self.h.a_MVR08[0].soma.cai), \
-                 self._scale(self.h.a_MVL08[0].soma.cai), \
-                 self._scale(self.h.a_MDL08[0].soma.cai), \
-                 self._scale(self.h.a_MDR09[0].soma.cai), \
-                 self._scale(self.h.a_MVR09[0].soma.cai), \
-                 self._scale(self.h.a_MVL09[0].soma.cai), \
-                 self._scale(self.h.a_MDL09[0].soma.cai), \
-                 self._scale(self.h.a_MDR10[0].soma.cai), \
-                 self._scale(self.h.a_MVR10[0].soma.cai), \
-                 self._scale(self.h.a_MVL10[0].soma.cai), \
-                 self._scale(self.h.a_MDL10[0].soma.cai), \
-                 self._scale(self.h.a_MDR11[0].soma.cai), \
-                 self._scale(self.h.a_MVR11[0].soma.cai), \
-                 self._scale(self.h.a_MVL11[0].soma.cai), \
-                 self._scale(self.h.a_MDL11[0].soma.cai), \
-                 self._scale(self.h.a_MDR12[0].soma.cai), \
-                 self._scale(self.h.a_MVR12[0].soma.cai), \
-                 self._scale(self.h.a_MVL12[0].soma.cai), \
-                 self._scale(self.h.a_MDL12[0].soma.cai), \
-                 self._scale(self.h.a_MDR13[0].soma.cai), \
-                 self._scale(self.h.a_MVR13[0].soma.cai), \
-                 self._scale(self.h.a_MVL13[0].soma.cai), \
-                 self._scale(self.h.a_MDL13[0].soma.cai), \
-                 self._scale(self.h.a_MDR14[0].soma.cai), \
-                 self._scale(self.h.a_MVR14[0].soma.cai), \
-                 self._scale(self.h.a_MVL14[0].soma.cai), \
-                 self._scale(self.h.a_MDL14[0].soma.cai), \
-                 self._scale(self.h.a_MDR15[0].soma.cai), \
-                 self._scale(self.h.a_MVR15[0].soma.cai), \
-                 self._scale(self.h.a_MVL15[0].soma.cai), \
-                 self._scale(self.h.a_MDL15[0].soma.cai), \
-                 self._scale(self.h.a_MDR16[0].soma.cai), \
-                 self._scale(self.h.a_MVR16[0].soma.cai), \
-                 self._scale(self.h.a_MVL16[0].soma.cai), \
-                 self._scale(self.h.a_MDL16[0].soma.cai), \
-                 self._scale(self.h.a_MDR17[0].soma.cai), \
-                 self._scale(self.h.a_MVR17[0].soma.cai), \
-                 self._scale(self.h.a_MVL17[0].soma.cai), \
-                 self._scale(self.h.a_MDL17[0].soma.cai), \
-                 self._scale(self.h.a_MDR18[0].soma.cai), \
-                 self._scale(self.h.a_MVR18[0].soma.cai), \
-                 self._scale(self.h.a_MVL18[0].soma.cai), \
-                 self._scale(self.h.a_MDL18[0].soma.cai), \
-                 self._scale(self.h.a_MDR19[0].soma.cai), \
-                 self._scale(self.h.a_MVR19[0].soma.cai), \
-                 self._scale(self.h.a_MVL19[0].soma.cai), \
-                 self._scale(self.h.a_MDL19[0].soma.cai), \
-                 self._scale(self.h.a_MDR20[0].soma.cai), \
-                 self._scale(self.h.a_MVR20[0].soma.cai), \
-                 self._scale(self.h.a_MVL20[0].soma.cai), \
-                 self._scale(self.h.a_MDL20[0].soma.cai), \
-                 self._scale(self.h.a_MDR21[0].soma.cai), \
-                 self._scale(self.h.a_MVR21[0].soma.cai), \
-                 self._scale(self.h.a_MVL21[0].soma.cai), \
-                 self._scale(self.h.a_MDL21[0].soma.cai), \
-                 self._scale(self.h.a_MDR22[0].soma.cai), \
-                 self._scale(self.h.a_MVR22[0].soma.cai), \
-                 self._scale(self.h.a_MVL22[0].soma.cai), \
-                 self._scale(self.h.a_MDL22[0].soma.cai), \
-                 self._scale(self.h.a_MDR23[0].soma.cai), \
-                 self._scale(self.h.a_MVR23[0].soma.cai), \
-                 self._scale(self.h.a_MVL23[0].soma.cai), \
-                 self._scale(self.h.a_MDL23[0].soma.cai), \
-                 self._scale(self.h.a_MDR24[0].soma.cai), \
-                 self._scale(0), \
-                 self._scale(self.h.a_MVL24[0].soma.cai), \
-                 self._scale(self.h.a_MDL24[0].soma.cai)])
+        
+        values = []
+        for i in range(24):
+            var = "a_MVR%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            if i == 23:
+                var = "a_MVR23"
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+        for i in range(24):
+            var = "a_MDR%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+        for i in range(24):
+            var = "a_MDL%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+        for i in range(24):
+            var = "a_MVL%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
                  
         if self.verbose:
             print_("Returning %s values: %s"%(len(values),values))

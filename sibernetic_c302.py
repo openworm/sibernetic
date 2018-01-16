@@ -12,7 +12,7 @@ pp = pprint.PrettyPrinter(indent=4)
 DEFAULTS = {'duration': 2.0,
             'dt': 0.005,
             'dtNrn': 0.05,
-            'logstep': 100,
+            'logstep': 1000,
             'reference': 'Muscles',
             'c302params': 'C1',
             'verbose': False,
@@ -238,7 +238,6 @@ def run(a=None,**kwargs):
     
         id = '%s_%s'%(a.c302params,ref)
     
-    
         exec('from c302_%s import setup'%ref)
     
         setup(a.c302params, 
@@ -299,7 +298,7 @@ def run(a=None,**kwargs):
             print_("\nCaught CTRL+C\n")
             sys.exit()
 
-    command = './Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%('' if a.noc302 else '-c302', a.configuration, sim_dir,a.duration/1000.0,a.dt/1000,a.logstep,a.device)
+    command = './Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%('' if a.noc302 else '-c302', a.configuration, sim_dir, a.duration/1000.0, a.dt/1000, a.logstep, a.device)
     
     #env={"PYTHONPATH":".:%s" % sim_dir}
     env={"PYTHONPATH":".:%s" % os.path.abspath(sim_dir)}
@@ -339,7 +338,7 @@ def run(a=None,**kwargs):
     
     with open(os.path.join(sim_dir, 'report.json'), 'w') as report_file:
         report_file.write(pp.pformat(reportj))
-    
+        
     
     if not a.noc302:
 
@@ -367,6 +366,10 @@ def run(a=None,**kwargs):
     #if not os.path.isfile(pos_file_name):
     #    time.sleep(2)
     #plot_positions(pos_file_name,rate_to_plot = int(a.duration/5), show_plot=False)
+    
+    from plot_positions import plot_muscle_activity
+    musc_act_file = os.path.join(sim_dir, 'muscles_activity_buffer.txt')
+    plot_muscle_activity(musc_act_file,a.dt,a.logstep)
     
     from wcon.generate_wcon import generate_wcon
     
