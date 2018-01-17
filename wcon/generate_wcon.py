@@ -54,6 +54,8 @@ def generate_wcon(pos_file_name,
     
     angles = {}
 
+    xs0 = None
+    ys0 = None
     for line in postions_file:
 
         line_num += 1
@@ -86,6 +88,7 @@ def generate_wcon(pos_file_name,
             avx = 0
             avy = 0
             offset = num_plotted_frames * spacing
+            
             for i in range(len(x[t_s])):
 
                 # Swap x and y so worm moves "up"
@@ -95,6 +98,11 @@ def generate_wcon(pos_file_name,
                 avx += xs[-1] - offset
                 avy += ys[-1]
                 points_plotted += 1
+                
+            if xs0==None:
+                xs0 = xs
+            if ys0==None:
+                ys0 = ys
 
             avx = avx / points
             avy = avy / points
@@ -134,13 +142,15 @@ def generate_wcon(pos_file_name,
 
             num_plotted_frames += 1
 
-            ax.plot(xs, ys, '-')
+            l = ax.plot(xs, ys, '-')
             if num_plotted_frames % 5 == 1:
                 time = '%ss' % t_s if not t_s == int(t_s) \
                     else '%ss' % int(t_s)
 
                 ax.text(50 + ((num_plotted_frames - 1) * spacing),
                         10, time, fontsize=12)
+            print dir(l[0])
+            ax.plot([xx+offset for xx in xs0], ys0,':',color=l[0].get_color(),linewidth=0.5)
                             
     data = np.zeros((len(ts),len(xs)-4))
     
@@ -204,6 +214,13 @@ def generate_wcon(pos_file_name,
     wcon.close()
     postions_file.close()
 
+    info = "Midline of worm through time (to %s seconds)"%time_points[-1]
+    
+    plt.xlabel("x direction")
+    plt.ylabel("y direction")
+    fig.canvas.set_window_title(info)
+    plt.title(info)
+    
     if save_figure1_to:
         plt.savefig(save_figure1_to)
 
@@ -235,7 +252,22 @@ def generate_wcon(pos_file_name,
         plt.savefig(save_figure2_to,bbox_inches='tight')
 
     fig = plt.figure()
-    plot0 = plt.imshow(data, interpolation='nearest',norm=None)
+    
+    plt.xlabel("Time (s)")
+    plt.ylabel("Percentage along worm")
+    
+    plot0 = plt.imshow(data.transpose(), interpolation='nearest', aspect='auto')
+    ax = plt.gca();
+    
+    info = "Propagation of curvature along body of worm (180=straight)"
+    fig.canvas.set_window_title(info)
+    plt.title(info)
+    
+    xt = ax.get_xticks()
+    print xt
+    time_ticks = [time_points[int(ti)] if (ti>=0 and ti<len(time_points)) else 0 for ti in xt]
+    print time_ticks
+    ax.set_xticklabels(time_ticks)
 
     fig.colorbar(plot0)
 
