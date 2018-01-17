@@ -203,7 +203,7 @@ def run(a=None,**kwargs):
                  "Exception: %s\n"%e
                  +"Please set environment variable C302_HOME to point to the directory: CElegansNeuroML/CElegans/pythonScripts/c302!\n")
 
-            exit()
+            exit(-1)
         
     
     gen_start = time.time()
@@ -387,7 +387,7 @@ def run(a=None,**kwargs):
     
     announce("Finished run in %s sec!\n\nSimulation saved in: %s\n\n"%((sim_end-sim_start),sim_dir) + \
              "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \
-             "Rerun simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
+             "Replay recorded simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
 
 
     if a.test:

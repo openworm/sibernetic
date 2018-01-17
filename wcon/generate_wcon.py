@@ -208,17 +208,28 @@ def generate_wcon(pos_file_name,
         plt.savefig(save_figure1_to)
 
     fig = plt.figure()
-    plt.plot(time_points[1:], middle_point_speed_x, 'cyan',
-             label='Speed in x dir of point %i/%i' % (middle_point,
-                                                      points))
-    plt.plot(time_points[1:], middle_point_speed_y, 'red',
-             label='Speed in y dir of point %i/%i' % (middle_point,
-                                                      points))
-    plt.plot(time_points[1:], ave_point_speed_x, 'blue',
+    info = "Speed of worm in x (lateral) & y (along body) directions"
+    fig.canvas.set_window_title(info)
+    plt.title(info)
+    plt.xlabel("Time (s)")
+    plt.ylabel("Speed")
+    
+    plt.plot(time_points[1:], ave_point_speed_x, 'red',
              label='Speed in x of average of %i points' % points)
-    plt.plot(time_points[1:], ave_point_speed_y, 'green',
+    plt.plot(time_points[1:], middle_point_speed_x, 'pink',
+             label='Speed in x dir of point %i/%i' % (middle_point,
+                                                      points), linestyle='--')
+    plt.plot(time_points[1:], ave_point_speed_y, 'blue',
              label='Speed in y of average of %i points' % points)
-    plt.legend()
+    plt.plot(time_points[1:], middle_point_speed_y, 'cyan',
+             label='Speed in y dir of point %i/%i' % (middle_point,
+                                                      points), linestyle='--')
+                                                      
+             
+             
+    plt.plot([0,time_points[-1]],[0,0], 'grey', linestyle=':')
+    
+    plt.legend(loc=2, fontsize = 'x-small')
 
     if save_figure2_to:
         plt.savefig(save_figure2_to,bbox_inches='tight')

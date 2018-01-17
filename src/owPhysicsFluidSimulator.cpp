@@ -256,7 +256,8 @@ int update_worm_motion_log_file(int iterationCount, float *ec_cpp /*getElasticCo
 
 	//fprintf(f_motion_log,"%e\tX:\t",(float)iterationCount*timeStep);
 	wormMotionLogFile << std::scientific;
-	wormMotionLogFile << (float)iterationCount*timeStep << "\tX:\t";
+	wormMotionLogFile << (float)iterationCount*config->getTimeStep() << "\tX:\t";
+	//wormMotionLogFile << (float)iterationCount*timeStep << "\tX:\t";
 	
 		for(i=0;i<config->numOfElasticP;i++)
 		{
