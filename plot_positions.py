@@ -125,43 +125,112 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
     a = []
     times = []
     muscle_names = []
-    for m in ['MDR','MVR','MVL','MDL']:
+    
+    quadrant0 = 'MDR'
+    quadrant1 = 'MVR'
+    quadrant2 = 'MVL'
+    quadrant3 = 'MDL'
+    qs = [quadrant0,quadrant1,quadrant2,quadrant3]
+    
+    activations = {}
+    
+    for q in qs:
+        activations[q] = {}
         for i in range(24):
-            muscle_names.append('%s%s'%(m,i))
+            activations[q][i] = []
+            muscle_names.append('%s%s'%(q,i))
             
     for line in muscle_file:
 
         acts = [float(w) for w in line.split()]
-        a.append(acts)
-        times.append(count*dt*logstep)
-
+        
         print("Found %s activation values (%s,...,%s) at line %s"%(len(acts),acts[0],acts[-1],count))
+        a.append(acts)
+        
+        for qi in range(len(qs)):
+            q = qs[qi]
+            for mi in range(24):
+                index = qi*24 + mi
+                activations[q][mi].append(acts[index])
+        
+        times.append(count*dt*logstep/1000)
+
         count+=1
         
-
+    
     import matplotlib.pyplot as plt
     import numpy as np
     
-    aa = np.array(a).transpose()
-    fig, ax = plt.subplots()
-    plot0 = ax.pcolormesh(aa)
-    ax.set_xticks(np.arange(aa.shape[1]) + 0.5, minor=False)
-    ax.set_xticklabels(times)
     
-    ax.set_yticks(np.arange(aa.shape[0]) + 0.5, minor=False)
-    ax.set_yticklabels(muscle_names)
+    fig, ax0 = plt.subplots(4, sharex=True, sharey=True)
+        
+    info = "Muscle activation values per quadrant"
+    fig.canvas.set_window_title(info)
     
-    fig.colorbar(plot0)
+    ax0[0].set_title('Muscle activation values per quadrant - '+quadrant0, size='small')
+    ax0[0].set_ylabel('muscle #')
+    ax0[1].set_title(quadrant3, size='small')
+    ax0[1].set_ylabel('muscle #')
+    ax0[2].set_title(quadrant1, size='small')
+    ax0[2].set_ylabel('muscle #')
+    ax0[3].set_title(quadrant2, size='small')
+    ax0[3].set_ylabel('muscle #')
+    ax0[3].set_xlabel('time (s)'%())
+    
+        
+    arr0 = []
+    arr1 = []
+    arr2 = []
+    arr3 = []
+    for i in range(24):
+        arr0.append(activations[quadrant0][i])
+        arr1.append(activations[quadrant3][i])
+        arr2.append(activations[quadrant1][i])
+        arr3.append(activations[quadrant2][i])
+        
+    ax0[0].imshow(arr0, interpolation='none', aspect='auto')
+    ax0[1].imshow(arr1, interpolation='none', aspect='auto')
+    ax0[2].imshow(arr2, interpolation='none', aspect='auto')
+    ax0[3].imshow(arr3, interpolation='none', aspect='auto')
+    
+    
+    ax1 = plt.gca();
+    xt = ax1.get_xticks()
+    time_ticks = [times[int(ti)] if (ti>=0 and ti<len(times)) else 0 for ti in xt]
+    ax1.set_xticklabels(time_ticks)
     
     if save_figure:
         plt.savefig('%s.png'%muscle_file_name,bbox_inches='tight')
+    '''
+    aa = np.array(a).transpose()
+    fig, ax = plt.subplots()
+    
+    #plot0 = ax.pcolormesh(aa)
+    
+    plot0 = plt.imshow(aa, interpolation='nearest', aspect='auto')
+    ax = plt.gca();
+    
+    
+    ax.set_yticks(np.arange(aa.shape[0]) + 0.5, minor=False)
+    ax.set_yticklabels(muscle_names, size='x-small')
+    
+    ax1 = plt.gca();
+    xt = ax1.get_xticks()
+    time_ticks = [times[int(ti)] if (ti>=0 and ti<len(times)) else 0 for ti in xt]
+    ax1.set_xticklabels(time_ticks)
+    
+    fig.colorbar(plot0)'''
+    
+    if save_figure:
+        plt.savefig('%s0.png'%muscle_file_name,bbox_inches='tight')
     
     if show_plot:
         plt.show()
 
 if __name__ == '__main__':
     
-    plot_muscle_activity('simulations/C0_TargetMuscle_2018-01-16_17-03-35/muscles_activity_buffer.txt',0.005,1000)
+    plot_muscle_activity('simulations/Sibernetic_2018-01-17_20-13-38/muscles_activity_buffer.txt',0.005,50, save_figure=True, show_plot=True)
+    plot_muscle_activity('simulations/Sibernetic_2018-01-17_21-10-11/muscles_activity_buffer.txt',0.005,1000, save_figure=True, show_plot=True)
     exit()
 
     if len(sys.argv) == 2:
