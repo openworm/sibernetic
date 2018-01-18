@@ -173,6 +173,13 @@ class C302NRNSimulation():
         print_("< Current NEURON time: %s ms"%self.h.t)
         
         values = []
+        vars_read = []
+        for i in range(24):
+            var = "a_MDR%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+            vars_read.append(var)
         for i in range(24):
             var = "a_MVR%s"%(i+1 if i>8 else ("0%i"%(i+1)))
             if i == 23:
@@ -180,24 +187,22 @@ class C302NRNSimulation():
             val = getattr(self.h, var)[0].soma.cai
             scaled_val = self._scale(val)
             values.append(scaled_val)
-        for i in range(24):
-            var = "a_MDR%s"%(i+1 if i>8 else ("0%i"%(i+1)))
-            val = getattr(self.h, var)[0].soma.cai
-            scaled_val = self._scale(val)
-            values.append(scaled_val)
-        for i in range(24):
-            var = "a_MDL%s"%(i+1 if i>8 else ("0%i"%(i+1)))
-            val = getattr(self.h, var)[0].soma.cai
-            scaled_val = self._scale(val)
-            values.append(scaled_val)
+            vars_read.append(var)
         for i in range(24):
             var = "a_MVL%s"%(i+1 if i>8 else ("0%i"%(i+1)))
             val = getattr(self.h, var)[0].soma.cai
             scaled_val = self._scale(val)
             values.append(scaled_val)
+            vars_read.append(var)
+        for i in range(24):
+            var = "a_MDL%s"%(i+1 if i>8 else ("0%i"%(i+1)))
+            val = getattr(self.h, var)[0].soma.cai
+            scaled_val = self._scale(val)
+            values.append(scaled_val)
+            vars_read.append(var)
                  
-        if self.verbose:
-            print_("Returning %s values: %s"%(len(values),values))
+        if True:
+            print_("Returning %s values: %s; %s"%(len(values),values, vars_read))
         return values
         
     
