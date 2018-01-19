@@ -139,7 +139,7 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
         for i in range(24):
             activations[q][i] = []
             muscle_names.append('%s%s'%(q,i))
-            
+    max_act = 0 
     for line in muscle_file:
 
         acts = [float(w) for w in line.split()]
@@ -152,6 +152,7 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
             for mi in range(24):
                 index = qi*24 + mi
                 activations[q][mi].append(acts[index])
+                max_act = max(max_act,acts[index])
         
         times.append(count*dt*logstep/1000)
 
@@ -188,16 +189,22 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
         arr2.append(activations[quadrant1][i])
         arr3.append(activations[quadrant2][i])
         
-    ax0[0].imshow(arr0, interpolation='none', aspect='auto')
-    ax0[1].imshow(arr1, interpolation='none', aspect='auto')
-    ax0[2].imshow(arr2, interpolation='none', aspect='auto')
-    ax0[3].imshow(arr3, interpolation='none', aspect='auto')
+    ax0[0].imshow(arr0, interpolation='none', aspect='auto', vmin=0, vmax=max_act)
+    ax0[1].imshow(arr1, interpolation='none', aspect='auto', vmin=0, vmax=max_act)
+    ax0[2].imshow(arr2, interpolation='none', aspect='auto', vmin=0, vmax=max_act)
+    ax0[3].imshow(arr3, interpolation='none', aspect='auto', vmin=0, vmax=max_act)
+    #fig.colorbar(im0)
+    
+    
     
     
     ax1 = plt.gca();
     xt = ax1.get_xticks()
     time_ticks = [times[int(ti)] if (ti>=0 and ti<len(times)) else 0 for ti in xt]
     ax1.set_xticklabels(time_ticks)
+    #print ax1.get_yticks()
+    #ax1.set_yticks([i-1 for i in ax1.get_yticks()])
+    #print ax1.get_yticks()
     
     if save_figure:
         plt.savefig('%s.png'%muscle_file_name,bbox_inches='tight')
@@ -219,10 +226,10 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
     time_ticks = [times[int(ti)] if (ti>=0 and ti<len(times)) else 0 for ti in xt]
     ax1.set_xticklabels(time_ticks)
     
-    fig.colorbar(plot0)'''
+    fig.colorbar(plot0)
     
     if save_figure:
-        plt.savefig('%s0.png'%muscle_file_name,bbox_inches='tight')
+        plt.savefig('%s0.png'%muscle_file_name,bbox_inches='tight')'''
     
     if show_plot:
         plt.show()
@@ -231,6 +238,7 @@ if __name__ == '__main__':
     
     plot_muscle_activity('simulations/Sibernetic_2018-01-17_20-13-38/muscles_activity_buffer.txt',0.005,50, save_figure=True, show_plot=True)
     plot_muscle_activity('simulations/Sibernetic_2018-01-17_21-10-11/muscles_activity_buffer.txt',0.005,1000, save_figure=True, show_plot=True)
+    plot_muscle_activity('simulations/C0_TargetMuscle_2018-01-18_19-43-31/muscles_activity_buffer.txt',0.005,1000, save_figure=True, show_plot=True)
     exit()
 
     if len(sys.argv) == 2:
