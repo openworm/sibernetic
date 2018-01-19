@@ -40,8 +40,6 @@ def generate_wcon(pos_file_name,
     num_plotted_frames = 0
     points_plotted = 0
 
-    all_xs = {}
-    all_ys = {}
     middle_points = []
     ave_points = []
     middle_point_speed_x = []
@@ -277,6 +275,8 @@ def generate_wcon(pos_file_name,
     if plot:
         plt.show()
         
+    return x,y,z,ts
+        
 
 def validate(wcon_file):
     import json, jsonschema
@@ -303,10 +303,63 @@ def validate(wcon_file):
     
     print_("File %s is valid WCON!!"%wcon_file)
 
+def transform(i):
+    return 0.03*math.sin((math.pi/4) * (i+1)/24.0)
 
 if __name__ == '__main__':
 
+    import matplotlib.pyplot as plt
+    import math
     validate("test.wcon")
+    
+    test_sim = 'C0_Muscles_2018-01-19_15-59-59'
+    pos_file_name = "../simulations/%s/worm_motion_log.txt"%test_sim
+    small_file = "../simulations/%s/worm_motion_log.wcon"%test_sim
+    x,y,z,ts = generate_wcon(pos_file_name, small_file, rate_to_plot=2, plot=False)
+    
+    sys.path.append("..")
+    from plot_positions import plot_muscle_activity
+    musc_act_file = "../simulations/%s/muscles_activity_buffer.txt"%test_sim
+    activations, times = plot_muscle_activity(musc_act_file,0.005,1000, show_plot=False)
+    
+    print("Plotting %s (%s) activation values on %s times"%(len(activations['MDR'][0]), len(times),len(ts)))
+    print(ts)
+    for i in range(len(ts)):
+        t = ts[i]
+        print("Check time %s"%t)
+        
+
+        fig = plt.figure()
+        info = "Pos at %sms"%t
+        fig.canvas.set_window_title(info)
+        plt.title(info)
+
+        mx = y[t]
+        my = x[t]
+        plt.plot(mx,my, 'green')
+        for i in range(len(mx)-1):
+            width = transform(i)
+            newx0 = mx[i]+width
+            newy0 = my[i]
+            width = transform(i+1)
+            newx1 = mx[i+1]+width
+            newy1 = my[i+1]
+            plt.plot([newx0,newx1],[newy0,newy1])
+            width = transform(i)
+            newx0 = mx[i]-width
+            newy0 = my[i]
+            width = transform(i+1)
+            newx1 = mx[i+1]-width
+            newy1 = my[i+1]
+            plt.plot([newx0,newx1],[newy0,newy1])
+            
+            
+        
+        plt.xlim([-0.5,1])
+        plt.ylim([-0.5,2])
+        plt.savefig("Calcium_%s.png"%t)
+    
+    exit()
     
     if len(sys.argv) >1:
         pos_file_name = sys.argv[1]

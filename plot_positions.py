@@ -230,9 +230,11 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
     
     if save_figure:
         plt.savefig('%s0.png'%muscle_file_name,bbox_inches='tight')'''
-    
+        
     if show_plot:
         plt.show()
+        
+    return activations, times
 
 if __name__ == '__main__':
     
