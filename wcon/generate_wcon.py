@@ -147,7 +147,6 @@ def generate_wcon(pos_file_name,
 
                 ax.text(50 + ((num_plotted_frames - 1) * spacing),
                         10, time, fontsize=12)
-            print dir(l[0])
             ax.plot([xx+offset for xx in xs0], ys0,':',color=l[0].get_color(),linewidth=0.5)
                             
     data = np.zeros((len(ts),len(xs)-4))
@@ -303,8 +302,27 @@ def validate(wcon_file):
     
     print_("File %s is valid WCON!!"%wcon_file)
 
-def transform(i):
-    return 0.03*math.sin((math.pi/4) * (i+1)/24.0)
+def transform(i,max_rad=0.03):
+    return max_rad*math.sin((math.pi/4) * (i+1)/24.0)
+
+def get_color_for_fract(fract):
+
+    if fract<0: fract = 0
+    if fract>1: fract = 1
+    minCol = [.2,.2,.2]
+    maxCol = [1,0,1]
+    return (minCol[0] + fract*(maxCol[0] - minCol[0]),\
+            minCol[1] + fract*(maxCol[1] - minCol[1]),\
+            minCol[2] + fract*(maxCol[2] - minCol[2]))
+
+'''
+def get_rainbow_color_for_volts(fract):
+
+    if fract<0: fract = 0.0
+    if fract>1: fract = 1.0
+    
+    hue = (270 * (1-fract))
+    return "pigment { color CHSL2RGB(<%f,1,0.5>) } // v = %f, fract = %f"%( hue , v, fract)'''
 
 if __name__ == '__main__':
 
@@ -314,7 +332,8 @@ if __name__ == '__main__':
     validate("test.wcon")
     
     test_sim = 'C0_Muscles_2018-01-19_15-59-59'
-    test_sim = 'Sibernetic_2018-01-17_21-10-11'
+    #test_sim = 'Sibernetic_2018-01-17_21-10-11'
+    #test_sim = 'C0_TargetMuscle_2018-01-23_14-19-54'
     pos_file_name = "../simulations/%s/worm_motion_log.txt"%test_sim
     small_file = "../simulations/%s/worm_motion_log.wcon"%test_sim
     x,y,z,ts = generate_wcon(pos_file_name, small_file, rate_to_plot=2, plot=False)
@@ -324,11 +343,10 @@ if __name__ == '__main__':
     musc_act_file = "../simulations/%s/muscles_activity_buffer.txt"%test_sim
     activations, times = plot_muscle_activity(musc_act_file,0.005,1000, show_plot=False)
     
-    print("Plotting %s (%s) activation values on %s times"%(len(activations['MDR'][0]), len(times),len(ts)))
-    print(ts)
-    for i in range(len(ts)):
-        t = ts[i]
-        print("Check time %s"%t)
+    print("Plotting %s sets of %s (%s) activation values on %s times"%(len(activations['MDR']),len(activations['MDR'][0]), len(times),len(ts)))
+    for ti in range(len(ts)):
+        t = ts[ti]
+        print("Check time index %i: %s ms"%(ti,t))
         
 
         fig = plt.figure()
@@ -339,21 +357,49 @@ if __name__ == '__main__':
         mx = y[t]
         my = x[t]
         plt.plot(mx,my, 'green')
-        for i in range(len(mx)-1):
-            width = transform(i)
-            newx0 = mx[i]+width
-            newy0 = my[i]
-            width = transform(i+1)
-            newx1 = mx[i+1]+width
-            newy1 = my[i+1]
-            plt.plot([newx0,newx1],[newy0,newy1])
-            width = transform(i)
-            newx0 = mx[i]-width
-            newy0 = my[i]
-            width = transform(i+1)
-            newx1 = mx[i+1]-width
-            newy1 = my[i+1]
-            plt.plot([newx0,newx1],[newy0,newy1])
+        for li in range(len(mx)-1):
+            print '------------'
+            mi = 23-int(li/4.1)
+            mt = ti*2
+            scale = 2
+            actDL = activations['MDL'][mi][mt]*scale
+            colorDL = get_color_for_fract(actDL)
+            actDR = activations['MDR'][mi][mt]*scale
+            colorDR = get_color_for_fract(actDR)
+            actVL = activations['MVL'][mi][mt]*scale
+            colorVL = get_color_for_fract(actVL)
+            actVR = activations['MVR'][mi][mt]*scale
+            colorVR = get_color_for_fract(actVR)
+            print('Midpoint %i mapped to muscle %s: %s - %s; %s - %s'%(li,mi, actDL, colorDL, actVL, colorVL))
+            
+            widthL = transform(li)
+            widthL1 = transform(li+1)
+            widthR = transform(li,max_rad=0.05)
+            widthR1 = transform(li+1,max_rad=0.05)
+            
+            newx0 = mx[li]+widthL
+            newy0 = my[li]
+            newx1 = mx[li+1]+widthL1
+            newy1 = my[li+1]
+            plt.plot([newx0,newx1],[newy0,newy1],color=colorDL)
+            
+            newx0 = mx[li]+widthR
+            newy0 = my[li]
+            newx1 = mx[li+1]+widthR1
+            newy1 = my[li+1]
+            plt.plot([newx0,newx1],[newy0,newy1],color=colorDR)
+            
+            newx0 = mx[li]-widthL
+            newy0 = my[li]
+            newx1 = mx[li+1]-widthL1
+            newy1 = my[li+1]
+            plt.plot([newx0,newx1],[newy0,newy1],color=colorVL)
+            
+            newx0 = mx[li]-widthR
+            newy0 = my[li]
+            newx1 = mx[li+1]-widthR1
+            newy1 = my[li+1]
+            plt.plot([newx0,newx1],[newy0,newy1],color=colorVR)
             
             
         
@@ -361,6 +407,7 @@ if __name__ == '__main__':
         plt.ylim([my[49]-1,my[49]+1])
         ax = plt.gca();
         #ax.set_facecolor('black')
+        ax.set_aspect('equal')
         
         matplotlib.rc('axes',edgecolor='w')
         
@@ -374,8 +421,8 @@ if __name__ == '__main__':
         frame = str(int(t*10000))
         while len(frame)<7:
             frame='0'+frame
-        print("Writing frame: %s"%frame)
-        plt.savefig("Calcium_%s.png"%frame,facecolor='black',edgecolor='red',transparent=True)
+        print("Writing frame %i: %s"%(ti,frame))
+        plt.savefig("Calcium_%s.png"%frame,facecolor='black',transparent=True,bbox_inches='tight')
     
     exit()
     

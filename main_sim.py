@@ -201,7 +201,7 @@ class C302NRNSimulation():
             values.append(scaled_val)
             vars_read.append(var)
                  
-        if True:
+        if False:
             print_("Returning %s values: %s; %s"%(len(values),values, vars_read))
         return values
         
