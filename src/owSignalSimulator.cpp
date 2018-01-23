@@ -103,8 +103,6 @@ std::vector<float> SignalSimulator::run(){
 }
 
 SignalSimulator::~SignalSimulator() {
-    
-	  std::cout << "Killing SignalSimulator!"<< std::endl;
       
 	  PyObject_CallMethod(pInstance, const_cast<char *>("save_results"), NULL);
       if( PyErr_Occurred() ) PyErr_Print();  

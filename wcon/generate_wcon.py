@@ -309,10 +309,12 @@ def transform(i):
 if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
+    import matplotlib
     import math
     validate("test.wcon")
     
     test_sim = 'C0_Muscles_2018-01-19_15-59-59'
+    test_sim = 'Sibernetic_2018-01-17_21-10-11'
     pos_file_name = "../simulations/%s/worm_motion_log.txt"%test_sim
     small_file = "../simulations/%s/worm_motion_log.wcon"%test_sim
     x,y,z,ts = generate_wcon(pos_file_name, small_file, rate_to_plot=2, plot=False)
@@ -355,9 +357,25 @@ if __name__ == '__main__':
             
             
         
-        plt.xlim([-0.5,1])
-        plt.ylim([-0.5,2])
-        plt.savefig("Calcium_%s.png"%t)
+        plt.xlim([mx[49]-1,mx[49]+1])
+        plt.ylim([my[49]-1,my[49]+1])
+        ax = plt.gca();
+        #ax.set_facecolor('black')
+        
+        matplotlib.rc('axes',edgecolor='w')
+        
+        for child in ax.get_children():
+            if isinstance(child, matplotlib.spines.Spine):
+                child.set_color('w')
+        ax.xaxis.grid(True,color='grey')
+        ax.yaxis.grid(True,color='grey')
+        ax.xaxis.set_ticklabels([])
+        ax.yaxis.set_ticklabels([])
+        frame = str(int(t*10000))
+        while len(frame)<7:
+            frame='0'+frame
+        print("Writing frame: %s"%frame)
+        plt.savefig("Calcium_%s.png"%frame,facecolor='black',edgecolor='red',transparent=True)
     
     exit()
     
