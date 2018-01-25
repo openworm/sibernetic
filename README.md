@@ -10,38 +10,56 @@ Compiling / running (Linux/mac)
 [![Join the chat at https://gitter.im/openworm/sibernetic](https://badges.gitter.im/openworm/sibernetic.svg)](https://gitter.im/openworm/sibernetic?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 **Linux**
-
 Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. You can also try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues. The AMD drivers include samples in /opt/AMDAPP/samples/opencl/bin which you can use to verify your OpenCL support is working.
 
 You'll also need a variety of libraries. In ubuntu, install the dependencies with:
 
-```
+```bash
 sudo apt-get install g++ python-dev freeglut3-dev nvidia-opencl-dev libglu1-mesa-dev libglew-dev python-numpy
 ```
 
 Next, from the `sibernetic/` directory run:
 
-```
+```bash
 make clean
 make all
 ```
 
+Also you  may need to set some enviromat variables like path to OpenCL lib or header for to do this
+you can fix your `LD_LIBRARY_PATH` as this:
+
+```bash
+export LD_LIBRARY_PATH=/path/to/opencl_lib/folder/:$LD_LIBRARY_PATH
+e.g.
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64/:$LD_LIBRARY_PATH
+```
+
+You can find OpenCL lib in CUDA folder if you're using NVIDIA (`/usr/local/cuda/lib64/`) or run this command.
+
+```bash
+ldconfig -p | grep opencl
+```
+
+Also you may need to give compiller path to OpenCL header files usually you can find them in `/usr/include/CL` if they there than you don't need do anything. In othe case you can edit makefile directly and add directory to OpenCL headers by adding opetions `-I/path/to/opencl_includes/` or you can copy folder with header into `/usr/include/` but you should have root permission for doing that.
+
 **Mac**: stay in the top-level folder. You need before run export several environment variables:
 
-```
+```bash
 export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
 export PYTHONLIBDIR=/usr/local/lib/python2...
 export PYTHONFRAMEWORKDIR=/usr/local/Frameworks/
 ```
+
 Then
-```
+
+```bash
 make clean -f makefile.OSX
 make all -f makefile.OSX
 ```
 
 You should see an output which looks something like this:
 
-```
+```bash
 Building file: ../src/PyramidalSimulation.cpp
 Invoking: GCC C++ Compiler
 
@@ -57,36 +75,38 @@ Finished building target:Sibernetic
 
 Then navigate to the top-level folder in the hierarchy (e.g `Sibernetic`) and set your `PYTHONPATH`:
 
-```
+```bash
 export PYTHONPATH=$PYTHONPATH:.
 ```
 
 Finally, to run, run the command:
 
 **Linux**:
-```
+
+```bash
 ./Release/Sibernetic
 ```
+
 **Mac**:
-```
+
+```bash
 ./Release/Sibernetic
 ```
 
 You may need to make `./Release/Sibernetic` executable like so:
 
-```
+```bash
 chmod +x ./Release/Sibernetic
 ```
 
 If you do not run from the top-level folder you will see an error which looks something like this:
 
-```
+```bash
 Compilation failed:
 "/tmp/OCLQ1BaOw.cl", line 8: catastrophic error: cannot open source file
 "src//owOpenCLConstant.h"
 #include "src//owOpenCLConstant.h"
 ```
-
 
 What's inside
 -------------
