@@ -256,7 +256,8 @@ int update_worm_motion_log_file(int iterationCount, float *ec_cpp /*getElasticCo
 
 	//fprintf(f_motion_log,"%e\tX:\t",(float)iterationCount*timeStep);
 	wormMotionLogFile << std::scientific;
-	wormMotionLogFile << (float)iterationCount*timeStep << "\tX:\t";
+	wormMotionLogFile << (float)iterationCount*config->getTimeStep() << "\tX:\t";
+	//wormMotionLogFile << (float)iterationCount*timeStep << "\tX:\t";
 	
 		for(i=0;i<config->numOfElasticP;i++)
 		{
@@ -326,7 +327,13 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   // the scene
 
   helper->refreshTime();
-  std::cout << "\n[[ Step " << iterationCount << " ]]\n";
+  std::cout << "\n[[ Step " << iterationCount << " (total steps: ";
+  if (config->getNumberOfIterations()==0) 
+      std::cout << "unlimited";
+  else 
+      std::cout << config->getNumberOfIterations();
+  std::cout << ", t in sim: " << iterationCount*config->getTimeStep() << "s) ]]\n";
+  
   // SEARCH FOR NEIGHBOURS PART
   // ocl_solver->_runClearBuffers();
   // helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
@@ -408,18 +415,21 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
     }
  }
 
+
   config->updateNeuronSimulation(muscle_activation_signal_cpp);
 /* // signal correction switched off
   float correction_coeff;
-  
+
   for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
-    //correction_coeff = sqrt( 1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f) / 12.5f));
+    correction_coeff = sqrt(
+        1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f) / 12.5f));
     // printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);
     //muscle_activation_signal_cpp[i] *= correction_coeff;
 	  muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
 	  muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
 	//if(muscle_activation_signal_cpp[i]<0.25f*0.9f) muscle_activation_signal_cpp[i] = 0.f;
   }
+
 /**/
 
   /* //smooth start switched off

@@ -39,9 +39,9 @@
 
 bool load_from_file = false;
 bool load_to = false;
+std::string version = "0.0.6"; 
 
 int usage(){
-	std::string version = "0.0.5b"; 
 	std::cout << "\nSibernetic v" << version << "\n  This is a C++/OpenCL "
 	          << "implementation of the PCISPH algorithm supplemented with"
 			  << "a set of biomechanics related features"

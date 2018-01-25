@@ -20,6 +20,7 @@ CPP_DEPS = $(OBJECTS:.o=.d)
 LIBS := -lpython2.7 -lGL -lGLU -lOpenCL -lrt -lglut
 
 CXXFLAGS = $(CC)
+EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
 
 all: CXXFLAGS += -O3
 all : $(TARGET)
@@ -29,8 +30,8 @@ debug: $(TARGET)
 
 $(TARGET):$(OBJECTS)
 	@echo 'Building target: $@'
-	@echo 'Invoking: GCC C++ Linker'
-	$(CXXFLAGS)  -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
+	@echo 'Invoking: GCC C++ Linker' 
+	$(CXXFLAGS)  $(EXTRA_LIBS) -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -39,7 +40,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	$(CXXFLAGS) -I/usr/include/python2.7 -I$(INCDIR) -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	$(CXXFLAGS) -I/usr/include/python2.7 -I/opt/AMDAPPSDK-3.0/include/ -I/opt/AMDAPP/include/ -I$(INCDIR) -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
