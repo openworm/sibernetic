@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/Release/Sibernetic",
             "args": [
                 "-f",
-                "configuration/worm_crawl_half_resolution"
+                "configuration/demo1_test"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
