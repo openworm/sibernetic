@@ -132,20 +132,20 @@ void owOpenCLSolver::reset(const float *position_cpp, const float *velocity_cpp,
                     particleMembranesList_cpp);
 }
 /** Initialization of data buffers on OpenCL device
-*  @param position_cpp
-*  initial position buffer
-*  @param velocity_cpp
-*  initial velocity buffer
-*  @param config
-*  Contain information about simulating configuration
-*  @param elasticConnectionData_cpp
-*  buffer with info about elastic connections
-*  @param membraneData_cpp
-*  buffer with info about membranes
-*  @param particleMembranesList_cpp
-*  buffer with info about sets of membranes in which particular particle is
-* including
-*/
+ *  @param position_cpp
+ *  initial position buffer
+ *  @param velocity_cpp
+ *  initial velocity buffer
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @param elasticConnectionData_cpp
+ *  buffer with info about elastic connections
+ *  @param membraneData_cpp
+ *  buffer with info about membranes
+ *  @param particleMembranesList_cpp
+ *  buffer with info about sets of membranes in which particular particle is
+ * including
+ */
 void owOpenCLSolver::initializeBuffers(const float *position_cpp,
                                        const float *velocity_cpp,
                                        owConfigProperty *config,
@@ -189,7 +189,7 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
   create_ocl_buffer("muscle_activation_signal", muscle_activation_signal,
                     CL_MEM_READ_WRITE, (config->MUSCLE_COUNT * sizeof(float)));
 
-  if (membraneData_cpp != NULL && particleMembranesList_cpp != NULL) {
+  if (membraneData_cpp != nullptr && particleMembranesList_cpp != nullptr) {
     create_ocl_buffer("membraneData", membraneData, CL_MEM_READ_WRITE,
                       (config->numOfMembranes * sizeof(int) * 3));
     create_ocl_buffer("particleMembranesList", particleMembranesList,
@@ -197,7 +197,7 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
                       config->numOfElasticP *
                           MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int));
   }
-  if (elasticConnectionsData_cpp != NULL) {
+  if (elasticConnectionsData_cpp != nullptr) {
     create_ocl_buffer(
         "elasticConnectionsData", elasticConnectionsData, CL_MEM_READ_WRITE,
         config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
@@ -209,7 +209,7 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
   copy_buffer_to_device(velocity_cpp, velocity,
                         config->getParticleCount() * sizeof(float) * 4);
   // Copy membrane data to device memory elastic connections
-  if (membraneData_cpp != NULL && particleMembranesList_cpp != NULL) {
+  if (membraneData_cpp != nullptr && particleMembranesList_cpp != nullptr) {
     copy_buffer_to_device(membraneData_cpp, membraneData,
                           config->numOfMembranes * sizeof(int) * 3);
     copy_buffer_to_device(particleMembranesList_cpp, particleMembranesList,
@@ -218,7 +218,7 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
                               sizeof(int));
   }
   // Copy elastic connectiondate to device memory elastic connections
-  if (elasticConnectionsData_cpp != NULL) {
+  if (elasticConnectionsData_cpp != nullptr) {
     copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData,
                           config->numOfElasticP * MAX_NEIGHBOR_COUNT *
                               sizeof(float) * 4);
@@ -249,7 +249,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   for (int i = 0; i < (int)n_pl; i++) {
     // Get OpenCL platform name and version
     ciErrNum = clGetPlatformInfo(cl_pl_id[i], CL_PLATFORM_VERSION,
-                                 sz = sizeof(cBuffer), cBuffer, NULL);
+                                 sz = sizeof(cBuffer), cBuffer, nullptr);
     if (ciErrNum == CL_SUCCESS) {
       printf(" CL_PLATFORM_VERSION [%d]: \t%s\n", i, cBuffer);
     } else {
@@ -282,10 +282,10 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
       // if(findDevice)
       //	break;
       clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
-                     device_type[config->getDeviceType()], 0, NULL,
+                     device_type[config->getDeviceType()], 0, nullptr,
                      &ciDeviceCount);
       if ((devices_t = static_cast<cl_device_id *>(
-               malloc(sizeof(cl_device_id) * ciDeviceCount))) == NULL)
+               malloc(sizeof(cl_device_id) * ciDeviceCount))) == nullptr)
         bPassed = false;
       if (bPassed) {
         result = clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
@@ -294,11 +294,11 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
         if (result == CL_SUCCESS) {
           for (cl_uint i = 0; i < ciDeviceCount; ++i) {
             clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type,
-                            NULL);
+                            nullptr);
             if (type & device_type[config->getDeviceType()]) {
               clGetDeviceInfo(devices_t[i], CL_DEVICE_MAX_COMPUTE_UNITS,
                               sizeof(device_coumpute_unit_num),
-                              &device_coumpute_unit_num, NULL);
+                              &device_coumpute_unit_num, nullptr);
               if (device_coumpute_unit_num_current <=
                   device_coumpute_unit_num) {
                 plList = clSelectedPlatformID;
@@ -333,8 +333,8 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   }
   cl_context_properties cprops[3] = {
       CL_CONTEXT_PLATFORM, (cl_context_properties)(platformList[plList])(), 0};
-  context = cl::Context(device_type[config->getDeviceType()], cprops, NULL,
-                        NULL, &err);
+  context = cl::Context(device_type[config->getDeviceType()], cprops, nullptr,
+                        nullptr, &err);
   devices = context.getInfo<CL_CONTEXT_DEVICES>();
   if (devices.size() < 1) {
     throw std::runtime_error("No OpenCL devices were found");
@@ -457,9 +457,9 @@ unsigned int owOpenCLSolver::_runClearBuffers(owConfigProperty *config) {
       clearBuffers, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -498,9 +498,9 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProperty *config) {
       hashParticles, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -536,9 +536,9 @@ unsigned int owOpenCLSolver::_runIndexx(owConfigProperty *config) {
       indexx, cl::NullRange,
       cl::NDRange((int)(/**/ gridCellCountRoundedUp /**/)),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -642,9 +642,9 @@ unsigned int owOpenCLSolver::_runSortPostPass(owConfigProperty *config) {
       sortPostPass, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -689,15 +689,15 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProperty *config) {
       findNeighbors, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL); /*
-      local_work_size can also be a NULL
+      cl::NullRange, nullptr, nullptr); /*
+      local_work_size can also be a nullptr
       value in which case the OpenCL implementation will
       determine how to be break the global work-items
       into appropriate work-group instances.
       http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109
       */
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -732,9 +732,9 @@ owOpenCLSolver::_run_pcisph_computeDensity(owConfigProperty *config) {
       pcisph_computeDensity, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -787,9 +787,9 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(
       pcisph_computeForcesAndInitPressure, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -843,10 +843,10 @@ owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProperty *config) {
       queue.enqueueNDRangeKernel(pcisph_computeElasticForces, cl::NullRange,
                                  cl::NDRange(numOfElasticPCountRoundedUp),
 #if defined(__APPLE__)
-                                 cl::NullRange, NULL, NULL);
+                                 cl::NullRange, nullptr, nullptr);
 #else
-                                 cl::NDRange((int)(local_NDRange_size)), NULL,
-                                 NULL);
+                                 cl::NDRange((int)(local_NDRange_size)),
+                                 nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -895,9 +895,9 @@ owOpenCLSolver::_run_pcisph_predictPositions(owConfigProperty *config) {
       pcisph_predictPositions, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -939,9 +939,9 @@ owOpenCLSolver::_run_pcisph_predictDensity(owConfigProperty *config) {
       pcisph_predictDensity, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -979,9 +979,9 @@ owOpenCLSolver::_run_pcisph_correctPressure(owConfigProperty *config) {
       pcisph_correctPressure, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1031,9 +1031,9 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(
       pcisph_computePressureForceAcceleration, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1067,9 +1067,9 @@ owOpenCLSolver::_run_clearMembraneBuffers(owConfigProperty *config) {
       clearMembraneBuffers, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1109,9 +1109,9 @@ owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProperty *config) {
       computeInteractionWithMembranes, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1148,9 +1148,9 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(
       computeInteractionWithMembranes_finalize, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1210,9 +1210,9 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount,
       pcisph_integrate, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1274,7 +1274,7 @@ void owOpenCLSolver::create_ocl_buffer(const char *name, cl::Buffer &b,
                                        const cl_mem_flags flags,
                                        const int size) {
   int err;
-  b = cl::Buffer(context, flags, size, NULL, &err);
+  b = cl::Buffer(context, flags, size, nullptr, &err);
   if (err != CL_SUCCESS) {
     std::string error_m = "Buffer creation failed: ";
     error_m.append(name);

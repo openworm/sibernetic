@@ -54,9 +54,9 @@ class owOpenCLSolver {
 public:
   owOpenCLSolver(const float *position_cpp, const float *velocity_cpp,
                  owConfigProperty *config,
-                 const float *elasticConnectionsData_cpp = NULL,
-                 const int *membraneData_cpp = NULL,
-                 const int *particleMembranesList_cpp = NULL);
+                 const float *elasticConnectionsData_cpp = nullptr,
+                 const int *membraneData_cpp = nullptr,
+                 const int *particleMembranesList_cpp = nullptr);
   owOpenCLSolver(void);
   ~owOpenCLSolver(void);
   // Kernels functions definition for neighbor search algorithm
@@ -111,9 +111,9 @@ public:
      // effect)
   void reset(const float *position_cpp, const float *velocity_cpp,
              owConfigProperty *config,
-             const float *elasticConnectionsData_cpp = NULL,
-             const int *membraneData_cpp = NULL,
-             const int *particleMembranesList_cpp = NULL);
+             const float *elasticConnectionsData_cpp = nullptr,
+             const int *membraneData_cpp = nullptr,
+             const int *particleMembranesList_cpp = nullptr);
 
 private:
   void create_ocl_kernel(const char *name, cl::Kernel &k);

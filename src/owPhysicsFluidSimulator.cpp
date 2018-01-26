@@ -64,11 +64,11 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
       elasticConnectionsData_cpp =
           new float[4 * config->numOfElasticP * MAX_NEIGHBOR_COUNT];
     if (config->numOfMembranes <= 0)
-      membraneData_cpp = NULL;
+      membraneData_cpp = nullptr;
     else
       membraneData_cpp = new int[config->numOfMembranes * 3];
     if (config->numOfElasticP <= 0)
-      particleMembranesList_cpp = NULL;
+      particleMembranesList_cpp = nullptr;
     else
       particleMembranesList_cpp =
           new int[config->numOfElasticP *
@@ -132,11 +132,11 @@ void owPhysicsFluidSimulator::reset() {
     elasticConnectionsData_cpp =
         new float[4 * config->numOfElasticP * MAX_NEIGHBOR_COUNT];
   if (config->numOfMembranes <= 0)
-    membraneData_cpp = NULL;
+    membraneData_cpp = nullptr;
   else
     membraneData_cpp = new int[config->numOfMembranes * 3];
   if (config->numOfElasticP <= 0)
-    particleMembranesList_cpp = NULL;
+    particleMembranesList_cpp = nullptr;
   else
     particleMembranesList_cpp =
         new int[config->numOfElasticP * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE];
@@ -176,142 +176,151 @@ void owPhysicsFluidSimulator::reset() {
  *  If it's true than Sibernetic works "load simulation data in file" mode.
  */
 
-int update_muscle_activity_signals_log_file(int iterationCount, float *muscle_activation_signal_cpp, owConfigProperty * config)
-{
-/*	char muscle_log_file_mode [10] = "wt";
+int update_muscle_activity_signals_log_file(int iterationCount,
+                                            float *muscle_activation_signal_cpp,
+                                            owConfigProperty *config) {
+  /*	char muscle_log_file_mode [10] = "wt";
 
-	if(iterationCount > 0 ) sprintf(muscle_log_file_mode,"a+");
+          if(iterationCount > 0 ) sprintf(muscle_log_file_mode,"a+");
 
-	FILE *f_muscle_log = fopen(muscle_log_file_name,muscle_log_file_mode);
+          FILE *f_muscle_log = fopen(muscle_log_file_name,muscle_log_file_mode);
 
-	if(!f_muscle_log) return -1;// Can't open file
+          if(!f_muscle_log) return -1;// Can't open file
 
-	fprintf(f_muscle_log,"%10d\t%e\t",iterationCount,(float)iterationCount*timeStep);
-	
-	for(int i_m=0;i_m<=95;i_m++)
-	{
-		fprintf(f_muscle_log,"%.3f\t",muscle_activation_signal_cpp[i_m]);
-	} 
-	
-	fprintf(f_muscle_log,"\n");
+          fprintf(f_muscle_log,"%10d\t%e\t",iterationCount,(float)iterationCount*timeStep);
 
-	fclose(f_muscle_log);*/
+          for(int i_m=0;i_m<=95;i_m++)
+          {
+                  fprintf(f_muscle_log,"%.3f\t",muscle_activation_signal_cpp[i_m]);
+          }
 
-	//write log file with muscular activity data
-	
-	std::ofstream musclesActivityFile;
-	std::string musclesActivityFileName = config->getLoadPath() + std::string("/muscles_activity_buffer.txt");
+          fprintf(f_muscle_log,"\n");
 
-	if(iterationCount==0){
-		musclesActivityFile.open(musclesActivityFileName.c_str(), std::ofstream::trunc);
-		if(!musclesActivityFile)
-			throw std::runtime_error("There was a problem with creation of muscles activity file for logging. Please check the path.");
-	}else{
-		musclesActivityFile.open(musclesActivityFileName.c_str(), std::ofstream::app);
-		if(!musclesActivityFile)
-			throw std::runtime_error("There was a problem with creation of muscles activity file for logging. Please check the path."); }
+          fclose(f_muscle_log);*/
 
-	musclesActivityFile << std::scientific;
+  // write log file with muscular activity data
 
-	if((muscle_activation_signal_cpp!=NULL))
-	{
-		for(unsigned int i=0;i<config->MUSCLE_COUNT;i++)
-		{
-			if(i==config->MUSCLE_COUNT-1) musclesActivityFile << muscle_activation_signal_cpp[i] << "\n";
-			else						  musclesActivityFile << muscle_activation_signal_cpp[i] << "\t";
-		}
-	}
+  std::ofstream musclesActivityFile;
+  std::string musclesActivityFileName =
+      config->getLoadPath() + std::string("/muscles_activity_buffer.txt");
 
-	musclesActivityFile.close();
-	
+  if (iterationCount == 0) {
+    musclesActivityFile.open(musclesActivityFileName.c_str(),
+                             std::ofstream::trunc);
+    if (!musclesActivityFile)
+      throw std::runtime_error("There was a problem with creation of muscles "
+                               "activity file for logging. Please check the "
+                               "path.");
+  } else {
+    musclesActivityFile.open(musclesActivityFileName.c_str(),
+                             std::ofstream::app);
+    if (!musclesActivityFile)
+      throw std::runtime_error("There was a problem with creation of muscles "
+                               "activity file for logging. Please check the "
+                               "path.");
+  }
 
-	return 0;
+  musclesActivityFile << std::scientific;
+
+  if ((muscle_activation_signal_cpp != nullptr)) {
+    for (unsigned int i = 0; i < config->MUSCLE_COUNT; i++) {
+      if (i == config->MUSCLE_COUNT - 1)
+        musclesActivityFile << muscle_activation_signal_cpp[i] << "\n";
+      else
+        musclesActivityFile << muscle_activation_signal_cpp[i] << "\t";
+    }
+  }
+
+  musclesActivityFile.close();
+
+  return 0;
 }
 
-int update_worm_motion_log_file(int iterationCount, float *ec_cpp /*getElasticConnectionsData_cpp()*/, float *p_cpp /*getPosition_cpp()*/, owConfigProperty * config)
-{
-//	char motion_log_file_mode [10] = "wt";
-	float log_x[200],log_y[200],log_z[200],log_n[200];
-	//float * ec_cpp = getElasticConnectionsData_cpp();
-	//float * p_cpp = getPosition_cpp();
-	int L_index_i,i,ecc=0;//elastic connections counter;
+int update_worm_motion_log_file(
+    int iterationCount, float *ec_cpp /*getElasticConnectionsData_cpp()*/,
+    float *p_cpp /*getPosition_cpp()*/, owConfigProperty *config) {
+  //	char motion_log_file_mode [10] = "wt";
+  float log_x[200], log_y[200], log_z[200], log_n[200];
+  // float * ec_cpp = getElasticConnectionsData_cpp();
+  // float * p_cpp = getPosition_cpp();
+  int L_index_i, i, ecc = 0; // elastic connections counter;
 
-	std::ofstream wormMotionLogFile;
-	std::string wormMotionLogFileName = config->getLoadPath() + std::string("/worm_motion_log.txt");
+  std::ofstream wormMotionLogFile;
+  std::string wormMotionLogFileName =
+      config->getLoadPath() + std::string("/worm_motion_log.txt");
 
-	if(iterationCount==0){
-		wormMotionLogFile.open(wormMotionLogFileName.c_str(), std::ofstream::trunc);
-		if(!wormMotionLogFile)
-			throw std::runtime_error("There was a problem with creation of worm motion log file. Check the path.");
-	}else{
-		wormMotionLogFile.open(wormMotionLogFileName.c_str(), std::ofstream::app);
-		if(!wormMotionLogFile)
-			throw std::runtime_error("There was a problem with creation of worm motion log file. Check the path."); }
+  if (iterationCount == 0) {
+    wormMotionLogFile.open(wormMotionLogFileName.c_str(), std::ofstream::trunc);
+    if (!wormMotionLogFile)
+      throw std::runtime_error("There was a problem with creation of worm "
+                               "motion log file. Check the path.");
+  } else {
+    wormMotionLogFile.open(wormMotionLogFileName.c_str(), std::ofstream::app);
+    if (!wormMotionLogFile)
+      throw std::runtime_error("There was a problem with creation of worm "
+                               "motion log file. Check the path.");
+  }
 
-	for(i=0;i<200;i++)
-	{
-		log_x[i] = log_y[i] = log_z[i] = 0.f;
-		log_n[i] = 0;
-	}
+  for (i = 0; i < 200; i++) {
+    log_x[i] = log_y[i] = log_z[i] = 0.f;
+    log_n[i] = 0;
+  }
 
-	//fprintf(f_motion_log,"%e\tX:\t",(float)iterationCount*timeStep);
-	wormMotionLogFile << std::scientific;
-	wormMotionLogFile << (float)iterationCount*config->getTimeStep() << "\tX:\t";
-	//wormMotionLogFile << (float)iterationCount*timeStep << "\tX:\t";
-	
-		for(i=0;i<config->numOfElasticP;i++)
-		{
-			if((p_cpp[i*4+3] > 2.05f)&&(p_cpp[i*4+3] < 2.25f))
-			{
-				if((p_cpp[i*4+3] > 2.05f)&&(p_cpp[i*4+3] < 2.15f))
-				{
-					L_index_i = (int)((p_cpp[i*4+3]+0.0000003f-2.1000f)*10000.f)+1;//-100;	
-				}
-				else
-				{
-					L_index_i = (int)((p_cpp[i*4+3]+0.0000003f-2.2000f)*10000.f)+1;//-100;
-				}
+  // fprintf(f_motion_log,"%e\tX:\t",(float)iterationCount*timeStep);
+  wormMotionLogFile << std::scientific;
+  wormMotionLogFile << (float)iterationCount * config->getTimeStep()
+                    << "\tX:\t";
+  // wormMotionLogFile << (float)iterationCount*timeStep << "\tX:\t";
 
-				if((L_index_i>=1)&&(L_index_i<200/*100*/))
-				{
-					log_x[L_index_i] += p_cpp[i*4+0];
-					log_y[L_index_i] += p_cpp[i*4+1];
-					log_z[L_index_i] += p_cpp[i*4+2];
-					log_n[L_index_i] ++;
-				}
-			}
-		}
+  for (i = 0; i < config->numOfElasticP; i++) {
+    if ((p_cpp[i * 4 + 3] > 2.05f) && (p_cpp[i * 4 + 3] < 2.25f)) {
+      if ((p_cpp[i * 4 + 3] > 2.05f) && (p_cpp[i * 4 + 3] < 2.15f)) {
+        L_index_i = (int)((p_cpp[i * 4 + 3] + 0.0000003f - 2.1000f) * 10000.f) +
+                    1; //-100;
+      } else {
+        L_index_i = (int)((p_cpp[i * 4 + 3] + 0.0000003f - 2.2000f) * 10000.f) +
+                    1; //-100;
+      }
 
-		for(i=0;i<200;i++)
-		{
-			if(log_n[i]>0) { log_x[i] /= (float)log_n[i]; log_y[i] /= (float)log_n[i]; log_z[i] /= (float)log_n[i]; } 
-		}
+      if ((L_index_i >= 1) && (L_index_i < 200 /*100*/)) {
+        log_x[L_index_i] += p_cpp[i * 4 + 0];
+        log_y[L_index_i] += p_cpp[i * 4 + 1];
+        log_z[L_index_i] += p_cpp[i * 4 + 2];
+        log_n[L_index_i]++;
+      }
+    }
+  }
 
-		for(i=1;i<100;i++)
-		{
-			//fprintf(f_motion_log,"%e\t",log_z[i+50/*2*/]*simulationScale*1000.f);
-			wormMotionLogFile << log_z[i+50/*2*/]*simulationScale*1000.f << "\t";
-		} //fprintf(f_motion_log,"\tY:\t");
-		wormMotionLogFile << "\tY:\t";
+  for (i = 0; i < 200; i++) {
+    if (log_n[i] > 0) {
+      log_x[i] /= (float)log_n[i];
+      log_y[i] /= (float)log_n[i];
+      log_z[i] /= (float)log_n[i];
+    }
+  }
 
-		for(i=1;i<100;i++)
-		{
-			//fprintf(f_motion_log,"%e\t",log_x[i+50/*2*/]*simulationScale*1000.f);
-			wormMotionLogFile << log_x[i+50/*2*/]*simulationScale*1000.f << "\t";
-		} //fprintf(f_motion_log,"\tZ:\t");
-		wormMotionLogFile << "\tZ:\t";
+  for (i = 1; i < 100; i++) {
+    // fprintf(f_motion_log,"%e\t",log_z[i+50/*2*/]*simulationScale*1000.f);
+    wormMotionLogFile << log_z[i + 50 /*2*/] * simulationScale * 1000.f << "\t";
+  } // fprintf(f_motion_log,"\tY:\t");
+  wormMotionLogFile << "\tY:\t";
 
-		for(i=1;i<100;i++)
-		{
-			//fprintf(f_motion_log,"%e\t",log_y[i+50/*2*/]*simulationScale*1000.f);
-			wormMotionLogFile << log_y[i+50/*2*/]*simulationScale*1000.f << "\t";
-		} //fprintf(f_motion_log,"\n");
-		wormMotionLogFile << "\n";
-	
-	//fclose(f_motion_log);
-	wormMotionLogFile.close();
+  for (i = 1; i < 100; i++) {
+    // fprintf(f_motion_log,"%e\t",log_x[i+50/*2*/]*simulationScale*1000.f);
+    wormMotionLogFile << log_x[i + 50 /*2*/] * simulationScale * 1000.f << "\t";
+  } // fprintf(f_motion_log,"\tZ:\t");
+  wormMotionLogFile << "\tZ:\t";
 
-	return 0;
+  for (i = 1; i < 100; i++) {
+    // fprintf(f_motion_log,"%e\t",log_y[i+50/*2*/]*simulationScale*1000.f);
+    wormMotionLogFile << log_y[i + 50 /*2*/] * simulationScale * 1000.f << "\t";
+  } // fprintf(f_motion_log,"\n");
+  wormMotionLogFile << "\n";
+
+  // fclose(f_motion_log);
+  wormMotionLogFile.close();
+
+  return 0;
 }
 
 double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
@@ -328,12 +337,13 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
 
   helper->refreshTime();
   std::cout << "\n[[ Step " << iterationCount << " (total steps: ";
-  if (config->getNumberOfIterations()==0) 
-      std::cout << "unlimited";
-  else 
-      std::cout << config->getNumberOfIterations();
-  std::cout << ", t in sim: " << iterationCount*config->getTimeStep() << "s) ]]\n";
-  
+  if (config->getNumberOfIterations() == 0)
+    std::cout << "unlimited";
+  else
+    std::cout << config->getNumberOfIterations();
+  std::cout << ", t in sim: " << iterationCount * config->getTimeStep()
+            << "s) ]]\n";
+
   // SEARCH FOR NEIGHBOURS PART
   // ocl_solver->_runClearBuffers();
   // helper->watch_report("_runClearBuffers: \t%9.3f ms\n");
@@ -398,11 +408,11 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
     if (iterationCount == 0) {
       owHelper::loadConfigurationToFile(position_cpp, config,
                                         elasticConnectionsData_cpp,
-                                        membraneData_cpp, true );
+                                        membraneData_cpp, true);
     } else {
       if (iterationCount % config->getLogStep() == 0) {
-        owHelper::loadConfigurationToFile(position_cpp, config, NULL, NULL,
-                                          false);
+        owHelper::loadConfigurationToFile(position_cpp, config, nullptr,
+                                          nullptr, false);
       }
     }
   }
@@ -413,37 +423,44 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
                                elasticConnectionsData_cpp, velocity_cpp,
                                membraneData_cpp, muscle_activation_signal_cpp);
     }
- }
-
-
-  config->updateNeuronSimulation(muscle_activation_signal_cpp);
-/* // signal correction switched off
-  float correction_coeff;
-
-  for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
-    correction_coeff = sqrt(
-        1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f) / 12.5f));
-    // printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);
-    //muscle_activation_signal_cpp[i] *= correction_coeff;
-	  muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
-	  muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
-	//if(muscle_activation_signal_cpp[i]<0.25f*0.9f) muscle_activation_signal_cpp[i] = 0.f;
   }
 
-/**/
+  config->updateNeuronSimulation(muscle_activation_signal_cpp);
+  /* // signal correction switched off
+    float correction_coeff;
+
+    for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
+      correction_coeff = sqrt(
+          1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f)
+  / 12.5f));
+      // printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);
+      //muscle_activation_signal_cpp[i] *= correction_coeff;
+            muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
+            muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
+          //if(muscle_activation_signal_cpp[i]<0.25f*0.9f)
+  muscle_activation_signal_cpp[i] = 0.f;
+    }
+
+  /**/
 
   /* //smooth start switched off
-	if(iterationCount<5000) 
-	{
-		for(int i=0;i<config->MUSCLE_COUNT;i++) 
-		{ 
-			muscle_activation_signal_cpp[i] *= (float)iterationCount/5000.f;
-		}
-	}/**/
+        if(iterationCount<5000)
+        {
+                for(int i=0;i<config->MUSCLE_COUNT;i++)
+                {
+                        muscle_activation_signal_cpp[i] *=
+     (float)iterationCount/5000.f;
+                }
+        }/**/
 
   if (iterationCount % config->getLogStep() == 0) {
-	  update_muscle_activity_signals_log_file(iterationCount,muscle_activation_signal_cpp,config);
-	  update_worm_motion_log_file(iterationCount,elasticConnectionsData_cpp,position_cpp,config); // format: time, x_1...x_n, y_1...y_n, z_1...z_n (worm body central line coordinates, from head to tail)
+    update_muscle_activity_signals_log_file(
+        iterationCount, muscle_activation_signal_cpp, config);
+    update_worm_motion_log_file(iterationCount, elasticConnectionsData_cpp,
+                                position_cpp,
+                                config); // format: time, x_1...x_n, y_1...y_n,
+                                         // z_1...z_n (worm body central line
+                                         // coordinates, from head to tail)
   }
 
   ocl_solver->updateMuscleActivityData(muscle_activation_signal_cpp, config);
@@ -460,7 +477,8 @@ void owPhysicsFluidSimulator::makeSnapshot() {
   std::string fileName = config->getSnapshotFileName();
   owHelper::loadConfigurationToFile(
       position_cpp, velocity_cpp, elasticConnectionsData_cpp, membraneData_cpp,
-      particleMembranesList_cpp, fileName.c_str(), config/*, NULL/muscle_activation_signal_cpp*/);
+      particleMembranesList_cpp, fileName.c_str(),
+      config /*, nullptr/muscle_activation_signal_cpp*/);
 }
 
 // Destructor
@@ -475,10 +493,10 @@ void owPhysicsFluidSimulator::destroy() {
   delete[] velocity_cpp;
   delete[] density_cpp;
   delete[] particleIndex_cpp;
-  if (elasticConnectionsData_cpp != NULL)
+  if (elasticConnectionsData_cpp != nullptr)
     delete[] elasticConnectionsData_cpp;
   delete[] muscle_activation_signal_cpp;
-  if (membraneData_cpp != NULL) {
+  if (membraneData_cpp != nullptr) {
     delete[] membraneData_cpp;
     delete[] particleMembranesList_cpp;
   }
