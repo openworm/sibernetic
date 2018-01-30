@@ -216,7 +216,7 @@ zmax
 0 0 0 1
 ...
 [connection] - contains information about elastic connection of all elastic particles e.g.
-1	1.58649939377	1.1	0.0
+1	1.58649939377	1.1	0.0 
 7	1.58649939377	1.1	0.0
 ...
 [membranes] - contains information about membranes e.g.
@@ -230,7 +230,13 @@ zmax
 -1
 ...
 ```
-
+Position and veclocity is represented like 4D vector which contains information about x, y, z of particle in space and information about particle's type (It could be liquid - 1, elastic - 2 and boundary - 3). Each elastic particle has 32 places allocated in connections buffer. Each connection is represented like 4D vector 
+ID of particle to connected to 
+stady-state lenght of connection 
+id of muscle if this connection is a muscle fiber
+and unsused data - need for vectorization.
+Connections buffer stored in memery like 1D vector lenght of each is equal to `NUM_OF_ELASTIC_PARTICLES * 32 * 4`. So for each particular elastic particle you can find information for elastic its connections simply get subbuffer of connection from `INTRESTING_PARTICLE_ID * 32 * 4` to `INTRESTING_PARTICLE_ID * 32 * 4 + 32 * 4`. 
+Each membrain difines by 3 elastic particles and contains 3 IDs of this particles. particleMemIndex - contains IDs of membrain in which each elastic particle is included we suppose that max numbers of membrain for one particle is 7 so particleMemIndex contains `7 * NUM_OF_ELASTIC_PARTICLES`an you can get intresting information from this buffer just get subbuffer from indexes `INTRESTING_PARTICLE_ID * 7` to `INTRESTING_PARTICLE_ID * 7 + 7`.
 
 Saving to disk
 --------------
