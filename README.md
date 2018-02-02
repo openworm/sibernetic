@@ -230,13 +230,13 @@ zmax
 -1
 ...
 ```
-Position and veclocity is represented like 4D vector which contains information about x, y, z of particle in space and information about particle's type (It could be liquid - 1, elastic - 2 and boundary - 3). Each elastic particle has 32 places allocated in connections buffer. Each connection is represented like 4D vector 
+Position and velocity are represented as 4D vectors which contains information about x, y, z of particle in space and information about particle's type (it could be liquid - 1, elastic - 2 or boundary - 3). Each elastic particle has 32 places allocated in connections buffer. Each connection is represented like a 4D vector 
 ID of particle to connected to 
-stady-state lenght of connection 
+stedy-state lenght of connection 
 id of muscle if this connection is a muscle fiber
-and unsused data - need for vectorization.
-Connections buffer stored in memery like 1D vector lenght of each is equal to `NUM_OF_ELASTIC_PARTICLES * 32 * 4`. So for each particular elastic particle you can find information for elastic its connections simply get subbuffer of connection from `INTRESTING_PARTICLE_ID * 32 * 4` to `INTRESTING_PARTICLE_ID * 32 * 4 + 32 * 4`. 
-Each membrain difines by 3 elastic particles and contains 3 IDs of this particles. particleMemIndex - contains IDs of membrain in which each elastic particle is included we suppose that max numbers of membrain for one particle is 7 so particleMemIndex contains `7 * NUM_OF_ELASTIC_PARTICLES`an you can get intresting information from this buffer just get subbuffer from indexes `INTRESTING_PARTICLE_ID * 7` to `INTRESTING_PARTICLE_ID * 7 + 7`.
+and unused data - need for vectorization.
+Connections buffer stored in memory like 1D vector: length of each is equal to `NUM_OF_ELASTIC_PARTICLES * 32 * 4`. So for each particular elastic particle you can find information for elastic its connections simply get sub-buffer of connection from `INTRESTING_PARTICLE_ID * 32 * 4` to `INTRESTING_PARTICLE_ID * 32 * 4 + 32 * 4`. 
+Each membrane is defined by 3 elastic particles and contains 3 IDs of this particles. particleMemIndex - contains IDs of membrane in which each elastic particle is included we suppose that max numbers of membrane for one particle is 7 so particleMemIndex contains `7 * NUM_OF_ELASTIC_PARTICLES` and you can get interesting information from this buffer just get sub-buffer from indexes `INTRESTING_PARTICLE_ID * 7` to `INTRESTING_PARTICLE_ID * 7 + 7`.
 
 Saving to disk
 --------------
