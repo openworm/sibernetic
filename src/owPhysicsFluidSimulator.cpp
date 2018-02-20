@@ -160,22 +160,6 @@ void owPhysicsFluidSimulator::reset() {
     ocl_solver->reset(position_cpp, velocity_cpp,
                       config); // Create new openCLsolver instance
 }
-/** Run one simulation step
- *
- *  Run simulation step in pipeline manner.
- *  It starts with neighbor search algorithm than
- *  physic simulation algorithms: PCI SPH [1],
- *  elastic matter simulation, boundary handling [2],
- *  membranes handling and finally numerical integration.
- *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
- *  [2] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner,
- *      Boundary Handling and Adaptive Time-stepping for PCISPH
- *      Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
- *
- *  @param looad_to
- *  If it's true than Sibernetic works "load simulation data in file" mode.
- */
-
 int update_muscle_activity_signals_log_file(int iterationCount, float *muscle_activation_signal_cpp, owConfigProperty * config)
 {
 /*	char muscle_log_file_mode [10] = "wt";
@@ -314,6 +298,34 @@ int update_worm_motion_log_file(int iterationCount, float *ec_cpp /*getElasticCo
 	return 0;
 }
 
+/** Gen list of particles in shell 
+*/
+void owPhysicsFluidSimulator::genShellPaticlesList(){
+  for(size_t i = 0;i<config->numOfElasticP; ++i){
+    for(size_t j = 0;j < MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; ++j){
+      if(particleMembranesList_cpp[i * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE + j] != -1){
+        shellIndexes.push_back(i);
+        break;
+      }
+    }
+  }
+}
+
+/** Run one simulation step
+ *
+ *  Run simulation step in pipeline manner.
+ *  It starts with neighbor search algorithm than
+ *  physic simulation algorithms: PCI SPH [1],
+ *  elastic matter simulation, boundary handling [2],
+ *  membranes handling and finally numerical integration.
+ *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
+ *  [2] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner,
+ *      Boundary Handling and Adaptive Time-stepping for PCISPH
+ *      Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
+ *
+ *  @param looad_to
+ *  If it's true than Sibernetic works "load simulation data in file" mode.
+ */
 double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   int iter = 0; // PCISPH prediction-correction iterations counter
   //
