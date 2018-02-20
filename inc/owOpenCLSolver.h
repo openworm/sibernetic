@@ -109,6 +109,9 @@ public:
                                 2);
   }; // This need only for visualization current density of particle (graphic
      // effect)
+  void read_pressure_buffer(float * pressure_host, owConfigProperty * config){
+    copy_buffer_from_device(pressure_host, pressure, (config->getParticleCount() * sizeof(float) * 1));
+  }
   void reset(const float *position_cpp, const float *velocity_cpp,
              owConfigProperty *config,
              const float *elasticConnectionsData_cpp = nullptr,
