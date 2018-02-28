@@ -377,7 +377,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
     ocl_solver->_run_pcisph_correctPressure(config);
     ocl_solver->_run_pcisph_computePressureForceAcceleration(config);
     iter++;
-  } while (iter < maxIteration);
+  } while (iter < config->getConst("maxIteration"));
 
   // and finally calculate v(t+dt)
   if (config->getIntegrationMethod() == LEAPFROG) {

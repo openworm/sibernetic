@@ -36,18 +36,23 @@
 #ifndef OWCONFIGURATION_H_
 #define OWCONFIGURATION_H_
 
+#include "owNeuronSimulator.h"
+#include "owOpenCLConstant.h"
+#include "owPhysicsConstant.h"
+#include "owSignalSimulator.h"
 #include <algorithm>
 #include <ctime>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#include "owNeuronSimulator.h"
-#include "owOpenCLConstant.h"
-#include "owPhysicsConstant.h"
-#include "owSignalSimulator.h"
+class param_error : public std::runtime_error {
+public:
+  param_error(const std::string &err_msg) : std::runtime_error(err_msg) {}
+};
 
 struct owConfigProperty {
   // This value defines boundary of box in which simulation is
@@ -61,6 +66,11 @@ public:
     PARTICLE_COUNT = value;
     PARTICLE_COUNT_RoundedUp =
         (((PARTICLE_COUNT - 1) / local_NDRange_size) + 1) * local_NDRange_size;
+  }
+  float getConst(const std::string &name) throw(param_error) {
+    if (constMap.find(name) == constMap.end())
+      throw param_error(std::string("No param with name...") + name);
+    return constMap[name];
   }
   void setDeviceType(DEVICE type) { prefDeviceType = type; }
   const int getParticleCount_RoundUp() { return PARTICLE_COUNT_RoundedUp; }
@@ -183,8 +193,9 @@ private:
     float v_z = 0.f;
     float dist;
     float particleRadius =
-        pow(mass / rho0, 1.f / 3.f); // It's equal to simulationScale
-                                     // TODO: replace it with simulation scale
+        pow(constMap["mass"] / constMap["rho0"],
+            1.f / 3.f); // It's equal to simulationScale
+                        // TODO: replace it with simulation scale
     float h_r_2;
 
     for (int i = 0; i < MAX_NEIGHBOR_COUNT; i++) {
@@ -197,8 +208,9 @@ private:
 
       dist = sqrt(v_x * v_x + v_y * v_y + v_z * v_z); // scaled, right?
 
-      if (dist <= h * simulationScale) {
-        h_r_2 = pow((h * simulationScale - dist), 2); // scaled
+      if (dist <= constMap["h"] * constMap["simulationScale"]) {
+        h_r_2 = pow((constMap["h"] * constMap["simulationScale"] - dist),
+                    2); // scaled
 
         sum1_x += h_r_2 * v_x / dist;
         sum1_y += h_r_2 * v_y / dist;
@@ -208,13 +220,13 @@ private:
       }
     }
     sum1 = sum1_x * sum1_x + sum1_y * sum1_y + sum1_z * sum1_z;
-    double result = 1.0 / (beta * gradWspikyCoefficient *
+    double result = 1.0 / (constMap["beta"] * gradWspikyCoefficient *
                            gradWspikyCoefficient * (sum1 + sum2));
     // return  1.0f / (beta * gradWspikyCoefficient * gradWspikyCoefficient *
     // (sum1 + sum2));
     delta = (float)result;
   }
-
+  void fillConstMap();
   int PARTICLE_COUNT;
   int PARTICLE_COUNT_RoundedUp;
   int totalNumberOfIterations;
@@ -235,6 +247,7 @@ private:
   bool nrnSimRun; // indicates if we also run NEURON simulation
   bool c302;      // indicates if we also run NEURON simulation
   std::string nrnSimulationFileName;
+  std::map<std::string, float> constMap;
 };
 
 #endif /* OWCONFIGURATION_H_ */

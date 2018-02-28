@@ -488,7 +488,7 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProperty *config) {
   hashParticles.setArg(1, config->gridCellsX);
   hashParticles.setArg(2, config->gridCellsY);
   hashParticles.setArg(3, config->gridCellsZ);
-  hashParticles.setArg(4, hashGridCellSizeInv);
+  hashParticles.setArg(4, config->getConst("hashGridCellSizeInv"));
   hashParticles.setArg(5, config->xmin);
   hashParticles.setArg(6, config->ymin);
   hashParticles.setArg(7, config->zmin);
@@ -676,10 +676,10 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProperty *config) {
   findNeighbors.setArg(3, config->gridCellsX);
   findNeighbors.setArg(4, config->gridCellsY);
   findNeighbors.setArg(5, config->gridCellsZ);
-  findNeighbors.setArg(6, h);
-  findNeighbors.setArg(7, hashGridCellSize);
-  findNeighbors.setArg(8, hashGridCellSizeInv);
-  findNeighbors.setArg(9, simulationScale);
+  findNeighbors.setArg(6, config->getConst("h"));
+  findNeighbors.setArg(7, config->getConst("hashGridCellSize"));
+  findNeighbors.setArg(8, config->getConst("hashGridCellSizeInv"));
+  findNeighbors.setArg(9, config->getConst("simulationScale"));
   findNeighbors.setArg(10, config->xmin);
   findNeighbors.setArg(11, config->ymin);
   findNeighbors.setArg(12, config->zmin);
@@ -723,8 +723,9 @@ unsigned int
 owOpenCLSolver::_run_pcisph_computeDensity(owConfigProperty *config) {
   // Stage ComputeDensityPressure
   pcisph_computeDensity.setArg(0, neighborMap);
-  pcisph_computeDensity.setArg(1, mass_mult_Wpoly6Coefficient);
-  pcisph_computeDensity.setArg(2, _hScaled2);
+  pcisph_computeDensity.setArg(1,
+                               config->getConst("mass_mult_Wpoly6Coefficient"));
+  pcisph_computeDensity.setArg(2, config->getConst("_hScaled2"));
   pcisph_computeDensity.setArg(3, rho);
   pcisph_computeDensity.setArg(4, particleIndexBack);
   pcisph_computeDensity.setArg(5, config->getParticleCount());
@@ -771,18 +772,19 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(
   pcisph_computeForcesAndInitPressure.setArg(4, sortedVelocity);
   pcisph_computeForcesAndInitPressure.setArg(5, acceleration);
   pcisph_computeForcesAndInitPressure.setArg(6, particleIndexBack);
-  pcisph_computeForcesAndInitPressure.setArg(7, surfTensCoeff);
+  pcisph_computeForcesAndInitPressure.setArg(7,
+                                             config->getConst("surfTensCoeff"));
   pcisph_computeForcesAndInitPressure.setArg(
-      8, mass_mult_divgradWviscosityCoefficient);
-  pcisph_computeForcesAndInitPressure.setArg(9, _hScaled);
-  pcisph_computeForcesAndInitPressure.setArg(10, viscosity);
-  pcisph_computeForcesAndInitPressure.setArg(11, gravity_x);
-  pcisph_computeForcesAndInitPressure.setArg(12, gravity_y);
-  pcisph_computeForcesAndInitPressure.setArg(13, gravity_z);
+      8, config->getConst("mass_mult_divgradWviscosityCoefficient"));
+  pcisph_computeForcesAndInitPressure.setArg(9, config->getConst("_hScaled"));
+  pcisph_computeForcesAndInitPressure.setArg(10, config->getConst("viscosity"));
+  pcisph_computeForcesAndInitPressure.setArg(11, config->getConst("gravity_x"));
+  pcisph_computeForcesAndInitPressure.setArg(12, config->getConst("gravity_y"));
+  pcisph_computeForcesAndInitPressure.setArg(13, config->getConst("gravity_z"));
   pcisph_computeForcesAndInitPressure.setArg(14, position);
   pcisph_computeForcesAndInitPressure.setArg(15, particleIndex);
   pcisph_computeForcesAndInitPressure.setArg(16, config->getParticleCount());
-  pcisph_computeForcesAndInitPressure.setArg(17, mass);
+  pcisph_computeForcesAndInitPressure.setArg(17, config->getConst("mass"));
   int err = queue.enqueueNDRangeKernel(
       pcisph_computeForcesAndInitPressure, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
@@ -826,16 +828,17 @@ owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProperty *config) {
   pcisph_computeElasticForces.setArg(3, acceleration);
   pcisph_computeElasticForces.setArg(4, particleIndexBack);
   pcisph_computeElasticForces.setArg(5, particleIndex);
-  pcisph_computeElasticForces.setArg(6, max_muscle_force);
-  pcisph_computeElasticForces.setArg(7, mass);
-  pcisph_computeElasticForces.setArg(8, simulationScale);
+  pcisph_computeElasticForces.setArg(6, config->getConst("max_muscle_force"));
+  pcisph_computeElasticForces.setArg(7, config->getConst("mass"));
+  pcisph_computeElasticForces.setArg(8, config->getConst("simulationScale"));
   pcisph_computeElasticForces.setArg(9, config->numOfElasticP);
   pcisph_computeElasticForces.setArg(10, elasticConnectionsData);
   pcisph_computeElasticForces.setArg(11, config->getParticleCount());
   pcisph_computeElasticForces.setArg(12, config->MUSCLE_COUNT);
   pcisph_computeElasticForces.setArg(13, muscle_activation_signal);
   pcisph_computeElasticForces.setArg(14, position);
-  pcisph_computeElasticForces.setArg(15, elasticityCoefficient);
+  pcisph_computeElasticForces.setArg(15,
+                                     config->getConst("elasticityCoefficient"));
   int numOfElasticPCountRoundedUp =
       (((config->numOfElasticP - 1) / local_NDRange_size) + 1) *
       local_NDRange_size;
@@ -881,14 +884,14 @@ owOpenCLSolver::_run_pcisph_predictPositions(owConfigProperty *config) {
   pcisph_predictPositions.setArg(2, sortedVelocity);
   pcisph_predictPositions.setArg(3, particleIndex);
   pcisph_predictPositions.setArg(4, particleIndexBack);
-  pcisph_predictPositions.setArg(5, gravity_x);
-  pcisph_predictPositions.setArg(6, gravity_y);
-  pcisph_predictPositions.setArg(7, gravity_z);
-  pcisph_predictPositions.setArg(8, simulationScaleInv);
+  pcisph_predictPositions.setArg(5, config->getConst("gravity_x"));
+  pcisph_predictPositions.setArg(6, config->getConst("gravity_y"));
+  pcisph_predictPositions.setArg(7, config->getConst("gravity_z"));
+  pcisph_predictPositions.setArg(8, config->getConst("simulationScaleInv"));
   pcisph_predictPositions.setArg(9, config->getTimeStep());
   pcisph_predictPositions.setArg(10, position);
   pcisph_predictPositions.setArg(11, velocity);
-  pcisph_predictPositions.setArg(12, r0);
+  pcisph_predictPositions.setArg(12, config->getConst("r0"));
   pcisph_predictPositions.setArg(13, neighborMap);
   pcisph_predictPositions.setArg(14, config->getParticleCount());
   int err = queue.enqueueNDRangeKernel(
@@ -927,10 +930,11 @@ owOpenCLSolver::_run_pcisph_predictDensity(owConfigProperty *config) {
   // Stage ComputeDensityPressure
   pcisph_predictDensity.setArg(0, neighborMap);
   pcisph_predictDensity.setArg(1, particleIndexBack);
-  pcisph_predictDensity.setArg(2, mass_mult_Wpoly6Coefficient);
-  pcisph_predictDensity.setArg(3, h);
-  pcisph_predictDensity.setArg(4, rho0);
-  pcisph_predictDensity.setArg(5, simulationScale);
+  pcisph_predictDensity.setArg(2,
+                               config->getConst("mass_mult_Wpoly6Coefficient"));
+  pcisph_predictDensity.setArg(3, config->getConst("h"));
+  pcisph_predictDensity.setArg(4, config->getConst("rho0"));
+  pcisph_predictDensity.setArg(5, config->getConst("simulationScale"));
   pcisph_predictDensity.setArg(6, sortedPosition);
   pcisph_predictDensity.setArg(7, pressure);
   pcisph_predictDensity.setArg(8, rho);
@@ -970,7 +974,7 @@ unsigned int
 owOpenCLSolver::_run_pcisph_correctPressure(owConfigProperty *config) {
   // Stage ComputeDensityPressure
   pcisph_correctPressure.setArg(0, particleIndexBack);
-  pcisph_correctPressure.setArg(1, rho0);
+  pcisph_correctPressure.setArg(1, config->getConst("rho0"));
   pcisph_correctPressure.setArg(2, pressure);
   pcisph_correctPressure.setArg(3, rho);
   pcisph_correctPressure.setArg(4, config->getDelta());
@@ -1017,12 +1021,14 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(
   pcisph_computePressureForceAcceleration.setArg(5, particleIndexBack);
   pcisph_computePressureForceAcceleration.setArg(6, config->getDelta());
   pcisph_computePressureForceAcceleration.setArg(
-      7, mass_mult_gradWspikyCoefficient);
-  pcisph_computePressureForceAcceleration.setArg(8, h);
-  pcisph_computePressureForceAcceleration.setArg(9, simulationScale);
-  pcisph_computePressureForceAcceleration.setArg(10, viscosity);
+      7, config->getConst("mass_mult_gradWspikyCoefficient"));
+  pcisph_computePressureForceAcceleration.setArg(8, config->getConst("h"));
+  pcisph_computePressureForceAcceleration.setArg(
+      9, config->getConst("simulationScale"));
+  pcisph_computePressureForceAcceleration.setArg(10,
+                                                 config->getConst("viscosity"));
   pcisph_computePressureForceAcceleration.setArg(11, acceleration);
-  pcisph_computePressureForceAcceleration.setArg(12, rho0);
+  pcisph_computePressureForceAcceleration.setArg(12, config->getConst("rho0"));
   pcisph_computePressureForceAcceleration.setArg(13, position);
   pcisph_computePressureForceAcceleration.setArg(14, particleIndex);
   pcisph_computePressureForceAcceleration.setArg(15,
@@ -1104,7 +1110,7 @@ owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProperty *config) {
   computeInteractionWithMembranes.setArg(7, membraneData);
   computeInteractionWithMembranes.setArg(8, config->getParticleCount());
   computeInteractionWithMembranes.setArg(9, config->numOfElasticP);
-  computeInteractionWithMembranes.setArg(10, r0);
+  computeInteractionWithMembranes.setArg(10, config->getConst("r0"));
   int err = queue.enqueueNDRangeKernel(
       computeInteractionWithMembranes, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
@@ -1187,10 +1193,10 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount,
   pcisph_integrate.setArg(2, sortedVelocity);
   pcisph_integrate.setArg(3, particleIndex);
   pcisph_integrate.setArg(4, particleIndexBack);
-  pcisph_integrate.setArg(5, gravity_x);
-  pcisph_integrate.setArg(6, gravity_y);
-  pcisph_integrate.setArg(7, gravity_z);
-  pcisph_integrate.setArg(8, simulationScaleInv);
+  pcisph_integrate.setArg(5, config->getConst("gravity_x"));
+  pcisph_integrate.setArg(6, config->getConst("gravity_y"));
+  pcisph_integrate.setArg(7, config->getConst("gravity_z"));
+  pcisph_integrate.setArg(8, config->getConst("simulationScaleInv"));
   pcisph_integrate.setArg(9, config->getTimeStep());
   pcisph_integrate.setArg(10, config->xmin);
   pcisph_integrate.setArg(11, config->xmax);
@@ -1201,7 +1207,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount,
   pcisph_integrate.setArg(16, position);
   pcisph_integrate.setArg(17, velocity);
   pcisph_integrate.setArg(18, rho);
-  pcisph_integrate.setArg(19, r0);
+  pcisph_integrate.setArg(19, config->getConst("r0"));
   pcisph_integrate.setArg(20, neighborMap);
   pcisph_integrate.setArg(21, config->getParticleCount());
   pcisph_integrate.setArg(22, iterationCount);

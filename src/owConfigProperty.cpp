@@ -67,7 +67,8 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
       this->timeStep = (this->timeStep > 0) ? this->timeStep : ::timeStep;
       // also we shoisSimulationRun = true;uld recalculate beta if time_step is
       // different from default value of timeStep in owPhysicsConstant
-      beta = this->timeStep * this->timeStep * mass * mass * 2 / (rho0 * rho0);
+      beta = this->timeStep * this->timeStep * constMap["mass"] *
+             constMap["mass"] * 2 / (constMap["rho0"] * constMap["rho0"]);
     }
     if (strTemp.find("timelimit=") == 0) {
       timeLim = ::atof(strTemp.substr(strTemp.find('=') + 1).c_str());
@@ -124,6 +125,7 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
       c302 = true;
     }
   }
+  fillConstMap();
   totalNumberOfIterations = timeLim / this->timeStep; // if it equals to 0 it
                                                       // means that simulation
                                                       // will work infinitely
@@ -147,4 +149,49 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
           new owNeuronSimulator(1, this->timeStep, nrnSimulationFileName);
     }
   }
+}
+void owConfigProperty::fillConstMap() {
+  constMap["mass"] = mass;
+  constMap["h"] = h;
+  constMap["rho0"] = rho0;
+  constMap["timeStep"] = timeStep;
+  constMap["simulationScale"] = simulationScale;
+  constMap["hashGridCellSize"] = hashGridCellSize;
+  constMap["r0"] = r0;
+  constMap["viscosity"] = viscosity;
+  constMap["beta"] = beta;
+  constMap["gravity_x"] = gravity_x;
+  constMap["gravity_y"] = gravity_y;
+  constMap["gravity_z"] = gravity_z;
+  constMap["maxIteration"] = maxIteration;
+  constMap["mass_mult_Wpoly6Coefficient"] = mass_mult_Wpoly6Coefficient;
+  constMap["mass_mult_gradWspikyCoefficient"] = mass_mult_gradWspikyCoefficient;
+  constMap["mass_mult_divgradWviscosityCoefficient"] =
+      mass_mult_divgradWviscosityCoefficient;
+  constMap["hashGridCellSizeInv"] = hashGridCellSizeInv;
+  constMap["simulationScaleInv"] = simulationScaleInv;
+  constMap["_hScaled"] = _hScaled;
+  constMap["_hScaled2"] = _hScaled2;
+  constMap["simulationScaleInv"] = simulationScaleInv;
+  constMap["surfTensCoeff"] = surfTensCoeff;
+  constMap["elasticityCoefficient"] = elasticityCoefficient;
+  constMap["max_muscle_force"] = max_muscle_force;
+  /*
+  const double Wpoly6Coefficient =
+    315.0 / (64.0 * M_PI *
+             pow((double)(h * simulationScale),
+                 9.0)); // Wpoly6Coefficient for kernel Wpoly6 [1]
+                        // [1] Solenthaler (Dissertation) page 17 eq. (2.20)
+
+const double gradWspikyCoefficient =
+    -45.0 /
+    (M_PI * pow((double)(h * simulationScale),
+                6.0)); // gradWspikyCoefficient for kernel gradWspiky [1]
+                       // [1] Solenthaler (Dissertation) page 18 eq. (2.21)
+
+const double divgradWviscosityCoefficient =
+    -gradWspikyCoefficient; // divgradWviscosityCoefficient for kernel Viscous
+                            // [1] [1] Solenthaler (Dissertation) page 18 eq.
+                            // (2.22)
+  */
 }
