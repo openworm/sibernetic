@@ -10,7 +10,8 @@
             "args": [
                 "-j",
                 "4",
-                "all"
+                "-f",
+                "makefile.OSX"
             ],
             "group": {
                 "kind": "build",

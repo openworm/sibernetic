@@ -160,43 +160,28 @@ void owPhysicsFluidSimulator::reset() {
     ocl_solver->reset(position_cpp, velocity_cpp,
                       config); // Create new openCLsolver instance
 }
-/** Run one simulation step
- *
- *  Run simulation step in pipeline manner.
- *  It starts with neighbor search algorithm than
- *  physic simulation algorithms: PCI SPH [1],
- *  elastic matter simulation, boundary handling [2],
- *  membranes handling and finally numerical integration.
- *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
- *  [2] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner,
- *      Boundary Handling and Adaptive Time-stepping for PCISPH
- *      Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
- *
- *  @param looad_to
- *  If it's true than Sibernetic works "load simulation data in file" mode.
- */
-
 int update_muscle_activity_signals_log_file(int iterationCount,
                                             float *muscle_activation_signal_cpp,
                                             owConfigProperty *config) {
   /*	char muscle_log_file_mode [10] = "wt";
 
-          if(iterationCount > 0 ) sprintf(muscle_log_file_mode,"a+");
+            if(iterationCount > 0 ) sprintf(muscle_log_file_mode,"a+");
 
-          FILE *f_muscle_log = fopen(muscle_log_file_name,muscle_log_file_mode);
+            FILE *f_muscle_log =
+     fopen(muscle_log_file_name,muscle_log_file_mode);
 
-          if(!f_muscle_log) return -1;// Can't open file
+            if(!f_muscle_log) return -1;// Can't open file
 
-          fprintf(f_muscle_log,"%10d\t%e\t",iterationCount,(float)iterationCount*timeStep);
+            fprintf(f_muscle_log,"%10d\t%e\t",iterationCount,(float)iterationCount*timeStep);
 
-          for(int i_m=0;i_m<=95;i_m++)
-          {
-                  fprintf(f_muscle_log,"%.3f\t",muscle_activation_signal_cpp[i_m]);
-          }
+            for(int i_m=0;i_m<=95;i_m++)
+            {
+                    fprintf(f_muscle_log,"%.3f\t",muscle_activation_signal_cpp[i_m]);
+            }
 
-          fprintf(f_muscle_log,"\n");
+            fprintf(f_muscle_log,"\n");
 
-          fclose(f_muscle_log);*/
+            fclose(f_muscle_log);*/
 
   // write log file with muscular activity data
 
@@ -323,6 +308,35 @@ int update_worm_motion_log_file(
   return 0;
 }
 
+/** Gen list of particles in shell
+*/
+void owPhysicsFluidSimulator::genShellPaticlesList() {
+  for (size_t i = 0; i < config->numOfElasticP; ++i) {
+    for (size_t j = 0; j < MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; ++j) {
+      if (particleMembranesList_cpp[i * MAX_MEMBRANES_INCLUDING_SAME_PARTICLE +
+                                    j] != -1) {
+        shellIndexes.push_back(i);
+        break;
+      }
+    }
+  }
+}
+
+/** Run one simulation step
+ *
+ *  Run simulation step in pipeline manner.
+ *  It starts with neighbor search algorithm than
+ *  physic simulation algorithms: PCI SPH [1],
+ *  elastic matter simulation, boundary handling [2],
+ *  membranes handling and finally numerical integration.
+ *  [1] http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
+ *  [2] M. Ihmsen, N. Akinci, M. Gissler, M. Teschner,
+ *      Boundary Handling and Adaptive Time-stepping for PCISPH
+ *      Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010
+ *
+ *  @param looad_to
+ *  If it's true than Sibernetic works "load simulation data in file" mode.
+ */
 double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   int iter = 0; // PCISPH prediction-correction iterations counter
   //
