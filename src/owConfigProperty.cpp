@@ -125,6 +125,7 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
       c302 = true;
     }
   }
+  owHelper::preLoadConfiguration(this);
   fillConstMap();
   totalNumberOfIterations = timeLim / this->timeStep; // if it equals to 0 it
                                                       // means that simulation

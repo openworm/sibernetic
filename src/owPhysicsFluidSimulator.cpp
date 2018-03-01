@@ -55,7 +55,6 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
     iterationCount = 0;
     config = new owConfigProperty(argc, argv);
     // LOAD FROM FILE
-    owHelper::preLoadConfiguration(config);
     config->initGridCells();
     position_cpp = new float[4 * config->getParticleCount()];
     velocity_cpp = new float[4 * config->getParticleCount()];
@@ -123,7 +122,6 @@ void owPhysicsFluidSimulator::reset() {
   config->numOfLiquidP = 0;
   config->numOfMembranes = 0;
   // LOAD FROM FILE
-  owHelper::preLoadConfiguration(config);
   config->initGridCells();
   position_cpp = new float[4 * config->getParticleCount()];
   velocity_cpp = new float[4 * config->getParticleCount()];
@@ -309,7 +307,7 @@ int update_worm_motion_log_file(
 }
 
 /** Gen list of particles in shell
-*/
+ */
 void owPhysicsFluidSimulator::genShellPaticlesList() {
   for (size_t i = 0; i < config->numOfElasticP; ++i) {
     for (size_t j = 0; j < MAX_MEMBRANES_INCLUDING_SAME_PARTICLE; ++j) {

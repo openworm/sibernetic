@@ -115,7 +115,8 @@ private:
     VELOCITY,
     CONNECTION,
     MEMBRANE,
-    PMEMINDEX
+    PMEMINDEX,
+    PHYS_CONST_READ_MODE
   };
   double elapsedTime;
 #if defined(_WIN32) || defined(_WIN64)

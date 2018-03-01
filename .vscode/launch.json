@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/Release/Sibernetic",
             "args": [
                 "-f",
-                "configuration/demo1_test"
+                "configuration/demo1"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

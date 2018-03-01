@@ -1,11 +1,29 @@
 [physical parameters]
-rho0: 1000.0 // [kg/m^3] - density of liquid (water) within the simulation
-mass: 0.54e-13 //  half  resolution Mass for one particle (kg).
-timeStep: 5.0e-06 // s simulation time step
-simScale: 0.00000246 // 0.0037f * pow(mass, 1.f / 3.f) /pow(0.00025f, 1.f / 3.f);
-viscosity: 0.00005 // liquid viscosity value 
-e_coeff: 3.00e-05 // elastic coefficient
-max_muscle_force: 300.0 // muscle force
+rho0: 1000
+mass: 5.4e-14
+timeStep: 5e-06
+simulationScale: 2.46e-06
+h: 3.34
+hashGridCellSize: 6.68
+r0: 1.67
+viscosity: 5e-05
+beta: 1.45735e-43
+Wpoly6Coefficient: 9.1801e+45
+gradWspikyCoefficient: -4.65558e+31
+divgradWviscosityCoefficient: 4.65558e+31
+gravity_x: 0
+gravity_y: -9.8
+gravity_z: 0
+maxIteration: 3
+mass_mult_Wpoly6Coefficient: 4.95726e+32
+mass_mult_gradWspikyCoefficient: -2.51401e+18
+mass_mult_divgradWviscosityCoefficient: 2.51401e+18
+hashGridCellSizeInv: 0.149701
+simulationScaleInv: 406504
+_hScaled: 8.2164e-06
+_hScaled2: 6.75092e-11
+surfTensCoeff: 1.21948e+27
+elasticityCoefficient: 5.55556e+08
 [simulation box]
 0
 88.844

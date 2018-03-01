@@ -11,7 +11,7 @@
                 "-j",
                 "4",
                 "-f",
-                "makefile.OSX"
+                "makefile"
             ],
             "group": {
                 "kind": "build",

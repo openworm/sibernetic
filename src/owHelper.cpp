@@ -32,6 +32,7 @@
  *******************************************************************************/
 
 #include <algorithm>
+#include <regex>
 #include <sstream>
 #include <stdio.h>
 #include <string>
@@ -74,6 +75,19 @@ void owHelper::refreshTime() {
   t1 = mach_absolute_time();
   t0 = t1;
 #endif
+}
+
+/** Read physical parametr ftrom string
+ *
+ */
+std::pair<std::string, float> readPhysParam(std::string s) {
+  std::regex pattern("^\\s*(\\w+)\\s*:\\s*(\\d+(\\.\\d*([eE]?[+-]?\\d+)?)?)"
+                     "\\s*(//.*)?$");
+  std::smatch matches;
+  if (std::regex_search(s, matches, pattern)) {
+    return std::make_pair(matches[1].str(), std::stof(matches[2].str()));
+  }
+  return std::make_pair("", float());
 }
 
 int read_position = 0;
@@ -126,20 +140,27 @@ void owHelper::preLoadConfiguration(owConfigProperty *config) {
   size_t pos;
   LOADMODE mode = NOMODE;
   if (configFile.is_open()) {
-    configFile >> config->xmin;
-    configFile >> config->xmax;
-    configFile >> config->ymin;
-    configFile >> config->ymax;
-    configFile >> config->zmin;
-    configFile >> config->zmax;
-    read_position = configFile.tellg();
     while (configFile.good()) {
-      // configFile >> inputStr;
       std::getline(configFile, inputStr);
       inputStr.erase(std::remove(inputStr.begin(), inputStr.end(), '\r'),
                      inputStr.end());
       inputStr.erase(std::remove(inputStr.begin(), inputStr.end(), '\n'),
                      inputStr.end());
+      if (inputStr.compare("[simulation box]") == 0) {
+        configFile >> config->xmin;
+        configFile >> config->xmax;
+        configFile >> config->ymin;
+        configFile >> config->ymax;
+        configFile >> config->zmin;
+        configFile >> config->zmax;
+        read_position = configFile.tellg();
+        mode = NOMODE;
+        continue;
+      }
+      if (inputStr.compare("[physical parameters]") == 0) {
+        mode = PHYS_CONST_READ_MODE;
+        continue;
+      }
       if (inputStr == "[position]") {
         mode = POSITION;
         continue;
@@ -179,6 +200,13 @@ void owHelper::preLoadConfiguration(owConfigProperty *config) {
       }
       case MEMBRANE: {
         config->numOfMembranes++;
+        break;
+      }
+      case PHYS_CONST_READ_MODE: {
+        auto p = readPhysParam(inputStr);
+        if (p.first.compare("")) {
+          config->setConst(p);
+        }
         break;
       }
       default:
@@ -459,6 +487,8 @@ void owHelper::loadConfigurationToFile(float *position, float *velocity,
   if (!configFile)
     throw std::runtime_error("There was a problem with creation of file for "
                              "saving configuration. Check the path.");
+  confiFile << "[simulation box]"
+            << "\n";
   configFile << config->xmin << "\n";
   configFile << config->xmax << "\n";
   configFile << config->ymin << "\n";

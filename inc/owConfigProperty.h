@@ -72,6 +72,9 @@ public:
       throw param_error(std::string("No param with name...") + name);
     return constMap[name];
   }
+  void setConst(std::pair<std::string, float> new_const) {
+    constMap.insert(new_const);
+  }
   void setDeviceType(DEVICE type) { prefDeviceType = type; }
   const int getParticleCount_RoundUp() { return PARTICLE_COUNT_RoundedUp; }
   const int getDeviceType() const { return prefDeviceType; };
