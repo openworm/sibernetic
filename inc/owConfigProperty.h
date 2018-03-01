@@ -179,7 +179,7 @@ private:
    * PCISPH method" [1]. [1]
    * http://www.ifi.uzh.ch/vmml/publications/pcisph/pcisph.pdf
    */
-  inline void calcDelta() {
+  inline void calcDelta(double gradWspikyCoefficient) {
 
     float x[] = {1, 1, 0, -1, -1, -1, 0, 1, 1, 1,  0, -1, -1, -1, 0, 1,
                  1, 1, 0, -1, -1, -1, 0, 1, 2, -2, 0, 0,  0,  0,  0, 0};

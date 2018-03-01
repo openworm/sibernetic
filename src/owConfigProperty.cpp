@@ -32,6 +32,7 @@
  *******************************************************************************/
 #include "owConfigProperty.h"
 #include "owHelper.h"
+#include <stdio.h>
 
 owConfigProperty::owConfigProperty(int argc, char **argv)
     : numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0),
@@ -130,7 +131,6 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
   totalNumberOfIterations = timeLim / this->timeStep; // if it equals to 0 it
                                                       // means that simulation
                                                       // will work infinitely
-  calcDelta();
   if (isWormConfig() ||
       nrnSimRun) { // in case if we run worm configuration TODO make it optional
 
@@ -151,48 +151,131 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
     }
   }
 }
+void showAllConst(std::map<std::string, float> &consts);
 void owConfigProperty::fillConstMap() {
-  constMap["mass"] = mass;
-  constMap["h"] = h;
-  constMap["rho0"] = rho0;
-  constMap["timeStep"] = timeStep;
-  constMap["simulationScale"] = simulationScale;
-  constMap["hashGridCellSize"] = hashGridCellSize;
-  constMap["r0"] = r0;
-  constMap["viscosity"] = viscosity;
-  constMap["beta"] = beta;
-  constMap["gravity_x"] = gravity_x;
-  constMap["gravity_y"] = gravity_y;
-  constMap["gravity_z"] = gravity_z;
-  constMap["maxIteration"] = maxIteration;
-  constMap["mass_mult_Wpoly6Coefficient"] = mass_mult_Wpoly6Coefficient;
-  constMap["mass_mult_gradWspikyCoefficient"] = mass_mult_gradWspikyCoefficient;
+  if (constMap.find("mass") == constMap.end())
+    constMap["mass"] = mass;
+
+  if (constMap.find("h") == constMap.end())
+    constMap["h"] = h;
+
+  if (constMap.find("rho0") == constMap.end())
+    constMap["rho0"] = rho0;
+
+  if (constMap.find("timeStep") == constMap.end())
+    constMap["timeStep"] = timeStep;
+  else
+    timeStep = constMap["timeStep"];
+
+  if (constMap.find("simulationScale") == constMap.end())
+    constMap["simulationScale"] = simulationScale;
+
+  if (constMap.find("hashGridCellSize") == constMap.end())
+    constMap["hashGridCellSize"] = 2.0f * constMap["h"];
+
+  if (constMap.find("r0") == constMap.end())
+    constMap["r0"] = constMap["h"] * 0.5f;
+
+  if (constMap.find("viscosity") == constMap.end())
+    constMap["viscosity"] = viscosity;
+
+  if (constMap.find("beta") == constMap.end())
+    constMap["beta"] = beta;
+
+  if (constMap.find("gravity_x") == constMap.end())
+    constMap["gravity_x"] = gravity_x;
+
+  if (constMap.find("gravity_y") == constMap.end())
+    constMap["gravity_y"] = gravity_y;
+
+  if (constMap.find("gravity_z") == constMap.end())
+    constMap["gravity_z"] = gravity_z;
+
+  if (constMap.find("maxIteration") == constMap.end())
+    constMap["maxIteration"] = maxIteration;
+
+  if (constMap.find("hashGridCellSizeInv") == constMap.end())
+    constMap["hashGridCellSizeInv"] = 1.0f / constMap["hashGridCellSize"];
+
+  if (constMap.find("simulationScaleInv") == constMap.end())
+    constMap["simulationScaleInv"] = 1.0f / constMap["simulationScale"];
+
+  if (constMap.find("_hScaled") == constMap.end())
+    constMap["_hScaled"] = constMap["h"] * constMap["simulationScale"];
+
+  if (constMap.find("_hScaled2") == constMap.end())
+    constMap["_hScaled2"] = constMap["_hScaled"] * constMap["_hScaled"];
+
+  if (constMap.find("simulationScaleInv") == constMap.end())
+    constMap["simulationScaleInv"] = 1.0f / constMap["simulationScale"];
+
+  if (constMap.find("surfTensCoeff") == constMap.end())
+    constMap["surfTensCoeff"] = surfTensCoeff;
+
+  if (constMap.find("elasticityCoefficient") == constMap.end())
+    constMap["elasticityCoefficient"] = elasticityCoefficient;
+
+  if (constMap.find("max_muscle_force") == constMap.end())
+    constMap["max_muscle_force"] = max_muscle_force;
+
+  double Wpoly6Coefficient =
+      315.0 / (64.0 * M_PI *
+               pow((double)(constMap["h"] * constMap["simulationScale"]),
+                   9.0)); // Wpoly6Coefficient for kernel Wpoly6 [1]
+                          // [1] Solenthaler (Dissertation) page 17 eq. (2.20)
+
+  double gradWspikyCoefficient =
+      -45.0 /
+      (M_PI * pow((double)(constMap["h"] * constMap["simulationScale"]),
+                  6.0)); // gradWspikyCoefficient for kernel gradWspiky [1]
+                         // [1] Solenthaler (Dissertation) page 18 eq. (2.21)
+
+  double divgradWviscosityCoefficient = -gradWspikyCoefficient;
+
+  constMap["mass_mult_Wpoly6Coefficient"] =
+      (float)((double)constMap["mass"] * Wpoly6Coefficient);
+
+  constMap["mass_mult_gradWspikyCoefficient"] =
+      (float)((double)constMap["mass"] * gradWspikyCoefficient);
+
   constMap["mass_mult_divgradWviscosityCoefficient"] =
-      mass_mult_divgradWviscosityCoefficient;
-  constMap["hashGridCellSizeInv"] = hashGridCellSizeInv;
-  constMap["simulationScaleInv"] = simulationScaleInv;
-  constMap["_hScaled"] = _hScaled;
-  constMap["_hScaled2"] = _hScaled2;
-  constMap["simulationScaleInv"] = simulationScaleInv;
-  constMap["surfTensCoeff"] = surfTensCoeff;
-  constMap["elasticityCoefficient"] = elasticityCoefficient;
-  constMap["max_muscle_force"] = max_muscle_force;
-  /*
-  const double Wpoly6Coefficient =
-    315.0 / (64.0 * M_PI *
-             pow((double)(h * simulationScale),
-                 9.0)); // Wpoly6Coefficient for kernel Wpoly6 [1]
-                        // [1] Solenthaler (Dissertation) page 17 eq. (2.20)
+      (float)((double)constMap["mass"] * divgradWviscosityCoefficient);
 
-const double gradWspikyCoefficient =
-    -45.0 /
-    (M_PI * pow((double)(h * simulationScale),
-                6.0)); // gradWspikyCoefficient for kernel gradWspiky [1]
-                       // [1] Solenthaler (Dissertation) page 18 eq. (2.21)
+  constMap["beta"] = this->timeStep * this->timeStep * constMap["mass"] *
+                     constMap["mass"] * 2 /
+                     (constMap["rho0"] * constMap["rho0"]);
+  calcDelta(gradWspikyCoefficient);
+  // showAllConst(constMap);
+  // exit(0);
+}
 
-const double divgradWviscosityCoefficient =
-    -gradWspikyCoefficient; // divgradWviscosityCoefficient for kernel Viscous
-                            // [1] [1] Solenthaler (Dissertation) page 18 eq.
-                            // (2.22)
-  */
+void showAllConst(std::map<std::string, float> &consts) {
+  std::cout << "rho0: " << consts["rho0"] << std::endl;
+  std::cout << "mass: " << consts["mass"] << std::endl;
+  std::cout << "timeStep: " << consts["timeStep"] << std::endl;
+  std::cout << "simulationScale: " << consts["simulationScale"] << std::endl;
+  std::cout << "h: " << consts["h"] << std::endl;
+  std::cout << "hashGridCellSize: " << consts["hashGridCellSize"] << std::endl;
+  std::cout << "r0: " << consts["r0"] << std::endl;
+  std::cout << "viscosity: " << consts["viscosity"] << std::endl;
+  std::cout << "beta: " << consts["beta"] << std::endl;
+  std::cout << "gravity_x: " << consts["gravity_x"] << std::endl;
+  std::cout << "gravity_y: " << consts["gravity_y"] << std::endl;
+  std::cout << "gravity_z: " << consts["gravity_z"] << std::endl;
+  std::cout << "maxIteration: " << consts["maxIteration"] << std::endl;
+  std::cout << "mass_mult_Wpoly6Coefficient: "
+            << consts["mass_mult_Wpoly6Coefficient"] << std::endl;
+  std::cout << "mass_mult_gradWspikyCoefficient: "
+            << consts["mass_mult_gradWspikyCoefficient"] << std::endl;
+  std::cout << "mass_mult_divgradWviscosityCoefficient: "
+            << consts["mass_mult_divgradWviscosityCoefficient"] << std::endl;
+  std::cout << "hashGridCellSizeInv: " << consts["hashGridCellSizeInv"]
+            << std::endl;
+  std::cout << "simulationScaleInv: " << consts["simulationScaleInv"]
+            << std::endl;
+  std::cout << "_hScaled: " << consts["_hScaled"] << std::endl;
+  std::cout << "_hScaled2: " << consts["_hScaled2"] << std::endl;
+  std::cout << "surfTensCoeff: " << consts["surfTensCoeff"] << std::endl;
+  std::cout << "elasticityCoefficient: " << consts["elasticityCoefficient"]
+            << std::endl;
 }

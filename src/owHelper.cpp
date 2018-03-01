@@ -487,8 +487,8 @@ void owHelper::loadConfigurationToFile(float *position, float *velocity,
   if (!configFile)
     throw std::runtime_error("There was a problem with creation of file for "
                              "saving configuration. Check the path.");
-  confiFile << "[simulation box]"
-            << "\n";
+  configFile << "[simulation box]"
+             << "\n";
   configFile << config->xmin << "\n";
   configFile << config->xmax << "\n";
   configFile << config->ymin << "\n";
