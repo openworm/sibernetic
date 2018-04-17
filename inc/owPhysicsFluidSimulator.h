@@ -127,6 +127,7 @@ private:
 	int   * particleMembranesList_cpp;
 	//Muscle contraction data buffer
 	float * muscle_activation_signal_cpp;
+	std::vector<size_t> shellIndexes;
 	//Helper arrays for displaying information about density changes
 	float * density_cpp;
 	unsigned int * particleIndex_cpp;
@@ -134,6 +135,7 @@ private:
 	owHelper * helper;
 	int iterationCount;
 	void destroy();
+	void genShellPaticlesList();
 };
 
 #endif //OW_PHYSICS_SIMULATOR_H
