@@ -58,6 +58,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
     config->initGridCells();
     position_cpp = new float[4 * config->getParticleCount()];
     velocity_cpp = new float[4 * config->getParticleCount()];
+    pressure_cpp = new float[1 * config->getParticleCount()];
     muscle_activation_signal_cpp = new float[config->MUSCLE_COUNT];
     if (config->numOfElasticP != 0)
       elasticConnectionsData_cpp =
@@ -95,6 +96,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
       ocl_solver =
           new owOpenCLSolver(position_cpp, velocity_cpp,
                              config); // Create new openCLsolver instance
+    this->genShellPaticlesList();
   } catch (std::runtime_error &ex) {
     /* Clearing all allocated buffers and created object only not ocl_solver
      * case it wont be created yet only if exception is throwing from its
@@ -125,6 +127,7 @@ void owPhysicsFluidSimulator::reset() {
   config->initGridCells();
   position_cpp = new float[4 * config->getParticleCount()];
   velocity_cpp = new float[4 * config->getParticleCount()];
+  pressure_cpp = new float[1 * config->getParticleCount()];
   muscle_activation_signal_cpp = new float[config->MUSCLE_COUNT];
   if (config->numOfElasticP != 0)
     elasticConnectionsData_cpp =
@@ -157,6 +160,7 @@ void owPhysicsFluidSimulator::reset() {
   } else
     ocl_solver->reset(position_cpp, velocity_cpp,
                       config); // Create new openCLsolver instance
+  this->genShellPaticlesList();
 }
 int update_muscle_activity_signals_log_file(int iterationCount,
                                             float *muscle_activation_signal_cpp,
@@ -410,6 +414,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   }
   // END
   ocl_solver->read_position_buffer(position_cpp, config);
+  ocl_solver->read_pressure_buffer(pressure_cpp, config);
   helper->watch_report("_readBuffer: \t\t%9.3f ms\n");
 
   // END PCISPH algorithm
@@ -418,13 +423,16 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   printf("------------------------------------\n");
   if (load_to) {
     if (iterationCount == 0) {
+      
       owHelper::loadConfigurationToFile(position_cpp, config,
                                         elasticConnectionsData_cpp,
                                         membraneData_cpp, true);
+      owHelper::loadPressureToFile(pressure_cpp, shellIndexes, position_cpp, iterationCount, config);
     } else {
       if (iterationCount % config->getLogStep() == 0) {
         owHelper::loadConfigurationToFile(position_cpp, config, nullptr,
                                           nullptr, false);
+        owHelper::loadPressureToFile(pressure_cpp, shellIndexes, position_cpp, iterationCount, config);
       }
     }
   }

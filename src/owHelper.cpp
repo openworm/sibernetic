@@ -448,7 +448,7 @@ void owHelper::loadConfigurationToFile(float *position,
                                "connection data file for logging. Check the "
                                "path.");
     int con_num = MAX_NEIGHBOR_COUNT * config->numOfElasticP;
-    for (int i = 0; i < con_num; i++)
+    for (int i = 0; i < con_num; ++i)
       connectionFile << connections[4 * i + 0] << "\t" << connections[4 * i + 1]
                      << "\t" << connections[4 * i + 2] << "\t"
                      << connections[4 * i + 3] << "\n";
@@ -465,6 +465,39 @@ void owHelper::loadConfigurationToFile(float *position,
                     << "\t" << membranes[3 * i + 2] << "\n";
     membranesFile.close();
   }
+}
+
+void owHelper::loadPressureToFile(float *pressure_buffer,
+                                  std::vector<size_t> & shell_particles,
+                                  float *position_buffer,
+                                  int iteration, owConfigProperty * config)
+{
+  std::ofstream pressureFile;
+  std::string pressureFileName =
+      config->getLoadPath() + std::string("/pressure_buffer.txt");
+  if (!iteration) {
+    pressureFile.open(pressureFileName.c_str(), std::ofstream::trunc);
+    if (!pressureFile)
+      throw std::runtime_error("There was a problem with creation of position "
+                               "file for logging check the path.");
+  } else {
+    pressureFile.open(pressureFileName.c_str(), std::ofstream::app);
+    if (!pressureFile)
+      throw std::runtime_error("There was a problem with creation of position "
+                               "file for logging Check the path.");
+  }
+  pressureFile << "[Iteration " << iteration << "]\n";
+  for (int i = 0; i < shell_particles.size(); ++i) {
+    int id = shell_particles[i];
+    pressureFile << "Particle:\t" << id << "\n";
+    pressureFile << "\tPosition:\t";
+    pressureFile << position_buffer[id * 4 + 0] << "\t"
+                 << position_buffer[id * 4 + 1] << "\t"
+                 << position_buffer[id * 4 + 2] << "\t"
+                 << position_buffer[id * 4 + 3] << "\n";
+    pressureFile << "\tPressure:\t" << pressure_buffer[id] << "\n";
+  }
+  pressureFile.close();
 }
 /** Load configuration from simulation to files
  *

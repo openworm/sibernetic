@@ -82,6 +82,9 @@ public:
                                         float *&connections, int *&membranes,
                                         int *&particleMemIndex,
                                         owConfigProperty *config);
+  static void
+  loadPressureToFile(float *pressure_buffer, std::vector<size_t> &shell_particles,
+                     float *position_buffer, int iteration, owConfigProperty *config);
   void watch_report(const char *str);
   double getElapsedTime() { return elapsedTime; };
   void refreshTime();
