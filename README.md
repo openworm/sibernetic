@@ -199,8 +199,18 @@ than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 Configuration file format
 ---------------
 The configuration file consists of:
+First block is an optional if you didn't indicate this block then sibernetic will init consts by default value which you can find in [owPhyowPhysicsConstant.h ](./inc/owPhyowPhysicsConstant.h).
 ```
-First 6 lines is a spatial description of boundary box
+[physical parameters]
+mass: 5.4e-14
+timeStep: 5.0e-06
+simulationScale: 2.46e-06
+viscosity: 5.0e-05
+surfTensCoeff: 1.21948e+27
+elasticityCoefficient: 5.55556e+08
+```
+Next 6 lines is a spatial description of boundary box
+```
 xmin
 xmax
 ymin
@@ -256,6 +266,7 @@ This create 3 new files in the folder ./buffers:
 - connection_buffers.txt - stores information about connection among the elastic particles
 - membranes_buffer.txt   - stores information about membranes
 - position_buffer.txt    - stores information about current position of all of the non boundary particles it save information to this file every 10 steps of simulation. You should remember that the more info you
+- pressure_buffer.txt    - stores information oabout pressure for all shell particles.
 want to store than bigger output file is.
 
 For view result you should run simulation with:
