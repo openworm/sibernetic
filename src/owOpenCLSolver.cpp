@@ -132,20 +132,20 @@ void owOpenCLSolver::reset(const float *position_cpp, const float *velocity_cpp,
                     particleMembranesList_cpp);
 }
 /** Initialization of data buffers on OpenCL device
-*  @param position_cpp
-*  initial position buffer
-*  @param velocity_cpp
-*  initial velocity buffer
-*  @param config
-*  Contain information about simulating configuration
-*  @param elasticConnectionData_cpp
-*  buffer with info about elastic connections
-*  @param membraneData_cpp
-*  buffer with info about membranes
-*  @param particleMembranesList_cpp
-*  buffer with info about sets of membranes in which particular particle is
-* including
-*/
+ *  @param position_cpp
+ *  initial position buffer
+ *  @param velocity_cpp
+ *  initial velocity buffer
+ *  @param config
+ *  Contain information about simulating configuration
+ *  @param elasticConnectionData_cpp
+ *  buffer with info about elastic connections
+ *  @param membraneData_cpp
+ *  buffer with info about membranes
+ *  @param particleMembranesList_cpp
+ *  buffer with info about sets of membranes in which particular particle is
+ * including
+ */
 void owOpenCLSolver::initializeBuffers(const float *position_cpp,
                                        const float *velocity_cpp,
                                        owConfigProperty *config,
@@ -189,7 +189,7 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
   create_ocl_buffer("muscle_activation_signal", muscle_activation_signal,
                     CL_MEM_READ_WRITE, (config->MUSCLE_COUNT * sizeof(float)));
 
-  if (membraneData_cpp != NULL && particleMembranesList_cpp != NULL) {
+  if (membraneData_cpp != nullptr && particleMembranesList_cpp != nullptr) {
     create_ocl_buffer("membraneData", membraneData, CL_MEM_READ_WRITE,
                       (config->numOfMembranes * sizeof(int) * 3));
     create_ocl_buffer("particleMembranesList", particleMembranesList,
@@ -197,7 +197,7 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
                       config->numOfElasticP *
                           MAX_MEMBRANES_INCLUDING_SAME_PARTICLE * sizeof(int));
   }
-  if (elasticConnectionsData_cpp != NULL) {
+  if (elasticConnectionsData_cpp != nullptr) {
     create_ocl_buffer(
         "elasticConnectionsData", elasticConnectionsData, CL_MEM_READ_WRITE,
         config->numOfElasticP * MAX_NEIGHBOR_COUNT * sizeof(float) * 4);
@@ -209,7 +209,7 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
   copy_buffer_to_device(velocity_cpp, velocity,
                         config->getParticleCount() * sizeof(float) * 4);
   // Copy membrane data to device memory elastic connections
-  if (membraneData_cpp != NULL && particleMembranesList_cpp != NULL) {
+  if (membraneData_cpp != nullptr && particleMembranesList_cpp != nullptr) {
     copy_buffer_to_device(membraneData_cpp, membraneData,
                           config->numOfMembranes * sizeof(int) * 3);
     copy_buffer_to_device(particleMembranesList_cpp, particleMembranesList,
@@ -218,7 +218,7 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
                               sizeof(int));
   }
   // Copy elastic connectiondate to device memory elastic connections
-  if (elasticConnectionsData_cpp != NULL) {
+  if (elasticConnectionsData_cpp != nullptr) {
     copy_buffer_to_device(elasticConnectionsData_cpp, elasticConnectionsData,
                           config->numOfElasticP * MAX_NEIGHBOR_COUNT *
                               sizeof(float) * 4);
@@ -249,7 +249,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   for (int i = 0; i < (int)n_pl; i++) {
     // Get OpenCL platform name and version
     ciErrNum = clGetPlatformInfo(cl_pl_id[i], CL_PLATFORM_VERSION,
-                                 sz = sizeof(cBuffer), cBuffer, NULL);
+                                 sz = sizeof(cBuffer), cBuffer, nullptr);
     if (ciErrNum == CL_SUCCESS) {
       printf(" CL_PLATFORM_VERSION [%d]: \t%s\n", i, cBuffer);
     } else {
@@ -282,10 +282,10 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
       // if(findDevice)
       //	break;
       clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
-                     device_type[config->getDeviceType()], 0, NULL,
+                     device_type[config->getDeviceType()], 0, nullptr,
                      &ciDeviceCount);
       if ((devices_t = static_cast<cl_device_id *>(
-               malloc(sizeof(cl_device_id) * ciDeviceCount))) == NULL)
+               malloc(sizeof(cl_device_id) * ciDeviceCount))) == nullptr)
         bPassed = false;
       if (bPassed) {
         result = clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
@@ -294,11 +294,11 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
         if (result == CL_SUCCESS) {
           for (cl_uint i = 0; i < ciDeviceCount; ++i) {
             clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type,
-                            NULL);
+                            nullptr);
             if (type & device_type[config->getDeviceType()]) {
               clGetDeviceInfo(devices_t[i], CL_DEVICE_MAX_COMPUTE_UNITS,
                               sizeof(device_coumpute_unit_num),
-                              &device_coumpute_unit_num, NULL);
+                              &device_coumpute_unit_num, nullptr);
               if (device_coumpute_unit_num_current <=
                   device_coumpute_unit_num) {
                 plList = clSelectedPlatformID;
@@ -333,8 +333,8 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   }
   cl_context_properties cprops[3] = {
       CL_CONTEXT_PLATFORM, (cl_context_properties)(platformList[plList])(), 0};
-  context = cl::Context(device_type[config->getDeviceType()], cprops, NULL,
-                        NULL, &err);
+  context = cl::Context(device_type[config->getDeviceType()], cprops, nullptr,
+                        nullptr, &err);
   devices = context.getInfo<CL_CONTEXT_DEVICES>();
   if (devices.size() < 1) {
     throw std::runtime_error("No OpenCL devices were found");
@@ -457,9 +457,9 @@ unsigned int owOpenCLSolver::_runClearBuffers(owConfigProperty *config) {
       clearBuffers, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -488,7 +488,7 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProperty *config) {
   hashParticles.setArg(1, config->gridCellsX);
   hashParticles.setArg(2, config->gridCellsY);
   hashParticles.setArg(3, config->gridCellsZ);
-  hashParticles.setArg(4, hashGridCellSizeInv);
+  hashParticles.setArg(4, config->getConst("hashGridCellSizeInv"));
   hashParticles.setArg(5, config->xmin);
   hashParticles.setArg(6, config->ymin);
   hashParticles.setArg(7, config->zmin);
@@ -498,9 +498,9 @@ unsigned int owOpenCLSolver::_runHashParticles(owConfigProperty *config) {
       hashParticles, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -536,9 +536,9 @@ unsigned int owOpenCLSolver::_runIndexx(owConfigProperty *config) {
       indexx, cl::NullRange,
       cl::NDRange((int)(/**/ gridCellCountRoundedUp /**/)),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -642,9 +642,9 @@ unsigned int owOpenCLSolver::_runSortPostPass(owConfigProperty *config) {
       sortPostPass, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -676,10 +676,10 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProperty *config) {
   findNeighbors.setArg(3, config->gridCellsX);
   findNeighbors.setArg(4, config->gridCellsY);
   findNeighbors.setArg(5, config->gridCellsZ);
-  findNeighbors.setArg(6, h);
-  findNeighbors.setArg(7, hashGridCellSize);
-  findNeighbors.setArg(8, hashGridCellSizeInv);
-  findNeighbors.setArg(9, simulationScale);
+  findNeighbors.setArg(6, config->getConst("h"));
+  findNeighbors.setArg(7, config->getConst("hashGridCellSize"));
+  findNeighbors.setArg(8, config->getConst("hashGridCellSizeInv"));
+  findNeighbors.setArg(9, config->getConst("simulationScale"));
   findNeighbors.setArg(10, config->xmin);
   findNeighbors.setArg(11, config->ymin);
   findNeighbors.setArg(12, config->zmin);
@@ -689,15 +689,15 @@ unsigned int owOpenCLSolver::_runFindNeighbors(owConfigProperty *config) {
       findNeighbors, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL); /*
-      local_work_size can also be a NULL
+      cl::NullRange, nullptr, nullptr); /*
+      local_work_size can also be a nullptr
       value in which case the OpenCL implementation will
       determine how to be break the global work-items
       into appropriate work-group instances.
       http://www.khronos.org/registry/cl/specs/opencl-1.0.43.pdf, page 109
       */
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -723,8 +723,9 @@ unsigned int
 owOpenCLSolver::_run_pcisph_computeDensity(owConfigProperty *config) {
   // Stage ComputeDensityPressure
   pcisph_computeDensity.setArg(0, neighborMap);
-  pcisph_computeDensity.setArg(1, mass_mult_Wpoly6Coefficient);
-  pcisph_computeDensity.setArg(2, _hScaled2);
+  pcisph_computeDensity.setArg(1,
+                               config->getConst("mass_mult_Wpoly6Coefficient"));
+  pcisph_computeDensity.setArg(2, config->getConst("_hScaled2"));
   pcisph_computeDensity.setArg(3, rho);
   pcisph_computeDensity.setArg(4, particleIndexBack);
   pcisph_computeDensity.setArg(5, config->getParticleCount());
@@ -732,9 +733,9 @@ owOpenCLSolver::_run_pcisph_computeDensity(owConfigProperty *config) {
       pcisph_computeDensity, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -771,25 +772,26 @@ unsigned int owOpenCLSolver::_run_pcisph_computeForcesAndInitPressure(
   pcisph_computeForcesAndInitPressure.setArg(4, sortedVelocity);
   pcisph_computeForcesAndInitPressure.setArg(5, acceleration);
   pcisph_computeForcesAndInitPressure.setArg(6, particleIndexBack);
-  pcisph_computeForcesAndInitPressure.setArg(7, surfTensCoeff);
+  pcisph_computeForcesAndInitPressure.setArg(7,
+                                             config->getConst("surfTensCoeff"));
   pcisph_computeForcesAndInitPressure.setArg(
-      8, mass_mult_divgradWviscosityCoefficient);
-  pcisph_computeForcesAndInitPressure.setArg(9, _hScaled);
-  pcisph_computeForcesAndInitPressure.setArg(10, viscosity);
-  pcisph_computeForcesAndInitPressure.setArg(11, gravity_x);
-  pcisph_computeForcesAndInitPressure.setArg(12, gravity_y);
-  pcisph_computeForcesAndInitPressure.setArg(13, gravity_z);
+      8, config->getConst("mass_mult_divgradWviscosityCoefficient"));
+  pcisph_computeForcesAndInitPressure.setArg(9, config->getConst("_hScaled"));
+  pcisph_computeForcesAndInitPressure.setArg(10, config->getConst("viscosity"));
+  pcisph_computeForcesAndInitPressure.setArg(11, config->getConst("gravity_x"));
+  pcisph_computeForcesAndInitPressure.setArg(12, config->getConst("gravity_y"));
+  pcisph_computeForcesAndInitPressure.setArg(13, config->getConst("gravity_z"));
   pcisph_computeForcesAndInitPressure.setArg(14, position);
   pcisph_computeForcesAndInitPressure.setArg(15, particleIndex);
   pcisph_computeForcesAndInitPressure.setArg(16, config->getParticleCount());
-  pcisph_computeForcesAndInitPressure.setArg(17, mass);
+  pcisph_computeForcesAndInitPressure.setArg(17, config->getConst("mass"));
   int err = queue.enqueueNDRangeKernel(
       pcisph_computeForcesAndInitPressure, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -826,16 +828,17 @@ owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProperty *config) {
   pcisph_computeElasticForces.setArg(3, acceleration);
   pcisph_computeElasticForces.setArg(4, particleIndexBack);
   pcisph_computeElasticForces.setArg(5, particleIndex);
-  pcisph_computeElasticForces.setArg(6, max_muscle_force);
-  pcisph_computeElasticForces.setArg(7, mass);
-  pcisph_computeElasticForces.setArg(8, simulationScale);
+  pcisph_computeElasticForces.setArg(6, config->getConst("max_muscle_force"));
+  pcisph_computeElasticForces.setArg(7, config->getConst("mass"));
+  pcisph_computeElasticForces.setArg(8, config->getConst("simulationScale"));
   pcisph_computeElasticForces.setArg(9, config->numOfElasticP);
   pcisph_computeElasticForces.setArg(10, elasticConnectionsData);
   pcisph_computeElasticForces.setArg(11, config->getParticleCount());
   pcisph_computeElasticForces.setArg(12, config->MUSCLE_COUNT);
   pcisph_computeElasticForces.setArg(13, muscle_activation_signal);
   pcisph_computeElasticForces.setArg(14, position);
-  pcisph_computeElasticForces.setArg(15, elasticityCoefficient);
+  pcisph_computeElasticForces.setArg(15,
+                                     config->getConst("elasticityCoefficient"));
   int numOfElasticPCountRoundedUp =
       (((config->numOfElasticP - 1) / local_NDRange_size) + 1) *
       local_NDRange_size;
@@ -843,10 +846,10 @@ owOpenCLSolver::_run_pcisph_computeElasticForces(owConfigProperty *config) {
       queue.enqueueNDRangeKernel(pcisph_computeElasticForces, cl::NullRange,
                                  cl::NDRange(numOfElasticPCountRoundedUp),
 #if defined(__APPLE__)
-                                 cl::NullRange, NULL, NULL);
+                                 cl::NullRange, nullptr, nullptr);
 #else
-                                 cl::NDRange((int)(local_NDRange_size)), NULL,
-                                 NULL);
+                                 cl::NDRange((int)(local_NDRange_size)),
+                                 nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -881,23 +884,23 @@ owOpenCLSolver::_run_pcisph_predictPositions(owConfigProperty *config) {
   pcisph_predictPositions.setArg(2, sortedVelocity);
   pcisph_predictPositions.setArg(3, particleIndex);
   pcisph_predictPositions.setArg(4, particleIndexBack);
-  pcisph_predictPositions.setArg(5, gravity_x);
-  pcisph_predictPositions.setArg(6, gravity_y);
-  pcisph_predictPositions.setArg(7, gravity_z);
-  pcisph_predictPositions.setArg(8, simulationScaleInv);
+  pcisph_predictPositions.setArg(5, config->getConst("gravity_x"));
+  pcisph_predictPositions.setArg(6, config->getConst("gravity_y"));
+  pcisph_predictPositions.setArg(7, config->getConst("gravity_z"));
+  pcisph_predictPositions.setArg(8, config->getConst("simulationScaleInv"));
   pcisph_predictPositions.setArg(9, config->getTimeStep());
   pcisph_predictPositions.setArg(10, position);
   pcisph_predictPositions.setArg(11, velocity);
-  pcisph_predictPositions.setArg(12, r0);
+  pcisph_predictPositions.setArg(12, config->getConst("r0"));
   pcisph_predictPositions.setArg(13, neighborMap);
   pcisph_predictPositions.setArg(14, config->getParticleCount());
   int err = queue.enqueueNDRangeKernel(
       pcisph_predictPositions, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -927,10 +930,11 @@ owOpenCLSolver::_run_pcisph_predictDensity(owConfigProperty *config) {
   // Stage ComputeDensityPressure
   pcisph_predictDensity.setArg(0, neighborMap);
   pcisph_predictDensity.setArg(1, particleIndexBack);
-  pcisph_predictDensity.setArg(2, mass_mult_Wpoly6Coefficient);
-  pcisph_predictDensity.setArg(3, h);
-  pcisph_predictDensity.setArg(4, rho0);
-  pcisph_predictDensity.setArg(5, simulationScale);
+  pcisph_predictDensity.setArg(2,
+                               config->getConst("mass_mult_Wpoly6Coefficient"));
+  pcisph_predictDensity.setArg(3, config->getConst("h"));
+  pcisph_predictDensity.setArg(4, config->getConst("rho0"));
+  pcisph_predictDensity.setArg(5, config->getConst("simulationScale"));
   pcisph_predictDensity.setArg(6, sortedPosition);
   pcisph_predictDensity.setArg(7, pressure);
   pcisph_predictDensity.setArg(8, rho);
@@ -939,9 +943,9 @@ owOpenCLSolver::_run_pcisph_predictDensity(owConfigProperty *config) {
       pcisph_predictDensity, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -970,7 +974,7 @@ unsigned int
 owOpenCLSolver::_run_pcisph_correctPressure(owConfigProperty *config) {
   // Stage ComputeDensityPressure
   pcisph_correctPressure.setArg(0, particleIndexBack);
-  pcisph_correctPressure.setArg(1, rho0);
+  pcisph_correctPressure.setArg(1, config->getConst("rho0"));
   pcisph_correctPressure.setArg(2, pressure);
   pcisph_correctPressure.setArg(3, rho);
   pcisph_correctPressure.setArg(4, config->getDelta());
@@ -979,9 +983,9 @@ owOpenCLSolver::_run_pcisph_correctPressure(owConfigProperty *config) {
       pcisph_correctPressure, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1017,12 +1021,14 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(
   pcisph_computePressureForceAcceleration.setArg(5, particleIndexBack);
   pcisph_computePressureForceAcceleration.setArg(6, config->getDelta());
   pcisph_computePressureForceAcceleration.setArg(
-      7, mass_mult_gradWspikyCoefficient);
-  pcisph_computePressureForceAcceleration.setArg(8, h);
-  pcisph_computePressureForceAcceleration.setArg(9, simulationScale);
-  pcisph_computePressureForceAcceleration.setArg(10, viscosity);
+      7, config->getConst("mass_mult_gradWspikyCoefficient"));
+  pcisph_computePressureForceAcceleration.setArg(8, config->getConst("h"));
+  pcisph_computePressureForceAcceleration.setArg(
+      9, config->getConst("simulationScale"));
+  pcisph_computePressureForceAcceleration.setArg(10,
+                                                 config->getConst("viscosity"));
   pcisph_computePressureForceAcceleration.setArg(11, acceleration);
-  pcisph_computePressureForceAcceleration.setArg(12, rho0);
+  pcisph_computePressureForceAcceleration.setArg(12, config->getConst("rho0"));
   pcisph_computePressureForceAcceleration.setArg(13, position);
   pcisph_computePressureForceAcceleration.setArg(14, particleIndex);
   pcisph_computePressureForceAcceleration.setArg(15,
@@ -1031,9 +1037,9 @@ unsigned int owOpenCLSolver::_run_pcisph_computePressureForceAcceleration(
       pcisph_computePressureForceAcceleration, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1067,9 +1073,9 @@ owOpenCLSolver::_run_clearMembraneBuffers(owConfigProperty *config) {
       clearMembraneBuffers, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1104,14 +1110,14 @@ owOpenCLSolver::_run_computeInteractionWithMembranes(owConfigProperty *config) {
   computeInteractionWithMembranes.setArg(7, membraneData);
   computeInteractionWithMembranes.setArg(8, config->getParticleCount());
   computeInteractionWithMembranes.setArg(9, config->numOfElasticP);
-  computeInteractionWithMembranes.setArg(10, r0);
+  computeInteractionWithMembranes.setArg(10, config->getConst("r0"));
   int err = queue.enqueueNDRangeKernel(
       computeInteractionWithMembranes, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1148,9 +1154,9 @@ unsigned int owOpenCLSolver::_run_computeInteractionWithMembranes_finalize(
       computeInteractionWithMembranes_finalize, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1187,10 +1193,10 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount,
   pcisph_integrate.setArg(2, sortedVelocity);
   pcisph_integrate.setArg(3, particleIndex);
   pcisph_integrate.setArg(4, particleIndexBack);
-  pcisph_integrate.setArg(5, gravity_x);
-  pcisph_integrate.setArg(6, gravity_y);
-  pcisph_integrate.setArg(7, gravity_z);
-  pcisph_integrate.setArg(8, simulationScaleInv);
+  pcisph_integrate.setArg(5, config->getConst("gravity_x"));
+  pcisph_integrate.setArg(6, config->getConst("gravity_y"));
+  pcisph_integrate.setArg(7, config->getConst("gravity_z"));
+  pcisph_integrate.setArg(8, config->getConst("simulationScaleInv"));
   pcisph_integrate.setArg(9, config->getTimeStep());
   pcisph_integrate.setArg(10, config->xmin);
   pcisph_integrate.setArg(11, config->xmax);
@@ -1201,7 +1207,7 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount,
   pcisph_integrate.setArg(16, position);
   pcisph_integrate.setArg(17, velocity);
   pcisph_integrate.setArg(18, rho);
-  pcisph_integrate.setArg(19, r0);
+  pcisph_integrate.setArg(19, config->getConst("r0"));
   pcisph_integrate.setArg(20, neighborMap);
   pcisph_integrate.setArg(21, config->getParticleCount());
   pcisph_integrate.setArg(22, iterationCount);
@@ -1210,9 +1216,9 @@ unsigned int owOpenCLSolver::_run_pcisph_integrate(int iterationCount,
       pcisph_integrate, cl::NullRange,
       cl::NDRange((int)(config->getParticleCount_RoundUp())),
 #if defined(__APPLE__)
-      cl::NullRange, NULL, NULL);
+      cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), NULL, NULL);
+      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
@@ -1274,7 +1280,7 @@ void owOpenCLSolver::create_ocl_buffer(const char *name, cl::Buffer &b,
                                        const cl_mem_flags flags,
                                        const int size) {
   int err;
-  b = cl::Buffer(context, flags, size, NULL, &err);
+  b = cl::Buffer(context, flags, size, nullptr, &err);
   if (err != CL_SUCCESS) {
     std::string error_m = "Buffer creation failed: ";
     error_m.append(name);
