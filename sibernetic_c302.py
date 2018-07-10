@@ -327,6 +327,7 @@ def run(a=None,**kwargs):
     if not a.noc302:
         reportj['reference'] = a.reference
         reportj['c302params'] = a.c302params
+        reportj['c302_version'] = c302.__version__
     
     reportj['generation_time'] = '%s s'%(sim_start-gen_start)
     reportj['run_time'] = '%s s'%(sim_end-sim_start)
