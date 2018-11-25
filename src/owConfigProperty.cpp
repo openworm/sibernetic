@@ -49,6 +49,9 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
   nrnSimRun = false;
   nrnSimulationFileName = "";
   simulation = nullptr;
+    
+  fillConstMap(); // map must be filled before parsing arguments, otherwise beta will be NaN because of division by zero
+
   for (int i = 1; i < argc; i++) {
     strTemp = argv[i];
     if (strTemp.find("device=") == 0) {
@@ -63,14 +66,16 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
 
       this->timeStep = ::atof(strTemp.substr(strTemp.find('=') + 1).c_str());
       if (this->timeStep < 0.0f)
-        std::cout << "timeStep < 0 using default value" << timeStep
+        std::cout << "timeStep < 0 using default value " << ::timeStep
                   << std::endl;
       this->timeStep = (this->timeStep > 0) ? this->timeStep : ::timeStep;
+
       // also we shoisSimulationRun = true;uld recalculate beta if time_step is
       // different from default value of timeStep in owPhysicsConstant
       beta = this->timeStep * this->timeStep * constMap["mass"] *
              constMap["mass"] * 2 / (constMap["rho0"] * constMap["rho0"]);
     }
+
     if (strTemp.find("timelimit=") == 0) {
       timeLim = ::atof(strTemp.substr(strTemp.find('=') + 1).c_str());
       if (timeLim < 0.0)
@@ -127,7 +132,7 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
     }
   }
   owHelper::preLoadConfiguration(this);
-  fillConstMap();
+
   totalNumberOfIterations = timeLim / this->timeStep; // if it equals to 0 it
                                                       // means that simulation
                                                       // will work infinitely
