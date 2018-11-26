@@ -10,7 +10,7 @@ Compiling / running (Linux/mac)
 [![Join the chat at https://gitter.im/openworm/sibernetic](https://badges.gitter.im/openworm/sibernetic.svg)](https://gitter.im/openworm/sibernetic?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 **Linux**
-Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. You can also try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues. The AMD drivers include samples in /opt/AMDAPP/samples/opencl/bin which you can use to verify your OpenCL support is working.
+Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. You can also try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues. The AMD drivers include samples in `/opt/AMDAPP/samples/opencl/bin` which you can use to verify your OpenCL support is working.
 
 You'll also need a variety of libraries. In ubuntu, install the dependencies with:
 
@@ -40,7 +40,7 @@ You can find OpenCL lib in CUDA folder if you're using NVIDIA (`/usr/local/cuda/
 ldconfig -p | grep opencl
 ```
 
-Also you may need to give compiller path to OpenCL header files usually you can find them in `/usr/include/CL` if they there than you don't need do anything. In othe case you can edit makefile directly and add directory to OpenCL headers by adding opetions `-I/path/to/opencl_includes/` or you can copy folder with header into `/usr/include/` but you should have root permission for doing that.
+Also you may need to give compiler path to OpenCL header files usually you can find them in `/usr/include/CL` if they there than you don't need do anything. In othe case you can edit makefile directly and add directory to OpenCL headers by adding options `-I/path/to/opencl_includes/` or you can copy folder with header into `/usr/include/` but you should have root permission for doing that.
 
 **Mac**: stay in the top-level folder. You need before run export several environment variables:
 
@@ -131,7 +131,7 @@ References
 
 Main command options
 --------------
-To start Sibernetic with argument print in command prompt next ./Release/Sibernetic -whatever
+To start Sibernetic with argument print in command prompt next `./Release/Sibernetic -whatever
 Available options:
 ```
  -no_g                 Run without graphics
@@ -486,7 +486,7 @@ To record configurations to file you need to run simulation with key -l_to:
 ./Release/Sibernetic -l_to
 ```
 
-This create 3 new files in the folder ./buffers:
+This create 3 new files in the folder `./buffers`:
 - connection_buffers.txt - stores information about connection among the elastic particles
 - membranes_buffer.txt   - stores information about membranes
 - position_buffer.txt    - stores information about current position of all of the non boundary particles it save information to this file every 10 steps of simulation. You should remember that the more info you
@@ -515,7 +515,7 @@ Run with Sibernetic-NEURON bridge
 
 Now it's possible to run the physical and neuronal simulations together. For this you need 
 [sibernetic_NEURON](https://github.com/openworm/sibernetic_NEURON) also.  Don't forget to 
-add the path of sibernetic_NEURON into your PYTHONPATH. You just need to run Sibernetic with 
+add the path of sibernetic_NEURON into your `PYTHONPATH`. You just need to run Sibernetic with 
 command argument '-nrn <value>' where value is the path to NEURON simulation file (*.hoc e.g.). 
 After that Sibernetic will initialise sibernetic_NEURON with the appropriate simulation file and 
 same timeStep also. You should indicate from what segments of NEURON's model you'd like to read 
