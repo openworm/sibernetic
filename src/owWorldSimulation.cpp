@@ -283,10 +283,10 @@ void display(void) {
       if (i < j) {
         glColor4b(150 / 2, 125 / 2, 0, 100 / 2 /*alpha*/);
 
-        if (p_cpp[j * 4 + 3] > 2.25) {
+        if (skip_display_connections && (p_cpp[j * 4 + 3] > 2.25)) {
             //glColor4b(250 / 2, 250 / 2, 200 / 2, 255 / 2); // agar
             continue;
-          } else if ((p_cpp[i * 4 + 3] > 2.31) && (p_cpp[i * 4 + 3] < 2.33)) {
+          } else if (skip_display_connections && (p_cpp[i * 4 + 3] > 2.31) && (p_cpp[i * 4 + 3] < 2.33)) {
             // agar particles which contacted the worm
             continue;
           }
@@ -385,7 +385,6 @@ void display(void) {
             glColor4b(50 / 2, 125 / 2, 0, 255 / 2);
           if (p_cpp[j * 4 + 3] > 2.25) {
             glColor4b(250 / 2, 250 / 2, 200 / 2, 255 / 2); // agar
-            continue;
           }
           if ((p_cpp[i * 4 + 3] > 2.31) && (p_cpp[i * 4 + 3] < 2.33))
             glColor4b(200 / 2, 250 / 2, 000 / 2,
