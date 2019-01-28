@@ -120,6 +120,9 @@ class MuscleSimulation():
         self.increment = increment
         self.step = 0
 
+    def set_timestep(self, dt):
+        pass
+
     def run(self, skip_to_time=0, do_plot = True):
         self.contraction_array =  parallel_waves(step = self.step)
         self.step += self.increment
@@ -147,15 +150,25 @@ class C302NRNSimulation():
     def __init__(self, tstop=100, dt=0.005, activity_file=None, verbose=True):
         
         #from LEMS_c302_C1_Full_nrn import NeuronSimulation
-        from LEMS_c302_nrn import NeuronSimulation
+        #from LEMS_c302_nrn import NeuronSimulation
         
+        #import neuron
+        #self.h = neuron.h
+        
+        self.tstop = tstop
+        self.verbose = verbose
+        
+        #self.ns = NeuronSimulation(tstop, dt)
+        #print_("Initialised C302NRNSimulation of length %s ms and dt = %s ms..."%(tstop,dt))
+
+    def set_timestep(self, dt):
+        dt = float('{:0.1e}'.format(dt)) * 1000.0 # memory issue fix
+        from LEMS_c302_nrn import NeuronSimulation
         import neuron
         self.h = neuron.h
         
-        self.verbose = verbose
-        
-        self.ns = NeuronSimulation(tstop, dt)
-        print_("Initialised C302NRNSimulation of length %s ms and dt = %s ms..."%(tstop,dt))
+        self.ns = NeuronSimulation(self.tstop, dt)
+        print_("Initialised C302NRNSimulation of length %s ms and dt = %s ms..."%(self.tstop,dt))
         
         
     def save_results(self):

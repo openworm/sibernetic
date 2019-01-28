@@ -147,9 +147,9 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
       }
 
       if (simName.compare("") == 0)
-        simulation = new SignalSimulator("main_sim", pythonClass);
+        simulation = new SignalSimulator("main_sim", pythonClass, this->timeStep);
       else
-        simulation = new SignalSimulator(simName, pythonClass);
+        simulation = new SignalSimulator(simName, pythonClass, this->timeStep);
     } else {
       simulation =
           new owNeuronSimulator(1, this->timeStep, nrnSimulationFileName);
