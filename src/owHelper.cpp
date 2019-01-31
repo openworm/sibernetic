@@ -653,12 +653,13 @@ bool owHelper::loadConfigurationFromFile(float *&position, float *&connections,
     std::ifstream membranesFile(membraneFileName.c_str());
     if (membranesFile.is_open()) {
       int m_count = 0;
-      // membranesFile >> m_count;
+      membranesFile >> m_count;
       int i = 0;
-      membranes = new int[4 * m_count];
+      membranes = new int[3 * m_count];
+      /* TODO: skip first two membranes? */
       while (membranesFile.good() && i < m_count) {
-        membranesFile >> membranes[4 * i + 0] >> membranes[4 * i + 1] >>
-            membranes[4 * i + 2] >> membranes[4 * i + 3];
+        membranesFile >> membranes[3 * i + 0] >> membranes[3 * i + 1] >>
+            membranes[3 * i + 2];
         i++;
       }
     }

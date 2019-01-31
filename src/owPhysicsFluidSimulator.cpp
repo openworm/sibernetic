@@ -34,6 +34,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <iomanip>
 
 #include "owPhysicsFluidSimulator.h"
 #include "owSignalSimulator.h"
@@ -357,8 +358,19 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
     std::cout << "unlimited";
   else
     std::cout << config->getNumberOfIterations();
+  if (config->getNumberOfIterations() > 0) {
+    float time_left = ((config->getNumberOfIterations() - iterationCount)*helper->getElapsedTime()/1000.0/60.0);
+    std::string time_left_unit = " (in min)";
+    if (time_left > 60) {
+        time_left /= 60.0;
+        time_left_unit = " (in h)";
+    }
   std::cout << ", t in sim: " << iterationCount * config->getTimeStep()
-            << "s) ]]\n";
+            << "s) dt: " << config->getTimeStep() << "(in s) time left: " << std::fixed << std::setprecision(2) << time_left << time_left_unit << " ]]\n" << std::fixed << std::setprecision(6);
+  } else {
+    std::cout << ", t in sim: " << iterationCount * config->getTimeStep()
+            << "s) dt: " << config->getTimeStep() << "]]\n";
+  }
 
   // SEARCH FOR NEIGHBOURS PART
   // ocl_solver->_runClearBuffers();

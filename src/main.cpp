@@ -39,6 +39,9 @@
 
 bool load_from_file = false;
 bool load_to = false;
+bool skip_display_particles = false;
+bool skip_display_membranes = false;
+bool skip_display_connections = false;
 std::string version = "0.0.6";
 
 int usage() {
@@ -127,6 +130,15 @@ int main(int argc, char **argv) {
           0) { // run load config from file mode
         graph = true;
         load_from_file = true;
+      }
+      if (std::string("-skip_display_particles").compare(argv[i]) == 0) {
+        skip_display_particles = true;
+      }
+      if (std::string("-skip_display_membranes").compare(argv[i]) == 0) {
+        skip_display_membranes = true;
+      }
+      if (std::string("-skip_display_connections").compare(argv[i]) == 0) {
+        skip_display_connections = true;
       }
       if (std::string("-test").compare(argv[i]) == 0) { // run tests
         run_tests = true;
