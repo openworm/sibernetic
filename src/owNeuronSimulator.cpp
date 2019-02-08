@@ -35,8 +35,8 @@
  *  Created on: Jun 27, 2016
  *      Author: Sergey Khayrulin
  */
-#include <stdexcept>
 #include "owNeuronSimulator.h"
+#include <stdexcept>
 
 /** Constructor method for owNeuronSimulator.
  *
@@ -65,7 +65,7 @@ owNeuronSimulator::owNeuronSimulator(int muscleNumber, float timeStep,
   pModule = PyImport_Import(pName);
   if (PyErr_Occurred())
     PyErr_Print();
-  if (pModule == NULL) {
+  if (pModule == nullptr) {
     throw std::runtime_error("Module not loaded, have you set PYTHONPATH? If "
                              "yes just check have you added path to "
                              "sibenetic_NEURON");
@@ -103,9 +103,9 @@ std::vector<float> owNeuronSimulator::run() {
   // Call a method
   PyObject *myFunction =
       PyObject_GetAttrString(pModule, (char *)"run_sim_one_step");
-  pValue = PyObject_CallObject(myFunction, NULL);
+  pValue = PyObject_CallObject(myFunction, nullptr);
   // pValue = PyObject_CallMethod(nrn_sim, const_cast<char *>("one_step"),
-  // NULL);
+  // nullptr);
   if (PyList_Check(pValue)) {
     std::vector<float> value_array;
     value_array = unpackPythonList(pValue);

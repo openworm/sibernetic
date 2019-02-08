@@ -374,7 +374,7 @@ __kernel void findNeighbors(
 	if( id >= PARTICLE_COUNT ) return;
 	__global uint * gridCellIndex = gridCellIndexFixedUp;
 	float4 position_ = sortedPosition[ id ];
-	int myCellId = (int)POSITION_CELL_ID( position_ ) & 0xffff;// truncate to low 16 bits
+	int myCellId = (int)POSITION_CELL_ID( position_ ) & 0xffffff;// truncate to low 16 bits
 	int searchCells[8];
 	float r_thr2 = h * h;
 	float closest_distances[MAX_NEIGHBOR_COUNT];

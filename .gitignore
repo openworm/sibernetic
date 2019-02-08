@@ -62,3 +62,11 @@ simulations
 /sibernetic_NEURON/
 /CElegansNeuroML/
 /sib.env
+/configuration/worm_no_water_2017
+/test.sh
+/test2.sh
+/wcon/*.png
+/run_fw.sh
+/run_fw_l.sh
+/run_fw_q.sh
+/run_fw_s.sh

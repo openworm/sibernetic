@@ -31,19 +31,22 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#include <stdio.h>
-#include <sstream>
-#include <csignal>
 #include <cmath>
+#include <csignal>
+#include <sstream>
+#include <stdio.h>
 
 #include "owWorldSimulation.h"
 
 extern bool load_from_file;
 extern bool load_to;
+extern bool skip_display_particles;
+extern bool skip_display_membranes;
+extern bool skip_display_connections;
 
 int old_x = 0, old_y = 0; // Used for mouse event
 float camera_trans[] = {0, 0, -8.0};
-float camera_rot[] = {60, -90, 0}; //camera rotation settings at start
+float camera_rot[] = {60, -90, 0}; // camera rotation settings at start
 float camera_trans_lag[] = {0, 0, -8.0};
 float camera_rot_lag[] = {0, 0, 0};
 int buttonState = 0;
@@ -114,23 +117,27 @@ void glPrint3D(float x, float y, float z, const char *s, void *font) {
 
 std::ifstream musclesActivityFile;
 
-int read_muscles_activity_signals_from_log_file(int iterationCount, float *muscle_activation_signal_cpp, owConfigProperty * config)
-{
-	std::string musclesActivityFileName = config->getLoadPath() + std::string("/muscles_activity_buffer.txt");
-	if(iterationCount==0) musclesActivityFile.open(musclesActivityFileName.c_str());
-	if(!musclesActivityFile) throw std::runtime_error("A problem with creation of muscles activity log file occured. Please check the path.");
-	unsigned int i = 0;
-	//printf("\niterationCount = %d",iterationCount);
-	if( musclesActivityFile.is_open() )
-	{
-		while( musclesActivityFile.good() &&  (i < config->MUSCLE_COUNT) )
-		{
-			musclesActivityFile >> muscle_activation_signal_cpp[i];
-			i++;
-		}
-	}
+int read_muscles_activity_signals_from_log_file(
+    int iterationCount, float *muscle_activation_signal_cpp,
+    owConfigProperty *config) {
+  std::string musclesActivityFileName =
+      config->getLoadPath() + std::string("/muscles_activity_buffer.txt");
+  if (iterationCount == 0)
+    musclesActivityFile.open(musclesActivityFileName.c_str());
+  if (!musclesActivityFile)
+    throw std::runtime_error("A problem with creation of muscles activity log "
+                             "file occured. Please check the path.");
+  unsigned int i = 0;
+  // printf("\niterationCount = %d",iterationCount);
+  if (musclesActivityFile.is_open()) {
+    while (musclesActivityFile.good() && (i < config->MUSCLE_COUNT)) {
+      musclesActivityFile >> muscle_activation_signal_cpp[i];
+      i++;
+    }
+  }
 
-	if(!musclesActivityFile.good())	musclesActivityFile.close();
+  if (!musclesActivityFile.good())
+    musclesActivityFile.close();
 }
 /** Main displaying function
  */
@@ -174,16 +181,11 @@ void display(void) {
       }
     } else {
       try {
-        if (owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp, localConfig, iteration)) {
-            if (iteration == 0 && localConfig->getStartingTimeStep() > 0) {       
-                for (j = 0; j < localConfig->getStartingTimeStep(); j++) {
-			        read_muscles_activity_signals_from_log_file(iteration,muscle_activation_signal_cpp,localConfig);
-        			iteration++;
-                }
-            } else {
-                read_muscles_activity_signals_from_log_file(iteration,muscle_activation_signal_cpp,localConfig);
-                iteration++;
-            }
+        if (owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp,
+                                                localConfig, iteration)) {
+          read_muscles_activity_signals_from_log_file(
+              iteration, muscle_activation_signal_cpp, localConfig);
+          iteration++;
         } else {
           cleanupSimulation();
           std::cout << "Simulation has reached end of file" << std::endl;
@@ -200,67 +202,75 @@ void display(void) {
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   drawScene();
-  glPointSize(1.3f*sqrt(sc/0.025f));
+  glPointSize(1.3f * sqrt(sc / 0.025f));
   glBegin(GL_POINTS);
   float dc, rho;
   // Display all particles
-  for (i = 0; i < localConfig->getParticleCount(); ++i) {
-    if (!load_from_file) {
-      rho = d_cpp[p_indexb[i * 2 + 0]];
-      if (rho < 0)
-        rho = 0;
-      if (rho > 2 * rho0)
-        rho = 2 * rho0;
-      dc = 100.f * (rho - rho0) / rho0;
-      if (dc > 1.f)
-        dc = 1.f;
-      //  R   G   B
-      glColor4f(0, 0, 1, 1.0f); // blue
-      if (!load_from_file) {
-        if ((dc = 100 * (rho - rho0 * 1.00f) / rho0) > 0)
-          glColor4f(0, dc, 1, 1.0f); // cyan
-        if ((dc = 100 * (rho - rho0 * 1.01f) / rho0) > 0)
-          glColor4f(0, 1, 1 - dc, 1.0f); // green
-        if ((dc = 100 * (rho - rho0 * 1.02f) / rho0) > 0)
-          glColor4f(dc, 1, 0, 1.0f); // yellow
-        if ((dc = 100 * (rho - rho0 * 1.03f) / rho0) > 0)
-          glColor4f(1, 1 - dc, 0, 1.0f); // red
-        if ((dc = 100 * (rho - rho0 * 1.04f) / rho0) > 0)
-          glColor4f(1, 0, 0, 1.0f);
-      }
-    } else
-      glColor4f(0, 0, 1, 1.0f); // blue
-    if ((int)p_cpp[i * 4 + 3] !=
-        BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/) {
-      glBegin(GL_POINTS);
-      if ((int)p_cpp[i * 4 + 3] == 2) {
-        glColor4f(0, 0, 0, 1.0f); // color of elastic particles
-        glPointSize(1.3f*sqrt(sc/0.025f));
-      }
-      glVertex3f((p_cpp[i * 4] - localConfig->xmax / 2) * sc,
-                 (p_cpp[i * 4 + 1] - localConfig->ymax / 2) * sc,
-                 (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
-      glPointSize(1.3f*sqrt(sc/0.025f));
-      glEnd();
+  if (!skip_display_particles) {
+      for (i = 0; i < localConfig->getParticleCount(); ++i) {
+        if (!load_from_file) {
+          rho = d_cpp[p_indexb[i * 2 + 0]];
+          if (rho < 0)
+            rho = 0;
+          if (rho > 2 * localConfig->getConst("rho0"))
+            rho = 2 * localConfig->getConst("rho0");
+          dc = 100.f * (rho - localConfig->getConst("rho0")) /
+               localConfig->getConst("rho0");
+          if (dc > 1.f)
+            dc = 1.f;
+          //  R   G   B
+          glColor4f(0, 0, 1, 1.0f); // blue
+          if (!load_from_file) {
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.00f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(0, dc, 1, 1.0f); // cyan
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.01f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(0, 1, 1 - dc, 1.0f); // green
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.02f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(dc, 1, 0, 1.0f); // yellow
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.03f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(1, 1 - dc, 0, 1.0f); // red
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.04f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(1, 0, 0, 1.0f);
+          }
+        } else
+          glColor4f(0, 0, 1, 1.0f); // blue
+        if ((int)p_cpp[i * 4 + 3] !=
+            BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/) {
+          glBegin(GL_POINTS);
+          if ((int)p_cpp[i * 4 + 3] == 2) {
+            glColor4f(0, 0, 0, 1.0f); // color of elastic particles
+            glPointSize(1.3f * sqrt(sc / 0.025f));
+          }
+          glVertex3f((p_cpp[i * 4] - localConfig->xmax / 2) * sc,
+                     (p_cpp[i * 4 + 1] - localConfig->ymax / 2) * sc,
+                     (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
+          glPointSize(1.3f * sqrt(sc / 0.025f));
+          glEnd();
 
-      if (!((p_cpp[i * 4] >= 0) && (p_cpp[i * 4] <= localConfig->xmax) &&
-            (p_cpp[i * 4 + 1] >= 0) &&
-            (p_cpp[i * 4 + 1] <= localConfig->ymax) &&
-            (p_cpp[i * 4 + 2] >= 0) &&
-            (p_cpp[i * 4 + 2] <= localConfig->zmax))) {
-        /*char label[50];
-        beginWinCoords();
-        glRasterPos2f (0.01F, 0.05F);
-        if(err_coord_cnt<50){
-        sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4
-        ],p_cpp[i*4+1],p_cpp[i*4+2]);
-        glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
-        if(err_coord_cnt==50) {
-        glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
-        err_coord_cnt++;
-        endWinCoords();*/
+          if (!((p_cpp[i * 4] >= 0) && (p_cpp[i * 4] <= localConfig->xmax) &&
+                (p_cpp[i * 4 + 1] >= 0) &&
+                (p_cpp[i * 4 + 1] <= localConfig->ymax) &&
+                (p_cpp[i * 4 + 2] >= 0) &&
+                (p_cpp[i * 4 + 2] <= localConfig->zmax))) {
+            /*char label[50];
+            beginWinCoords();
+            glRasterPos2f (0.01F, 0.05F);
+            if(err_coord_cnt<50){
+            sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4
+            ],p_cpp[i*4+1],p_cpp[i*4+2]);
+            glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
+            if(err_coord_cnt==50) {
+            glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
+            err_coord_cnt++;
+            endWinCoords();*/
+          }
+        }
       }
-    }
   }
   glLineWidth((GLfloat)0.1);
   // Display elastic connections
@@ -272,6 +282,16 @@ void display(void) {
       // (generateInitialConfiguration!=1)*numOfBoundaryP;
       if (i < j) {
         glColor4b(150 / 2, 125 / 2, 0, 100 / 2 /*alpha*/);
+
+        if (skip_display_connections && (p_cpp[j * 4 + 3] > 2.25)) {
+            //glColor4b(250 / 2, 250 / 2, 200 / 2, 255 / 2); // agar
+            continue;
+          } else if (skip_display_connections && (p_cpp[i * 4 + 3] > 2.31) && (p_cpp[i * 4 + 3] < 2.33)) {
+            // agar particles which contacted the worm
+            continue;
+          }
+            
+
         if (ec_cpp[4 * i_ec + 2] > 1.f) // muscles
         {
           glLineWidth((GLfloat)1.0);
@@ -361,16 +381,25 @@ void display(void) {
           glLineWidth((GLfloat)0.1);
           glBegin(GL_LINES);
           glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
-          if (p_cpp[i * 4 + 3] > 2.15)					glColor4b( 50/2, 125/2, 0, 255/2);
-		  if (p_cpp[j * 4 + 3] > 2.25)					glColor4b(250/2, 250/2, 200/2, 255/2);//agar
-		  if((p_cpp[i*4+3]>2.31) &&(p_cpp[i*4+3]<2.33))	glColor4b(200/2, 250/2, 000/2, 255/2);//agar particles which contacted the worm 
+          if (p_cpp[i * 4 + 3] > 2.15)
+            glColor4b(50 / 2, 125 / 2, 0, 255 / 2);
+          if (p_cpp[j * 4 + 3] > 2.25) {
+            glColor4b(250 / 2, 250 / 2, 200 / 2, 255 / 2); // agar
+          }
+          if ((p_cpp[i * 4 + 3] > 2.31) && (p_cpp[i * 4 + 3] < 2.33))
+            glColor4b(200 / 2, 250 / 2, 000 / 2,
+                      255 / 2); // agar particles which contacted the worm
           glVertex3f((p_cpp[i * 4 + 0] - localConfig->xmax / 2) * sc,
                      (p_cpp[i * 4 + 1] - localConfig->ymax / 2) * sc,
                      (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
-          //glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
-          if (p_cpp[j * 4 + 3] > 2.15)					glColor4b( 50/2, 125/2, 0, 255/2);
-		  if (p_cpp[j * 4 + 3] > 2.25)					glColor4b(250/2, 250/2, 200/2, 255/2);//agar
-		  if((p_cpp[j*4+3]>2.31) &&(p_cpp[j*4+3]<2.33))	glColor4b(200/2, 250/2, 000/2, 255/2);//agar particles which contacted the worm 
+          // glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
+          if (p_cpp[j * 4 + 3] > 2.15)
+            glColor4b(50 / 2, 125 / 2, 0, 255 / 2);
+          if (p_cpp[j * 4 + 3] > 2.25)
+            glColor4b(250 / 2, 250 / 2, 200 / 2, 255 / 2); // agar
+          if ((p_cpp[j * 4 + 3] > 2.31) && (p_cpp[j * 4 + 3] < 2.33))
+            glColor4b(200 / 2, 250 / 2, 000 / 2,
+                      255 / 2); // agar particles which contacted the worm
           glVertex3f((p_cpp[j * 4 + 0] - localConfig->xmax / 2) * sc,
                      (p_cpp[j * 4 + 1] - localConfig->ymax / 2) * sc,
                      (p_cpp[j * 4 + 2] - localConfig->zmax / 2) * sc);
@@ -380,76 +409,78 @@ void display(void) {
     }
   }
   // Draw membranes
-  glColor4b(0, 200 / 2, 150 / 2, 255 / 2 /*alpha*/);
-  for (unsigned int i_m = 0; i_m < localConfig->numOfMembranes; ++i_m) {
-    i = md_cpp[i_m * 3 + 0];
-    j = md_cpp[i_m * 3 + 1];
-    k = md_cpp[i_m * 3 + 2];
+  if (!skip_display_membranes) {
+      glColor4b(0, 200 / 2, 150 / 2, 255 / 2 /*alpha*/);
+      for (unsigned int i_m = 0; i_m < localConfig->numOfMembranes; ++i_m) {
+        i = md_cpp[i_m * 3 + 0];
+        j = md_cpp[i_m * 3 + 1];
+        k = md_cpp[i_m * 3 + 2];
 
-    glBegin(GL_LINES);
-    glVertex3f(
-        ((p_cpp[i * 4] + p_cpp[j * 4] + 4 * p_cpp[k * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 1] + p_cpp[j * 4 + 1] + 4 * p_cpp[k * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 2] + p_cpp[j * 4 + 2] + 4 * p_cpp[k * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
-    glVertex3f(
-        ((p_cpp[i * 4] + p_cpp[k * 4] + 4 * p_cpp[j * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[j * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[j * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
+        glBegin(GL_LINES);
+        glVertex3f(
+            ((p_cpp[i * 4] + p_cpp[j * 4] + 4 * p_cpp[k * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 1] + p_cpp[j * 4 + 1] + 4 * p_cpp[k * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 2] + p_cpp[j * 4 + 2] + 4 * p_cpp[k * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
+        glVertex3f(
+            ((p_cpp[i * 4] + p_cpp[k * 4] + 4 * p_cpp[j * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[j * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[j * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
 
-    glVertex3f(
-        ((p_cpp[i * 4] + p_cpp[k * 4] + 4 * p_cpp[j * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[j * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[j * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
-    glVertex3f(
-        ((p_cpp[j * 4] + p_cpp[k * 4] + 4 * p_cpp[i * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[j * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[i * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[j * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[i * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
+        glVertex3f(
+            ((p_cpp[i * 4] + p_cpp[k * 4] + 4 * p_cpp[j * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[j * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[j * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
+        glVertex3f(
+            ((p_cpp[j * 4] + p_cpp[k * 4] + 4 * p_cpp[i * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[j * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[i * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[j * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[i * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
 
-    glVertex3f(
-        ((p_cpp[j * 4] + p_cpp[k * 4] + 4 * p_cpp[i * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[j * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[i * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[j * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[i * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
-    glVertex3f(
-        ((p_cpp[i * 4] + p_cpp[j * 4] + 4 * p_cpp[k * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 1] + p_cpp[j * 4 + 1] + 4 * p_cpp[k * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 2] + p_cpp[j * 4 + 2] + 4 * p_cpp[k * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
-    glEnd();
+        glVertex3f(
+            ((p_cpp[j * 4] + p_cpp[k * 4] + 4 * p_cpp[i * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[j * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[i * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[j * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[i * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
+        glVertex3f(
+            ((p_cpp[i * 4] + p_cpp[j * 4] + 4 * p_cpp[k * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 1] + p_cpp[j * 4 + 1] + 4 * p_cpp[k * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 2] + p_cpp[j * 4 + 2] + 4 * p_cpp[k * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
+        glEnd();
+      }
   }
   glLineWidth((GLfloat)1.0);
   glutSwapBuffers();
@@ -622,35 +653,50 @@ inline void renderInfo(int x, int y) {
   int i_shift = 0;
   if (showInfo) {
     glColor3f(0.5F, 1.0F, 1.0F);
-		sprintf(label,"Liquid particles: %d, elastic matter p.: %d, boundary p.: %d; total count: %d :: SIBERNETIC (sibernetic.org) 2011-2017 ::", 
-					   localConfig->numOfLiquidP,
-					   localConfig->numOfElasticP,
-					   localConfig->numOfBoundaryP,localConfig->getParticleCount());
+    sprintf(label,
+            "Liquid particles: %d, elastic matter p.: %d, boundary p.: %d; "
+            "total count: %d :: SIBERNETIC (sibernetic.org) 2011-2017 ::",
+            localConfig->numOfLiquidP, localConfig->numOfElasticP,
+            localConfig->numOfBoundaryP, localConfig->getParticleCount());
 
     glPrint(2, 12, label, m_font);
     glColor3f(1.0F, 1.0F, 1.0F);
     if (load_from_file)
-      //sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
+      // sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
       //        localConfig->getDeviceName(), fps, iteration,
       //        iteration * localConfig->getTimeStep() *
       //            localConfig->getLogStep());
-	  sprintf(label,"time step: %d, physical time: %.3f s"/*  :: SIBERNETIC (sibernetic.org) by A.Palyanov and S.Khayrulin, 2011-2017 :: "*/,
-	  iteration, iteration * localConfig->getTimeStep() * localConfig->getLogStep());
+      sprintf(label,
+              "time step: %d, physical time: %.3f s" /*  :: SIBERNETIC
+                                                        (sibernetic.org) by
+                                                        A.Palyanov and
+                                                        S.Khayrulin, 2011-2017
+                                                        :: "*/
+              ,
+              iteration,
+              iteration * localConfig->getTimeStep() *
+                  localConfig->getLogStep());
     else
-      //sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
+      // sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
       //        localConfig->getDeviceName(), fps,
       //        fluid_simulation->getIteration(),
       //        ((float)fluid_simulation->getIteration()) *
       //            localConfig->getTimeStep());
-	  sprintf(label,"Selected device: %s, FPS = %.2f, time step: %8d (phys. time = %8f s)"/* :: by A.Palyanov and S.Khayrulin ::"*/, /*viscosity,*/ 
-	  localConfig->getDeviceName(), fps, fluid_simulation->getIteration(),((float)fluid_simulation->getIteration())*localConfig->getTimeStep());
+      sprintf(label,
+              "Selected device: %s, FPS = %.2f, time step: %8d (phys. time = "
+              "%8f s)" /* :: by A.Palyanov and S.Khayrulin ::"*/, /*viscosity,*/
+              localConfig->getDeviceName(), fps,
+              fluid_simulation->getIteration(),
+              ((float)fluid_simulation->getIteration()) *
+                  localConfig->getTimeStep());
     glPrint(2, 25, label, m_font);
 
     if (localConfig->isWormConfig()) {
       i_shift = 0;
-      sprintf(label, "MDR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
-                     "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "
-                     "%.2f[23] indexes: +0",
+      sprintf(label,
+              "MDR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
+              "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "
+              "%.2f[23] indexes: +0",
               muscle_activation_signal_cpp[0 + i_shift],
               muscle_activation_signal_cpp[2 + i_shift],
               muscle_activation_signal_cpp[4 + i_shift],
@@ -664,9 +710,10 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[20 + i_shift],
               muscle_activation_signal_cpp[22 + i_shift]);
       glPrint(2, 42, label, m_font);
-      sprintf(label, "MDR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
-                     "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
-                     "%.2f[24] indexes: +0",
+      sprintf(label,
+              "MDR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
+              "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
+              "%.2f[24] indexes: +0",
               muscle_activation_signal_cpp[1 + i_shift],
               muscle_activation_signal_cpp[3 + i_shift],
               muscle_activation_signal_cpp[5 + i_shift],
@@ -682,9 +729,10 @@ inline void renderInfo(int x, int y) {
       glPrint(2, 55, label, m_font);
 
       i_shift = 24;
-      sprintf(label, "MVR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
-                     "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "
-                     "%.2f[23] indexes: +24",
+      sprintf(label,
+              "MVR: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
+              "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "
+              "%.2f[23] indexes: +24",
               muscle_activation_signal_cpp[0 + i_shift],
               muscle_activation_signal_cpp[2 + i_shift],
               muscle_activation_signal_cpp[4 + i_shift],
@@ -698,9 +746,10 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[20 + i_shift],
               muscle_activation_signal_cpp[22 + i_shift]);
       glPrint(2, 73, label, m_font);
-      sprintf(label, "MVR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
-                     "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
-                     "%.2f[24] indexes: +24",
+      sprintf(label,
+              "MVR: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
+              "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
+              "%.2f[24] indexes: +24",
               muscle_activation_signal_cpp[1 + i_shift],
               muscle_activation_signal_cpp[3 + i_shift],
               muscle_activation_signal_cpp[5 + i_shift],
@@ -716,9 +765,10 @@ inline void renderInfo(int x, int y) {
       glPrint(2, 87, label, m_font);
 
       i_shift = 24 * 2;
-      sprintf(label, "MVL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
-                     "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "
-                     "%.2f[23] indexes: +48",
+      sprintf(label,
+              "MVL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
+              "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "
+              "%.2f[23] indexes: +48",
               muscle_activation_signal_cpp[0 + i_shift],
               muscle_activation_signal_cpp[2 + i_shift],
               muscle_activation_signal_cpp[4 + i_shift],
@@ -732,9 +782,10 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[20 + i_shift],
               muscle_activation_signal_cpp[22 + i_shift]);
       glPrint(2, 105, label, m_font);
-      sprintf(label, "MVL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
-                     "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
-                     "%.2f[24] indexes: +48",
+      sprintf(label,
+              "MVL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
+              "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
+              "%.2f[24] indexes: +48",
               muscle_activation_signal_cpp[1 + i_shift],
               muscle_activation_signal_cpp[3 + i_shift],
               muscle_activation_signal_cpp[5 + i_shift],
@@ -750,9 +801,10 @@ inline void renderInfo(int x, int y) {
       glPrint(2, 118, label, m_font);
 
       i_shift = 24 * 3;
-      sprintf(label, "MDL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
-                     "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "
-                     "%.2f[23] indexes: +72",
+      sprintf(label,
+              "MDL: %.2f[01] %.2f[03] %.2f[05] %.2f[07] %.2f[09] "
+              "%.2f[11] %.2f[13] %.2f[15] %.2f[17] %.2f[19] %.2f[21] "
+              "%.2f[23] indexes: +72",
               muscle_activation_signal_cpp[0 + i_shift],
               muscle_activation_signal_cpp[2 + i_shift],
               muscle_activation_signal_cpp[4 + i_shift],
@@ -766,9 +818,10 @@ inline void renderInfo(int x, int y) {
               muscle_activation_signal_cpp[20 + i_shift],
               muscle_activation_signal_cpp[22 + i_shift]);
       glPrint(2, 136, label, m_font);
-      sprintf(label, "MDL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
-                     "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
-                     "%.2f[24] indexes: +72",
+      sprintf(label,
+              "MDL: %.2f[02] %.2f[04] %.2f[06] %.2f[08] %.2f[10] "
+              "%.2f[12] %.2f[14] %.2f[16] %.2f[18] %.2f[20] %.2f[22] "
+              "%.2f[24] indexes: +72",
               muscle_activation_signal_cpp[1 + i_shift],
               muscle_activation_signal_cpp[3 + i_shift],
               muscle_activation_signal_cpp[5 + i_shift],
@@ -857,9 +910,9 @@ void mouse_motion(int x, int y) {
 }
 
 /*This function run every
-* time when we need exit simulation
-* It clean all memory for all allocated objects
-*/
+ * time when we need exit simulation
+ * It clean all memory for all allocated objects
+ */
 void cleanupSimulation() {
   if (!load_from_file) {
     delete fluid_simulation;
@@ -962,23 +1015,23 @@ GLvoid resize(GLsizei width, GLsizei height) {
   glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 }
 inline void init(void) {
-	glEnable(GL_LIGHTING);
-	glEnable(GL_COLOR_MATERIAL);
-	glEnable(GL_NORMALIZE);
-	glEnable(GL_AUTO_NORMAL);
-	float ambient[4] = {1.0, 1.0, 1.0, 1};
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
-	glClearColor(0.7f, 0.7f, 0.7f, 1.0f); // background color
-	glClearDepth(1.0f);
+  glEnable(GL_LIGHTING);
+  glEnable(GL_COLOR_MATERIAL);
+  glEnable(GL_NORMALIZE);
+  glEnable(GL_AUTO_NORMAL);
+  float ambient[4] = {1.0, 1.0, 1.0, 1};
+  glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
+  glClearColor(0.7f, 0.7f, 0.7f, 1.0f); // background color
+  glClearDepth(1.0f);
 
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	glShadeModel(GL_SMOOTH);
-	glEnable(GL_LINE_SMOOTH);
-	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
+  glShadeModel(GL_SMOOTH);
+  glEnable(GL_LINE_SMOOTH);
+  glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 void sighandler(int s) {
   std::cout << "\nCaught signal CTRL+C. Exit Simulation...\n"; // this is
@@ -1025,7 +1078,9 @@ int run(int argc, char **argv, const bool with_graphics) {
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(1200, 800);
     glutInitWindowPosition(100, 100);
-    glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey Khayrulin. Build from 28/10/2017 sources (development branch)");
+    glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey "
+                     "Khayrulin. Build from 28/10/2017 sources (development "
+                     "branch)");
     glutIdleFunc(idle);
     init();
     glutDisplayFunc(display);
