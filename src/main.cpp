@@ -36,12 +36,15 @@
 #include "owWorldSimulation.h"
 #include <iostream>
 #include <stdio.h>
+#include <regex>
 
 bool load_from_file = false;
 bool load_to = false;
 bool skip_display_particles = false;
 bool skip_display_membranes = false;
 bool skip_display_connections = false;
+int start_timestep = 0;
+int stop_timestep = 0;
 std::string version = "0.0.6";
 
 int usage() {
@@ -139,6 +142,12 @@ int main(int argc, char **argv) {
       }
       if (std::string("-skip_display_connections").compare(argv[i]) == 0) {
         skip_display_connections = true;
+      }
+      if (!std::string(argv[i]).compare(0, std::string("-start_timestep=").size(), std::string("-start_timestep="))) {
+        start_timestep = atoi(std::string(argv[i]).substr(std::string("-start_timestep=").size()).c_str());
+      }
+      if (!std::string(argv[i]).compare(0, std::string("-stop_timestep=").size(), std::string("-stop_timestep="))) {
+        stop_timestep = atoi(std::string(argv[i]).substr(std::string("-stop_timestep=").size()).c_str());
       }
       if (std::string("-test").compare(argv[i]) == 0) { // run tests
         run_tests = true;
