@@ -40,6 +40,9 @@
 
 extern bool load_from_file;
 extern bool load_to;
+extern bool skip_display_particles;
+extern bool skip_display_membranes;
+extern bool skip_display_connections;
 
 int old_x = 0, old_y = 0; // Used for mouse event
 float camera_trans[] = {0, 0, -8.0};
@@ -203,69 +206,71 @@ void display(void) {
   glBegin(GL_POINTS);
   float dc, rho;
   // Display all particles
-  for (i = 0; i < localConfig->getParticleCount(); ++i) {
-    if (!load_from_file) {
-      rho = d_cpp[p_indexb[i * 2 + 0]];
-      if (rho < 0)
-        rho = 0;
-      if (rho > 2 * localConfig->getConst("rho0"))
-        rho = 2 * localConfig->getConst("rho0");
-      dc = 100.f * (rho - localConfig->getConst("rho0")) /
-           localConfig->getConst("rho0");
-      if (dc > 1.f)
-        dc = 1.f;
-      //  R   G   B
-      glColor4f(0, 0, 1, 1.0f); // blue
-      if (!load_from_file) {
-        if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.00f) /
-                  localConfig->getConst("rho0")) > 0)
-          glColor4f(0, dc, 1, 1.0f); // cyan
-        if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.01f) /
-                  localConfig->getConst("rho0")) > 0)
-          glColor4f(0, 1, 1 - dc, 1.0f); // green
-        if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.02f) /
-                  localConfig->getConst("rho0")) > 0)
-          glColor4f(dc, 1, 0, 1.0f); // yellow
-        if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.03f) /
-                  localConfig->getConst("rho0")) > 0)
-          glColor4f(1, 1 - dc, 0, 1.0f); // red
-        if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.04f) /
-                  localConfig->getConst("rho0")) > 0)
-          glColor4f(1, 0, 0, 1.0f);
-      }
-    } else
-      glColor4f(0, 0, 1, 1.0f); // blue
-    if ((int)p_cpp[i * 4 + 3] !=
-        BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/) {
-      glBegin(GL_POINTS);
-      if ((int)p_cpp[i * 4 + 3] == 2) {
-        glColor4f(0, 0, 0, 1.0f); // color of elastic particles
-        glPointSize(1.3f * sqrt(sc / 0.025f));
-      }
-      glVertex3f((p_cpp[i * 4] - localConfig->xmax / 2) * sc,
-                 (p_cpp[i * 4 + 1] - localConfig->ymax / 2) * sc,
-                 (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
-      glPointSize(1.3f * sqrt(sc / 0.025f));
-      glEnd();
+  if (!skip_display_particles) {
+      for (i = 0; i < localConfig->getParticleCount(); ++i) {
+        if (!load_from_file) {
+          rho = d_cpp[p_indexb[i * 2 + 0]];
+          if (rho < 0)
+            rho = 0;
+          if (rho > 2 * localConfig->getConst("rho0"))
+            rho = 2 * localConfig->getConst("rho0");
+          dc = 100.f * (rho - localConfig->getConst("rho0")) /
+               localConfig->getConst("rho0");
+          if (dc > 1.f)
+            dc = 1.f;
+          //  R   G   B
+          glColor4f(0, 0, 1, 1.0f); // blue
+          if (!load_from_file) {
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.00f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(0, dc, 1, 1.0f); // cyan
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.01f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(0, 1, 1 - dc, 1.0f); // green
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.02f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(dc, 1, 0, 1.0f); // yellow
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.03f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(1, 1 - dc, 0, 1.0f); // red
+            if ((dc = 100 * (rho - localConfig->getConst("rho0") * 1.04f) /
+                      localConfig->getConst("rho0")) > 0)
+              glColor4f(1, 0, 0, 1.0f);
+          }
+        } else
+          glColor4f(0, 0, 1, 1.0f); // blue
+        if ((int)p_cpp[i * 4 + 3] !=
+            BOUNDARY_PARTICLE /*&& (int)p_cpp[i*4 + 3] != ELASTIC_PARTICLE*/) {
+          glBegin(GL_POINTS);
+          if ((int)p_cpp[i * 4 + 3] == 2) {
+            glColor4f(0, 0, 0, 1.0f); // color of elastic particles
+            glPointSize(1.3f * sqrt(sc / 0.025f));
+          }
+          glVertex3f((p_cpp[i * 4] - localConfig->xmax / 2) * sc,
+                     (p_cpp[i * 4 + 1] - localConfig->ymax / 2) * sc,
+                     (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
+          glPointSize(1.3f * sqrt(sc / 0.025f));
+          glEnd();
 
-      if (!((p_cpp[i * 4] >= 0) && (p_cpp[i * 4] <= localConfig->xmax) &&
-            (p_cpp[i * 4 + 1] >= 0) &&
-            (p_cpp[i * 4 + 1] <= localConfig->ymax) &&
-            (p_cpp[i * 4 + 2] >= 0) &&
-            (p_cpp[i * 4 + 2] <= localConfig->zmax))) {
-        /*char label[50];
-        beginWinCoords();
-        glRasterPos2f (0.01F, 0.05F);
-        if(err_coord_cnt<50){
-        sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4
-        ],p_cpp[i*4+1],p_cpp[i*4+2]);
-        glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
-        if(err_coord_cnt==50) {
-        glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
-        err_coord_cnt++;
-        endWinCoords();*/
+          if (!((p_cpp[i * 4] >= 0) && (p_cpp[i * 4] <= localConfig->xmax) &&
+                (p_cpp[i * 4 + 1] >= 0) &&
+                (p_cpp[i * 4 + 1] <= localConfig->ymax) &&
+                (p_cpp[i * 4 + 2] >= 0) &&
+                (p_cpp[i * 4 + 2] <= localConfig->zmax))) {
+            /*char label[50];
+            beginWinCoords();
+            glRasterPos2f (0.01F, 0.05F);
+            if(err_coord_cnt<50){
+            sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4
+            ],p_cpp[i*4+1],p_cpp[i*4+2]);
+            glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
+            if(err_coord_cnt==50) {
+            glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
+            err_coord_cnt++;
+            endWinCoords();*/
+          }
+        }
       }
-    }
   }
   glLineWidth((GLfloat)0.1);
   // Display elastic connections
@@ -277,6 +282,16 @@ void display(void) {
       // (generateInitialConfiguration!=1)*numOfBoundaryP;
       if (i < j) {
         glColor4b(150 / 2, 125 / 2, 0, 100 / 2 /*alpha*/);
+
+        if (skip_display_connections && (p_cpp[j * 4 + 3] > 2.25)) {
+            //glColor4b(250 / 2, 250 / 2, 200 / 2, 255 / 2); // agar
+            continue;
+          } else if (skip_display_connections && (p_cpp[i * 4 + 3] > 2.31) && (p_cpp[i * 4 + 3] < 2.33)) {
+            // agar particles which contacted the worm
+            continue;
+          }
+            
+
         if (ec_cpp[4 * i_ec + 2] > 1.f) // muscles
         {
           glLineWidth((GLfloat)1.0);
@@ -368,8 +383,9 @@ void display(void) {
           glColor4b(150 / 2, 125 / 2, 0, 100 / 2);
           if (p_cpp[i * 4 + 3] > 2.15)
             glColor4b(50 / 2, 125 / 2, 0, 255 / 2);
-          if (p_cpp[j * 4 + 3] > 2.25)
+          if (p_cpp[j * 4 + 3] > 2.25) {
             glColor4b(250 / 2, 250 / 2, 200 / 2, 255 / 2); // agar
+          }
           if ((p_cpp[i * 4 + 3] > 2.31) && (p_cpp[i * 4 + 3] < 2.33))
             glColor4b(200 / 2, 250 / 2, 000 / 2,
                       255 / 2); // agar particles which contacted the worm
@@ -393,76 +409,78 @@ void display(void) {
     }
   }
   // Draw membranes
-  glColor4b(0, 200 / 2, 150 / 2, 255 / 2 /*alpha*/);
-  for (unsigned int i_m = 0; i_m < localConfig->numOfMembranes; ++i_m) {
-    i = md_cpp[i_m * 3 + 0];
-    j = md_cpp[i_m * 3 + 1];
-    k = md_cpp[i_m * 3 + 2];
+  if (!skip_display_membranes) {
+      glColor4b(0, 200 / 2, 150 / 2, 255 / 2 /*alpha*/);
+      for (unsigned int i_m = 0; i_m < localConfig->numOfMembranes; ++i_m) {
+        i = md_cpp[i_m * 3 + 0];
+        j = md_cpp[i_m * 3 + 1];
+        k = md_cpp[i_m * 3 + 2];
 
-    glBegin(GL_LINES);
-    glVertex3f(
-        ((p_cpp[i * 4] + p_cpp[j * 4] + 4 * p_cpp[k * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 1] + p_cpp[j * 4 + 1] + 4 * p_cpp[k * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 2] + p_cpp[j * 4 + 2] + 4 * p_cpp[k * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
-    glVertex3f(
-        ((p_cpp[i * 4] + p_cpp[k * 4] + 4 * p_cpp[j * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[j * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[j * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
+        glBegin(GL_LINES);
+        glVertex3f(
+            ((p_cpp[i * 4] + p_cpp[j * 4] + 4 * p_cpp[k * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 1] + p_cpp[j * 4 + 1] + 4 * p_cpp[k * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 2] + p_cpp[j * 4 + 2] + 4 * p_cpp[k * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
+        glVertex3f(
+            ((p_cpp[i * 4] + p_cpp[k * 4] + 4 * p_cpp[j * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[j * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[j * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
 
-    glVertex3f(
-        ((p_cpp[i * 4] + p_cpp[k * 4] + 4 * p_cpp[j * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[j * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[j * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
-    glVertex3f(
-        ((p_cpp[j * 4] + p_cpp[k * 4] + 4 * p_cpp[i * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[j * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[i * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[j * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[i * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
+        glVertex3f(
+            ((p_cpp[i * 4] + p_cpp[k * 4] + 4 * p_cpp[j * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[j * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[j * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
+        glVertex3f(
+            ((p_cpp[j * 4] + p_cpp[k * 4] + 4 * p_cpp[i * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[j * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[i * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[j * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[i * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
 
-    glVertex3f(
-        ((p_cpp[j * 4] + p_cpp[k * 4] + 4 * p_cpp[i * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[j * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[i * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[j * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[i * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
-    glVertex3f(
-        ((p_cpp[i * 4] + p_cpp[j * 4] + 4 * p_cpp[k * 4]) / 6 -
-         localConfig->xmax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 1] + p_cpp[j * 4 + 1] + 4 * p_cpp[k * 4 + 1]) / 6 -
-         localConfig->ymax / 2) *
-            sc,
-        ((p_cpp[i * 4 + 2] + p_cpp[j * 4 + 2] + 4 * p_cpp[k * 4 + 2]) / 6 -
-         localConfig->zmax / 2) *
-            sc);
-    glEnd();
+        glVertex3f(
+            ((p_cpp[j * 4] + p_cpp[k * 4] + 4 * p_cpp[i * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[j * 4 + 1] + p_cpp[k * 4 + 1] + 4 * p_cpp[i * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[j * 4 + 2] + p_cpp[k * 4 + 2] + 4 * p_cpp[i * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
+        glVertex3f(
+            ((p_cpp[i * 4] + p_cpp[j * 4] + 4 * p_cpp[k * 4]) / 6 -
+             localConfig->xmax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 1] + p_cpp[j * 4 + 1] + 4 * p_cpp[k * 4 + 1]) / 6 -
+             localConfig->ymax / 2) *
+                sc,
+            ((p_cpp[i * 4 + 2] + p_cpp[j * 4 + 2] + 4 * p_cpp[k * 4 + 2]) / 6 -
+             localConfig->zmax / 2) *
+                sc);
+        glEnd();
+      }
   }
   glLineWidth((GLfloat)1.0);
   glutSwapBuffers();
