@@ -34,6 +34,8 @@
 #ifndef OW_PHYSICS_SIMULATOR_H
 #define OW_PHYSICS_SIMULATOR_H
 
+#include <time.h>
+
 #include "owPhysicsConstant.h"
 #include "owHelper.h"
 #include "owOpenCLSolver.h"
@@ -132,6 +134,7 @@ class owPhysicsFluidSimulator
 	void makeSnapshot();
 
   private:
+    struct timeval simulation_start;
 	owOpenCLSolver *ocl_solver;
 	float *position_cpp;			   // everywhere in the code %variableName%_cpp means that we create
 	float *velocity_cpp;			   // and initialize in 'ordinary' memory some data, which will be
