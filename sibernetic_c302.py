@@ -197,11 +197,11 @@ def run(a=None,**kwargs):
                 sys.path.append(os.environ['C302_HOME'])
                 print_('Python path now: %s'%sys.path)
             import c302
-            import c302_utils
+            import c302.c302_utils as c302_utils
         except Exception as e:
             print_("Cannot import c302!\n"
                  "Exception: %s\n"%e
-                 +"Please set environment variable C302_HOME to point to the directory: CElegansNeuroML/CElegans/pythonScripts/c302!\n")
+                 +"Please see installation instructions at https://github.com/openworm/c302!\n")
 
             exit(-1)
         
@@ -238,7 +238,7 @@ def run(a=None,**kwargs):
     
         id = '%s_%s'%(a.c302params,ref)
     
-        exec('from c302_%s import setup'%ref)
+        exec('from c302.c302_%s import setup'%ref)
     
         setup(a.c302params, 
           generate=True,
@@ -327,6 +327,7 @@ def run(a=None,**kwargs):
     if not a.noc302:
         reportj['reference'] = a.reference
         reportj['c302params'] = a.c302params
+        reportj['c302_version'] = c302.__version__
     
     reportj['generation_time'] = '%s s'%(sim_start-gen_start)
     reportj['run_time'] = '%s s'%(sim_end-sim_start)
