@@ -36,7 +36,6 @@
 #include "owWorldSimulation.h"
 #include <iostream>
 #include <stdio.h>
-#include <regex>
 
 bool load_from_file = false;
 bool load_to = false;
