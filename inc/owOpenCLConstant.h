@@ -50,7 +50,7 @@
 
 #define INTEL_OPENCL_DEBUG 0
 
-const int local_NDRange_size = 256;
+const int local_NDRange_size = MAX_NEIGHBOR_COUNT;
 
 enum DEVICE { CPU = 0, GPU = 1, ALL = 2};
 enum INTEGRATOR { EULER = 0, LEAPFROG = 1 };
