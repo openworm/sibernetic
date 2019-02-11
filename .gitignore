@@ -1,75 +1,43 @@
-/src/main_sim.py3
-/src/main_sim2.py
-/src/main_sim.py~
-/Release/Sibernetic
-*~
+# Prerequisites
+*.d
+
 # Compiled Object files
 *.slo
 *.lo
 *.o
-*.d
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
 
 # Compiled Dynamic libraries
 *.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
 
 # Compiled Static libraries
 *.lai
 *.la
 *.a
+*.lib
 
-#Simulation output
-buffers/connection_buffer.txt
-buffers/membranes_buffer.txt
-buffers/position_buffer.txt
-
-#Python bytecode
-*.pyc
-
-#MY OTHER FILTERS
-*.ncb
-*.suo
-*.user
-*.dep
+# Executables
 *.exe
-*.htm
-*.idb
-*.ilk
-*.manifest
-*.obj
-*.pdb
-*.res
-/buffers
-/logs
-/out_config
-/release
-rebuild.sh
-rebuildandrun.sh
-./x86_64
+*.out
+*.app
 
-#Apple stuff
-.DS_Store
-build
-/Build
-/debug
-/Release
+# VS files
+.sln
 
-x86_64
-/*.dat
-src/*.dat
-
-simulations
-/figure_1.png
-/sibernetic_NEURON/
-/CElegansNeuroML/
-/sib.env
-/configuration/worm_no_water_2017
-/test.sh
-/test2.sh
-/wcon/*.png
-/run_fw.sh
-/run_fw_l.sh
-/run_fw_q.sh
-/run_fw_s.sh
-.vscode/*
-.settings/*
+# Folders
+# VS folders
+release/*
+.vs/*
+Debug/*
 .idea/*
+bin/*
