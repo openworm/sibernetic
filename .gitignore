@@ -72,3 +72,4 @@ simulations
 /run_fw_s.sh
 .vscode/*
 .settings/*
+.idea/*
