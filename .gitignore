@@ -70,3 +70,5 @@ simulations
 /run_fw_l.sh
 /run_fw_q.sh
 /run_fw_s.sh
+.vscode/*
+.settings/*
