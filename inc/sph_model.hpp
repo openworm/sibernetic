@@ -44,7 +44,6 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <regex>
 #include <string>
 
 namespace sibernetic {
@@ -56,42 +55,47 @@ const float GRID_CELL_SIZE_INV = 1 / GRID_CELL_SIZE;
 const float R_0 = 0.5f * H;
 /* const block end */
 template <class T = float, class container = std::vector<particle<T>>>
-class sph_model: IParticleModel<T> {
+class sph_model: public particle_model<T> {
   typedef std::map<std::string, T> sph_config;
 
 public:
-  sph_model(const std::string &config_file, abstract_reader<T> serializer = custom_reader<T>()):serializer(serializer) {
+  sph_model(const std::string &config_file, abstract_reader<T> * serializer = new custom_reader<T>()):serializer(serializer) {
     config = {{"particles", T()}, {"x_max", T()}, {"x_min", T()},
               {"y_max", T()},     {"y_min", T()}, {"z_max", T()},
               {"z_min", T()},     {"mass", T()},  {"time_step", T()},
               {"rho0", T()}};
-    this->serializer.serialize(config_file, this);
+    this->serializer->serialize(config_file, this);
     arrange_particles();
+    init_vars();
     std::cout << "Model was loaded: " << particles.size() << " particles."
               << std::endl;
   }
   const sph_config &get_config() const { return config; }
   const container &get_particles() const { return particles; }
   container &get_particles() { return particles; }
-  const particle & get_particle(const int index) const {
-    return this->particles.at(index)
+  const particle<T> & get_particle(const int index) const {
+    return this->particles.at(index);
   }
-  particle & get_particle(const int index){
-    return this->particles.at(index)
+  particle<T> & get_particle(const int index){
+    return this->particles.at(index);
   }
-  void set_particle(const int index, particle & p) {
+  void set_particle(int index,const particle<T> & p) {
     if(p.cell_id == 0) {
-      calc_grid_id(p);
+      this->particles.at(index) = p;
+      calc_grid_id(this->particles.at(index));
+    } else {
+      this->particles.at(index) = p;
     }
-    this->particles.at(index) = p;
   }
-  void push_back(const particle& p){
+  void push_back(const particle<T>& p){
     if(p.cell_id == 0) {
-      calc_grid_id(p);
+      this->particles.push_back(p);
+      calc_grid_id(this->particles.back());
+    } else {
+      this->particles.push_back(p);
     }
-    this->particles.push_back(p);
   }
-  int size() const { return particles.size(); }
+  size_t size() const { return particles.size(); }
   /** Make partition for device
    */
   void make_partition(size_t dev_count) {
@@ -127,9 +131,14 @@ public:
     ++next_partition;
     return partitions[next_partition - 1];
   }
-
+  sph_config & get_config(){
+    return this->config;
+  }
+  ~sph_model(){
+    delete this->serializer;
+  }
 private:
-  abstract_reader<T> serializer;
+  abstract_reader<T> * serializer;
   size_t next_partition;
   // vars block end
   int cell_num_x;

@@ -5,6 +5,8 @@
 #ifndef PROJECT_PARTITION_H
 #define PROJECT_PARTITION_H
 
+#include <iostream>
+
 namespace sibernetic{
     namespace model{
         struct partition {

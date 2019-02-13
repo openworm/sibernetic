@@ -6,18 +6,25 @@
 #define SIBERNETIC_ABSTRACT_MODEL_HPP
 
 #include "particle.h"
+#include <map>
 
 namespace sibernetic {
     namespace model {
-        template<class T> IParticleModel {
+        template<class T> class particle_model {
         public:
-          const particle &get_particle(const int) const = 0;
+          virtual std::map<std::string, T> & get_config() = 0;
 
-          particle &get_particle(const int) = 0;
+          virtual const std::map<std::string, T> & get_config() const = 0;
 
-          void set_particle(const int index, const partile &) = 0;
+          virtual size_t size() const = 0;
 
-          void push_back(const particle &) = 0;
+          virtual const particle<T> &get_particle(int) const = 0;
+
+          virtual  particle<T> &get_particle(int) = 0;
+
+          virtual void set_particle(int index, const particle<T> &) = 0;
+
+          virtual void push_back(const particle<T> &) = 0;
     };
 }
 }

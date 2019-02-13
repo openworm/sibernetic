@@ -7,9 +7,9 @@
 
 #include "../abstract_model.hpp"
 
-template<class T> class AbstractReader{
+template<class T> class abstract_reader{
 public:
-    void serialize(const std::string &, IParticleModel<T> * ) = 0;
+    virtual void serialize(const std::string &, sibernetic::model::particle_model<T> * ) = 0;
 };
 
 #endif //SIBERNETIC_ABSTARACT_READER_H
