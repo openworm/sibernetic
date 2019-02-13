@@ -34,7 +34,11 @@
 #define SPHMODEL_HPP
 
 #include "particle.h"
+#include "partition.h"
 #include "util/error.h"
+#include "util/abstract_reader.h"
+#include "util/custom_reader.hpp"
+#include "abstract_model.hpp"
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -42,42 +46,51 @@
 #include <memory>
 #include <regex>
 #include <string>
+
 namespace sibernetic {
 namespace model {
-enum LOADMODE { NOMODE = -1, PARAMS, MODEL, POS, VEL };
 const float H = 3.34f;
 const float H_INV = 1.f / H;
 const float GRID_CELL_SIZE = 2.0f * H;
 const float GRID_CELL_SIZE_INV = 1 / GRID_CELL_SIZE;
 const float R_0 = 0.5f * H;
 /* const block end */
-struct partition {
-  /**each device has its own partition
-   * in which we define where starts
-   * and end particles for this device.
-   */
-  size_t start;
-  size_t end;
-  size_t size() const { return end - start; }
-};
 template <class T = float, class container = std::vector<particle<T>>>
-class sph_model {
+class sph_model: IParticleModel<T> {
   typedef std::map<std::string, T> sph_config;
 
 public:
-  sph_model(const std::string &config_file) {
+  sph_model(const std::string &config_file, abstract_reader<T> serializer = custom_reader<T>()):serializer(serializer) {
     config = {{"particles", T()}, {"x_max", T()}, {"x_min", T()},
               {"y_max", T()},     {"y_min", T()}, {"z_max", T()},
               {"z_min", T()},     {"mass", T()},  {"time_step", T()},
               {"rho0", T()}};
-    read_model(config_file);
+    this->serializer.serialize(config_file, this);
     arrange_particles();
     std::cout << "Model was loaded: " << particles.size() << " particles."
               << std::endl;
   }
   const sph_config &get_config() const { return config; }
   const container &get_particles() const { return particles; }
-  container &set_particles() { return particles; }
+  container &get_particles() { return particles; }
+  const particle & get_particle(const int index) const {
+    return this->particles.at(index)
+  }
+  particle & get_particle(const int index){
+    return this->particles.at(index)
+  }
+  void set_particle(const int index, particle & p) {
+    if(p.cell_id == 0) {
+      calc_grid_id(p);
+    }
+    this->particles.at(index) = p;
+  }
+  void push_back(const particle& p){
+    if(p.cell_id == 0) {
+      calc_grid_id(p);
+    }
+    this->particles.push_back(p);
+  }
   int size() const { return particles.size(); }
   /** Make partition for device
    */
@@ -116,6 +129,7 @@ public:
   }
 
 private:
+  abstract_reader<T> serializer;
   size_t next_partition;
   // vars block end
   int cell_num_x;
@@ -138,104 +152,10 @@ private:
         static_cast<int>((config["z_max"] - config["z_min"]) / GRID_CELL_SIZE);
     total_cell_num = cell_num_x * cell_num_y * cell_num_z;
   }
-  std::shared_ptr<std::array<T, 4>> get_vector(const std::string &line) {
-    std::shared_ptr<std::array<T, 4>> v(new std::array<T, 4>());
-    std::stringstream ss(line);
-    ss >> (*v)[0] >> (*v)[1] >> (*v)[2] >> (*v)[3]; // TODO check here!!!
-    return v;
-  }
-  /**Model reader
-   * Read the model from file and load into memory
-   */
-  void read_model(const std::string &model_file) {
-    std::ifstream file(model_file.c_str(), std::ios_base::binary);
-    LOADMODE mode = NOMODE;
-    bool is_model_mode = false;
-    int index = 0;
-    if (file.is_open()) {
-      while (file.good()) {
-        std::string cur_line;
-        std::getline(file, cur_line);
-        cur_line.erase(std::remove(cur_line.begin(), cur_line.end(), '\r'),
-                       cur_line.end()); // crlf win fix
-        auto i_space = cur_line.find_first_not_of(" ");
-        auto i_tab = cur_line.find_first_not_of("\t");
-        if (i_space) {
-          cur_line.erase(cur_line.begin(), cur_line.begin() + i_space);
-        }
-        if (i_tab) {
-          cur_line.erase(cur_line.begin(), cur_line.begin() + i_tab);
-        }
-        if (cur_line.compare("parametrs[") == 0) {
-          mode = PARAMS;
-          continue;
-        } else if (cur_line.compare("model[") == 0) {
-          mode = MODEL;
-          is_model_mode = true;
-          init_vars();
-          continue;
-        } else if (cur_line.compare("position[") == 0) {
-          mode = POS;
-          continue;
-        } else if (cur_line.compare("velocity[") == 0) {
-          mode = VEL;
-          continue;
-        } else if (cur_line.compare("]") == 0) {
-          mode = NOMODE;
-          continue;
-        }
-        if (mode == PARAMS) {
-          std::regex rgx("^\\s*(\\w+)\\s*:\\s*(\\d+(\\.\\d*([eE]?[+-]?\\d+)?)?)"
-                         "\\s*(//.*)?$");
-          std::smatch matches;
-          if (std::regex_search(cur_line, matches, rgx)) {
-            if (matches.size() > 2) {
-              if (config.find(matches[1]) != config.end()) {
-                config[matches[1]] = static_cast<T>(stod(matches[2].str()));
-                continue;
-              }
-            } else {
-              std::string msg = sibernetic::make_msg(
-                  "Problem with parsing parametrs:", matches[0].str(),
-                  "Please check parametrs.");
-              throw parser_error(msg);
-            }
-          } else {
-            throw parser_error(
-                "Please check parameters section there are no parametrs.");
-          }
-        }
-        if (is_model_mode) {
-          switch (mode) {
-          case POS: {
-            particle<T> p;
-            p.pos = *get_vector(cur_line);
-            calc_grid_id(p);
-            particles.push_back(p);
-            break;
-          }
-          case VEL: {
-            if (index >= particles.size())
-              throw parser_error(
-                  "Config file problem. Velocities more than partiles is.");
-            particles[index].vel = *get_vector(cur_line);
-            ++index;
-            break;
-          }
-          default: { break; }
-          }
-        }
-      }
-    } else {
-      throw parser_error(
-          "Check your file name or path there is no file with name " +
-          model_file);
-    }
-    file.close();
-  }
   /**Arrange particles according its cell id
    * it will need for future clustering
    * particles array on several devices.
+   * TODO make sort parralel
    */
   void arrange_particles() {
     std::sort(particles.begin(), particles.end(),

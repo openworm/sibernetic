@@ -32,7 +32,7 @@
  *******************************************************************************/
 #ifndef ISOLVER_H
 #define ISOLVER_H
-#include "sph_model.hpp"
+#include "partition.h"
 #include <string>
 namespace sibernetic {
 namespace solver {
