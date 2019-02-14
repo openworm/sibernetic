@@ -80,29 +80,27 @@ typedef struct particle{
 
 /** Just for test
 */
-__kernel void _ker_check_copy(__global struct extendet_particle * ext_particles, 
-							   __global struct 
-							   	particle
-							   	* particles){
+__kernel void _ker_check_copy(__global struct extend_particle * ext_particles,
+							   __global struct particle	* particles){
 	int id = get_global_id(0);
 #ifdef PRINTF_ON
 	if(id == 0){
 		printf("sizeof() of particles_f is %d\n", sizeof(particle) );
 	}
-#endif
 	if(id == 0 && particles[0].pos.x == 1.67 && particles[0].pos.y == 1.67 && particles[0].pos.z == 1.67 ){
 		printf("\nTEST PASSED.\n");
 	}
+#endif
 }
 
 /**Initialization of neighbour list by -1 
 * what means that it's no neighbours. 
 */
-__kernel void _ker_init_ext_particles(__global struct extendet_particle * ext_particles){
+__kernel void _ker_init_ext_particles(__global struct extend_particle * ext_particles){
 	int id = get_global_id(0);
 	ext_particles[id].p_id = id;
 	for(int i=0;i<NEIGHBOUR_COUNT;++i){
-		ext_particles[id].neigbour_list[i] = -1;
+		ext_particles[id].neighbour_list[i] = -1;
 	}
 }
 
@@ -115,7 +113,7 @@ __kernel void _ker_calc_cell_id(__global struct
 
 /** Searchin for neigbours foe each particles
 */
-__kernel void _ker_neighbour_search(__global struct extendet_particle * ext_particles, 
+__kernel void _ker_neighbour_search(__global struct extend_particle * ext_particles,
 							   __global struct 
 							   	particle * particles){
 }

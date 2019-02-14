@@ -103,7 +103,7 @@ private:
     create_ocl_buffer("particles", b_particles, CL_MEM_READ_WRITE,
                       p.size() * sizeof(particle<T>));
     create_ocl_buffer("ext_particles", b_ext_particles, CL_MEM_READ_WRITE,
-                      p.size() * sizeof(extendet_particle));
+                      p.size() * sizeof(extend_particle));
   }
   void init_kernels() {}
   virtual void init_ext_particles() {}
