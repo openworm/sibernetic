@@ -217,22 +217,35 @@ namespace sibernetic {
             int run_k_init_ext_particles() {
                 this->kernel_runner(
                         this->k_init_ext_particles,
-                        std::vector<cl::Buffer>{this->b_ext_particles},
-                        model->size()
+                        model->size(),
+                        0,
+                        this->b_ext_particles
                 );
             }
 
             int run_hash_particles() {
                 this->kernel_runner(
                         this->k_hash_particles,
-                        std::vector<cl::Buffer>{this->b_ext_particles},
-                        model->size()
+                        model->size(),
+                        0,
+                        this->b_ext_particles
                 );
             }
-            template<typename... Args> int kernel_runner(cl::Kernel &ker, int dim, Args... args) {
-                for (uint i = 0; i < arguments.size(); ++i) {
-                    ker.setArg(i, arguments[i]);
-                }
+
+            template<typename U, typename... Args>
+            int kernel_runner(
+                    cl::Kernel &ker,
+                    int dim,
+                    int arg_pos,
+                    U& arg,
+                    Args... args) {
+                ker.setArg(arg_pos, arg);
+                return kernel_runner(ker, dim, ++arg_pos, args...);
+            }
+
+            template<typename U>
+            int kernel_runner(cl::Kernel &ker, int dim, int arg_pos, U& arg) {
+                ker.setArg(arg_pos, arg);
                 int err = queue.enqueueNDRangeKernel(
                         k_init_ext_particles, cl::NullRange,
                         cl::NDRange(dim),
@@ -248,24 +261,7 @@ namespace sibernetic {
                     throw ocl_error(make_msg("An ERROR is appearing during work of kernel _runClearBuffers ", err));
                 }
                 return err;
-
-                int kernel_runner(cl::Kernel &ker, int dim) {
-                    int err = queue.enqueueNDRangeKernel(
-                            k_init_ext_particles, cl::NullRange,
-                            cl::NDRange(dim),
-#if defined(__APPLE__)
-                            cl::NullRange, nullptr, nullptr);
-#else
-                    cl::NDRange((LOCAL_NDRANGE_SIZE), nullptr, nullptr);
-#endif
-#if QUEUE_EACH_KERNEL
-                    queue.finish();
-#endif
-                    if (err != CL_SUCCESS) {
-                        throw ocl_error(make_msg("An ERROR is appearing during work of kernel _runClearBuffers ", err));
-                    }
-                    return err;
-                }
+            }
 
         };
     } // namespace solver

@@ -164,9 +164,8 @@ __kernel void k_hash_particles(
 {
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
-	particles* p = particles[ id ];
-	int4 cellFactors_ = cellFactors( p, xmin, ymin, zmin, hashGridCellSizeInv );
-	int cellId_ = cellId( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffffff; // truncate to low 16 bits
-	p->cell_id = cellId_
+	int4 cellFactors_ = cell_factors( &particles[ id ], xmin, ymin, zmin, hashGridCellSizeInv );
+	int cellId_ = cell_id( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffffff; // truncate to low 16 bits
+	particles[ id ].cell_id = cellId_;
 }
 
