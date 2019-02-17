@@ -80,7 +80,7 @@ typedef struct particle{
 
 /** Just for test
 */
-__kernel void _ker_check_copy(__global struct extend_particle * ext_particles,
+__kernel void k_check_copy(__global struct extend_particle * ext_particles,
 							   __global struct particle	* particles){
 	int id = get_global_id(0);
 #ifdef PRINTF_ON
@@ -96,7 +96,7 @@ __kernel void _ker_check_copy(__global struct extend_particle * ext_particles,
 /**Initialization of neighbour list by -1 
 * what means that it's no neighbours. 
 */
-__kernel void _ker_init_ext_particles(__global struct extend_particle * ext_particles){
+__kernel void k_init_ext_particles(__global struct extend_particle * ext_particles){
 	int id = get_global_id(0);
 	ext_particles[id].p_id = id;
 	for(int i=0;i<NEIGHBOUR_COUNT;++i){
@@ -148,7 +148,7 @@ int cell_id(
 	result.z = (int)( particle->pos.z *  hash_grid_cell_size_inv );
 	return result;
 }
-__kernel void hashParticles(
+__kernel void k_hash_particles(
 							__global struct 
 							particle * particles,
 							uint gridCellsX,
@@ -162,14 +162,11 @@ __kernel void hashParticles(
 							uint   PARTICLE_COUNT
 							)
 {
-	/*int id = get_global_id( 0 );
+	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
-	float4 _position = position[ id ];
-	int4 cellFactors_ = cellFactors( _position, xmin, ymin, zmin, hashGridCellSizeInv );
+	particles* p = particles[ id ];
+	int4 cellFactors_ = cellFactors( p, xmin, ymin, zmin, hashGridCellSizeInv );
 	int cellId_ = cellId( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffffff; // truncate to low 16 bits
-	uint2 result;
-	PI_CELL_ID( result ) = cellId_;
-	PI_SERIAL_ID( result ) = id;
-	particleIndex[ id ] = result;*/
+	p->cell_id = cellId_
 }
 
