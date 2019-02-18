@@ -57,6 +57,7 @@ int main(int argc, char **argv) {
     std::shared_ptr<sph_model<float>> model(new sph_model<float>(model_name));
     solver_container<float> &s_con =
         solver_container<float>::instance(model, mode);
+    s_con.run();
   } catch (sibernetic::parser_error &e) {
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;

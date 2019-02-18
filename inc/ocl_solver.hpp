@@ -93,10 +93,15 @@ namespace sibernetic {
 
             ~ocl_solver() {}
 
-            virtual void run_neighbour_search() {}
+            virtual void run_neighbour_search() {
+              this->run_init_ext_particles();
+            }
 
             virtual void run_physic() {}
-
+            virtual void run() {
+                run_neighbour_search();
+                run_physic();
+            }
         private:
             model_ptr model;
             partition p;
@@ -118,7 +123,7 @@ namespace sibernetic {
             }
 
             void init_kernels() {
-                create_ocl_kernel("k_calc_cell_id", k_hash_particles);
+                create_ocl_kernel("k_init_ext_particles", k_init_ext_particles);
                 create_ocl_kernel("k_hash_particles", k_hash_particles);
             }
 
@@ -185,7 +190,7 @@ namespace sibernetic {
                 k = cl::Kernel(program, name, &err);
                 if (err != CL_SUCCESS) {
                     std::string error_m =
-                            make_msg("Buffer creation failed: ", name, " Error code is ", err);
+                            make_msg("Kernel creation failed: ", name, " Error code is ", err);
                     throw ocl_error(error_m);
                 }
             }
@@ -214,7 +219,7 @@ namespace sibernetic {
                 queue.finish();
             }
 
-            int run_k_init_ext_particles() {
+            int run_init_ext_particles() {
                 this->kernel_runner(
                         this->k_init_ext_particles,
                         model->size(),
@@ -252,7 +257,7 @@ namespace sibernetic {
 #if defined(__APPLE__)
                         cl::NullRange, nullptr, nullptr);
 #else
-                cl::NDRange((LOCAL_NDRANGE_SIZE), nullptr, nullptr);
+                cl::NDRange(LOCAL_NDRANGE_SIZE), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
                 queue.finish();

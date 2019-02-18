@@ -45,7 +45,7 @@ public:
   virtual void run_neighbour_search() = 0;
   virtual void run_physic() = 0;
   virtual void init_model(const partition &) = 0;
-
+  virtual void run() = 0;
 private:
   virtual void init_ext_particles() = 0;
 };

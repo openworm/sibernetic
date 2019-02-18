@@ -106,14 +106,14 @@ __kernel void k_init_ext_particles(__global struct extend_particle * ext_particl
 
 /** Calc current cell id for each particles
 */
-__kernel void _ker_calc_cell_id(__global struct 
+__kernel void k_calc_cell_id(__global struct
 								particle * particles){
 
 }
 
 /** Searchin for neigbours foe each particles
 */
-__kernel void _ker_neighbour_search(__global struct extend_particle * ext_particles,
+__kernel void k_neighbour_search(__global struct extend_particle * ext_particles,
 							   __global struct 
 							   	particle * particles){
 }

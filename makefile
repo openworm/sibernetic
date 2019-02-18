@@ -1,4 +1,4 @@
-CC = g++ -std=c++14 -Wall -pedantic
+CC = g++ -std=c++14 -Wall -pedantic -pthread
 TARGET:=siberneic
 TEST_TARGET:=stest
 RM := rm -rf
@@ -12,8 +12,8 @@ BINARY_DIR = $(BUILD_DIR)/obj
 
 
 # OCL_INC  = -I/opt/AMDAPPSDK-3.0/include/
-# OCL_INC  = -I/opt/intel/opencl/SDK/include
-# OCL_LIB  = -L/usr/lib64/OpenCL/vendors/amd/
+OCL_INC  = -I/opt/intel/opencl/SDK/include
+OCL_LIB  = -L/usr/lib64/OpenCL/vendors/amd/
 
 LIBS := -lOpenCL
 UNAME_S := $(shell uname -s)

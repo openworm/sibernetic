@@ -8,6 +8,7 @@
 #include "util/error.h"
 #include <string>
 #include <vector>
+#include <thread>
 namespace sibernetic {
 namespace solver {
 using model::sph_model;
@@ -26,7 +27,17 @@ public:
     static solver_container s(model, devices_number, s_t);
     return s;
   }
-
+  void run(){
+    std::vector<std::thread> t_pool;
+    std::for_each(
+            _solvers.begin(), _solvers.end(), [&, this](std::shared_ptr<i_solver> &s) {
+                t_pool.push_back(std::thread(solver_container::run_solver, std::ref(s)));
+            });
+    std::for_each(t_pool.begin(), t_pool.end(), [](std::thread &t) { t.join(); });
+  }
+  static void run_solver(std::shared_ptr<i_solver> & s){
+    s->run();
+  }
 private:
   solver_container(model_ptr &model, size_t devices_number = 1,
                    SOLVER_TYPE s_type = OCL) {
