@@ -164,7 +164,7 @@ private:
   /**Arrange particles according its cell id
    * it will need for future clustering
    * particles array on several devices.
-   * TODO make sort parralel
+   * TODO make sort parallel
    */
   void arrange_particles() {
     std::sort(particles.begin(), particles.end(),

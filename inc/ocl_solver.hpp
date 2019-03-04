@@ -252,7 +252,7 @@ namespace sibernetic {
             int kernel_runner(cl::Kernel &ker, int dim, int arg_pos, U& arg) {
                 ker.setArg(arg_pos, arg);
                 int err = queue.enqueueNDRangeKernel(
-                        k_init_ext_particles, cl::NullRange,
+                        ker, cl::NullRange,
                         cl::NDRange(dim),
 #if defined(__APPLE__)
                         cl::NullRange, nullptr, nullptr);
@@ -263,7 +263,7 @@ namespace sibernetic {
                 queue.finish();
 #endif
                 if (err != CL_SUCCESS) {
-                    throw ocl_error(make_msg("An ERROR is appearing during work of kernel _runClearBuffers ", err));
+                    throw ocl_error(make_msg("An ERROR is appearing during work of kernel", err));
                 }
                 return err;
             }
