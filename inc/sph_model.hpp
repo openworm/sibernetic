@@ -65,11 +65,11 @@ public:
               {"z_min", T()},     {"mass", T()},  {"time_step", T()},
               {"rho0", T()}};
     this->serializer->serialize(config_file, this);
-    arrange_particles();
     init_vars();
     for(particle<T> & p: particles){
         this->calc_grid_id(p);
     }
+    arrange_particles();
     std::cout << "Model was loaded: " << particles.size() << " particles."
               << std::endl;
   }
@@ -106,7 +106,7 @@ public:
       else {
         if (particles[end].cell_id != particles[end + 1].cell_id) {
           partitions.push_back(partition{start, end});
-          start = end;
+          start = end + 1;
         } else {
           for (; end < particles.size() - 1; ++end) {
             if (particles[end].cell_id != particles[end + 1].cell_id) {
