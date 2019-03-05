@@ -67,6 +67,9 @@ public:
     this->serializer->serialize(config_file, this);
     arrange_particles();
     init_vars();
+    for(particle<T> & p: particles){
+        this->calc_grid_id(p);
+    }
     std::cout << "Model was loaded: " << particles.size() << " particles."
               << std::endl;
   }
@@ -80,20 +83,10 @@ public:
     return this->particles.at(index);
   }
   void set_particle(int index,const particle<T> & p) {
-    if(p.cell_id == 0) {
-      this->particles.at(index) = p;
-      calc_grid_id(this->particles.at(index));
-    } else {
-      this->particles.at(index) = p;
-    }
+    this->particles.at(index) = p;
   }
   void push_back(const particle<T>& p){
-    if(p.cell_id == 0) {
-      this->particles.push_back(p);
-      calc_grid_id(this->particles.back());
-    } else {
-      this->particles.push_back(p);
-    }
+    this->particles.push_back(p);
   }
   size_t size() const { return particles.size(); }
   /** Make partition for device

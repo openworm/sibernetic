@@ -52,9 +52,6 @@ private:
           std::cout << ex.what() << std::endl;
         }
         dev_q.pop();
-        if (devices_number == 1 && _solvers.size() == 1) {
-          break;
-        }
       }
       if (_solvers.size()) {
         model->make_partition(_solvers.size()); // TODO to think about is in future we

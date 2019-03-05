@@ -222,7 +222,7 @@ namespace sibernetic {
             int run_init_ext_particles() {
                 this->kernel_runner(
                         this->k_init_ext_particles,
-                        model->size(),
+                        (unsigned int)model->size(),
                         0,
                         this->b_ext_particles
                 );
@@ -231,7 +231,7 @@ namespace sibernetic {
             int run_hash_particles() {
                 this->kernel_runner(
                         this->k_hash_particles,
-                        model->size(),
+                        (unsigned int)model->size(),
                         0,
                         this->b_ext_particles
                 );
@@ -240,8 +240,8 @@ namespace sibernetic {
             template<typename U, typename... Args>
             int kernel_runner(
                     cl::Kernel &ker,
-                    int dim,
-                    int arg_pos,
+                    unsigned int dim,
+                    unsigned int arg_pos,
                     U& arg,
                     Args... args) {
                 ker.setArg(arg_pos, arg);
@@ -249,11 +249,12 @@ namespace sibernetic {
             }
 
             template<typename U>
-            int kernel_runner(cl::Kernel &ker, int dim, int arg_pos, U& arg) {
+            int kernel_runner(cl::Kernel &ker, unsigned int  dim, unsigned int arg_pos, U& arg) {
+                std::cout << "Run kernel" << std::endl;
                 ker.setArg(arg_pos, arg);
+                auto dim_round_up = (((dim - 1) / LOCAL_NDRANGE_SIZE) + 1) * LOCAL_NDRANGE_SIZE;
                 int err = queue.enqueueNDRangeKernel(
-                        ker, cl::NullRange,
-                        cl::NDRange(dim),
+                        ker, cl::NullRange, cl::NDRange(dim_round_up),
 #if defined(__APPLE__)
                         cl::NullRange, nullptr, nullptr);
 #else
