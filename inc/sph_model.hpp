@@ -104,18 +104,18 @@ public:
       if (i == dev_count - 1)
         partitions.push_back(partition{start, static_cast<size_t>(size() - 1)});
       else {
-        if (particles[end].cell_id != particles[end + 1].cell_id) {
-          partitions.push_back(partition{start, end});
-          start = end + 1;
+        if(particles[start + part_size].cell_id != particles[start + part_size + 1].cell_id){
+          partitions.push_back(partition{start, start + part_size});
+          start += part_size;
         } else {
-          for (; end < particles.size() - 1; ++end) {
-            if (particles[end].cell_id != particles[end + 1].cell_id) {
-              ++end;
-              break;
+          end = start + part_size;
+          while(particles[end].cell_id == particles[end + 1].cell_id){
+            if(end + 1 > size()){
+                break;
             }
+            ++end;
           }
           partitions.push_back(partition{start, end});
-          start = end;
         }
       }
     }
