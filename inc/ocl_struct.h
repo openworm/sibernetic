@@ -39,7 +39,7 @@
 // particle its list of neighbours.
 struct extend_particle {
   size_t p_id;
-  int neighbour_list[NEIGHBOUR_COUNT];
+  int neighbour_list[NEIGHBOUR_COUNT][2];
 };
 
 #endif
