@@ -223,7 +223,7 @@ namespace sibernetic {
             int run_init_ext_particles() {
                 this->kernel_runner(
                         this->k_init_ext_particles,
-                        (unsigned int)model->size(),
+                        (unsigned int)p.size(),
                         0,
                         this->b_ext_particles
                 );
@@ -232,7 +232,7 @@ namespace sibernetic {
             int run_hash_particles() {
                 this->kernel_runner(
                         this->k_hash_particles,
-                        (unsigned int)model->size(),
+                        (unsigned int)p.size(),
                         0,
                         this->b_particles,
                         model->get_cell_num_x(),
