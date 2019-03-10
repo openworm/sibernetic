@@ -115,7 +115,14 @@ public:
             }
             ++end;
           }
+          if(particles[end].cell_id % cell_num_y != 0){
+              auto last_cell = particles[end].cell_id + particles[end].cell_id % cell_num_y;
+              while(particles[end].cell_id != last_cell){
+                  ++end;
+              }
+          }
           partitions.push_back(partition{start, end});
+          start = end;
         }
       }
     }
@@ -129,6 +136,15 @@ public:
   }
   ~sph_model(){
     delete this->serializer;
+  }
+  const int get_cell_num_x(){
+      return cell_num_x;
+  }
+  const int get_cell_num_y(){
+      return cell_num_y;
+  }
+  const int get_cell_num_z(){
+      return cell_num_z;
   }
 private:
   abstract_reader<T> * serializer;
@@ -174,7 +190,8 @@ private:
     A = static_cast<int>(p.pos[0] * GRID_CELL_SIZE_INV);
     B = static_cast<int>(p.pos[1] * GRID_CELL_SIZE_INV);
     C = static_cast<int>(p.pos[2] * GRID_CELL_SIZE_INV);
-    p.cell_id = A + B * cell_num_x + cell_num_x * cell_num_y * C; //
+    //p.cell_id = A + B * cell_num_x + cell_num_x * cell_num_y * C; // this stats indexing from x component
+    p.cell_id = B + A * cell_num_y + cell_num_y * cell_num_x * C; // now will indexing from y
   }
 };
 } // namespace model

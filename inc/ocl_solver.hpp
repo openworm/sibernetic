@@ -94,7 +94,8 @@ namespace sibernetic {
             ~ocl_solver() {}
 
             virtual void run_neighbour_search() {
-              this->run_init_ext_particles();
+              run_init_ext_particles();
+              run_hash_particles();
             }
 
             virtual void run_physic() {}
@@ -197,7 +198,7 @@ namespace sibernetic {
 
             void copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,
                                        const int size) {
-                // Actualy we should check  size and type
+                // Actually we should check  size and type
                 int err = queue.enqueueWriteBuffer(ocl_b, CL_TRUE, 0, size, host_b);
                 if (err != CL_SUCCESS) {
                     std::string error_m =
@@ -233,7 +234,11 @@ namespace sibernetic {
                         this->k_hash_particles,
                         (unsigned int)model->size(),
                         0,
-                        this->b_ext_particles
+                        this->b_particles,
+                        model->get_cell_num_x(),
+                        model->get_cell_num_y(),
+                        model->get_cell_num_z(),
+                        sibernetic::model::GRID_CELL_SIZE_INV
                 );
             }
 

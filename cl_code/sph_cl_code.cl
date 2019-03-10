@@ -125,7 +125,7 @@ int cell_id(
 		   uint grid_cells_Z//doesn't use
 		   )
 {
-	int cell_id = cell_factors_.x + cell_factors_.y * grid_cells_X
+	int cell_id = cell_factors_.y + cell_factors_.x * grid_cells_Y
 		+ cell_factors_.z * grid_cells_X * grid_cells_Y;
 	return cell_id;
 }
@@ -135,9 +135,6 @@ int cell_id(
  int4 cell_factors(
 				 __global struct 
 				 particle * particle,
-				 float x_min,
-				 float y_min,
-				 float z_min,
 				 float hash_grid_cell_size_inv
 				 )
 {
@@ -149,22 +146,15 @@ int cell_id(
 	return result;
 }
 __kernel void k_hash_particles(
-							__global struct 
-							particle * particles,
+							__global struct particle * particles,
 							uint gridCellsX,
 							uint gridCellsY,
 							uint gridCellsZ,
-							float hashGridCellSizeInv,
-							float xmin,
-							float ymin,
-							float zmin,
-							__global uint2 * particleIndex,
-							uint   PARTICLE_COUNT
+							float hashGridCellSizeInv
 							)
 {
 	int id = get_global_id( 0 );
-	if( id >= PARTICLE_COUNT ) return;
-	int4 cellFactors_ = cell_factors( &particles[ id ], xmin, ymin, zmin, hashGridCellSizeInv );
+	int4 cellFactors_ = cell_factors( &particles[ id ], hashGridCellSizeInv );
 	int cellId_ = cell_id( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffffff; // truncate to low 16 bits
 	particles[ id ].cell_id = cellId_;
 }
