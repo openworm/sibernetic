@@ -102,10 +102,10 @@ public:
     size_t end = 1 * part_size;
     for (size_t i = 0; i < dev_count; ++i) {
       if (i == dev_count - 1)
-        partitions.push_back(partition{start, static_cast<size_t>(size() - 1)});
+          push_partition(start, static_cast<size_t>(size() - 1));
       else {
         if(particles[start + part_size].cell_id != particles[start + part_size + 1].cell_id){
-          partitions.push_back(partition{start, start + part_size});
+          push_partition(start, start + part_size);
           start += part_size;
         } else {
           end = start + part_size;
@@ -121,7 +121,7 @@ public:
                   ++end;
               }
           }
-          partitions.push_back(partition{start, end});
+          push_partition(start, end);
           start = end;
         }
       }
@@ -159,6 +159,18 @@ private:
   sph_config config;
   std::map<std::string, T> phys_consts;
   std::vector<partition> partitions;
+  void push_partition(size_t start, size_t end) {
+      auto start_cell_id = particles[start].cell_id;
+      auto end_cell_id = particles[end].cell_id;
+      size_t start_ghost_cell_id = 0, end_ghost_cell_id = 0;
+      if(start_cell_id != 0 ){
+        start_ghost_cell_id = start_cell_id - cell_num_y;
+      }
+      if(end_cell_id != total_cell_num - 1){
+          end_ghost_cell_id = end_cell_id + cell_num_y;
+      }
+      partitions.push_back(partition{start, end, start_cell_id, end_cell_id, start_ghost_cell_id, end_ghost_cell_id});
+  }
   /** Init variables for simulation
    */
   void init_vars() {

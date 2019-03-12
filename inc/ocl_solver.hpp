@@ -112,6 +112,8 @@ namespace sibernetic {
             cl::Kernel k_init_ext_particles;
             cl::Kernel k_hash_particles;
             cl::Buffer b_particles;
+            cl::Buffer b_grid_cell_particle_list;
+            cl::Buffer b_grid_cell_id_list;
             cl::Buffer b_ext_particles;
             cl::CommandQueue queue;
             cl::Program program;
@@ -121,6 +123,10 @@ namespace sibernetic {
                                   p.size() * sizeof(particle<T>));
                 create_ocl_buffer("ext_particles", b_ext_particles, CL_MEM_READ_WRITE,
                                   p.size() * sizeof(extend_particle));
+                create_ocl_buffer("grid_cell_particle_list", b_grid_cell_particle_list, CL_MEM_READ_WRITE,
+                                  p.cell_count() * sizeof(unsigned int) * 2);
+                create_ocl_buffer("grid_cell_id_list", b_grid_cell_id_list, CL_MEM_READ_WRITE,
+                                  p.cell_count() * sizeof(unsigned int));
             }
 
             void init_kernels() {
