@@ -223,7 +223,70 @@ int searchCell(
 
 /*Fill Cell particle
  * */
+__kernel void indexx(
+		__global uint2 * particleIndex,
+		uint gridCellCount,
+	__global uint * gridCellIndex,
+	uint PARTICLE_COUNT
+)
+{
+//fill up gridCellIndex
+	int id = get_global_id( 0 );
+	if( id > gridCellCount  ){
+		return;
+	}
+	if( id == gridCellCount ){
+		// add the nth+1 index value
+		gridCellIndex[ id ] = PARTICLE_COUNT;
+		return;
+	}
+	if( id == 0 ){
+		gridCellIndex[ id ] = 0;
+		return;
+	}
+// binary search for the starting position in sorted particleIndex
+	int low = 0;
+	int high = PARTICLE_COUNT - 1;
+	bool converged = false;
+	int cellIndex = NO_PARTICLE_ID;
+	while( !converged ){
+		if( low > high ){
+			converged = true;
+			cellIndex = NO_PARTICLE_ID;
+			continue;
+		}
+		int idx = (( high - low )>>1) + low;
+		uint2 sampleMinus1 = particleIndex[ idx - 1 ];
+		uint2 sample = particleIndex[ idx ];
+		int sampleCellId = PI_CELL_ID( sample );
+		bool isHigh = ( sampleCellId > id );
+		high = isHigh ? idx - 1 : high;
+		bool isLow = ( sampleCellId < id );
+		low = isLow ? idx + 1 : low;
+		bool isMiddle = !( isHigh || isLow );
 
+		bool zeroCase = ( idx == 0 && isMiddle );
+		int sampleM1CellId = zeroCase ? -1 : PI_CELL_ID( sampleMinus1 );
+		converged = isMiddle && ( zeroCase || sampleM1CellId < sampleCellId );
+		cellIndex = converged ? idx : cellIndex;
+		high = ( isMiddle && !converged ) ? idx - 1 : high;
+	}//while
+	gridCellIndex[ id ] = cellIndex;
+}
+int getMaxIndex(
+		float *d_array
+)
+{
+	int result;
+	float max_d = -1.f;
+	for(int i=0; i<MAX_NEIGHBOR_COUNT; i++){
+		if (d_array[i] > max_d){
+			max_d = d_array[i];
+			result = i;
+		}
+	}
+	return result;
+}
 /** Searchin for neigbours foe each particles
 */
 __kernel void k_neighbour_search(
