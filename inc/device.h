@@ -20,9 +20,9 @@ struct device {
   std::string name;
   cl::Device dev;
   cl::Context context;
-  size_t device_coumpute_unit_num; // criteria to sort devices
+  size_t device_compute_unit_num; // criteria to sort devices
   bool operator<(const device &d1) {
-    return device_coumpute_unit_num < d1.device_coumpute_unit_num;
+    return device_compute_unit_num < d1.device_compute_unit_num;
   }
   void show_info() {
     char c_buffer[100];
@@ -67,7 +67,7 @@ private:
     result = dev.getInfo(CL_DEVICE_TYPE, &c_buffer);
     t = ((int)c_buffer[0] == CL_DEVICE_TYPE_CPU) ? CPU : GPU;
     result =
-        dev.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &device_coumpute_unit_num);
+        dev.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &device_compute_unit_num);
   }
 };
 

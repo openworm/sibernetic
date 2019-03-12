@@ -96,19 +96,16 @@ __kernel void k_check_copy(__global struct extend_particle * ext_particles,
 /**Initialization of neighbour list by -1 
 * what means that it's no neighbours. 
 */
-__kernel void k_init_ext_particles(__globalPOSITION_CELL_ID( position_ ) struct extend_particle * ext_particles){
+__kernel void k_init_ext_particles(__global struct extend_particle * ext_particles, int PARTICLE_COUNT){
 	int id = get_global_id(0);
+	if(id > PARTICLE_COUNT){
+		return;
+	}
 	ext_particles[id].p_id = id;
 	for(int i=0;i<NEIGHBOUR_COUNT;++i){
-		ext_particles[id].neighbour_list[i] = -1;
+		ext_particles[id].neighbour_list[i][0] = -1;
+		ext_particles[id].neighbour_list[i][1] = -1;
 	}
-}
-
-/** Calc current cell id for each particles
-*/
-__kernel void k_calc_cell_id(__global struct
-								particle * particles){
-
 }
 
 int cell_id(
@@ -143,10 +140,15 @@ __kernel void k_hash_particles(
 							uint gridCellsX,
 							uint gridCellsY,
 							uint gridCellsZ,
-							float hashGridCellSizeInv
+							float hashGridCellSizeInv,
+							int PARTICLE_COUNT
 							)
 {
 	int id = get_global_id( 0 );
+	if(id > PARTICLE_COUNT){
+		return;
+	}
+
 	int4 cellFactors_ = cell_factors( &particles[ id ], hashGridCellSizeInv );
 	int cellId_ = cell_id( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffffff; // truncate to low 16 bits
 	particles[ id ].cell_id = cellId_;
@@ -157,135 +159,116 @@ __kernel void k_hash_particles(
  *  It takes every particles from particular cell and check if it satisfy
  *  a condition that distance between particles is <= closest_distance
  */
-int searchForNeighbors_b(
-	int searchCell_,
-	__global uint * gridCellIndex,
-	float4 position_,
-	int myParticleId,
-	__global float4 * sortedPosition,
-	__global float2 * neighborMap,
-	int * closest_indexes,
-	float * closest_distances,
-	int last_farthest,
-	int *found_count){
-	int baseParticleId = gridCellIndex[ searchCell_ ];
-	int nextParticleId = gridCellIndex[ searchCell_ + 1 ];
-	int particleCountThisCell = nextParticleId - baseParticleId; // Calcuating how many particle is containining in particular cell
-	int i = 0;
-	float _distanceSquared;
-	int neighborParticleId;
-	int farthest_neighbor = last_farthest;
-	while( i < particleCountThisCell ){
-		neighborParticleId = baseParticleId + i;
-		if(myParticleId != neighborParticleId)
-		{
-			float4 d = position_ - sortedPosition[ neighborParticleId ];
-			_distanceSquared = d.x*d.x + d.y*d.y + d.z*d.z; // inlined openCL dot(d,d)
-			if( _distanceSquared <= closest_distances[farthest_neighbor])
-			{
-				closest_distances[farthest_neighbor] = _distanceSquared;
-				closest_indexes[farthest_neighbor] = neighborParticleId;
-				if(*found_count < MAX_NEIGHBOR_COUNT-1){
-					(*found_count)++;
-					farthest_neighbor = *found_count;
-				} else{
-					farthest_neighbor = getMaxIndex(closest_distances);
-				}
-			}
-		}
-		i++;
-	}//while
-	return farthest_neighbor;
-}
+//int searchForNeighbors_b(
+//	int searchCell_,
+//	__global uint * gridCellIndex,
+//	float4 position_,
+//	int myParticleId,
+//	__global float4 * sortedPosition,
+//	__global float2 * neighborMap,
+//	int * closest_indexes,
+//	float * closest_distances,
+//	int last_farthest,
+//	int *found_count){
+//	int baseParticleId = gridCellIndex[ searchCell_ ];
+//	int nextParticleId = gridCellIndex[ searchCell_ + 1 ];
+//	int particleCountThisCell = nextParticleId - baseParticleId; // Calcuating how many particle is containining in particular cell
+//	int i = 0;
+//	float _distanceSquared;
+//	int neighborParticleId;
+//	int farthest_neighbor = last_farthest;
+//	while( i < particleCountThisCell ){
+//		neighborParticleId = baseParticleId + i;
+//		if(myParticleId != neighborParticleId)
+//		{
+//			float4 d = position_ - sortedPosition[ neighborParticleId ];
+//			_distanceSquared = d.x*d.x + d.y*d.y + d.z*d.z; // inlined openCL dot(d,d)
+//			if( _distanceSquared <= closest_distances[farthest_neighbor])
+//			{
+//				closest_distances[farthest_neighbor] = _distanceSquared;
+//				closest_indexes[farthest_neighbor] = neighborParticleId;
+//				if(*found_count < MAX_NEIGHBOR_COUNT-1){
+//					(*found_count)++;
+//					farthest_neighbor = *found_count;
+//				} else{
+//					farthest_neighbor = getMaxIndex(closest_distances);
+//				}
+//			}
+//		}
+//		i++;
+//	}//while
+//	return farthest_neighbor;
+//}
 /** Return value of cellId from gridCellIndexFixedUp
  *  for particular cell and offset (deltaX,Y,Z)
  */
-int searchCell(
-		int cellId,
-		int deltaX,
-		int deltaY,
-		int deltaZ,
-		uint gridCellsX,
-		uint gridCellsY,
-		uint gridCellsZ,
-		uint gridCellCount
-)
-{
-	int dx = deltaX;
-	int dy = deltaY * gridCellsX;
-	int dz = deltaZ * gridCellsX * gridCellsY;
-	int newCellId = cellId + dx + dy + dz;
-	newCellId = newCellId < 0 ? newCellId + gridCellCount : newCellId;
-	newCellId = newCellId >= gridCellCount ? newCellId - gridCellCount : newCellId;
-	return newCellId;
-}
+//int searchCell(
+//		int cellId,
+//		int deltaX,
+//		int deltaY,
+//		int deltaZ,
+//		uint gridCellsX,
+//		uint gridCellsY,
+//		uint gridCellsZ,
+//		uint gridCellCount
+//)
+//{
+//	int dx = deltaX;
+//	int dy = deltaY * gridCellsX;
+//	int dz = deltaZ * gridCellsX * gridCellsY;
+//	int newCellId = cellId + dx + dy + dz;
+//	newCellId = newCellId < 0 ? newCellId + gridCellCount : newCellId;
+//	newCellId = newCellId >= gridCellCount ? newCellId - gridCellCount : newCellId;
+//	return newCellId;
+//}
 
 
 /*Fill Cell particle
  * */
-__kernel void indexx(
-		__global uint2 * particleIndex,
-		uint gridCellCount,
-	__global uint * gridCellIndex,
-	uint PARTICLE_COUNT
-)
-{
-//fill up gridCellIndex
-	int id = get_global_id( 0 );
-	if( id > gridCellCount  ){
-		return;
-	}
-	if( id == gridCellCount ){
-		// add the nth+1 index value
-		gridCellIndex[ id ] = PARTICLE_COUNT;
-		return;
-	}
-	if( id == 0 ){
-		gridCellIndex[ id ] = 0;
-		return;
-	}
-// binary search for the starting position in sorted particleIndex
-	int low = 0;
-	int high = PARTICLE_COUNT - 1;
-	bool converged = false;
-	int cellIndex = NO_PARTICLE_ID;
-	while( !converged ){
-		if( low > high ){
-			converged = true;
-			cellIndex = NO_PARTICLE_ID;
-			continue;
-		}
-		int idx = (( high - low )>>1) + low;
-		uint2 sampleMinus1 = particleIndex[ idx - 1 ];
-		uint2 sample = particleIndex[ idx ];
-		int sampleCellId = PI_CELL_ID( sample );
-		bool isHigh = ( sampleCellId > id );
-		high = isHigh ? idx - 1 : high;
-		bool isLow = ( sampleCellId < id );
-		low = isLow ? idx + 1 : low;
-		bool isMiddle = !( isHigh || isLow );
 
-		bool zeroCase = ( idx == 0 && isMiddle );
-		int sampleM1CellId = zeroCase ? -1 : PI_CELL_ID( sampleMinus1 );
-		converged = isMiddle && ( zeroCase || sampleM1CellId < sampleCellId );
-		cellIndex = converged ? idx : cellIndex;
-		high = ( isMiddle && !converged ) ? idx - 1 : high;
-	}//while
-	gridCellIndex[ id ] = cellIndex;
+__kernel void k_clear_grid_hash(
+		__global int * grid_cell_particle_hash,
+		uint GRID_CELL_COUNT
+		){
+	int id = get_global_id(0);
+	if(id > GRID_CELL_COUNT){
+		return;
+	}
+	grid_cell_particle_hash[id] = -1;
+}
+
+__kernel void k_fill_particle_cell_hash(
+		__global int * grid_cell_particle_hash,
+		__global struct particle * particles,
+		int DEVICE_CELL_OFFSET,
+		uint PARTICLE_COUNT
+){
+	int id = get_global_id(0);
+	if(id > PARTICLE_COUNT){
+		return;
+	}
+	int particle_cell_id = particles[id].cell_id - DEVICE_CELL_OFFSET;
+	if(id == 0){
+		grid_cell_particle_hash[particle_cell_id] = 0;
+		return;
+	}
+	if(particles[id].cell_id != particles[id - 1].cell_id){
+		grid_cell_particle_hash[particle_cell_id] = id;
+	}
 }
 int getMaxIndex(
 		float *d_array
 )
 {
-	int result;
-	float max_d = -1.f;
-	for(int i=0; i<MAX_NEIGHBOR_COUNT; i++){
-		if (d_array[i] > max_d){
-			max_d = d_array[i];
-			result = i;
-		}
-	}
-	return result;
+//	int result;
+//	float max_d = -1.f;
+//	for(int i=0; i<MAX_NEIGHBOR_COUNT; i++){
+//		if (d_array[i] > max_d){
+//			max_d = d_array[i];
+//			result = i;
+//		}
+//	}
+//	return result;
 }
 /** Searchin for neigbours foe each particles
 */
@@ -302,22 +285,22 @@ __kernel void k_neighbour_search(
 		float simulationScale,
 		float xmin,
 		float ymin,
-		float zmin,
+		float zmin
 ){
-	int id = get_global_id( 0 );
-	__global uint * gridCellIndex = gridCellIndexFixedUp;
-	float4 position_ = particles[ id ];
-	int myCellId = (int)position_.cell_id & 0xffffff;// truncate to low 16 bits
-	int searchCells[8];
-	float r_thr2 = h * h;
-	float closest_distances[NEIGHBOUR_COUNT];
-	int closest_indexes[NEIGHBOUR_COUNT];
-	int found_count = 0;
-	for(int k=0;k<NEIGHBOUR_COUNT;k++){
-		closest_distances[k] = r_thr2;
-		closest_indexes[k] = -1;
-	}
-	searchCells[0] = myCellId;
+//	int id = get_global_id( 0 );
+//	__global uint * gridCellIndex = gridCellIndexFixedUp;
+//	float4 position_ = particles[ id ];
+//	int myCellId = (int)position_.cell_id & 0xffffff;// truncate to low 16 bits
+//	int searchCells[8];
+//	float r_thr2 = h * h;
+//	float closest_distances[NEIGHBOUR_COUNT];
+//	int closest_indexes[NEIGHBOUR_COUNT];
+//	int found_count = 0;
+//	for(int k=0;k<NEIGHBOUR_COUNT;k++){
+//		closest_distances[k] = r_thr2;
+//		closest_indexes[k] = -1;
+//	}
+//	searchCells[0] = myCellId;
 
 	// p is the current particle position within the bounds of the hash grid
 //	float4 p;
@@ -339,21 +322,21 @@ __kernel void k_neighbour_search(
 //	int4 one = (int4)( 1, 1, 1, 1 );
 //	delta = one + 2 * lo;
 	//searchCells[1] = searchCell( myCellId, delta.x, 0, 0, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
-	int last_farthest = 0;
-	// Search neighbour particles in every cells from searchCells list
-	last_farthest = searchForNeighbors_b( searchCells[0], gridCellIndex, position_,
-										  id, sortedPosition, neighborMap,
-										  closest_indexes, closest_distances, last_farthest, &found_count );
-
-	// storing all found neighbors into neighborMap buffer
-	for(int j=0; j<NEIGHBOUR_COUNT; j++){
-		float2 neighbor_data;
-		neighbor_data.x = closest_indexes[j];
-		if(closest_indexes[j] >= 0){
-			neighbor_data.y = SQRT( closest_distances[j] ) * simulationScale; // scaled, OK
-		}else{
-			neighbor_data.y = -1.f;
-		}
-		ext_particles[id].neighbour_list[j] = neighbor_data;
-	}
+//	int last_farthest = 0;
+//	// Search neighbour particles in every cells from searchCells list
+//	last_farthest = searchForNeighbors_b( searchCells[0], gridCellIndex, position_,
+//										  id, sortedPosition, neighborMap,
+//										  closest_indexes, closest_distances, last_farthest, &found_count );
+//
+//	// storing all found neighbors into neighborMap buffer
+//	for(int j=0; j<NEIGHBOUR_COUNT; j++){
+//		float2 neighbor_data;
+//		neighbor_data.x = closest_indexes[j];
+//		if(closest_indexes[j] >= 0){
+//			neighbor_data.y = SQRT( closest_distances[j] ) * simulationScale; // scaled, OK
+//		}else{
+//			neighbor_data.y = -1.f;
+//		}
+//		ext_particles[id].neighbour_list[j] = neighbor_data;
+//	}
 }

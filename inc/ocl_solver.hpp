@@ -93,9 +93,6 @@ namespace sibernetic {
                 }
                 copy_buffer_to_device((void *) &(model->get_particles()[p.start]),
                                       b_particles, p.size() * sizeof(particle<T>));
-
-                copy_buffer_to_device((void *) &(cell_id_list[0]),
-                                      b_grid_cell_id_list, p.cell_count() * sizeof(unsigned int));
             }
 
             ~ocl_solver() {}
@@ -103,6 +100,8 @@ namespace sibernetic {
             virtual void run_neighbour_search() {
               run_init_ext_particles();
               run_hash_particles();
+              run_clear_grid_hash();
+              run_fill_particle_cell_hash();
             }
 
             virtual void run_physic() {}
@@ -118,8 +117,9 @@ namespace sibernetic {
             const std::string cl_program_file = "cl_code//sph_cl_code.cl";
             cl::Kernel k_init_ext_particles;
             cl::Kernel k_hash_particles;
+            cl::Kernel k_clear_grid_hash;
+            cl::Kernel k_fill_particle_cell_hash;
             cl::Buffer b_particles;
-            cl::Buffer b_grid_cell_particle_list;
             cl::Buffer b_grid_cell_id_list;
             cl::Buffer b_ext_particles;
             cl::CommandQueue queue;
@@ -130,15 +130,15 @@ namespace sibernetic {
                                   p.size() * sizeof(particle<T>));
                 create_ocl_buffer("ext_particles", b_ext_particles, CL_MEM_READ_WRITE,
                                   p.size() * sizeof(extend_particle));
-                create_ocl_buffer("grid_cell_particle_list", b_grid_cell_particle_list, CL_MEM_READ_WRITE,
-                                  p.cell_count() * sizeof(unsigned int) * 2);
-                create_ocl_buffer("grid_cell_id_list", b_grid_cell_id_list, CL_MEM_READ_WRITE,
+                create_ocl_buffer("grid_cell_particle_hash", b_grid_cell_id_list, CL_MEM_READ_WRITE,
                                   p.cell_count() * sizeof(unsigned int));
             }
 
             void init_kernels() {
                 create_ocl_kernel("k_init_ext_particles", k_init_ext_particles);
                 create_ocl_kernel("k_hash_particles", k_hash_particles);
+                create_ocl_kernel("k_clear_grid_hash",k_clear_grid_hash);
+                create_ocl_kernel("k_fill_particle_cell_hash", k_fill_particle_cell_hash);
             }
 
             virtual void init_ext_particles() {}
@@ -238,7 +238,8 @@ namespace sibernetic {
                         this->k_init_ext_particles,
                         (unsigned int)p.size(),
                         0,
-                        this->b_ext_particles
+                        this->b_ext_particles,
+                        p.size()
                 );
             }
 
@@ -251,7 +252,30 @@ namespace sibernetic {
                         model->get_cell_num_x(),
                         model->get_cell_num_y(),
                         model->get_cell_num_z(),
-                        sibernetic::model::GRID_CELL_SIZE_INV
+                        sibernetic::model::GRID_CELL_SIZE_INV,
+                        p.size()
+                );
+            }
+
+            int run_clear_grid_hash() {
+                this->kernel_runner(
+                        this->k_clear_grid_hash,
+                        (unsigned int)p.cell_count(),
+                        0,
+                        this->b_grid_cell_id_list,
+                        p.cell_count()
+                );
+            }
+
+            int run_fill_particle_cell_hash() {
+                this->kernel_runner(
+                        this->k_fill_particle_cell_hash,
+                        (unsigned int)p.size(),
+                        0,
+                        this->b_grid_cell_id_list,
+                        this->b_particles,
+                        p.start_cell_id,
+                        p.size()
                 );
             }
 
