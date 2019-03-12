@@ -220,6 +220,10 @@ int searchCell(
 	return newCellId;
 }
 
+
+/*Fill Cell particle
+ * */
+
 /** Searchin for neigbours foe each particles
 */
 __kernel void k_neighbour_search(

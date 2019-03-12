@@ -6,7 +6,8 @@ set(CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 
-include_directories(/usr/local/cuda/include/)
+#include_directories(/usr/local/cuda/include/)
+include_directories(/usr/include/)
 include_directories(inc)
 
 set(TARGET sibernetic)

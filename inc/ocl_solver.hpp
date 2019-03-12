@@ -87,8 +87,15 @@ namespace sibernetic {
                 this->p = p;
                 init_buffers();
                 init_kernels();
+                std::vector<unsigned int> cell_id_list;
+                for(size_t i=p.start_cell_id;i<=p.end_cell_id;++i){
+                    cell_id_list.push_back(i);
+                }
                 copy_buffer_to_device((void *) &(model->get_particles()[p.start]),
                                       b_particles, p.size() * sizeof(particle<T>));
+
+                copy_buffer_to_device((void *) &(cell_id_list[0]),
+                                      b_grid_cell_id_list, p.cell_count() * sizeof(unsigned int));
             }
 
             ~ocl_solver() {}
