@@ -87,10 +87,6 @@ namespace sibernetic {
                 this->p = p;
                 init_buffers();
                 init_kernels();
-                std::vector<unsigned int> cell_id_list;
-                for(size_t i=p.start_cell_id;i<=p.end_cell_id;++i){
-                    cell_id_list.push_back(i);
-                }
                 copy_buffer_to_device((void *) &(model->get_particles()[p.start]),
                                       b_particles, p.size() * sizeof(particle<T>));
             }
@@ -119,9 +115,10 @@ namespace sibernetic {
             cl::Kernel k_hash_particles;
             cl::Kernel k_clear_grid_hash;
             cl::Kernel k_fill_particle_cell_hash;
+
             cl::Buffer b_particles;
-            cl::Buffer b_grid_cell_id_list;
             cl::Buffer b_ext_particles;
+            cl::Buffer b_grid_cell_id_list;
             cl::CommandQueue queue;
             cl::Program program;
 
@@ -130,8 +127,8 @@ namespace sibernetic {
                                   p.size() * sizeof(particle<T>));
                 create_ocl_buffer("ext_particles", b_ext_particles, CL_MEM_READ_WRITE,
                                   p.size() * sizeof(extend_particle));
-                create_ocl_buffer("grid_cell_particle_hash", b_grid_cell_id_list, CL_MEM_READ_WRITE,
-                                  p.cell_count() * sizeof(unsigned int));
+                create_ocl_buffer("b_grid_cell_id_list", b_grid_cell_id_list, CL_MEM_READ_WRITE,
+                                  p.cell_count() * sizeof(int));
             }
 
             void init_kernels() {
@@ -246,7 +243,7 @@ namespace sibernetic {
             int run_hash_particles() {
                 this->kernel_runner(
                         this->k_hash_particles,
-                        (unsigned int)p.size(),
+                        p.size(),
                         0,
                         this->b_particles,
                         model->get_cell_num_x(),
@@ -260,7 +257,7 @@ namespace sibernetic {
             int run_clear_grid_hash() {
                 this->kernel_runner(
                         this->k_clear_grid_hash,
-                        (unsigned int)p.cell_count(),
+                        p.cell_count(),
                         0,
                         this->b_grid_cell_id_list,
                         p.cell_count()
@@ -270,11 +267,11 @@ namespace sibernetic {
             int run_fill_particle_cell_hash() {
                 this->kernel_runner(
                         this->k_fill_particle_cell_hash,
-                        (unsigned int)p.size(),
+                        p.size(),
                         0,
                         this->b_grid_cell_id_list,
                         this->b_particles,
-                        p.start_cell_id,
+                        (unsigned int)p.start_cell_id,
                         p.size()
                 );
             }

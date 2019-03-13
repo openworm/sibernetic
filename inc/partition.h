@@ -14,15 +14,16 @@ namespace sibernetic{
              * in which we define where starts
              * and end particles for this device.
              */
+            typedef unsigned int uint;
             size_t start;
             size_t end;
             size_t start_cell_id;
-            unsigned int end_cell_id;
-            unsigned int start_ghost_cell_id;
-            unsigned int end_ghost_cell_id;
-            unsigned int size() const { return end - start; }
-            unsigned int cell_count() const { return end_cell_id - start_cell_id; }
-            unsigned int total_cell_count() const { return end_ghost_cell_id - start_ghost_cell_id; }
+            uint end_cell_id;
+            uint start_ghost_cell_id;
+            uint end_ghost_cell_id;
+            uint size() const { return static_cast<uint>(end - start); }
+            uint cell_count() const { return static_cast<uint>(end_cell_id - start_cell_id); }
+            uint total_cell_count() const { return end_ghost_cell_id - start_ghost_cell_id; }
         };
     }
 }
