@@ -165,7 +165,9 @@ private:
       size_t start_ghost_cell_id = 0, end_ghost_cell_id = end_cell_id;
       if(start_cell_id != 0 ){
         start_ghost_cell_id = start_cell_id - cell_num_y;
+
       }
+
       if(end_cell_id != total_cell_num - 1){
           end_ghost_cell_id = end_cell_id + cell_num_y;
       }
