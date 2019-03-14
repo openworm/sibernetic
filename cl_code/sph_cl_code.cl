@@ -240,14 +240,14 @@ __kernel void k_clear_grid_hash(
 __kernel void k_fill_particle_cell_hash(
 		__global int * b_grid_cell_id_list,
 		__global struct particle * particles,
-		int DEVICE_CELL_OFFSET,
+        unsigned int DEVICE_CELL_OFFSET,
 		uint PARTICLE_COUNT
 ){
 	int id = get_global_id(0);
 	if(id >= PARTICLE_COUNT){
 		return;
 	}
-	int particle_cell_id = particles[id].cell_id - DEVICE_CELL_OFFSET;
+	unsigned int particle_cell_id = particles[id].cell_id - DEVICE_CELL_OFFSET;
 	if(id == 0){
         b_grid_cell_id_list[particle_cell_id] = 0;
 		return;
@@ -256,20 +256,7 @@ __kernel void k_fill_particle_cell_hash(
         b_grid_cell_id_list[particle_cell_id] = id;
 	}
 }
-//int getMaxIndex(
-//		float *d_array
-//)
-//{
-//	int result;
-//	float max_d = -1.f;
-//	for(int i=0; i<NEIGHBOUR_COUNT; i++){
-//		if (d_array[i] > max_d){
-//			max_d = d_array[i];
-//			sresult = i;
-//		}
-//	}
-//	return result;
-//}
+
 /** Searchin for neigbours foe each particles
 */
 __kernel void k_neighbour_search(

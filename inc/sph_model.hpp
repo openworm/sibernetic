@@ -106,7 +106,7 @@ public:
       else {
         if(particles[start + part_size].cell_id != particles[start + part_size + 1].cell_id){
           push_partition(start, start + part_size);
-          start += part_size;
+          start += part_size + 1;
         } else {
           end = start + part_size;
           while(particles[end].cell_id == particles[end + 1].cell_id){
@@ -116,12 +116,12 @@ public:
             ++end;
           }
           if(particles[end].cell_id % cell_num_y != 0){
-              auto last_cell = particles[end].cell_id + particles[end].cell_id % cell_num_y;
+              auto last_cell = particles[end].cell_id + (particles[end].cell_id % cell_num_y) + 1;
               while(particles[end].cell_id != last_cell){
                   ++end;
               }
           }
-          push_partition(start, end);
+          push_partition(start, end - 1);
           start = end;
         }
       }
@@ -162,7 +162,7 @@ private:
   void push_partition(size_t start, size_t end) {
       auto start_cell_id = particles[start].cell_id;
       auto end_cell_id = particles[end].cell_id;
-      size_t start_ghost_cell_id = 0, end_ghost_cell_id = 0;
+      size_t start_ghost_cell_id = 0, end_ghost_cell_id = end_cell_id;
       if(start_cell_id != 0 ){
         start_ghost_cell_id = start_cell_id - cell_num_y;
       }
