@@ -182,13 +182,12 @@ namespace sibernetic {
                         << msg
                         << "OPENCL program was successfully build. Program file oclsourcepath: "
                         << cl_program_file << std::endl;
-                return;
             }
 
             void create_ocl_buffer(const char *name, cl::Buffer &b,
                                    const cl_mem_flags flags, const int size) {
                 int err;
-                b = cl::Buffer(dev->context, flags, size, NULL, &err);
+                b = cl::Buffer(dev->context, flags, size, nullptr, &err);
                 if (err != CL_SUCCESS) {
                     std::string error_m =
                             make_msg("Buffer creation failed: ", name, " Error code is ", err);
@@ -207,7 +206,7 @@ namespace sibernetic {
             }
 
             void copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,
-                                       const int size) {
+                                       const size_t size) {
                 // Actually we should check  size and type
                 int err = queue.enqueueWriteBuffer(ocl_b, CL_TRUE, 0, size, host_b);
                 if (err != CL_SUCCESS) {
@@ -231,9 +230,10 @@ namespace sibernetic {
             }
 
             int run_init_ext_particles() {
+                std::cout << "run init_ext_particles " << dev->name<< std::endl;
                 this->kernel_runner(
                         this->k_init_ext_particles,
-                        (unsigned int)p.size(),
+                        p.size(),
                         0,
                         this->b_ext_particles,
                         p.size()
@@ -241,6 +241,7 @@ namespace sibernetic {
             }
 
             int run_hash_particles() {
+                std::cout << "run hash_particles " << dev->name << std::endl;
                 this->kernel_runner(
                         this->k_hash_particles,
                         p.size(),
@@ -255,6 +256,7 @@ namespace sibernetic {
             }
 
             int run_clear_grid_hash() {
+                std::cout << "run clear_grid_hash " << dev->name << std::endl;
                 this->kernel_runner(
                         this->k_clear_grid_hash,
                         p.cell_count(),
@@ -265,13 +267,14 @@ namespace sibernetic {
             }
 
             int run_fill_particle_cell_hash() {
+                std::cout << "run fill_particle_cell_hash " << dev->name << std::endl;
                 this->kernel_runner(
                         this->k_fill_particle_cell_hash,
                         p.size(),
                         0,
                         this->b_grid_cell_id_list,
                         this->b_particles,
-                        (unsigned int)p.start_cell_id,
+                        p.start_cell_id,
                         p.size()
                 );
             }
@@ -289,7 +292,6 @@ namespace sibernetic {
 
             template<typename U>
             int kernel_runner(cl::Kernel &ker, unsigned int  dim, unsigned int arg_pos, U& arg) {
-                std::cout << "Run kernel" << std::endl;
                 ker.setArg(arg_pos, arg);
                 auto dim_round_up = (((dim - 1) / LOCAL_NDRANGE_SIZE) + 1) * LOCAL_NDRANGE_SIZE;
                 int err = queue.enqueueNDRangeKernel(

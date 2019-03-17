@@ -115,8 +115,8 @@ int cell_id(
 		   uint grid_cells_Z//doesn't use
 		   )
 {
-	int cell_id = cell_factors_.y + cell_factors_.x * grid_cells_Y
-		+ cell_factors_.z * grid_cells_X * grid_cells_Y;
+	int cell_id = cell_factors_.y + cell_factors_.z * grid_cells_Y
+		+ cell_factors_.x * grid_cells_Z * grid_cells_Y;
 	return cell_id;
 }
 /** Caculation spatial hash cellId for every particle
