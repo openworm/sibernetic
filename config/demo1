@@ -9,6 +9,7 @@ parameters[
 	mass: 20.00e-13
 	rho0: 1000.0
 	time_step: 20.0e-06
+	simulation_scale: 0.005
 ]
 model[
 	position[

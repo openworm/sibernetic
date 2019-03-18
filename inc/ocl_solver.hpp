@@ -93,17 +93,18 @@ namespace sibernetic {
 
             ~ocl_solver() {}
 
-            virtual void run_neighbour_search() {
+            virtual void neighbour_search() {
               run_init_ext_particles();
               run_hash_particles();
               run_clear_grid_hash();
               run_fill_particle_cell_hash();
+              run_neighbour_search();
             }
 
-            virtual void run_physic() {}
+            virtual void physic() {}
             virtual void run() {
-                run_neighbour_search();
-                run_physic();
+                neighbour_search();
+                physic();
             }
         private:
             model_ptr model;
@@ -115,6 +116,7 @@ namespace sibernetic {
             cl::Kernel k_hash_particles;
             cl::Kernel k_clear_grid_hash;
             cl::Kernel k_fill_particle_cell_hash;
+            cl::Kernel k_neighbour_search;
 
             cl::Buffer b_particles;
             cl::Buffer b_ext_particles;
@@ -136,6 +138,7 @@ namespace sibernetic {
                 create_ocl_kernel("k_hash_particles", k_hash_particles);
                 create_ocl_kernel("k_clear_grid_hash",k_clear_grid_hash);
                 create_ocl_kernel("k_fill_particle_cell_hash", k_fill_particle_cell_hash);
+                create_ocl_kernel("k_neighbour_search", k_neighbour_search);
             }
 
             virtual void init_ext_particles() {}
@@ -275,6 +278,29 @@ namespace sibernetic {
                         this->b_grid_cell_id_list,
                         this->b_particles,
                         p.start_cell_id,
+                        p.size()
+                );
+            }
+
+            int run_neighbour_search() {
+                std::cout << "run neighbour_search " << dev->name << std::endl;
+                this->kernel_runner(
+                        this->k_neighbour_search,
+                        p.size(),
+                        0,
+                        this->b_ext_particles,
+                        this->b_particles,
+                        this->b_grid_cell_id_list,
+                        model->get_cell_num_x(),
+                        model->get_cell_num_y(),
+                        model->get_cell_num_z(),
+                        sibernetic::model::H,
+                        sibernetic::model::GRID_CELL_SIZE,
+                        sibernetic::model::GRID_CELL_SIZE_INV,
+                        model->get_config()["simulation_scale"],
+                        model->get_config()["x_min"],
+                        model->get_config()["y_min"],
+                        model->get_config()["z_min"],
                         p.size()
                 );
             }

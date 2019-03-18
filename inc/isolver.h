@@ -42,8 +42,8 @@ class i_solver {
 public:
   // virtual void synk() = 0;
   virtual ~i_solver(){};
-  virtual void run_neighbour_search() = 0;
-  virtual void run_physic() = 0;
+  virtual void neighbour_search() = 0;
+  virtual void physic() = 0;
   virtual void init_model(const partition &) = 0;
   virtual void run() = 0;
 private:

@@ -63,6 +63,7 @@ public:
     config = {{"particles", T()}, {"x_max", T()}, {"x_min", T()},
               {"y_max", T()},     {"y_min", T()}, {"z_max", T()},
               {"z_min", T()},     {"mass", T()},  {"time_step", T()},
+              {"simulation_scale", T()},
               {"rho0", T()}};
     this->serializer->serialize(config_file, this);
     init_vars();

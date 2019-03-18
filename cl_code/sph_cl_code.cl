@@ -263,6 +263,7 @@ __kernel void k_neighbour_search(
 		__global struct extend_particle * ext_particles,
 		__global struct
 				particle * particles,
+        __global int * b_grid_cell_id_list,
 		uint grid_cells_X,
 		uint grid_cells_Y,
 		uint grid_cells_Z,
@@ -272,12 +273,16 @@ __kernel void k_neighbour_search(
 		float simulationScale,
 		float xmin,
 		float ymin,
-		float zmin
+		float zmin,
+		int PARTICLE_COUNT
 ){
-//	int id = get_global_id( 0 );
+	int id = get_global_id( 0 );
+	if(id >= PARTICLE_COUNT){
+        return;
+	}
 //	__global uint * gridCellIndex = gridCellIndexFixedUp;
 //	float4 position_ = particles[ id ];
-//	int myCellId = (int)position_.cell_id & 0xffffff;// truncate to low 16 bits
+	int myCellId = particles[id].cell_id;//& 0xffffff;// truncate to low 16 bits
 //	int searchCells[8];
 //	float r_thr2 = h * h;
 //	float closest_distances[NEIGHBOUR_COUNT];
