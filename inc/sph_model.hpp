@@ -151,6 +151,9 @@ public:
   const int get_cell_num_z(){
       return cell_num_z;
   }
+  const int get_total_cell_num(){
+    return total_cell_num;
+  }
 private:
   abstract_reader<T> * serializer;
   size_t next_partition;
@@ -201,7 +204,8 @@ private:
           start_cell_id,
           end_cell_id,
           start_ghost_cell_id,
-          end_ghost_cell_id});
+          end_ghost_cell_id
+      });
   }
   /** Init variables for simulation
    */

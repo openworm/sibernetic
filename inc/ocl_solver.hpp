@@ -294,6 +294,8 @@ namespace sibernetic {
                         model->get_cell_num_x(),
                         model->get_cell_num_y(),
                         model->get_cell_num_z(),
+                        model->get_total_cell_num(),
+                        p.start_cell_id,
                         sibernetic::model::H,
                         sibernetic::model::GRID_CELL_SIZE,
                         sibernetic::model::GRID_CELL_SIZE_INV,

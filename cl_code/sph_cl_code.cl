@@ -202,26 +202,44 @@ __kernel void k_hash_particles(
 /** Return value of cellId from gridCellIndexFixedUp
  *  for particular cell and offset (deltaX,Y,Z)
  */
-//int searchCell(
-//		int cellId,
-//		int deltaX,
-//		int deltaY,
-//		int deltaZ,
-//		uint gridCellsX,
-//		uint gridCellsY,
-//		uint gridCellsZ,
-//		uint gridCellCount
-//)
-//{
-//	int dx = deltaX;
-//	int dy = deltaY * gridCellsX;
-//	int dz = deltaZ * gridCellsX * gridCellsY;
-//	int newCellId = cellId + dx + dy + dz;
-//	newCellId = newCellId < 0 ? newCellId + gridCellCount : newCellId;
-//	newCellId = newCellId >= gridCellCount ? newCellId - gridCellCount : newCellId;
-//	return newCellId;
-//}
+int searchCell(
+		int cellId,
+		int deltaX,
+		int deltaY,
+		int deltaZ,
+		uint gridCellsX,
+		uint gridCellsY,
+		uint gridCellsZ,
+		uint gridCellCount
+)
+{
+	int dy = deltaY;
+	int dz = deltaZ * gridCellsY;
+	int dx = deltaX * gridCellsZ * gridCellsY;
+	int newCellId = cellId + dx + dy + dz;
+	newCellId = newCellId < 0 ? newCellId + gridCellCount : newCellId;
+	newCellId = newCellId >= gridCellCount ? newCellId - gridCellCount : newCellId;
+	return newCellId;
+}
 
+/** Caculation spatial hash cellId for every particle
+ *  Kernel fill up particleIndex buffer.
+ */
+int4 cellFactors(
+        float4 position,
+        float xmin,
+        float ymin,
+        float zmin,
+        float hashGridCellSizeInv
+)
+{
+    //xmin, ymin, zmin
+    int4 result;
+    result.x = (int)( position.x *  hashGridCellSizeInv );
+    result.y = (int)( position.y *  hashGridCellSizeInv );
+    result.z = (int)( position.z *  hashGridCellSizeInv );
+    return result;
+}
 
 /*Fill Cell particle
  * */
@@ -267,6 +285,8 @@ __kernel void k_neighbour_search(
 		uint grid_cells_X,
 		uint grid_cells_Y,
 		uint grid_cells_Z,
+		uint grid_cell_count,
+        uint grid_offset,
 		float h,
 		float hashGridCellSize,
 		float hashGridCellSizeInv,
@@ -281,40 +301,56 @@ __kernel void k_neighbour_search(
         return;
 	}
 //	__global uint * gridCellIndex = gridCellIndexFixedUp;
-//	float4 position_ = particles[ id ];
+	float4 position_ = particles[ id ].pos;
 	int myCellId = particles[id].cell_id;//& 0xffffff;// truncate to low 16 bits
-//	int searchCells[8];
-//	float r_thr2 = h * h;
-//	float closest_distances[NEIGHBOUR_COUNT];
-//	int closest_indexes[NEIGHBOUR_COUNT];
-//	int found_count = 0;
-//	for(int k=0;k<NEIGHBOUR_COUNT;k++){
-//		closest_distances[k] = r_thr2;
-//		closest_indexes[k] = -1;
-//	}
-//	searchCells[0] = myCellId;
+	int searchCells[8];
+	float r_thr2 = h * h;
+	float closest_distances[NEIGHBOUR_COUNT];
+	int closest_indexes[NEIGHBOUR_COUNT];
+	int found_count = 0;
+	for(int k=0;k<NEIGHBOUR_COUNT;k++){
+		closest_distances[k] = r_thr2;
+		closest_indexes[k] = -1;
+	}
+	searchCells[0] = myCellId;
 
 	// p is the current particle position within the bounds of the hash grid
-//	float4 p;
-//	float4 p0 = (float4)( xmin, ymin, zmin, 0.0f );
-//	p = position_ - p0;
+	float4 p;
+	float4 p0 = (float4)( xmin, ymin, zmin, 0.0f );
+	p = position_ - p0;
 //
 //	// cf is the min,min,min corner of the current cell
-//	int4 cellFactors_ = cellFactors( position_, xmin, ymin, zmin, hashGridCellSizeInv );
-//	float4 cf;
-//	cf.x = cellFactors_.x * hashGridCellSize;
-//	cf.y = cellFactors_.y * hashGridCellSize;
-//	cf.z = cellFactors_.z * hashGridCellSize;
+	int4 cellFactors_ = cellFactors( position_, xmin, ymin, zmin, hashGridCellSizeInv );
+	float4 cf;
+	cf.x = cellFactors_.x * hashGridCellSize;
+	cf.y = cellFactors_.y * hashGridCellSize;
+	cf.z = cellFactors_.z * hashGridCellSize;
 //
-//	// lo.A is true if the current position is in the low half of the cell for dimension A
-//	int4 lo;
-//	lo = (( p - cf ) < h );
-//
-//	int4 delta;
-//	int4 one = (int4)( 1, 1, 1, 1 );
-//	delta = one + 2 * lo;
-	//searchCells[1] = searchCell( myCellId, delta.x, 0, 0, gridCellsX, gridCellsY, gridCellsZ, gridCellCount );
-//	int last_farthest = 0;
+	// lo.A is true if the current position is in the low half of the cell for dimension A
+	int4 lo;
+	lo = (( p - cf ) < h );
+
+	int4 delta;
+	int4 one = (int4)( 1, 1, 1, 1 );
+	delta = one + 2 * lo;
+    searchCells[1] = searchCell( myCellId, delta.x, 0, 0, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count );
+    searchCells[2] = searchCell( myCellId, 0, delta.y, 0, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count );
+    searchCells[3] = searchCell( myCellId, 0, 0, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count );
+    searchCells[4] = searchCell( myCellId, delta.x, delta.y, 0, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count );
+    searchCells[5] = searchCell( myCellId, delta.x, 0, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count );
+    searchCells[6] = searchCell( myCellId, 0, delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count );
+    searchCells[7] = searchCell( myCellId, delta.x, delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count );
+
+    searchCells[0] -= grid_offset;
+    searchCells[1] -= grid_offset;
+    searchCells[2] -= grid_offset;
+    searchCells[3] -= grid_offset;
+    searchCells[4] -= grid_offset;
+    searchCells[5] -= grid_offset;
+    searchCells[6] -= grid_offset;
+    searchCells[7] -= grid_offset;
+
+    int last_farthest = 0;
 //	// Search neighbour particles in every cells from searchCells list
 //	last_farthest = searchForNeighbors_b( searchCells[0], gridCellIndex, position_,
 //										  id, sortedPosition, neighborMap,
