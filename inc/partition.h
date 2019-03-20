@@ -27,6 +27,12 @@ namespace sibernetic{
             uint total_size() const { return static_cast<uint>(ghost_end - ghost_start ); }
             uint cell_count() const { return end_cell_id - start_cell_id + 1; }
             uint total_cell_count() const { return end_ghost_cell_id - start_ghost_cell_id + 1; }
+            int offset() {
+                return static_cast<int>((start > ghost_start) ? (start - ghost_start) : 0);
+            }
+            int limit() {
+                return static_cast<int>((end > ghost_start) ? (end - ghost_start) : 0);
+            }
         };
     }
 }

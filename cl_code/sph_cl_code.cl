@@ -58,6 +58,11 @@
 #include "inc/ocl_struct.h"
 #endif
 
+#define SQRT( x ) native_sqrt( x )
+#define DIVIDE( a, b ) native_divide( a, b )
+#define DOT( a, b ) dot( a, b )
+
+
 typedef struct particle{
 #ifdef _DOUBLE_PRECISION
 	double4 pos;
@@ -141,17 +146,34 @@ __kernel void k_hash_particles(
 							uint gridCellsY,
 							uint gridCellsZ,
 							float hashGridCellSizeInv,
-							int PARTICLE_COUNT
+							int PARTICLE_COUNT,
+							int OFFSET,
+							int LIMIT
 							)
 {
 	int id = get_global_id( 0 );
-	if(id > PARTICLE_COUNT){
+	if(id > PARTICLE_COUNT && id + OFFSET > LIMIT){
 		return;
 	}
-
+	id += OFFSET;
 	int4 cellFactors_ = cell_factors( &particles[ id ], hashGridCellSizeInv );
 	int cellId_ = cell_id( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffffff; // truncate to low 16 bits
 	particles[ id ].cell_id = cellId_;
+}
+
+int getMaxIndex(
+		float *d_array
+)
+{
+	int result;
+	float max_d = -1.f;
+	for(int i=0; i<NEIGHBOUR_COUNT; i++){
+		if (d_array[i] > max_d){
+			max_d = d_array[i];
+			result = i;
+		}
+	}
+	return result;
 }
 
 // Neighbour Search algorithm function and kernel block
@@ -159,46 +181,44 @@ __kernel void k_hash_particles(
  *  It takes every particles from particular cell and check if it satisfy
  *  a condition that distance between particles is <= closest_distance
  */
-//int searchForNeighbors_b(
-//	int searchCell_,
-//	__global uint * gridCellIndex,
-//	float4 position_,
-//	int myParticleId,
-//	__global float4 * sortedPosition,
-//	__global float2 * neighborMap,
-//	int * closest_indexes,
-//	float * closest_distances,
-//	int last_farthest,
-//	int *found_count){
-//	int baseParticleId = gridCellIndex[ searchCell_ ];
-//	int nextParticleId = gridCellIndex[ searchCell_ + 1 ];
-//	int particleCountThisCell = nextParticleId - baseParticleId; // Calcuating how many particle is containining in particular cell
-//	int i = 0;
-//	float _distanceSquared;
-//	int neighborParticleId;
-//	int farthest_neighbor = last_farthest;
-//	while( i < particleCountThisCell ){
-//		neighborParticleId = baseParticleId + i;
-//		if(myParticleId != neighborParticleId)
-//		{
-//			float4 d = position_ - sortedPosition[ neighborParticleId ];
-//			_distanceSquared = d.x*d.x + d.y*d.y + d.z*d.z; // inlined openCL dot(d,d)
-//			if( _distanceSquared <= closest_distances[farthest_neighbor])
-//			{
-//				closest_distances[farthest_neighbor] = _distanceSquared;
-//				closest_indexes[farthest_neighbor] = neighborParticleId;
-//				if(*found_count < MAX_NEIGHBOR_COUNT-1){
-//					(*found_count)++;
-//					farthest_neighbor = *found_count;
-//				} else{
-//					farthest_neighbor = getMaxIndex(closest_distances);
-//				}
-//			}
-//		}
-//		i++;
-//	}//while
-//	return farthest_neighbor;
-//}
+int searchForNeighbors_b(
+	int searchCell_,
+	__global struct particle * particles,
+	__global int * b_grid_cell_id_list,
+	float4 position_,
+	int myParticleId,
+	int * closest_indexes,
+	float * closest_distances,
+	int last_farthest,
+	int *found_count)
+{
+	int baseParticleId = b_grid_cell_id_list[ searchCell_ ];
+	int i = 0;
+	float _distanceSquared;
+	int neighborParticleId;
+	int farthest_neighbor = last_farthest;
+	while( particles[i].cell_id == searchCell_){
+		neighborParticleId = i;
+		if(myParticleId != neighborParticleId)
+		{
+			float4 d = position_ - particles[neighborParticleId].pos;
+			_distanceSquared = d.x*d.x + d.y*d.y + d.z*d.z; // inlined openCL dot(d,d)
+			if( _distanceSquared <= closest_distances[farthest_neighbor])
+			{
+				closest_distances[farthest_neighbor] = _distanceSquared;
+				closest_indexes[farthest_neighbor] = neighborParticleId;
+				if(*found_count < NEIGHBOUR_COUNT - 1){
+					(*found_count)++;
+					farthest_neighbor = *found_count;
+				} else{
+					farthest_neighbor = getMaxIndex(closest_distances);
+				}
+			}
+		}
+		++i;
+	}//while
+	return farthest_neighbor;
+}
 /** Return value of cellId from gridCellIndexFixedUp
  *  for particular cell and offset (deltaX,Y,Z)
  */
@@ -294,13 +314,15 @@ __kernel void k_neighbour_search(
 		float xmin,
 		float ymin,
 		float zmin,
-		int PARTICLE_COUNT
+		int PARTICLE_COUNT,
+		int OFFSET,
+		int LIMIT
 ){
 	int id = get_global_id( 0 );
-	if(id >= PARTICLE_COUNT){
-        return;
+	if(id >= PARTICLE_COUNT && id + OFFSET > LIMIT){
+		return;
 	}
-//	__global uint * gridCellIndex = gridCellIndexFixedUp;
+	id += OFFSET;
 	float4 position_ = particles[ id ].pos;
 	int myCellId = particles[id].cell_id;//& 0xffffff;// truncate to low 16 bits
 	int searchCells[8];
@@ -342,20 +364,48 @@ __kernel void k_neighbour_search(
 	searchCells[7] = searchCell( myCellId, delta.x, delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
 
  	int last_farthest = 0;
-//	// Search neighbour particles in every cells from searchCells list
-//	last_farthest = searchForNeighbors_b( searchCells[0], gridCellIndex, position_,
-//										  id, sortedPosition, neighborMap,
-//										  closest_indexes, closest_distances, last_farthest, &found_count );
-//
-//	// storing all found neighbors into neighborMap buffer
-//	for(int j=0; j<NEIGHBOUR_COUNT; j++){
-//		float2 neighbor_data;
-//		neighbor_data.x = closest_indexes[j];
-//		if(closest_indexes[j] >= 0){
-//			neighbor_data.y = SQRT( closest_distances[j] ) * simulationScale; // scaled, OK
-//		}else{
-//			neighbor_data.y = -1.f;
-//		}
-//		ext_particles[id].neighbour_list[j] = neighbor_data;
-//	}
+	// Search neighbour particles in every cells from searchCells list
+	last_farthest = searchForNeighbors_b( searchCells[0], particles, b_grid_cell_id_list, position_,
+	                                      id, closest_indexes, closest_distances,
+	                                      last_farthest, &found_count );
+
+	last_farthest = searchForNeighbors_b( searchCells[1], particles, b_grid_cell_id_list, position_,
+	                                      id, closest_indexes, closest_distances,
+	                                      last_farthest, &found_count );
+
+	last_farthest = searchForNeighbors_b( searchCells[2], particles, b_grid_cell_id_list, position_,
+	                                      id, closest_indexes, closest_distances,
+	                                      last_farthest, &found_count );
+
+	last_farthest = searchForNeighbors_b( searchCells[3], particles, b_grid_cell_id_list, position_,
+	                                      id, closest_indexes, closest_distances,
+	                                      last_farthest, &found_count );
+
+	last_farthest = searchForNeighbors_b( searchCells[4], particles, b_grid_cell_id_list, position_,
+	                                      id, closest_indexes, closest_distances,
+	                                      last_farthest, &found_count );
+	last_farthest = searchForNeighbors_b( searchCells[5], particles, b_grid_cell_id_list, position_,
+	                                      id, closest_indexes, closest_distances,
+	                                      last_farthest, &found_count );
+
+	last_farthest = searchForNeighbors_b( searchCells[6], particles, b_grid_cell_id_list, position_,
+	                                      id, closest_indexes, closest_distances,
+	                                      last_farthest, &found_count );
+
+	last_farthest = searchForNeighbors_b( searchCells[7], particles, b_grid_cell_id_list, position_,
+	                                      id, closest_indexes, closest_distances,
+	                                      last_farthest, &found_count );
+
+	// storing all found neighbors into neighborMap buffer
+	for(int j=0; j<NEIGHBOUR_COUNT; j++){
+		float2 neighbor_data;
+		neighbor_data.x = closest_indexes[j];
+		if(closest_indexes[j] >= 0){
+			neighbor_data.y = SQRT( closest_distances[j] ) * simulationScale; // scaled, OK
+		}else{
+			neighbor_data.y = -1.f;
+		}
+		ext_particles[id].neighbour_list[j][0] = neighbor_data.x;
+		ext_particles[id].neighbour_list[j][1] = neighbor_data.y;
+	}
 }
