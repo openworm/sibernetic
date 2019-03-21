@@ -33,6 +33,8 @@
 #ifndef ISOLVER_H
 #define ISOLVER_H
 #include "partition.h"
+#include "ocl_struct.h"
+#include <vector>
 #include <string>
 namespace sibernetic {
 namespace solver {
@@ -41,7 +43,7 @@ using sibernetic::model::partition;
 class i_solver {
 public:
   // virtual void synk() = 0;
-  virtual ~i_solver(){};
+  virtual ~i_solver() = default;;
   virtual void neighbour_search() = 0;
   virtual void physic() = 0;
   virtual void init_model(const partition &) = 0;
