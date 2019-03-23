@@ -42,7 +42,7 @@ enum SOLVER_TYPE { OCL = 1, CUDA, SINGLE, PARALLEL };
 using sibernetic::model::partition;
 class i_solver {
 public:
-  // virtual void synk() = 0;
+  virtual void sync() = 0;
   virtual ~i_solver() = default;;
   virtual void neighbour_search() = 0;
   virtual void physic() = 0;

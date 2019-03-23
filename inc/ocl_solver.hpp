@@ -107,9 +107,18 @@ namespace sibernetic {
 
 			void physic() override {}
 
+			void sync() override {
+				copy_buffer_from_device(
+						&model->get_particles()[p.start],
+						b_particles,
+						p.size() * sizeof(particle<T>),
+						p.offset());
+			}
+
 			void run() override {
 				neighbour_search();
 				physic();
+				sync();
 			}
 
 		private:
@@ -227,9 +236,9 @@ namespace sibernetic {
 			}
 
 			void copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b,
-			                             const int size) {
+			                             const int size, int offset) {
 				// Actualy we should check  size and type
-				int err = queue.enqueueReadBuffer(ocl_b, CL_TRUE, 0, size, host_b);
+				int err = queue.enqueueReadBuffer(ocl_b, CL_TRUE, offset, size, host_b);
 				if (err != CL_SUCCESS) {
 					std::string error_m =
 							make_msg("Copy buffer from device is failed error code is ", err);
