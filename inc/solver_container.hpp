@@ -63,6 +63,7 @@ namespace sibernetic {
 						dev_q.pop();
 					}
 					if (_solvers.size()) {
+						model->set_solver_count(_solvers.size());
 						model->make_partition(_solvers.size()); // TODO to think about is in future we
 						// can't init one or more
 						// devices

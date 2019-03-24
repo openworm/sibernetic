@@ -25,6 +25,10 @@ namespace sibernetic {
           virtual void set_particle(int index, const particle<T> &) = 0;
 
           virtual void push_back(const particle<T> &) = 0;
+
+          virtual void sync() = 0;
+
+          virtual bool set_ready() = 0;
     };
 }
 }

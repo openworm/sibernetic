@@ -113,6 +113,13 @@ namespace sibernetic {
 						b_particles,
 						p.size() * sizeof(particle<T>),
 						p.offset());
+				if(model->set_ready()){
+					model->sync();
+				} else {
+					std::unique_lock<std::mutex> m(model->get_sync_mutex());
+					model->get_sync_condition().wait(m, [&](){return model->get_ready();});
+					m.unlock();
+				}
 			}
 
 			void run() override {
