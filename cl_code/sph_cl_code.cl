@@ -62,6 +62,7 @@
 #define DIVIDE( a, b ) native_divide( a, b )
 #define DOT( a, b ) dot( a, b )
 
+#define NO_PARTICLE_ID -1
 
 typedef struct particle{
 #ifdef _DOUBLE_PRECISION
@@ -108,8 +109,8 @@ __kernel void k_init_ext_particles(__global struct extend_particle * ext_particl
 	}
 	ext_particles[id].p_id = id;
 	for(int i=0;i<NEIGHBOUR_COUNT;++i){
-		ext_particles[id].neighbour_list[i][0] = -1;
-		ext_particles[id].neighbour_list[i][1] = -1;
+		ext_particles[id].neighbour_list[i][0] = NO_PARTICLE_ID;
+		ext_particles[id].neighbour_list[i][1] = NO_PARTICLE_ID;
 	}
 }
 
@@ -408,4 +409,48 @@ __kernel void k_neighbour_search(
 		ext_particles[id].neighbour_list[j][0] = neighbor_data.x;
 		ext_particles[id].neighbour_list[j][1] = neighbor_data.y;
 	}
+}
+
+//=================================
+// PCI SPH KERNELS BELOW
+//=================================
+/** Run pcisph_computeDensity kernel
+ *  The kernel's calculating density for every particle.
+ */
+__kernel void k_compute_density(
+	__global struct extend_particle * ext_particles,
+	__global struct
+			particle * particles,
+	float mass_mult_Wpoly6Coefficient,
+	float hScaled2,
+	uint PARTICLE_COUNT
+)
+{
+	int id = get_global_id( 0 );
+	if( id >= PARTICLE_COUNT ) return;
+	id = particleIndexBack[id];			//track selected particle (indices are not shuffled anymore)
+	int nc=0;							//neighbor counter
+	float density = 0.0f;
+	float r_ij2;						//squared r_ij
+	float hScaled6 = hScaled2*hScaled2*hScaled2;
+	int real_nc = 0;
+
+	for(int i=0;i<NEIGHBOUR_COUNT;++i){
+		if( ext_particles[id][1] ) != NO_PARTICLE_ID ) {
+			r_ij2 = ext_particles[id].neighbour_list[1]
+			r_ij2 *= r_ij2
+			if (r_ij2 < hScaled2) {
+				density += (hScaled2 - r_ij2) * (hScaled2 - r_ij2) * (hScaled2 - r_ij2);
+				//if(r_ij2>hScaled2) printf("=Error: r_ij/h = %f\n", NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc ] ) / hScaled);
+				real_nc++;
+			}
+		} else {
+			break;
+		}
+	}
+
+	if(density<hScaled6)
+		density = hScaled6;
+	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
+	particles[id].density = density;
 }

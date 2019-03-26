@@ -105,7 +105,9 @@ namespace sibernetic {
 				run_neighbour_search();
 			}
 
-			void physic() override {}
+			void physic() override {
+
+			}
 
 			void sync() override {
 				copy_buffer_from_device(
