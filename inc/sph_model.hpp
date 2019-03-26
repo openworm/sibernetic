@@ -74,7 +74,9 @@ namespace sibernetic {
 				          {"mass",             T()},
 				          {"time_step",        T()},
 				          {"simulation_scale", T()},
-				          {"rho0",             T()}};
+				          {"rho0",             T()},
+				          {"mass_mult_Wpoly6Coefficient",             T()}
+				          };
 				this->serializer->serialize(config_file, this);
 				init_vars();
 				for (particle<T> &p: particles) {
