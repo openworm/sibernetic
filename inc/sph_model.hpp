@@ -64,18 +64,19 @@ namespace sibernetic {
 		public:
 			sph_model(const std::string &config_file, abstract_reader<T> *serializer = new custom_reader<T>())
 					: serializer(serializer) {
-				config = {{"particles",        T()},
-				          {"x_max",            T()},
-				          {"x_min",            T()},
-				          {"y_max",            T()},
-				          {"y_min",            T()},
-				          {"z_max",            T()},
-				          {"z_min",            T()},
-				          {"mass",             T()},
-				          {"time_step",        T()},
-				          {"simulation_scale", T()},
-				          {"rho0",             T()},
-				          {"mass_mult_Wpoly6Coefficient",             T()}
+				config = {{"particles",                   T()},
+				          {"x_max",                       T()},
+				          {"x_min",                       T()},
+				          {"y_max",                       T()},
+				          {"y_min",                       T()},
+				          {"z_max",                       T()},
+				          {"z_min",                       T()},
+				          {"mass",                        T()},
+				          {"time_step",                   T()},
+				          {"simulation_scale",            T()},
+				          {"rho0",                        T()},
+				          {"mass_mult_Wpoly6Coefficient", T()},
+				          {"h_scaled_2",                  T()},
 				          };
 				this->serializer->serialize(config_file, this);
 				init_vars();
@@ -287,6 +288,7 @@ namespace sibernetic {
 				cell_num_z =
 						static_cast<int>((config["z_max"] - config["z_min"]) / GRID_CELL_SIZE);
 				total_cell_num = cell_num_x * cell_num_y * cell_num_z;
+				config["h_scaled_2"] = H * H *config["simulation_scale"] * config["simulation_scale"];
 			}
 
 			/**Arrange particles according its cell id

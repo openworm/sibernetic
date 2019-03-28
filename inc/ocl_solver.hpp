@@ -106,7 +106,7 @@ namespace sibernetic {
 			}
 
 			void physic() override {
-
+				run_compute_density();
 			}
 
 			void sync() override {
@@ -141,6 +141,7 @@ namespace sibernetic {
 			cl::Kernel k_clear_grid_hash;
 			cl::Kernel k_fill_particle_cell_hash;
 			cl::Kernel k_neighbour_search;
+			cl::Kernel k_compute_density;
 
 			cl::Buffer b_particles;
 			cl::Buffer b_ext_particles;
@@ -163,6 +164,7 @@ namespace sibernetic {
 				create_ocl_kernel("k_clear_grid_hash", k_clear_grid_hash);
 				create_ocl_kernel("k_fill_particle_cell_hash", k_fill_particle_cell_hash);
 				create_ocl_kernel("k_neighbour_search", k_neighbour_search);
+				create_ocl_kernel("k_compute_density", k_compute_density);
 			}
 
 			void init_ext_particles() override {}
@@ -329,6 +331,22 @@ namespace sibernetic {
 						model->get_config()["x_min"],
 						model->get_config()["y_min"],
 						model->get_config()["z_min"],
+						p.size(),
+						p.offset(),
+						p.limit()
+				);
+			}
+
+			int run_compute_density() {
+				std::cout << "run compute_density" << dev->name << std::endl;
+				this->kernel_runner(
+						this->k_compute_density,
+						p.size(),
+						0,
+						this->b_ext_particles,
+						this->b_particles,
+						model->get_config()["mass_mult_Wpoly6Coefficient"],
+						model->get_config()["h_scaled_2"],
 						p.size(),
 						p.offset(),
 						p.limit()
