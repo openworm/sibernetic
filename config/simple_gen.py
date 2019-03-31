@@ -1,6 +1,17 @@
 """ Simple configuration generator
 """
 
+import json
+import math
+
+def make_particle(pos, vel=None, type=1.0, mass = 1.0):
+   particle_dict = {}
+   particle_dict["position"] = pos
+   particle_dict["type"] = type
+   particle_dict["velocity"] = vel or [0.0, 0.0, 0.0, 1.0]
+   particle_dict["mass"] = mass
+   particle_dict["density"] = 1000.0
+   return particle_dict
 
 def gen(start, end, step):
     ret = start
@@ -8,38 +19,38 @@ def gen(start, end, step):
         yield ret
         ret += step
 
-def gen_model(x_dim, y_dim, z_dim):
+def gen_param_map(out, h, x_dim, y_dim, z_dim, mass=1.0):
+    out["parameters"] = {}
+    out["parameters"]["particles"] = 30
+    out["parameters"]["x_max"] = h * x_dim
+    out["parameters"]["x_min"] = 0
+    out["parameters"]["y_max"] = h * y_dim
+    out["parameters"]["y_min"] = 0
+    out["parameters"]["z_max"] = h * z_dim
+    out["parameters"]["z_min"] = 0
+    out["parameters"]["mass"] = 20.00e-13
+    out["parameters"]["rho0"] = 1000.0
+    out["parameters"]["time_step"] = 0.0001
+    out["parameters"]["simulation_scale"] = 0.0041 * math.pow(mass,1.0/3.0)/math.pow(0.00025, 1.0/3.0)
+
+def gen_model(x_dim, y_dim, z_dim, file_name="tmp"):
     particle_count = 0
     h = 3.34
     r0 = h * 0.5
-    out_file = open("tmp", "w")
-    out_file.write("parameters[\n")
-    out_file.write("\tparticles:30\n")
-    out_file.write(f"\tx_max: {h * x_dim}\n")
-    out_file.write("\tx_min: 0\n")
-    out_file.write(f"\ty_max: {h * y_dim}\n")
-    out_file.write("\ty_min: 0\n")
-    out_file.write(f"\tz_max: {h * z_dim}\n")
-    out_file.write("\tz_min: 0\n")
-    out_file.write("\tmass: 20.00e-13\n")
-    out_file.write("\trho0: 1000.0\n")
-    out_file.write("\ttime_step: 20.0e-06\n")
-    out_file.write("]\n")
-    out_file.write("model[\n")
-    out_file.write("\tposition[\n")
+
+    out = {}
+    gen_param_map(out, h, x_dim, y_dim, z_dim)
+    out["model"] = []
     for x in gen(r0, h * x_dim, r0):
         for y in gen(r0, h * y_dim, r0):
             for z in gen(r0, h * z_dim, r0):
                 particle_count += 1
-                out_file.write("\t\t{0} {1} {2} 1\n".format(x, y, z))
-    out_file.write("\t]\n")
-    out_file.write("\tvelocity[\n")
-    for _ in range(particle_count):
-        out_file.write("\t\t0 0 0 1\n")
-    out_file.write("\t]\n")
-    out_file.write("]\n")
-    out_file.close()
+                out["model"].append(make_particle(pos=[x, y, z, 1.0]))
+
+    fp = open(file_name, 'w')
+    json.dump(out, fp)
     print(particle_count, "particles generated")
+    fp.close()
 
 
 def main():

@@ -68,18 +68,26 @@ typedef struct particle{
 #ifdef _DOUBLE_PRECISION
 	double4 pos;
 	double4 vel;
+	double4 acceleration;
+	double4 acceleration_n_1;
 #else
 	float4 pos;
 	float4 vel;
+	float4 acceleration;
+	float4 acceleration_n_1;
 #endif
 	size_t type_;
 	size_t cell_id;
 #ifdef _DOUBLE_PRECISION
 	double density;
 	double pressure;
+	double viscosity;
+	double mass;
 #else
 	float density;
 	float pressure;
+	float viscosity;
+	float mass;
 #endif
 } particle;
 
@@ -459,4 +467,85 @@ __kernel void k_compute_density(
 		density = hScaled6;
 	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 	particles[id + OFFSET].density = density;
+}
+
+
+/** Run pcisph_computeForcesAndInitPressure kernel
+ *  The kernel initializes pressure by 0.
+ *  Calculating viscosity and surface tension forces
+ *  and acceleration of particle
+ *  acceleration[id] = (ViscosityForces + SurfaceTensiion +GravityForces)/mass
+ *  tempAcceleration[id] = acceleration[id + PARTICLE_COUNT]=0.
+ */
+__kernel void k_compute_forces_init_pressure(
+		__global struct extend_particle * ext_particles,
+		__global struct	particle * particles,
+		float surf_tens_coeff,
+		float mass_mult_gradWspikyCoefficient,
+		float hScaled,
+		float mu,
+		float gravity_x,
+		float gravity_y,
+		float gravity_z,
+		float simulation_scale,
+		float delta,
+		float rho0,
+		uint PARTICLE_COUNT,
+		int OFFSET,
+		int LIMIT
+)
+{
+	int id = get_global_id( 0 );
+	if(id >= PARTICLE_COUNT){
+		return;
+	}
+	if(particles[ id + OFFSET].type == BOUNDARY_PARTICLE){
+		acceleration[ PARTICLE_COUNT+id ] = 0.f;
+		return;
+	}
+	int idx = id * MAX_NEIGHBOR_COUNT;
+	float4 result = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
+	float r_ij;
+	float4 vr_ij;
+	int jd;
+	float value;
+	for(int i=0; i< NEIGHBOUR_COUNT; ++i)
+	{
+		if( (jd = ext_particles[id][i].neighbour_list[0]) != NO_PARTICLE_ID)
+		{
+			r_ij = ext_particles[id][i].neighbour_list[1];
+			if(r_ij<hScaled)
+			{	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				// Variant 1 corresponds to http://www.ifi.uzh.ch/vmml/publications/older-puclications/Solenthaler_sca08.pdf, formula (5) at page 3
+				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				// Variant 2 corresponds http://www.ifi.uzh.ch/vmml/publications/older-puclications/Solenthaler_sca08.pdf, formula (6) at page 3
+				// in more details here: http://www.ifi.uzh.ch/pax/uploads/pdf/publication/1299/Solenthaler.pdf, formula (3.3), end of page 29
+				// (B. Solenthaler's dissertation "Incompressible Fluid Simulation and Advanced Surface Handling with SPH")
+				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				/*1*/value = -(hScaled-r_ij)*(hScaled-r_ij)*0.5f*(particles[id + OFFSET].pressure + particles[jd + OFFSET].pressure)/particles[jd + OFFSET].density;
+				/*2*///value = -(hScaled-r_ij)*(hScaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
+				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
+				vr_ij = (particles[id + OFFSET].pos - particles[jd + OFFSET].pos )*simulation_scale;
+				vr_ij.w = 0.0f;
+
+
+				if(r_ij<0.5f*(hScaled/2))//hScaled/2 = r0
+				{
+					value = -(hScaled*0.25f-r_ij)*(hScaled*0.25f-r_ij)*0.5f*(rho0*delta)/rho[PARTICLE_COUNT+jd];
+					vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0.0f;
+				}
+
+				if(r_ij==0.0f)
+				{
+#ifdef PRINTF_ON
+					printf("\n> Error!: r_ij: %f ",r_ij);
+#endif
+				}
+				result += value*vr_ij/r_ij;
+			}
+		}
+	}
+	result *= mass_mult_gradWspikyCoefficient / particles[id + OFFSET].density;
+
+	particles[id + OFFSET].acceleration_n_1 = result;
 }

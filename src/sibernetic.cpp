@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   if (prsr.check_arg("-f")) {
     model_name = prsr.get_arg("-f");
   } else {
-    model_name = "config/demo1";
+    model_name = "config/tmp";
   }
   if (prsr.check_arg("--multi_dev")) {
     mode = 2;

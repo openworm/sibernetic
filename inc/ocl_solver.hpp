@@ -107,6 +107,7 @@ namespace sibernetic {
 
 			void physic() override {
 				run_compute_density();
+				run_compute_forces_init_pressure();
 			}
 
 			void sync() override {
@@ -347,6 +348,26 @@ namespace sibernetic {
 						this->b_particles,
 						model->get_config()["mass_mult_Wpoly6Coefficient"],
 						model->get_config()["h_scaled_2"],
+						p.size(),
+						p.offset(),
+						p.limit()
+				);
+			}
+
+			int run_compute_forces_init_pressure() {
+				std::cout << "run compute_forces_init_pressure" << dev->name << std::endl;
+				this->kernel_runner(
+						this->k_compute_density,
+						p.size(),
+						0,
+						this->b_ext_particles,
+						this->b_particles,
+						model->get_config()["mass_mult_gradWspikyCoefficient"],
+						model->get_config()["h_scaled"],
+						model->get_config()["mu"],
+						model->get_config()["gravity_x"],
+						model->get_config()["gravity_y"],
+						model->get_config()["gravity_z"],
 						p.size(),
 						p.offset(),
 						p.limit()

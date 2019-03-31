@@ -16,7 +16,7 @@ set(SOURCE_EXE src/sibernetic.cpp)
 
 set(SOURCE_ARG_P src/utils/arg_parser.cpp)
 
-set(SOURCE_HELPER src/utils/ocl_helper.cpp inc/util/semaphore.h)
+set(SOURCE_HELPER src/utils/ocl_helper.cpp inc/util/json_reader.hpp inc/util/json.hpp)
 
 set(OPENCL_LIB OpenCL)
 

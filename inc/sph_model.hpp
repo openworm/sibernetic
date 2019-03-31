@@ -37,7 +37,7 @@
 #include "partition.h"
 #include "util/error.h"
 #include "util/abstract_reader.h"
-#include "util/custom_reader.hpp"
+#include "util/json_reader.hpp"
 #include "abstract_model.hpp"
 #include <array>
 #include <fstream>
@@ -50,19 +50,13 @@
 
 namespace sibernetic {
 	namespace model {
-		const float H = 3.34f;
-		const float H_INV = 1.f / H;
-		const float GRID_CELL_SIZE = 2.0f * H;
-		const float GRID_CELL_SIZE_INV = 1 / GRID_CELL_SIZE;
-		const float R_0 = 0.5f * H;
-
-/* const block end */
+		/* const block end */
 		template<class T = float, class container = std::vector<particle<T>>>
 		class sph_model : public particle_model<T> {
 			typedef std::map<std::string, T> sph_config;
 
 		public:
-			sph_model(const std::string &config_file, abstract_reader<T> *serializer = new custom_reader<T>())
+			sph_model(const std::string &config_file, abstract_reader<T> *serializer = new json_reader<T>())
 					: serializer(serializer) {
 				config = {{"particles",                   T()},
 				          {"x_max",                       T()},
@@ -75,8 +69,10 @@ namespace sibernetic {
 				          {"time_step",                   T()},
 				          {"simulation_scale",            T()},
 				          {"rho0",                        T()},
-				          {"mass_mult_Wpoly6Coefficient", T()},
+				          {"time_step",                   T()},
 				          {"h_scaled_2",                  T()},
+				          {"mass_mult_Wpoly6Coefficient", T()},
+				          {"mass_mult_divgradWviscosityCoefficient", T()}
 				          };
 				this->serializer->serialize(config_file, this);
 				init_vars();
@@ -288,7 +284,20 @@ namespace sibernetic {
 				cell_num_z =
 						static_cast<int>((config["z_max"] - config["z_min"]) / GRID_CELL_SIZE);
 				total_cell_num = cell_num_x * cell_num_y * cell_num_z;
-				config["h_scaled_2"] = H * H *config["simulation_scale"] * config["simulation_scale"];
+
+				config["h_scaled"] = H * config["simulation_scale"];
+				config["gravity_x"] =  0.0f;
+				config["gravity_y"] = -9.8f;
+				config["gravity_z"] =  0.0f;
+				config["mu"] = DEFAULT_MU;
+				config["h_scaled_2"] = H * H * config["simulation_scale"] * config["simulation_scale"];
+				config["Wpoly6Coefficient"] = 315.0 / ( 64.0 * M_PI * pow( (double)(H * config["simulation_scale"]), 9.0 ) );
+				config["gradWspikyCoefficient"] = -45.0 / ( M_PI * pow( (double)(H * config["simulation_scale"]), 6.0 ) );
+				config["divgradWviscosityCoefficient"] = -config["gradWspikyCoefficient"];
+				config["mass_mult_Wpoly6Coefficient"] = (T) ( (double)DEFAULT_MASS * config["Wpoly6Coefficient"] );
+				config["mass_mult_gradWspikyCoefficient"] = (T) ( (double)DEFAULT_MASS * config["Wpoly6Coefficient"] );
+				config["mass_mult_divgradWviscosityCoefficient"] = (T) ( (double)DEFAULT_MASS * config["divgradWviscosityCoefficient"] );
+				config["surf_tens_coeff"] = config["mass_mult_Wpoly6Coefficient"] * config["simulation_scale"];
 			}
 
 			/**Arrange particles according its cell id

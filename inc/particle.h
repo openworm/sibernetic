@@ -47,12 +47,15 @@ template <class T, size_t dim = 4> struct alignas(8) particle {
   typedef std::array<T, dim> container;
   container pos;
   container vel;
+  container accelation;
+  container accelation_n_1;
   size_t type;
   size_t cell_id;
   size_t get_dim() const { return dim; }
   T density;
   T pressure;
   T viscosity;
+  T mass;
   std::string pos_str() {
     std::stringstream s;
     std::for_each(pos.begin(), pos.end(), [&s](T c) { s << c << ' '; });

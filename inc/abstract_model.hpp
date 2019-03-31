@@ -10,7 +10,15 @@
 
 namespace sibernetic {
     namespace model {
-        template<class T> class particle_model {
+	    const float H = 3.34f;
+	    const float H_INV = 1.f / H;
+	    const float GRID_CELL_SIZE = 2.0f * H;
+	    const float GRID_CELL_SIZE_INV = 1 / GRID_CELL_SIZE;
+	    const float R_0 = 0.5f * H;
+	    const float DEFAULT_MASS = 20.00e-13f;
+		const float DEFAULT_DENSITY = 1000.f;
+		const float DEFAULT_MU = 0.00005f;
+	    template<class T> class particle_model {
         public:
           virtual std::map<std::string, T> & get_config() = 0;
 
