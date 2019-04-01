@@ -297,7 +297,7 @@ namespace sibernetic {
 				config["mass_mult_Wpoly6Coefficient"] = (T) ( (double)DEFAULT_MASS * config["Wpoly6Coefficient"] );
 				config["mass_mult_gradWspikyCoefficient"] = (T) ( (double)DEFAULT_MASS * config["Wpoly6Coefficient"] );
 				config["mass_mult_divgradWviscosityCoefficient"] = (T) ( (double)DEFAULT_MASS * config["divgradWviscosityCoefficient"] );
-				config["surf_tens_coeff"] = config["mass_mult_Wpoly6Coefficient"] * config["simulation_scale"];
+				config["surf_tens_coeff"] = config["mass_mult_Wpoly6Coefficient"] * config["surf_tens_coeff"];
 			}
 
 			/**Arrange particles according its cell id

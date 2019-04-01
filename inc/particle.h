@@ -46,6 +46,7 @@ namespace model {
 template <class T, size_t dim = 4> struct alignas(8) particle {
   typedef std::array<T, dim> container;
   container pos;
+  container pos_n_1;
   container vel;
   container accelation;
   container accelation_n_1;

@@ -64,14 +64,20 @@
 
 #define NO_PARTICLE_ID -1
 
+#define LIQUID_PARTICLE   1
+#define ELASTIC_PARTICLE  2
+#define BOUNDARY_PARTICLE 3
+
 typedef struct particle{
 #ifdef _DOUBLE_PRECISION
 	double4 pos;
+	double4 pos_n_1;
 	double4 vel;
 	double4 acceleration;
 	double4 acceleration_n_1;
 #else
 	float4 pos;
+	float4 pos_n_1;
 	float4 vel;
 	float4 acceleration;
 	float4 acceleration_n_1;
@@ -481,15 +487,12 @@ __kernel void k_compute_forces_init_pressure(
 		__global struct extend_particle * ext_particles,
 		__global struct	particle * particles,
 		float surf_tens_coeff,
-		float mass_mult_gradWspikyCoefficient,
+		float mass_mult_divgradWviscosityCoefficient,
 		float hScaled,
-		float mu,
 		float gravity_x,
 		float gravity_y,
 		float gravity_z,
 		float simulation_scale,
-		float delta,
-		float rho0,
 		uint PARTICLE_COUNT,
 		int OFFSET,
 		int LIMIT
@@ -499,53 +502,165 @@ __kernel void k_compute_forces_init_pressure(
 	if(id >= PARTICLE_COUNT){
 		return;
 	}
-	if(particles[ id + OFFSET].type == BOUNDARY_PARTICLE){
-		acceleration[ PARTICLE_COUNT+id ] = 0.f;
+	if(particles[ id + OFFSET].type_ == BOUNDARY_PARTICLE){
+		particles[ id + OFFSET].acceleration = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
 		return;
 	}
-	int idx = id * MAX_NEIGHBOR_COUNT;
+	float4 acceleration_i;
 	float4 result = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
-	float r_ij;
+	float r_ij, r_ij2;
 	float4 vr_ij;
 	int jd;
 	float value;
+	float4 accel_viscosityForce = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
+	float4 vi, vj;
+	float rho_i,rho_j;
+	float4 accel_surfTensForce = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
+	float not_bp;
+	float hScaled2 = hScaled * hScaled;
 	for(int i=0; i< NEIGHBOUR_COUNT; ++i)
 	{
-		if( (jd = ext_particles[id][i].neighbour_list[0]) != NO_PARTICLE_ID)
+		if( (jd = (int)(ext_particles[id].neighbour_list[i][0])) != NO_PARTICLE_ID)
 		{
-			r_ij = ext_particles[id][i].neighbour_list[1];
+			r_ij = ext_particles[id].neighbour_list[i][1];
+			r_ij2 = r_ij * r_ij;
 			if(r_ij<hScaled)
-			{	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				// Variant 1 corresponds to http://www.ifi.uzh.ch/vmml/publications/older-puclications/Solenthaler_sca08.pdf, formula (5) at page 3
-				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				// Variant 2 corresponds http://www.ifi.uzh.ch/vmml/publications/older-puclications/Solenthaler_sca08.pdf, formula (6) at page 3
-				// in more details here: http://www.ifi.uzh.ch/pax/uploads/pdf/publication/1299/Solenthaler.pdf, formula (3.3), end of page 29
-				// (B. Solenthaler's dissertation "Incompressible Fluid Simulation and Advanced Surface Handling with SPH")
-				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				/*1*/value = -(hScaled-r_ij)*(hScaled-r_ij)*0.5f*(particles[id + OFFSET].pressure + particles[jd + OFFSET].pressure)/particles[jd + OFFSET].density;
-				/*2*///value = -(hScaled-r_ij)*(hScaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
-				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
-				vr_ij = (particles[id + OFFSET].pos - particles[jd + OFFSET].pos )*simulation_scale;
-				vr_ij.w = 0.0f;
+			{
+				rho_i = particles[id + OFFSET].density;
+				rho_j = particles[jd].density;
+				vi = particles[id + OFFSET].vel;
+				vj = particles[jd].vel;
+				not_bp = (float)(particles[jd].type_ != BOUNDARY_PARTICLE);
+				accel_viscosityForce += 1.0e-4f * (vj*not_bp-vi)*(hScaled-r_ij)/1000;
+				float surffKern = (hScaled2 - r_ij2) * (hScaled2 - r_ij2) * (hScaled2 - r_ij2);
+				//high resolution?
+				//accel_surfTensForce += -1.7e-09f * surfTensCoeff * surffKern * (sortedPosition[id]-sortedPosition[jd]);
 
-
-				if(r_ij<0.5f*(hScaled/2))//hScaled/2 = r0
-				{
-					value = -(hScaled*0.25f-r_ij)*(hScaled*0.25f-r_ij)*0.5f*(rho0*delta)/rho[PARTICLE_COUNT+jd];
-					vr_ij = (sortedPosition[id]-sortedPosition[jd])*simulationScale; vr_ij.w = 0.0f;
-				}
-
-				if(r_ij==0.0f)
-				{
-#ifdef PRINTF_ON
-					printf("\n> Error!: r_ij: %f ",r_ij);
-#endif
-				}
-				result += value*vr_ij/r_ij;
+				//low (1/2) resolution?
+				accel_surfTensForce += - 1.7e-09f * surf_tens_coeff * surffKern * (particles[id + OFFSET].pos-particles[jd].pos);
 			}
 		}
 	}
-	result *= mass_mult_gradWspikyCoefficient / particles[id + OFFSET].density;
 
-	particles[id + OFFSET].acceleration_n_1 = result;
+	accel_surfTensForce.w = 0.f;
+	accel_surfTensForce /= particles[id + OFFSET].mass;
+	accel_viscosityForce *= 1.5f * mass_mult_divgradWviscosityCoefficient / particles[id + OFFSET].density;
+	// apply external forces
+	acceleration_i = accel_viscosityForce;
+	acceleration_i += (float4)( gravity_x, gravity_y, gravity_z, 0.0f );
+	acceleration_i +=  accel_surfTensForce; //29aug_A.Palyanov
+
+	particles[id + OFFSET].acceleration = acceleration_i;
+	// 1st half of 'acceleration' array is used to store acceleration corresponding to gravity, visc. force etc.
+	particles[id + OFFSET].acceleration_n_1 = (float4)(0.0f, 0.0f, 0.0f, 0.0f );
+	particles[id + OFFSET].pressure = 0.f;
+}
+
+// Boundary handling, according to the following article:
+// M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
+// short citation: Ihmsen et. al., 2010
+// The article chapter 3.2 describes new boundary method that combines the idea of direct-forcing [BTT09]
+// with the pressure-based frozen-particles method. The proposed boundary method enforces non-penetration
+// of rigid objects even for large time steps. By incorporating density estimates at the boundary into the
+// pressure force, unnatural accelerations resulting from high pressure ratios are avoided.
+// Boundary handling, according to the following article:
+// M. Ihmsen, N. Akinci, M. Gissler, M. Teschner, Boundary Handling and Adaptive Time-stepping for PCISPH Proc. VRIPHYS, Copenhagen, Denmark, pp. 79-88, Nov 11-12, 2010.
+// short citation: Ihmsen et. al., 2010
+// The article chapter 3.2 describes new boundary method that combines the idea of direct-forcing [BTT09]
+// with the pressure-based frozen-particles method. The proposed boundary method enforces non-penetration
+// of rigid objects even for large time steps. By incorporating density estimates at the boundary into the
+// pressure force, unnatural accelerations resulting from high pressure ratios are avoided.
+void computeInteractionWithBoundaryParticles(
+									   int id,
+									   float r0,
+									   __global struct extend_particle * ext_particles,
+									   __global struct	particle * particles,
+									   float4 * pos_,
+									   bool tangVel,
+									   float4 * vel,
+									   uint PARTICLE_COUNT
+									   )
+{
+	//track selected particle (indices are not shuffled anymore)
+	int id_b;//index of id's particle neighbour which is a boundary particle
+	int id_b_source_particle, nc = 0;
+	float4 n_c_i = (float4)(0.f,0.f,0.f,0.f);
+	float4 n_b;
+	float w_c_ib, w_c_ib_sum = 0.f, w_c_ib_second_sum = 0.f;
+	float4 delta_pos;
+	float n_c_i_length,x_ib_dist;
+
+	for(int i=0; i< PARTICLE_COUNT; ++i)
+	{
+		if( (id_b = ext_particles[id].neighbour_list[i][0]) == NO_PARTICLE_ID )
+		{
+			if(particles[id_b].type_ == BOUNDARY_PARTICLE){
+				x_ib_dist  = ((*pos_).x - particles[id_b].pos.x) * ((*pos_).x - particles[id_b].pos.x);
+				x_ib_dist += ((*pos_).y - particles[id_b].pos.y) * ((*pos_).y - particles[id_b].pos.y);
+				x_ib_dist += ((*pos_).z - particles[id_b].pos.z) * ((*pos_).z - particles[id_b].pos.z);
+				x_ib_dist = SQRT(x_ib_dist);
+				w_c_ib = max(0.f,(r0-x_ib_dist)/r0);			//Ihmsen et. al., 2010, page 4, formula (10)
+				n_b = particles[id_b].vel;			//ATTENTION! for boundary, non-moving particles velocity has no sense, but instead we need to store normal vector. We keep it in velocity data structure for memory economy.
+				n_c_i += n_b * w_c_ib;							//Ihmsen et. al., 2010, page 4, formula (9)
+				w_c_ib_sum += w_c_ib;							//Ihmsen et. al., 2010, page 4, formula (11), sum #1
+				w_c_ib_second_sum += w_c_ib * (r0 - x_ib_dist); //Ihmsen et. al., 2010, page 4, formula (11), sum #2
+			}
+		}
+	}
+	n_c_i_length = DOT(n_c_i,n_c_i);
+	if(n_c_i_length != 0){
+		n_c_i_length = sqrt(n_c_i_length);
+		delta_pos = ((n_c_i/n_c_i_length) * w_c_ib_second_sum)/w_c_ib_sum;	//
+		(*pos_).x += delta_pos.x;								//
+		(*pos_).y += delta_pos.y;								// Ihmsen et. al., 2010, page 4, formula (11)
+		(*pos_).z += delta_pos.z;								//
+		if(tangVel){// tangential component of velocity
+			float eps = 0.99f; //eps should be <= 1.0			// controls the friction of the collision
+			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z;
+			if(vel_n_len < 0){
+				(*vel).x -= n_c_i.x * vel_n_len;
+				(*vel).y -= n_c_i.y * vel_n_len;
+				(*vel).z -= n_c_i.z * vel_n_len;
+				(*vel) = (*vel) * eps;							// Ihmsen et. al., 2010, page 4, formula (12)
+			}
+		}
+	}
+}
+
+/** The kernel predicts possible position value of particles
+*  what leads to incompressibility. Temp value of position
+*  is calculating from temp value of velocity which's tacking from predicted value of
+*  tempacceleration[id].
+*/
+__kernel void ker_predict_positions(
+		__global struct extend_particle * ext_particles,
+        __global struct	particle * particles,
+        float gravity_x,
+        float gravity_y,
+        float gravity_z,
+        float simulationScaleInv,
+        float timeStep,
+        float r0,
+		uint PARTICLE_COUNT,
+        int OFFSET,
+        int LIMIT
+)
+{
+    int id = get_global_id( 0 );
+    if( id >= PARTICLE_COUNT ) return;
+    float4 position_t = particles[ id  + OFFSET].pos;
+    if(particles[id  + OFFSET].type_ == BOUNDARY_PARTICLE){  //stationary (boundary) particles, right?
+        return;
+    }
+    //  pressure force (dominant)            + all other forces
+    float4 acceleration_t_dt = particles[id + OFFSET].acceleration + particles[id + OFFSET].acceleration_n_1;
+    float4 velocity_t = particles[id + OFFSET].vel;
+    // Semi-implicit Euler integration
+    float4 velocity_t_dt = velocity_t + timeStep * acceleration_t_dt; //newVelocity_.w = 0.f;
+    float posTimeStep = timeStep * simulationScaleInv;
+    float4 position_t_dt = position_t + posTimeStep * velocity_t_dt;  //newPosition_.w = 0.f;
+    //sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity,
+    computeInteractionWithBoundaryParticles(id,r0, ext_particles, particles, &position_t_dt,false, &velocity_t_dt,PARTICLE_COUNT);
+    particles[OFFSET + id].pos_n_1 = position_t_dt;// in current version sortedPosition array has double size,
+    // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
