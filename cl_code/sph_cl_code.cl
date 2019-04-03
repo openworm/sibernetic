@@ -81,6 +81,7 @@ typedef struct particle{
 	float4 vel;
 	float4 acceleration;
 	float4 acceleration_n_1;
+	float4 acceleration_n_0_5;
 #endif
 	size_t type_;
 	size_t cell_id;
@@ -681,9 +682,6 @@ __kernel void ker_predict_density(
 {
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
-	id = particleIndexBack[id];//track selected particle (indices are not shuffled anymore)
-	int idx = id * MAX_NEIGHBOR_COUNT;
-	int nc=0;//neighbor counter
 	float density = 0.0f;
 	float density_accum = 0.0f;
 	float4 r_ij;
@@ -697,7 +695,7 @@ __kernel void ker_predict_density(
 	int jd;
 	for(int i=0;i < NEIGHBOUR_COUNT; ++i)// gather density contribution from all neighbors (if they exist)
 	{
-		if( (jd = int( ext_particles[id].neighbour_list[i][0])) != NO_PARTICLE_ID )
+		if( (jd = (int)ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID )
 		{
 			r_ij = particles[id + OFFSET].pos - particles[jd + OFFSET].pos;
 			r_ij2 = (r_ij.x*r_ij.x+r_ij.y*r_ij.y+r_ij.z*r_ij.z);
@@ -715,7 +713,7 @@ __kernel void ker_predict_density(
 	}
 	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 
-	particles[OFFSET + id].density = density
+	particles[OFFSET + id].density = density;
 }
 /** The kernel corrects the pressure
  *  taking into account predicted values of density.
@@ -744,7 +742,7 @@ __kernel void ker_correct_pressure(
 /** The kernel calculating pressure forces
  *  and calculating new value of tempacceleration[id].
  */
-__kernel void pcisph_computePressureForceAcceleration(
+__kernel void ker_compute_pressure_force_acceleration(
 		__global struct extend_particle * ext_particles,
 		__global struct	particle * particles,
 		float delta,
@@ -764,9 +762,8 @@ __kernel void pcisph_computePressureForceAcceleration(
 	if(particles[ id_source_particle ].type_ == BOUNDARY_PARTICLE){
 		return;
 	}
-	float hScaled = h * simulation_scale;
 	float pressure_i  = particles[id_source_particle].pressure;
-	float rho_i		  = particles[ OFFSET + id ].density;
+	float rho_i		  = particles[ id_source_particle ].density;
 	float4 result = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
 	float4 gradW_ij;
 	float r_ij,rho_err;
@@ -775,10 +772,10 @@ __kernel void pcisph_computePressureForceAcceleration(
 	float value;
 	for(int i=0;i<NEIGHBOUR_COUNT; ++i)
 	{
-		if( (jd = ext_particles[id].neighbour_list[i][0])) != NO_PARTICLE_ID)
+		if( (jd = ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID)
 		{
-			r_ij = NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc] );
-			if(r_ij<hScaled)
+			r_ij = ext_particles[id].neighbour_list[i][1];
+			if(r_ij<h_scaled)
 			{	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 				// Variant 1 corresponds to http://www.ifi.uzh.ch/vmml/publications/older-puclications/Solenthaler_sca08.pdf, formula (5) at page 3
 				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -786,16 +783,16 @@ __kernel void pcisph_computePressureForceAcceleration(
 				// in more details here: http://www.ifi.uzh.ch/pax/uploads/pdf/publication/1299/Solenthaler.pdf, formula (3.3), end of page 29
 				// (B. Solenthaler's dissertation "Incompressible Fluid Simulation and Advanced Surface Handling with SPH")
 				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				/*1*/value = -(hScaled-r_ij)*(hScaled-r_ij)*0.5f*(particles[id + OFFSET].pressure+particles[jd].pressure)/particles[jd].density;
-				/*2*///value = -(hScaled-r_ij)*(hScaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
+				/*1*/value = -(h_scaled-r_ij)*(h_scaled-r_ij)*0.5f*(particles[id + OFFSET].pressure+particles[jd].pressure)/particles[jd].density;
+				/*2*///value = -(h_scaled-r_ij)*(h_scaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
 				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
 				vr_ij = (particles[id + OFFSET].pos - particles[jd].pos)*simulation_scale; vr_ij.w = 0.0f;
 
 
-				if(r_ij<0.5f*(hScaled/2))//hScaled/2 = r0
+				if(r_ij<0.5f*(h_scaled/2))//h_scaled/2 = r0
 				{
-					value = -(hScaled*0.25f-r_ij)*(hScaled*0.25f-r_ij)*0.5f*(rho0*delta)/particles[jd].density;
-					vr_ij = (particles[id + OFFSET].pos - particles[jd].pos)*simulation_scale; vr_ij.w = 0.0f;
+					value = -(h_scaled*0.25f-r_ij)*(h_scaled*0.25f-r_ij)*0.5f*(rho0*delta)/particles[jd].density;
+					vr_ij = (particles[id_source_particle].pos - particles[jd].pos)*simulation_scale; vr_ij.w = 0.0f;
 				}
 
 				result += value*vr_ij/r_ij;
@@ -806,7 +803,7 @@ __kernel void pcisph_computePressureForceAcceleration(
 
 	result *= mass_mult_gradWspikyCoefficient / particles[OFFSET + id].density;
 
-	particles[id + OFFSET].acceleration = result;
+	particles[id + OFFSET].acceleration_n_1 = result;
 }
 
 
@@ -818,72 +815,64 @@ __kernel void pcisph_computePressureForceAcceleration(
  *  NOTE: soon we plan to add Leap-frog 2th order
  */
 __kernel void pcisph_integrate(
-						__global float4 * acceleration,
-						__global float4 * sortedPosition,
-						__global float4 * sortedVelocity,
-						__global uint2 * particleIndex,
-						__global uint * particleIndexBack,
-						float gravity_x,
-						float gravity_y,
-						float gravity_z,
-						float simulationScaleInv,
-						float timeStep,
-						float xmin,
-						float xmax,
-						float ymin,
-						float ymax,
-						float zmin,
-						float zmax,
-						__global float4 * position,
-						__global float4 * velocity,
-						__global float * rho,
-						float r0,
-						__global float2 * neighborMap,
-						uint PARTICLE_COUNT,
-						int iterationCount,
-						int mode
-						)
+		__global struct extend_particle * ext_particles,
+		__global struct	particle * particles,
+		float gravity_x,
+		float gravity_y,
+		float gravity_z,
+		float simulation_scale_inv,
+		float time_step,
+		float xmin,
+		float xmax,
+		float ymin,
+		float ymax,
+		float zmin,
+		float zmax,
+		float r0,
+		int iteration_count,
+		int mode,
+		uint PARTICLE_COUNT,
+		int OFFSET,
+		int LIMIT
+		)
 {
 	int id = get_global_id( 0 );
 	if(id>=PARTICLE_COUNT) return;
-	id = particleIndexBack[id];
-	int id_source_particle = PI_SERIAL_ID( particleIndex[id] );
-	if((int)(position[ id_source_particle ].w) == BOUNDARY_PARTICLE)
+	int id_source_particle = id + OFFSET;
+	if(particles[id_source_particle].type_ == BOUNDARY_PARTICLE)
 	{
 		return;
 	}
-	if(iterationCount==0)
+	if(iteration_count==0)
 	{
-		acceleration[ PARTICLE_COUNT*2+id_source_particle ] =
-			acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ];
+		particles[id_source_particle].acceleration_n_0_5 = particles[id_source_particle].acceleration_n_1
+				+ particles[id_source_particle].acceleration;
 		return;
 	}
-	float4 acceleration_t    = acceleration[ PARTICLE_COUNT*2+id_source_particle ];    acceleration_t.w    = 0.f;
-	float4 velocity_t = sortedVelocity[ id ];
-	float particleType = position[ id_source_particle ].w;
+	float4 acceleration_t = particles[id_source_particle].acceleration_n_0_5;    acceleration_t.w    = 0.f;
+	float4 velocity_t = particles[id_source_particle].vel;
+	int particleType = particles[ id_source_particle ].type_;
     if(mode == 2){
-		float4 acceleration_t_dt = acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ]; acceleration_t_dt.w = 0.f;
-		float4 position_t = sortedPosition[ id ];
-		float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*timeStep;						//
-		float4 position_t_dt = position_t + (velocity_t_dt)*timeStep*simulationScaleInv;		//
+		float4 acceleration_t_dt = particles[id_source_particle].acceleration_n_1
+		                           + particles[id_source_particle].acceleration; acceleration_t_dt.w = 0.f;
+		float4 position_t = particles[id_source_particle].pos;
+		float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*time_step;						//
+		float4 position_t_dt = position_t + (velocity_t_dt)*time_step*simulation_scale_inv;		//
 
-		float particleType = position[ id_source_particle ].w;
-		computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt, true, &velocity_t_dt,PARTICLE_COUNT);
+//	    computeInteractionWithBoundaryParticles(id,r0, ext_particles, particles, &position_t_dt,false, &velocity_t_dt,PARTICLE_COUNT);
 
-
-		velocity[ id_source_particle ] = velocity_t_dt;
-		position[ id_source_particle ] = position_t_dt;
-		position[ id_source_particle ].w = particleType;
+		particles[ id_source_particle ].vel = velocity_t_dt;
+	    particles[ id_source_particle ].pos = position_t_dt;
 		//velocity[ id_source_particle ] = (float4)((float)velocity_t_dt_x, (float)velocity_t_dt_y, (float)velocity_t_dt_z, 0.f);
 		//position[ id_source_particle ] = (float4)((float)position_t_dt_x, (float)position_t_dt_y, (float)position_t_dt_z, particleType);
 
-		acceleration[PARTICLE_COUNT*2+id_source_particle] = acceleration_t_dt;
+	    particles[id_source_particle].acceleration_n_0_5 = acceleration_t_dt;
 		return;
 	}
-	/**///	float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*timeStep;						//
-	/**///	float4 position_t_dt = position_t + (velocity_t_dt)*timeStep*simulationScaleInv;		//
+	/**///	float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*time_step;						//
+	/**///	float4 position_t_dt = position_t + (velocity_t_dt)*time_step*simulation_scale_inv;		//
 	//////////////////////////////////////////////////////////////////////////////////////////////////
-	//printf("\n===[ timeStep= %5e ]===",timeStep);
+	//printf("\n===[ time_step= %5e ]===",time_step);
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//	LEAPFROG METHOD		2-nd order(!)		symplectic(!)		obviously best choice			//
 	//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -894,35 +883,30 @@ __kernel void pcisph_integrate(
     //Find the new position.
     //Find the next new momentum with the other half of the time step.
 	//A second way to write the leapfrog looks quite different at first sight. Defining all quantities only at integer times, we can write:
-	/**///	float4 position_t_dt = position_t + (velocity_t*timeStep + acceleration_t*timeStep*timeStep/2.f)*simulationScaleInv;
-	/**///	float4 velocity_t_dt = velocity_t + (acceleration_t + acceleration_t_dt)*timeStep/2.f;
+	/**///	float4 position_t_dt = position_t + (velocity_t*time_step + acceleration_t*time_step*time_step/2.f)*simulation_scale_inv;
+	/**///	float4 velocity_t_dt = velocity_t + (acceleration_t + acceleration_t_dt)*time_step/2.f;
 	// for floats it works with a significant error, which neglects all advantages of this really nice method
 	// for example, at first time step we get 2.17819E-03 instead of 2.18000E-03, and such things occur at every step and accumulate.
 	// switching to doubles.
   if(mode==0/*positions_mode*/)
 	{
-		float4 position_t = sortedPosition[ id ];
-		float4 position_t_dt = position_t + (velocity_t*timeStep + acceleration_t*timeStep*timeStep/2.f)*simulationScaleInv;
-		sortedPosition[ id ] = position_t_dt;
-		sortedPosition[ id ].w = particleType;
-		//printf("  ==> mode0\n");
-		//printf("  ==> x(t) %f\n",position_t.y);
-		//printf("  ==> v(t) %f\n",velocity_t.y);
-		//printf("  ==> a(t) %f\n",acceleration_t.y);
+		float4 position_t = particles[ id ].pos;
+		float4 position_t_dt = position_t + (velocity_t*time_step + acceleration_t*time_step*time_step/2.f)*simulation_scale_inv;
+		particles[ id_source_particle ].pos_n_1 = position_t_dt;
 	}
 	else
 	if(mode==1/*velocities_mode*/)
 	{
-		float4 position_t_dt = sortedPosition[ id ];//necessary for computeInteractionsWithBoundaryParticles()
-		float4 acceleration_t_dt = acceleration[ id ] + acceleration[ PARTICLE_COUNT+id ]; acceleration_t_dt.w = 0.f;
-		float4 velocity_t_dt = velocity_t + (acceleration_t + acceleration_t_dt)*timeStep/2.f;
+		float4 position_t_dt = particles[id_source_particle].pos;//necessary for computeInteractionsWithBoundaryParticles()
+		float4 acceleration_t_dt = particles[id_source_particle].acceleration_n_1
+		                           + particles[id_source_particle].acceleration; acceleration_t_dt.w = 0.f;
+		float4 velocity_t_dt = velocity_t + (acceleration_t + acceleration_t_dt)*time_step/2.f;
 
-		computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt, true, &velocity_t_dt,PARTICLE_COUNT);
-		velocity[ id_source_particle ] = velocity_t_dt;
-		acceleration[PARTICLE_COUNT*2+id_source_particle] = acceleration_t_dt;
+		//computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt, true, &velocity_t_dt,PARTICLE_COUNT);
+		particles[ id_source_particle ].vel = velocity_t_dt;
+		particles[id_source_particle].acceleration_n_0_5 = acceleration_t_dt;
 
-		position[ id_source_particle ] = position_t_dt;
-		position[ id_source_particle ].w = particleType;
+		particles[ id_source_particle ].pos = position_t_dt;
 	}
   return;
 }

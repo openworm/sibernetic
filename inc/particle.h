@@ -50,6 +50,7 @@ template <class T, size_t dim = 4> struct alignas(8) particle {
   container vel;
   container accelation;
   container accelation_n_1;
+  container accelation_n_0_5;
   size_t type;
   size_t cell_id;
   size_t get_dim() const { return dim; }
