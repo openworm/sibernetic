@@ -33,6 +33,7 @@ def gen_param_map(out, h, x_dim, y_dim, z_dim, mass=1.0):
     out["parameters"]["time_step"] = 0.0001
     out["parameters"]["simulation_scale"] = 0.0041 * math.pow(mass,1.0/3.0)/math.pow(0.00025, 1.0/3.0)
     out["parameters"]["surf_tens_coeff"] = 1
+    out["parameters"]["delta"] = 1
 
 def gen_model(x_dim, y_dim, z_dim, file_name="tmp"):
     particle_count = 0

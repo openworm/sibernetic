@@ -108,6 +108,7 @@ namespace sibernetic {
 			void physic() override {
 				run_compute_density();
 				run_compute_forces_init_pressure();
+				run_predict_positions();
 			}
 
 			void sync() override {
@@ -142,7 +143,14 @@ namespace sibernetic {
 			cl::Kernel k_clear_grid_hash;
 			cl::Kernel k_fill_particle_cell_hash;
 			cl::Kernel k_neighbour_search;
+
 			cl::Kernel k_compute_density;
+			cl::Kernel k_compute_forces_init_pressure;
+			cl::Kernel ker_predict_positions;
+			cl::Kernel ker_predict_density;
+			cl::Kernel ker_correct_pressure;
+			cl::Kernel ker_compute_pressure_force_acceleration;
+			cl::Kernel ker_integrate;
 
 			cl::Buffer b_particles;
 			cl::Buffer b_ext_particles;
@@ -165,7 +173,14 @@ namespace sibernetic {
 				create_ocl_kernel("k_clear_grid_hash", k_clear_grid_hash);
 				create_ocl_kernel("k_fill_particle_cell_hash", k_fill_particle_cell_hash);
 				create_ocl_kernel("k_neighbour_search", k_neighbour_search);
+
 				create_ocl_kernel("k_compute_density", k_compute_density);
+				create_ocl_kernel("k_compute_forces_init_pressure", k_compute_forces_init_pressure);
+				create_ocl_kernel("ker_predict_positions", ker_predict_positions);
+				create_ocl_kernel("ker_predict_density", ker_predict_density);
+				create_ocl_kernel("ker_correct_pressure", ker_correct_pressure);
+				create_ocl_kernel("ker_compute_pressure_force_acceleration", ker_compute_pressure_force_acceleration);
+				create_ocl_kernel("ker_integrate", ker_integrate);
 			}
 
 			void init_ext_particles() override {}
@@ -260,7 +275,7 @@ namespace sibernetic {
 			}
 
 			int run_init_ext_particles() {
-				std::cout << "run init_ext_particles " << dev->name << std::endl;
+				std::cout << "run init_ext_particles --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_init_ext_particles,
 						p.size(),
@@ -271,7 +286,7 @@ namespace sibernetic {
 			}
 
 			int run_hash_particles() {
-				std::cout << "run hash_particles " << dev->name << std::endl;
+				std::cout << "run hash_particles --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_hash_particles,
 						p.size(),
@@ -288,7 +303,7 @@ namespace sibernetic {
 			}
 
 			int run_clear_grid_hash() {
-				std::cout << "run clear_grid_hash " << dev->name << std::endl;
+				std::cout << "run clear_grid_hash --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_clear_grid_hash,
 						p.total_cell_count(),
@@ -299,7 +314,7 @@ namespace sibernetic {
 			}
 
 			int run_fill_particle_cell_hash() {
-				std::cout << "run fill_particle_cell_hash " << dev->name << std::endl;
+				std::cout << "run fill_particle_cell_hash --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_fill_particle_cell_hash,
 						p.total_size(),
@@ -312,7 +327,7 @@ namespace sibernetic {
 			}
 
 			int run_neighbour_search() {
-				std::cout << "run neighbour_search " << dev->name << std::endl;
+				std::cout << "run neighbour_search --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_neighbour_search,
 						p.size(),
@@ -339,7 +354,7 @@ namespace sibernetic {
 			}
 
 			int run_compute_density() {
-				std::cout << "run compute_density" << dev->name << std::endl;
+				std::cout << "run compute_density --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_compute_density,
 						p.size(),
@@ -355,9 +370,9 @@ namespace sibernetic {
 			}
 
 			int run_compute_forces_init_pressure() {
-				std::cout << "run compute_forces_init_pressure" << dev->name << std::endl;
+				std::cout << "run compute_forces_init_pressure --> " << dev->name << std::endl;
 				this->kernel_runner(
-						this->k_compute_density,
+						this->k_compute_forces_init_pressure,
 						p.size(),
 						0,
 						this->b_ext_particles,
@@ -368,6 +383,90 @@ namespace sibernetic {
 						model->get_config()["gravity_x"],
 						model->get_config()["gravity_y"],
 						model->get_config()["gravity_z"],
+						p.size(),
+						p.offset(),
+						p.limit()
+				);
+			}
+
+			void run_predict_positions(){
+				std::cout << "run predict_positions --> " << dev->name << std::endl;
+				this->kernel_runner(
+						this->ker_predict_positions,
+						p.size(),
+						0,
+						this->b_ext_particles,
+						this->b_particles,
+						model->get_config()["simulation_scale_inv"],
+						model->get_config()["time_step"],
+						sibernetic::model::R_0,
+						p.size(),
+						p.offset(),
+						p.limit()
+				);
+			}
+
+			void run_predict_density(){
+				std::cout << "run predict_density --> " << dev->name << std::endl;
+				this->kernel_runner(
+						this->ker_predict_density,
+						p.size(),
+						0,
+						this->b_ext_particles,
+						this->b_particles,
+						model->get_config()["mass_mult_Wpoly6Coefficient"],
+						sibernetic::model::H,
+						model->get_config()["simulation_scale"],
+						p.size(),
+						p.offset(),
+						p.limit()
+				);
+			}
+			void run_correct_pressure(){
+				std::cout << "run run_correct_pressure --> " << dev->name << std::endl;
+				this->kernel_runner(
+						this->ker_correct_pressure,
+						p.size(),
+						0,
+						this->b_particles,
+						sibernetic::model::DENSITY_WATER,
+						model->get_config()["delta"],
+						p.size(),
+						p.offset(),
+						p.limit()
+				);
+			}
+			void run_compute_pressure_force_acceleration(){
+				std::cout << "run run_compute_pressure_force_acceleration --> " << dev->name << std::endl;
+				this->kernel_runner(
+						this->ker_compute_pressure_force_acceleration,
+						p.size(),
+						0,
+						this->b_ext_particles,
+						this->b_particles,
+						model->get_config()["mass_mult_gradWspikyCoefficient"],
+						model->get_config()["h_scaled"],
+						model->get_config()["simulation_scale"],
+						model->get_config()["delta"],
+						sibernetic::model::DENSITY_WATER,
+						p.size(),
+						p.offset(),
+						p.limit()
+				);
+			}
+			void run_integrate(){
+				std::cout << "run run_integrate --> " << dev->name << std::endl;
+				this->kernel_runner(
+						this->ker_compute_pressure_force_acceleration,
+						p.size(),
+						0,
+						this->b_ext_particles,
+						this->b_particles,
+						model->get_config()["simulation_scale_inv"],
+						model->get_config()["time_step"],
+						sibernetic::model::R_0,
+						1,
+						1,
 						p.size(),
 						p.offset(),
 						p.limit()

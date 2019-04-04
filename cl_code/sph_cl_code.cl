@@ -493,7 +493,6 @@ __kernel void k_compute_forces_init_pressure(
 		float gravity_x,
 		float gravity_y,
 		float gravity_z,
-		float simulation_scale,
 		uint PARTICLE_COUNT,
 		int OFFSET,
 		int LIMIT
@@ -610,21 +609,21 @@ void computeInteractionWithBoundaryParticles(
 	}
 	n_c_i_length = DOT(n_c_i,n_c_i);
 	if(n_c_i_length != 0){
-		n_c_i_length = sqrt(n_c_i_length);
-		delta_pos = ((n_c_i/n_c_i_length) * w_c_ib_second_sum)/w_c_ib_sum;	//
-		(*pos_).x += delta_pos.x;								//
-		(*pos_).y += delta_pos.y;								// Ihmsen et. al., 2010, page 4, formula (11)
-		(*pos_).z += delta_pos.z;								//
-		if(tangVel){// tangential component of velocity
-			float eps = 0.99f; //eps should be <= 1.0			// controls the friction of the collision
-			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z;
-			if(vel_n_len < 0){
-				(*vel).x -= n_c_i.x * vel_n_len;
-				(*vel).y -= n_c_i.y * vel_n_len;
-				(*vel).z -= n_c_i.z * vel_n_len;
-				(*vel) = (*vel) * eps;							// Ihmsen et. al., 2010, page 4, formula (12)
-			}
-		}
+//		n_c_i_length = sqrt(n_c_i_length);
+//		delta_pos = ((n_c_i/n_c_i_length) * w_c_ib_second_sum)/w_c_ib_sum;	//
+//		(*pos_).x += delta_pos.x;								//
+//		(*pos_).y += delta_pos.y;								// Ihmsen et. al., 2010, page 4, formula (11)
+//		(*pos_).z += delta_pos.z;								//
+//		if(tangVel){// tangential component of velocity
+//			float eps = 0.99f; //eps should be <= 1.0			// controls the friction of the collision
+//			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z;
+//			if(vel_n_len < 0){
+//				(*vel).x -= n_c_i.x * vel_n_len;
+//				(*vel).y -= n_c_i.y * vel_n_len;
+//				(*vel).z -= n_c_i.z * vel_n_len;
+//				(*vel) = (*vel) * eps;							// Ihmsen et. al., 2010, page 4, formula (12)
+//			}
+//		}
 	}
 }
 
@@ -636,9 +635,6 @@ void computeInteractionWithBoundaryParticles(
 __kernel void ker_predict_positions(
 		__global struct extend_particle * ext_particles,
         __global struct	particle * particles,
-        float gravity_x,
-        float gravity_y,
-        float gravity_z,
         float simulationScaleInv,
         float timeStep,
         float r0,
@@ -656,14 +652,14 @@ __kernel void ker_predict_positions(
     //  pressure force (dominant)            + all other forces
     float4 acceleration_t_dt = particles[id + OFFSET].acceleration + particles[id + OFFSET].acceleration_n_1;
     float4 velocity_t = particles[id + OFFSET].vel;
-    // Semi-implicit Euler integration
+//    // Semi-implicit Euler integration
     float4 velocity_t_dt = velocity_t + timeStep * acceleration_t_dt; //newVelocity_.w = 0.f;
     float posTimeStep = timeStep * simulationScaleInv;
     float4 position_t_dt = position_t + posTimeStep * velocity_t_dt;  //newPosition_.w = 0.f;
-    //sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity,
+//    //sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity,
     computeInteractionWithBoundaryParticles(id,r0, ext_particles, particles, &position_t_dt,false, &velocity_t_dt,PARTICLE_COUNT);
     particles[OFFSET + id].pos_n_1 = position_t_dt;// in current version sortedPosition array has double size,
-    // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
+//    // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
 
 /** The kernel predicts possible value of density
@@ -745,11 +741,10 @@ __kernel void ker_correct_pressure(
 __kernel void ker_compute_pressure_force_acceleration(
 		__global struct extend_particle * ext_particles,
 		__global struct	particle * particles,
-		float delta,
 		float mass_mult_gradWspikyCoefficient,
 		float h_scaled,
 		float simulation_scale,
-		float mu,
+		float delta,
 		float rho0,
 		uint PARTICLE_COUNT,
 		int OFFSET,
@@ -814,20 +809,11 @@ __kernel void ker_compute_pressure_force_acceleration(
  *  	  for integration 1th order
  *  NOTE: soon we plan to add Leap-frog 2th order
  */
-__kernel void pcisph_integrate(
+__kernel void ker_integrate(
 		__global struct extend_particle * ext_particles,
 		__global struct	particle * particles,
-		float gravity_x,
-		float gravity_y,
-		float gravity_z,
 		float simulation_scale_inv,
 		float time_step,
-		float xmin,
-		float xmax,
-		float ymin,
-		float ymax,
-		float zmin,
-		float zmax,
 		float r0,
 		int iteration_count,
 		int mode,

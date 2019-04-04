@@ -286,6 +286,7 @@ namespace sibernetic {
 				total_cell_num = cell_num_x * cell_num_y * cell_num_z;
 
 				config["h_scaled"] = H * config["simulation_scale"];
+				config["simulation_scale_inv"] = 1 / config["simulation_scale"];
 				config["gravity_x"] =  0.0f;
 				config["gravity_y"] = -9.8f;
 				config["gravity_z"] =  0.0f;
