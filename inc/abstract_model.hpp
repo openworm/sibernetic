@@ -19,6 +19,7 @@ namespace sibernetic {
 		const float DEFAULT_DENSITY = 1000.f;
 		const float DEFAULT_MU = 0.00005f;
 		const float DENSITY_WATER = 1000.0f;
+		const int PCI_ITER_COUNT = 3;
 	    template<class T> class particle_model {
         public:
           virtual std::map<std::string, T> & get_config() = 0;

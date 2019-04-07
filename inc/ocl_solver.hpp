@@ -106,9 +106,17 @@ namespace sibernetic {
 			}
 
 			void physic() override {
-				run_compute_density();
-				run_compute_forces_init_pressure();
-				run_predict_positions();
+				int iter = 0;
+				while(iter < sibernetic::model::PCI_ITER_COUNT) {
+					run_compute_density();
+					run_compute_forces_init_pressure();
+					run_predict_positions();
+					run_predict_density();
+					run_correct_pressure();
+					run_compute_pressure_force_acceleration();
+					++iter;
+				}
+				run_integrate();
 			}
 
 			void sync() override {

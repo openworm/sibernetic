@@ -577,8 +577,7 @@ void computeInteractionWithBoundaryParticles(
 									   __global struct	particle * particles,
 									   float4 * pos_,
 									   bool tangVel,
-									   float4 * vel,
-									   uint PARTICLE_COUNT
+									   float4 * vel
 									   )
 {
 	//track selected particle (indices are not shuffled anymore)
@@ -608,22 +607,22 @@ void computeInteractionWithBoundaryParticles(
 		}
 	}
 	n_c_i_length = DOT(n_c_i,n_c_i);
-	if(n_c_i_length != 0){
-//		n_c_i_length = sqrt(n_c_i_length);
-//		delta_pos = ((n_c_i/n_c_i_length) * w_c_ib_second_sum)/w_c_ib_sum;	//
-//		(*pos_).x += delta_pos.x;								//
-//		(*pos_).y += delta_pos.y;								// Ihmsen et. al., 2010, page 4, formula (11)
-//		(*pos_).z += delta_pos.z;								//
-//		if(tangVel){// tangential component of velocity
-//			float eps = 0.99f; //eps should be <= 1.0			// controls the friction of the collision
-//			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z;
-//			if(vel_n_len < 0){
-//				(*vel).x -= n_c_i.x * vel_n_len;
-//				(*vel).y -= n_c_i.y * vel_n_len;
-//				(*vel).z -= n_c_i.z * vel_n_len;
-//				(*vel) = (*vel) * eps;							// Ihmsen et. al., 2010, page 4, formula (12)
-//			}
-//		}
+	if(n_c_i_length != 0.f && w_c_ib_sum != 0.f){
+		n_c_i_length = sqrt(n_c_i_length);
+		delta_pos = ((n_c_i/n_c_i_length) * w_c_ib_second_sum)/w_c_ib_sum;	//
+		(*pos_).x += delta_pos.x;								//
+		(*pos_).y += delta_pos.y;								// Ihmsen et. al., 2010, page 4, formula (11)
+		(*pos_).z += delta_pos.z;								//
+		if(tangVel){// tangential component of velocity
+			float eps = 0.99f; //eps should be <= 1.0			// controls the friction of the collision
+			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z;
+			if(vel_n_len < 0){
+				(*vel).x -= n_c_i.x * vel_n_len;
+				(*vel).y -= n_c_i.y * vel_n_len;
+				(*vel).z -= n_c_i.z * vel_n_len;
+				(*vel) = (*vel) * eps;							// Ihmsen et. al., 2010, page 4, formula (12)
+			}
+		}
 	}
 }
 
@@ -657,7 +656,7 @@ __kernel void ker_predict_positions(
     float posTimeStep = timeStep * simulationScaleInv;
     float4 position_t_dt = position_t + posTimeStep * velocity_t_dt;  //newPosition_.w = 0.f;
 //    //sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity,
-    computeInteractionWithBoundaryParticles(id,r0, ext_particles, particles, &position_t_dt,false, &velocity_t_dt,PARTICLE_COUNT);
+//    computeInteractionWithBoundaryParticles(id, r0, ext_particles, particles, &position_t_dt, false, &velocity_t_dt);
     particles[OFFSET + id].pos_n_1 = position_t_dt;// in current version sortedPosition array has double size,
 //    // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
