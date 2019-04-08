@@ -25,7 +25,7 @@ namespace sibernetic {
 	namespace graphics {
 		class graph {
 		public:
-			void run(int, char **);
+			static void run(int, char **);
 
 		private:
 			static int old_x;

@@ -7,6 +7,5 @@
 using sibernetic::graphics::graph;
 
 int main(int argc, char** argw){
-	auto g = graph();
-	g.run(argc, argw);
+	graph::run(argc, argw);
 }

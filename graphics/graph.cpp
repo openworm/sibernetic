@@ -1,9 +1,11 @@
 //
 // Created by serg on 07.04.19.
 //
-
+#include <cmath>
+#include <csignal>
 #include <iostream>
 #include <sstream>
+
 #include "graph.h"
 #include "VectorMath.h"
 
@@ -20,7 +22,7 @@ struct Config{
 
 Config *localConfig = new Config({0.0,0.0,0.0, 100.0, 100.0, 100.0});
 float simulationScale = 0.5f;
-inline void beginWinCoords(void) {
+inline void beginWinCoords() {
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
@@ -35,7 +37,7 @@ inline void beginWinCoords(void) {
 	glMatrixMode(GL_MODELVIEW);
 }
 
-inline void endWinCoords(void) {
+inline void endWinCoords() {
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 
@@ -113,29 +115,21 @@ void graph::draw_scene(){
 	vcenter *= sc;
 	Vector3D v1, v2, v3, v4, v5, v6, v7, v8;
 	v1 = Vector3D(-localConfig->xmax / 2, -localConfig->ymax / 2,
-	              -localConfig->zmax / 2) *
-	     sc;
+	              -localConfig->zmax / 2) * sc;
 	v2 = Vector3D(localConfig->xmax / 2, -localConfig->ymax / 2,
-	              -localConfig->zmax / 2) *
-	     sc;
+	              -localConfig->zmax / 2) * sc;
 	v3 = Vector3D(localConfig->xmax / 2, localConfig->ymax / 2,
-	              -localConfig->zmax / 2) *
-	     sc;
+	              -localConfig->zmax / 2) * sc;
 	v4 = Vector3D(-localConfig->xmax / 2, localConfig->ymax / 2,
-	              -localConfig->zmax / 2) *
-	     sc;
+	              -localConfig->zmax / 2) * sc;
 	v5 = Vector3D(-localConfig->xmax / 2, -localConfig->ymax / 2,
-	              localConfig->zmax / 2) *
-	     sc;
+	              localConfig->zmax / 2) * sc;
 	v6 = Vector3D(localConfig->xmax / 2, -localConfig->ymax / 2,
-	              localConfig->zmax / 2) *
-	     sc;
+	              localConfig->zmax / 2) * sc;
 	v7 = Vector3D(localConfig->xmax / 2, localConfig->ymax / 2,
-	              localConfig->zmax / 2) *
-	     sc;
+	              localConfig->zmax / 2) * sc;
 	v8 = Vector3D(-localConfig->xmax / 2, localConfig->ymax / 2,
-	              localConfig->zmax / 2) *
-	     sc;
+	              localConfig->zmax / 2) * sc;
 	glColor3ub(255, 255, 255); // yellow
 	glVertex3d(v1.x, v1.y, v1.z);
 	glVertex3d(v2.x, v2.y, v2.z);
@@ -180,8 +174,7 @@ void graph::draw_scene(){
 	glColor3ub(0, 0, 0); // black
 
 	Vector3D v_s = Vector3D(-localConfig->xmax / 2 + s_v, localConfig->ymax / 2,
-	                        localConfig->zmax / 2) *
-	               sc;
+	                        localConfig->zmax / 2) * sc;
 	glVertex3d(v_s.x, v_s.y, v_s.z);
 	glVertex3d(v_s.x, v_s.y - 0.5f * sc, v_s.z);
 	glLineWidth((GLfloat)10.0);
@@ -221,10 +214,10 @@ void graph::display(){
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	draw_scene();
-	glPointSize(1.3f * sqrt(sc / 0.025f));
-	glBegin(GL_POINTS);
-	float dc, rho;
-	glLineWidth((GLfloat)1.0);
+//	glPointSize(1.3f * sqrt(sc / 0.025f));
+//	glBegin(GL_POINTS);
+//	float dc, rho;
+//	glLineWidth((GLfloat)1.0);
 	glutSwapBuffers();
 }
 
@@ -389,9 +382,9 @@ void graph::init() {
 
 int graph::old_x = 0;
 int graph::old_y = 0; // Used for mouse event
-float graph::camera_trans[] = {0, 0, -8.0};
+float graph::camera_trans[] = {0, 0, -8.f};
 float graph::camera_rot[] = {60, -90, 0}; // camera rotation settings at start
-float graph::camera_trans_lag[] = {0, 0, -8.0};
+float graph::camera_trans_lag[] = {0, 0, -8.f};
 float graph::camera_rot_lag[] = {0, 0, 0};
 int graph::button_state = 0;
 float graph::sc = 0.025f; // 0.0145;//0.045;//0.07
@@ -413,6 +406,6 @@ void graph::run(int argc, char **argv){
 	glutMouseFunc(&respond_mouse_callback);
 	glutMotionFunc(&mouse_motion_callback); // process movement in case if the mouse is clicked,
 	glutKeyboardFunc(&key_pressed_callback);
-	glutTimerFunc(TIMER_INTERVAL * 0, this->timer, 0);
+	glutTimerFunc(TIMER_INTERVAL * 0, &timer, 0);
 	glutMainLoop();
 }
