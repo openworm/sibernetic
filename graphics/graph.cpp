@@ -10,17 +10,8 @@
 #include "VectorMath.h"
 
 using sibernetic::graphics::graph;
+using sibernetic::graphics::g_config;
 
-struct Config{
-	float xmin;
-	float ymin;
-	float zmin;
-	float xmax;
-	float ymax;
-	float zmax;
-};
-
-Config *localConfig = new Config({0.0,0.0,0.0, 100.0, 100.0, 100.0});
 float simulationScale = 0.5f;
 inline void beginWinCoords() {
 	glMatrixMode(GL_MODELVIEW);
@@ -78,14 +69,14 @@ void graph::draw_scene(){
 		}
 		++order;
 	}
-	vbox[0] = Vector3D(localConfig->xmin, localConfig->ymin, localConfig->zmin);
-	vbox[1] = Vector3D(localConfig->xmax, localConfig->ymin, localConfig->zmin);
-	vbox[2] = Vector3D(localConfig->xmax, localConfig->ymax, localConfig->zmin);
-	vbox[3] = Vector3D(localConfig->xmin, localConfig->ymax, localConfig->zmin);
-	vbox[4] = Vector3D(localConfig->xmin, localConfig->ymin, localConfig->zmax);
-	vbox[5] = Vector3D(localConfig->xmax, localConfig->ymin, localConfig->zmax);
-	vbox[6] = Vector3D(localConfig->xmax, localConfig->ymax, localConfig->zmax);
-	vbox[7] = Vector3D(localConfig->xmin, localConfig->ymax, localConfig->zmax);
+	vbox[0] = Vector3D(config->xmin, config->ymin, config->zmin);
+	vbox[1] = Vector3D(config->xmax, config->ymin, config->zmin);
+	vbox[2] = Vector3D(config->xmax, config->ymax, config->zmin);
+	vbox[3] = Vector3D(config->xmin, config->ymax, config->zmin);
+	vbox[4] = Vector3D(config->xmin, config->ymin, config->zmax);
+	vbox[5] = Vector3D(config->xmax, config->ymin, config->zmax);
+	vbox[6] = Vector3D(config->xmax, config->ymax, config->zmax);
+	vbox[7] = Vector3D(config->xmin, config->ymax, config->zmax);
 
 	// Display user interface if enabled
 //	bool displayInfos = true;
@@ -109,27 +100,27 @@ void graph::draw_scene(){
 	glVertex3d(vcenter.x, vcenter.y, vcenter.z);
 	glVertex3d(vcenter.x, vcenter.y, vcenter.z + sc);
 	sc /= 10;
-	vcenter = Vector3D(-(localConfig->xmin + localConfig->xmax) / 2,
-	                   -(localConfig->ymin + localConfig->ymax) / 2,
-	                   -(localConfig->zmin + localConfig->zmax) / 2);
+	vcenter = Vector3D(-(config->xmin + config->xmax) / 2,
+	                   -(config->ymin + config->ymax) / 2,
+	                   -(config->zmin + config->zmax) / 2);
 	vcenter *= sc;
 	Vector3D v1, v2, v3, v4, v5, v6, v7, v8;
-	v1 = Vector3D(-localConfig->xmax / 2, -localConfig->ymax / 2,
-	              -localConfig->zmax / 2) * sc;
-	v2 = Vector3D(localConfig->xmax / 2, -localConfig->ymax / 2,
-	              -localConfig->zmax / 2) * sc;
-	v3 = Vector3D(localConfig->xmax / 2, localConfig->ymax / 2,
-	              -localConfig->zmax / 2) * sc;
-	v4 = Vector3D(-localConfig->xmax / 2, localConfig->ymax / 2,
-	              -localConfig->zmax / 2) * sc;
-	v5 = Vector3D(-localConfig->xmax / 2, -localConfig->ymax / 2,
-	              localConfig->zmax / 2) * sc;
-	v6 = Vector3D(localConfig->xmax / 2, -localConfig->ymax / 2,
-	              localConfig->zmax / 2) * sc;
-	v7 = Vector3D(localConfig->xmax / 2, localConfig->ymax / 2,
-	              localConfig->zmax / 2) * sc;
-	v8 = Vector3D(-localConfig->xmax / 2, localConfig->ymax / 2,
-	              localConfig->zmax / 2) * sc;
+	v1 = Vector3D(-config->xmax / 2, -config->ymax / 2,
+	              -config->zmax / 2) * sc;
+	v2 = Vector3D(config->xmax / 2, -config->ymax / 2,
+	              -config->zmax / 2) * sc;
+	v3 = Vector3D(config->xmax / 2, config->ymax / 2,
+	              -config->zmax / 2) * sc;
+	v4 = Vector3D(-config->xmax / 2, config->ymax / 2,
+	              -config->zmax / 2) * sc;
+	v5 = Vector3D(-config->xmax / 2, -config->ymax / 2,
+	              config->zmax / 2) * sc;
+	v6 = Vector3D(config->xmax / 2, -config->ymax / 2,
+	              config->zmax / 2) * sc;
+	v7 = Vector3D(config->xmax / 2, config->ymax / 2,
+	              config->zmax / 2) * sc;
+	v8 = Vector3D(-config->xmax / 2, config->ymax / 2,
+	              config->zmax / 2) * sc;
 	glColor3ub(255, 255, 255); // yellow
 	glVertex3d(v1.x, v1.y, v1.z);
 	glVertex3d(v2.x, v2.y, v2.z);
@@ -173,8 +164,8 @@ void graph::draw_scene(){
 	glBegin(GL_LINES);
 	glColor3ub(0, 0, 0); // black
 
-	Vector3D v_s = Vector3D(-localConfig->xmax / 2 + s_v, localConfig->ymax / 2,
-	                        localConfig->zmax / 2) * sc;
+	Vector3D v_s = Vector3D(-config->xmax / 2 + s_v, config->ymax / 2,
+	                        config->zmax / 2) * sc;
 	glVertex3d(v_s.x, v_s.y, v_s.z);
 	glVertex3d(v_s.x, v_s.y - 0.5f * sc, v_s.z);
 	glLineWidth((GLfloat)10.0);
@@ -193,9 +184,9 @@ void graph::draw_scene(){
 	glPrint3D((float)v_s.x, (float)v_s.y - 2.f * sc, (float)v_s.z, s.c_str(),
 	          m_font);
 	ss.str("");
-	while (v_s.x < localConfig->xmax / 2 * sc) {
+	while (v_s.x < config->xmax / 2 * sc) {
 		v_s.x += s_v * sc;
-		if (v_s.x < localConfig->xmax / 2 * sc) {
+		if (v_s.x < config->xmax / 2 * sc) {
 			glBegin(GL_LINES);
 			glVertex3d(v_s.x, v_s.y, v_s.z);
 			glVertex3d(v_s.x, v_s.y - 0.5f * sc, v_s.z);
@@ -281,14 +272,14 @@ void graph::mouse_motion_callback(int x, int y) {
 void graph::key_pressed_callback(unsigned char key, int x, int y) {
 	switch (key) {
 		case '1':
-			//localConfig->setConfigFileName("demo1");
+			//config->setConfigFileName("demo1");
 			//helper->refreshTime();
 //			fluid_simulation->reset();
 //			sPause = false;
 			break;
 		case '2':
 			// owHelper::configFileName = "demo2";
-			//localConfig->setConfigFileName("demo2");
+			//config->setConfigFileName("demo2");
 			//helper->refreshTime();
 			//fluid_simulation->reset();
 //			sPause = false;
@@ -390,6 +381,8 @@ int graph::button_state = 0;
 float graph::sc = 0.025f; // 0.0145;//0.045;//0.07
 double graph::total_time = 0;
 int graph::frames_counter = 0;
+
+g_config * graph::config = new g_config({0.0,0.0,0.0, 100.0, 100.0, 100.0});
 
 void graph::run(int argc, char **argv){
 	glutInit(&argc, argv);

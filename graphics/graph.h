@@ -23,10 +23,18 @@
 
 namespace sibernetic {
 	namespace graphics {
+		struct g_config{
+			float xmin;
+			float ymin;
+			float zmin;
+			float xmax;
+			float ymax;
+			float zmax;
+		};
 		class graph {
 		public:
 			static void run(int, char **);
-
+			static g_config * config;
 		private:
 			static int old_x;
 			static int old_y; // Used for mouse event
