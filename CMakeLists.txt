@@ -9,6 +9,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 include_directories(/usr/local/cuda/include/)
 #include_directories(/usr/include/)
 include_directories(inc)
+include_directories(graphics)
 
 set(TARGET sibernetic)
 
@@ -20,8 +21,12 @@ set(SOURCE_HELPER src/utils/ocl_helper.cpp inc/util/json_reader.hpp inc/util/jso
 
 set(OPENCL_LIB OpenCL)
 
+set(GRAPH_LIB owgraph)
+
+LINK_DIRECTORIES(graphics/cmake-build-debug)
+
 #add_library(foo SHARED ${SOURCE_LIB})	# Создание статической библиотеки с именем foo
 add_executable(${TARGET} ${SOURCE_EXE} ${SOURCE_HELPER} ${SOURCE_ARG_P})
 
-target_link_libraries(${TARGET} ${OPENCL_LIB})
+target_link_libraries(${TARGET} ${OPENCL_LIB} ${GRAPH_LIB})
 

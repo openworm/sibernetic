@@ -32,10 +32,13 @@
  *******************************************************************************/
 #include "solver_container.hpp"
 #include "util/arg_parser.h"
+#include "graph.h"
 #include <iostream>
 
 using sibernetic::model::sph_model;
 using sibernetic::solver::solver_container;
+using sibernetic::graphics::graph;
+using sibernetic::graphics::g_config;
 
 int main(int argc, char **argv) {
   arg_parser prsr(argc, argv);
@@ -55,9 +58,19 @@ int main(int argc, char **argv) {
   }
   try {
     std::shared_ptr<sph_model<float>> model(new sph_model<float>(model_name));
-    solver_container<float> &s_con =
-        solver_container<float>::instance(model, mode);
-    s_con.run();
+    auto config = new g_config{
+      model->get_config()["x_min"],
+      model->get_config()["y_min"],
+      model->get_config()["z_min"],
+      model->get_config()["x_max"],
+      model->get_config()["y_max"],
+      model->get_config()["z_max"],
+    };
+    graph::config = config;
+    graph::run(argc, argv);
+//    solver_container<float> &s_con =
+//        solver_container<float>::instance(model, mode);
+//    s_con.run();
   } catch (sibernetic::parser_error &e) {
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;
