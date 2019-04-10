@@ -9,17 +9,24 @@ class LoadMode(Enum):
     vel = 3
     other = 4
 
-FILE_NAME = 'v_test_liquid'
+FILE_NAME = 'test_energy'
+
+x_min = 0
+x_max = 88.51
+y_min = 0
+y_max = 88.51
+z_min = 0
+z_max =88.51
 
 def gen_param_map(out, h, mass=1.0):
     out["parameters"] = {}
     out["parameters"]["particles"] = 30
-    out["parameters"]["x_max"] = 96.86
-    out["parameters"]["x_min"] = 0
-    out["parameters"]["y_max"] = 501.000122719
-    out["parameters"]["y_min"] = 0
-    out["parameters"]["z_max"] = 96.86
-    out["parameters"]["z_min"] = 0
+    out["parameters"]["x_max"] = x_max
+    out["parameters"]["x_min"] = x_min
+    out["parameters"]["y_max"] = y_max
+    out["parameters"]["y_min"] = y_min
+    out["parameters"]["z_max"] = z_max
+    out["parameters"]["z_min"] = z_min
     out["parameters"]["mass"] = 20.00e-13
     out["parameters"]["rho0"] = 1000.0
     out["parameters"]["time_step"] = 0.0001

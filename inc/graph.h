@@ -18,6 +18,9 @@
 	#include <GL/freeglut.h>
 #endif
 
+#include <memory>
+#include "sph_model.hpp"
+
 #define TIMER_INTERVAL 30  			//this is the interval between calls to timer func (in milliseconds)
 #define ROTATION_STEP_ANGLE 1 //this is the step angle that the mesh will rotate every SOME_INTERVAL milliseconds
 
@@ -35,6 +38,7 @@ namespace sibernetic {
 		public:
 			static void run(int, char **);
 			static g_config * config;
+			static std::shared_ptr<sibernetic::model::sph_model<float>> model;
 		private:
 			static int old_x;
 			static int old_y; // Used for mouse event
@@ -46,10 +50,9 @@ namespace sibernetic {
 			static float sc; // 0.0145;//0.045;//0.07
 			static double total_time;
 			static int frames_counter;
-			static void * particles;
 
-			static void draw_scene();
 			static void draw_model();
+			static void draw_scene();
 			static void init();
 			static void resize_callback(GLsizei width, GLsizei height);
 			static void display();

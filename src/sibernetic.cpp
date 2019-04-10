@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   if (prsr.check_arg("-f")) {
     model_name = prsr.get_arg("-f");
   } else {
-    model_name = "config/tmp";
+    model_name = "config/converted";//tmp";
   }
   if (prsr.check_arg("--multi_dev")) {
     mode = 2;
@@ -67,10 +67,11 @@ int main(int argc, char **argv) {
       model->get_config()["z_max"],
     };
     graph::config = config;
-    graph::run(argc, argv);
-//    solver_container<float> &s_con =
-//        solver_container<float>::instance(model, mode);
+    graph::model = model;
+    solver_container<float> &s_con =
+        solver_container<float>::instance(model, mode);
 //    s_con.run();
+    graph::run(argc, argv);
   } catch (sibernetic::parser_error &e) {
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;
