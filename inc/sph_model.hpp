@@ -222,7 +222,7 @@ namespace sibernetic {
 			int cell_num_x;
 			int cell_num_y;
 			int cell_num_z;
-			long total_cell_num;
+			int total_cell_num;
 			int solver_count;
 			int ready;
 			bool ready_flag;

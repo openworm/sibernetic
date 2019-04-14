@@ -20,6 +20,7 @@
 
 #include <memory>
 #include "sph_model.hpp"
+#include "solver_container.hpp"
 
 #define TIMER_INTERVAL 30  			//this is the interval between calls to timer func (in milliseconds)
 #define ROTATION_STEP_ANGLE 1 //this is the step angle that the mesh will rotate every SOME_INTERVAL milliseconds
@@ -39,6 +40,7 @@ namespace sibernetic {
 			static void run(int, char **);
 			static g_config * config;
 			static std::shared_ptr<sibernetic::model::sph_model<float>> model;
+			static sibernetic::solver::solver_container<float> *s_container;
 		private:
 			static int old_x;
 			static int old_y; // Used for mouse event

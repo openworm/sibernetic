@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   if (prsr.check_arg("-f")) {
     model_name = prsr.get_arg("-f");
   } else {
-    model_name = "config/converted";//tmp";
+    model_name = "config/tmp";
   }
   if (prsr.check_arg("--multi_dev")) {
     mode = 2;
@@ -68,9 +68,10 @@ int main(int argc, char **argv) {
     };
     graph::config = config;
     graph::model = model;
-    solver_container<float> &s_con =
-        solver_container<float>::instance(model, mode);
-//    s_con.run();
+//    solver_container<float> &s_con =
+//        solver_container<float>::instance(model, mode);
+//    graph::s_container = &s_con;
+    //s_con.run();
     graph::run(argc, argv);
   } catch (sibernetic::parser_error &e) {
     std::cout << e.what() << std::endl;

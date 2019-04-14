@@ -11,12 +11,15 @@ class LoadMode(Enum):
 
 FILE_NAME = 'test_energy'
 
+h = 3.34
+r0 = h * 0.5
+
 x_min = 0
-x_max = 88.51
+x_max = 20 * h
 y_min = 0
-y_max = 88.51
+y_max = 30 * h
 z_min = 0
-z_max =88.51
+z_max = 20 * h
 
 def gen_param_map(out, h, mass=1.0):
     out["parameters"] = {}
@@ -69,8 +72,7 @@ def main():
     out = {}
     print(len(particles))
     particle_count = 0
-    h = 3.34
-    r0 = h * 0.5
+
 
     out = {}
     gen_param_map(out, h)

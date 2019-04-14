@@ -212,18 +212,28 @@ void graph::display(){
 }
 
 void graph::draw_model() {
-	glBegin(GL_POINTS);
-	glPointSize(1.3f * sqrt(sc / 0.025f));
+	//s_container->run();
 	for(auto p :model->get_particles()){
-		if (1/*p.type != 3*/) {
+		if (p.type != 3) {
+			glBegin(GL_POINTS);
+			glPointSize(1.3f * static_cast<float>(sqrt(sc / 0.025f)));
 			glColor4f(0, 0, 0, 1.0f); // color of elastic particles
-			glPointSize(1.3f * sqrt(sc / 0.025f));
 			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
 					   (p.pos[1] - config->ymax / 2) * sc,
 			           (p.pos[2] - config->zmax / 2) * sc);
+			glEnd();
+		} else if(p.type == 3) {
+			glBegin(GL_LINES);
+			glColor4b(255 / 2, 255 / 2, 255 / 2, 255 / 2);
+			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
+			           (p.pos[1] - config->ymax / 2) * sc,
+			           (p.pos[2] - config->zmax / 2) * sc);
+			glVertex3f((p.pos[0] + p.vel[0] - config->xmax / 2) * sc,
+			           (p.pos[1] + p.vel[1] - config->ymax / 2) * sc,
+			           (p.pos[2] + p.vel[2] - config->zmax / 2) * sc);
+			glEnd();
 		}
 	}
-	glEnd();
 }
 
 void graph::respond_mouse_callback(int button, int state, int x, int y) {
@@ -396,6 +406,7 @@ float graph::sc = 0.025f; // 0.0145;//0.045;//0.07
 double graph::total_time = 0;
 int graph::frames_counter = 0;
 std::shared_ptr<sibernetic::model::sph_model<float>> graph::model = nullptr;
+sibernetic::solver::solver_container<float> * graph::s_container = nullptr;
 
 g_config * graph::config = new g_config({0.0,0.0,0.0, 100.0, 100.0, 100.0});
 

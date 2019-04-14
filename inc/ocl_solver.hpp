@@ -135,9 +135,9 @@ namespace sibernetic {
 			}
 
 			void run() override {
-				neighbour_search();
-				physic();
-				sync();
+				//neighbour_search();
+				//physic();
+				//sync();
 			}
 
 		private:
