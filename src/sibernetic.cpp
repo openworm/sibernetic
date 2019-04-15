@@ -34,12 +34,17 @@
 #include "util/arg_parser.h"
 #include "graph.h"
 #include <iostream>
+#include <thread>
 
 using sibernetic::model::sph_model;
 using sibernetic::solver::solver_container;
 using sibernetic::graphics::graph;
 using sibernetic::graphics::g_config;
 
+
+void run_container(solver_container<float> &s_con){
+  s_con.run();
+}
 int main(int argc, char **argv) {
   arg_parser prsr(argc, argv);
   if (prsr.check_arg("-h") || prsr.check_arg("--help") ||
@@ -68,9 +73,11 @@ int main(int argc, char **argv) {
     };
     graph::config = config;
     graph::model = model;
-//    solver_container<float> &s_con =
-//        solver_container<float>::instance(model, mode);
-//    graph::s_container = &s_con;
+    solver_container<float> &s_con =
+        solver_container<float>::instance(model, mode);
+    graph::s_container = &s_con;
+    std::thread t(run_container, std::ref(s_con));
+    t.detach();
     //s_con.run();
     graph::run(argc, argv);
   } catch (sibernetic::parser_error &e) {

@@ -354,7 +354,6 @@ __kernel void k_neighbour_search(
 		closest_indexes[k] = -1;
 	}
 	searchCells[0] = myCellId - grid_offset;
-
 	// p is the current particle position within the bounds of the hash grid
 	float4 p;
 	float4 p0 = (float4)( xmin, ymin, zmin, 0.0f );
@@ -382,7 +381,7 @@ __kernel void k_neighbour_search(
 	searchCells[6] = searchCell( myCellId, 0, delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
 	searchCells[7] = searchCell( myCellId, delta.x, delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
 
- 	int last_farthest = 0;
+	int last_farthest = 0;
 	// Search neighbour particles in every cells from searchCells list
 	last_farthest = searchForNeighbors_b( searchCells[0], particles, b_grid_cell_id_list, position_,
 	                                      id, closest_indexes, closest_distances,
@@ -424,8 +423,8 @@ __kernel void k_neighbour_search(
 		}else{
 			neighbor_data.y = -1.f;
 		}
-		ext_particles[id].neighbour_list[j][0] = neighbor_data.x;
-		ext_particles[id].neighbour_list[j][1] = neighbor_data.y;
+		ext_particles[id - OFFSET].neighbour_list[j][0] = neighbor_data.x;
+		ext_particles[id - OFFSET].neighbour_list[j][1] = neighbor_data.y;
 	}
 }
 

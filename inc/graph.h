@@ -53,6 +53,7 @@ namespace sibernetic {
 			static double total_time;
 			static int frames_counter;
 
+			static void draw_partition();
 			static void draw_model();
 			static void draw_scene();
 			static void init();

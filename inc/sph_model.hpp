@@ -207,6 +207,9 @@ namespace sibernetic {
 				solver_count = num;
 			}
 
+			const std::vector<partition>& get_partition() {
+				return partitions;
+			}
 			std::mutex &get_sync_mutex() {
 				return sync_mutex;
 			}

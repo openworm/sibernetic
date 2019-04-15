@@ -211,27 +211,65 @@ void graph::display(){
 	glutSwapBuffers();
 }
 
+void graph::draw_partition() {
+}
+
+
+
 void graph::draw_model() {
-	//s_container->run();
+	s_container->run();
+	auto part_count= model->get_partition().size();
 	for(auto p :model->get_particles()){
-		if (p.type != 3) {
+		int i = 0;
+
+		for(auto partition: model->get_partition()){
+			if(p.cell_id >= partition.start_cell_id && p.cell_id <= partition.end_cell_id) {
+				if(i == 0) {
+					if(p.cell_id >= model->get_partition()[1].start_ghost_cell_id){
+						glColor4f(1.0, 1.0, 0.0, 1.0);
+					}else{
+						glColor4f(1.0, 0.0, 0.0, 1.0);
+					}
+				}
+				if(i == 1){
+					if(p.cell_id <= model->get_partition()[0].end_ghost_cell_id){
+						glColor4f(0.0, 1.0, 1.0, 1.0);
+					}else if(p.cell_id >= model->get_partition()[2].start_ghost_cell_id){
+						glColor4f(1.0, 1.0, 1.0, 1.0);
+					}else{
+						glColor4f(0.0, 1.0, 0.0, 1.0);
+					}
+				}
+
+				if(i == 2) {
+					if(p.cell_id<= model->get_partition()[1].end_ghost_cell_id){
+						glColor4f(0.0, 0.0, 0.0, 1.0);
+					}else{
+						glColor4f(0.0, 0.0, 1.0, 1.0);
+					}
+				}
+				break;
+			}
+			++i;
+		}
+		if (p.type != 4) {
 			glBegin(GL_POINTS);
-			glPointSize(1.3f * static_cast<float>(sqrt(sc / 0.025f)));
-			glColor4f(0, 0, 0, 1.0f); // color of elastic particles
+			//glPointSize(1.3f * static_cast<float>(sqrt(sc / 0.025)));
+			glPointSize(2.f);
+			//glColor4f(0, 0, 0, 1.0f); // color of elastic particles
 			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
 					   (p.pos[1] - config->ymax / 2) * sc,
 			           (p.pos[2] - config->zmax / 2) * sc);
 			glEnd();
 		} else if(p.type == 3) {
-			glBegin(GL_LINES);
-			glColor4b(255 / 2, 255 / 2, 255 / 2, 255 / 2);
-			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
-			           (p.pos[1] - config->ymax / 2) * sc,
-			           (p.pos[2] - config->zmax / 2) * sc);
-			glVertex3f((p.pos[0] + p.vel[0] - config->xmax / 2) * sc,
-			           (p.pos[1] + p.vel[1] - config->ymax / 2) * sc,
-			           (p.pos[2] + p.vel[2] - config->zmax / 2) * sc);
-			glEnd();
+//			glBegin(GL_LINES);
+//			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
+//			           (p.pos[1] - config->ymax / 2) * sc,
+//			           (p.pos[2] - config->zmax / 2) * sc);
+//			glVertex3f((p.pos[0] + p.vel[0] - config->xmax / 2) * sc,
+//			           (p.pos[1] + p.vel[1] - config->ymax / 2) * sc,
+//			           (p.pos[2] + p.vel[2] - config->zmax / 2) * sc);
+//			glEnd();
 		}
 	}
 }
