@@ -63,28 +63,6 @@ def gen_model(x_dim, y_dim, z_dim, file_name="tmp"):
     fp.close()
 
 
-def draw_bounds11(particles, x_dim, y_dim, z_dim, h, r0):
-    for x in gen(r0, h * x_dim, r0):
-        for y in gen(r0, h * y_dim, r0):
-            particles["model"].append(make_particle(pos=[x, y, z_dim * h, 1.0], type=ParticleType.BOUND))
-            particles["model"].append(make_particle(pos=[x, y, 0.0, 1.0], type=ParticleType.BOUND))
-
-    for y in gen(0, h * y_dim + r0, r0):
-        for z in gen(0, h * z_dim + r0, r0):
-            particles["model"].append(make_particle(pos=[x_dim * h, y, z, 1.0], type=ParticleType.BOUND))
-            particles["model"].append(make_particle(pos=[0, y, z, 1.0], type=ParticleType.BOUND))
-
-    for x in gen(r0, h * x_dim, r0):
-        for z in gen(r0, h * z_dim, r0):
-            particles["model"].append(make_particle(pos=[x, y_dim * h, z, 1.0], type=ParticleType.BOUND))
-            particles["model"].append(make_particle(pos=[x, 0, z, 1.0], type=ParticleType.BOUND))
-    # for x in gen(r0, h * x_dim, r0):
-    #     for y in gen(r0, h * y_dim, r0):
-    #         for z in gen(r0, h * z_dim, r0):
-    #             partiles["model"].append(make_particle(pos=[x, y, z, 1.0], type=ParticleType.BOUND))
-
-
-
 def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
     nx = int( x_dim * h / r0 )  # Numbers of boundary particles on X-axis
     ny = int( y_dim * h / r0 )  # Numbers of boundary particles on Y-axis
@@ -269,7 +247,7 @@ def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
             )
 
 def main():
-    gen_model(20, 30, 20)
+    gen_model(12, 6, 12)
 
 
 if __name__ == '__main__':

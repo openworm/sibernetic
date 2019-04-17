@@ -217,7 +217,7 @@ void graph::draw_partition() {
 
 
 void graph::draw_model() {
-	s_container->run();
+	//s_container->run();
 	auto part_count= model->get_partition().size();
 	for(auto p :model->get_particles()){
 		int i = 0;

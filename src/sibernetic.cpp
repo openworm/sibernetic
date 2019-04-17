@@ -75,9 +75,9 @@ int main(int argc, char **argv) {
     graph::model = model;
     solver_container<float> &s_con =
         solver_container<float>::instance(model, mode);
-    graph::s_container = &s_con;
-    std::thread t(run_container, std::ref(s_con));
-    t.detach();
+	graph::s_container = &s_con;
+//    std::thread t(run_container, std::ref(s_con));
+//    t.detach();
     //s_con.run();
     graph::run(argc, argv);
   } catch (sibernetic::parser_error &e) {

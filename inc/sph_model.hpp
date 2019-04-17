@@ -165,6 +165,7 @@ namespace sibernetic {
 			void sync() {
 				std::lock_guard<std::mutex> lk(sync_mutex);
 				ready_flag = true;
+				arrange_particles();
 				sync_condition.notify_all();
 			}
 
@@ -291,8 +292,8 @@ namespace sibernetic {
 				config["h_scaled"] = H * config["simulation_scale"];
 				config["simulation_scale_inv"] = 1 / config["simulation_scale"];
 				config["gravity_x"] =  0.0f;
-				config["gravity_y"] = -9.8f;
-				config["gravity_z"] =  0.0f;
+				config["gravity_y"] =  -9.8f;
+				config["gravity_z"] = 0.0f;
 				config["mu"] = DEFAULT_MU;
 				config["h_scaled_2"] = H * H * config["simulation_scale"] * config["simulation_scale"];
 				config["Wpoly6Coefficient"] = 315.0 / ( 64.0 * M_PI * pow( (double)(H * config["simulation_scale"]), 9.0 ) );
