@@ -43,7 +43,7 @@ namespace model {
 // Write why alligment on 8 bytes is important!!
 // Also in this structure we store all enought information for particle which we
 // want to load from device it should be as small as possible for optimal
-template <class T, size_t dim = 4> struct alignas(8) particle {
+template <class T, size_t dim = 4> struct alignas(16) particle {
   typedef std::array<T, dim> container;
   container pos;
   container pos_n_1;
@@ -51,13 +51,13 @@ template <class T, size_t dim = 4> struct alignas(8) particle {
   container accelation;
   container accelation_n_1;
   container accelation_n_0_5;
-  size_t type;
-  size_t cell_id;
-  size_t get_dim() const { return dim; }
+  int type;
+  int cell_id;
   T density;
   T pressure;
   T viscosity;
   T mass;
+  size_t get_dim() const { return dim; }
   std::string pos_str() {
     std::stringstream s;
     std::for_each(pos.begin(), pos.end(), [&s](T c) { s << c << ' '; });

@@ -47,7 +47,7 @@
 	
 #elif defined(cl_amd_fp64)
 	#pragma OPENCL EXTENSION cl_amd_fp64 : enable
-	#define _DOUBLE_PRECISION
+	//#define _DOUBLE_PRECISION
 #else
 	#error "Double precision floating point not supported by OpenCL implementation."
 #endif
@@ -75,6 +75,7 @@ typedef struct particle{
 	double4 vel;
 	double4 acceleration;
 	double4 acceleration_n_1;
+	float4 acceleration_n_0_5;
 #else
 	float4 pos;
 	float4 pos_n_1;
@@ -83,8 +84,8 @@ typedef struct particle{
 	float4 acceleration_n_1;
 	float4 acceleration_n_0_5;
 #endif
-	size_t type_;
-	size_t cell_id;
+	int type_;
+	int cell_id;
 #ifdef _DOUBLE_PRECISION
 	double density;
 	double pressure;
@@ -176,8 +177,11 @@ __kernel void k_hash_particles(
 	}
 	id += OFFSET;
 	int4 cellFactors_ = cell_factors( &particles[ id ], hashGridCellSizeInv );
-	int cellId_ = cell_id( cellFactors_, gridCellsX, gridCellsY, gridCellsZ ) & 0xffffff; // truncate to low 16 bits
+	int cellId_ = cell_id( cellFactors_, gridCellsX, gridCellsY, gridCellsZ );// & 0xffffff; // truncate to low 16 bits
 	particles[ id ].cell_id = cellId_;
+//	if(get_global_id( 0 ) == 0){
+//		printf("sizeof() of particles_f is %d particle %d cell id %d\n", sizeof(particle), OFFSET, particles[id].cell_id);
+//	}
 }
 
 int getMaxIndex(

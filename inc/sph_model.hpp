@@ -165,8 +165,42 @@ namespace sibernetic {
 			void sync() {
 				std::lock_guard<std::mutex> lk(sync_mutex);
 				ready_flag = true;
-				arrange_particles();
+				ready = 0;
+				//arrange_particles();
+				for(size_t p_index=0; p_index< partitions.size(); ++p_index){
+					if(p_index == 0){
+						sync_right_segment(p_index, 0);
+					} else {
+						partitions[p_index].start = partitions[p_index - 1].end + 1;
+						sync_right_segment(p_index, partitions[p_index].start);
+						if(p_index == partitions.size() - 1)
+							sync_left_segment(p_index, partitions[p_index].end);
+					}
+				}
 				sync_condition.notify_all();
+			}
+
+			void sync_right_segment(size_t p_index, size_t particle_start){
+				for(size_t i = particle_start; i < particles.size(); ++i){
+					if(particles[i].cell_id == partitions[p_index].end_cell_id
+					   && particles[i + 1].cell_id != partitions[p_index].end_cell_id){
+						partitions[p_index].end = i;
+					} else if(particles[i].cell_id == partitions[p_index].end_ghost_cell_id
+					          && particles[i + 1].cell_id != partitions[p_index].end_ghost_cell_id){
+						partitions[p_index].ghost_end = i;
+						break;
+					}
+				}
+			}
+
+			void sync_left_segment(size_t p_index, size_t particle_start){
+				for(size_t i = particle_start; i >= 0; --i){
+					if(particles[i].cell_id == partitions[p_index].start_ghost_cell_id
+					   && particles[i - 1].cell_id != partitions[p_index].start_ghost_cell_id){
+						partitions[p_index].ghost_start = i;
+						break;
+					}
+				}
 			}
 
 			bool set_ready() {
@@ -204,7 +238,7 @@ namespace sibernetic {
 				return total_cell_num;
 			}
 
-			void set_solver_count(int num) {
+			void set_solver_count(size_t num) {
 				solver_count = num;
 			}
 
@@ -227,7 +261,7 @@ namespace sibernetic {
 			int cell_num_y;
 			int cell_num_z;
 			int total_cell_num;
-			int solver_count;
+			size_t solver_count;
 			int ready;
 			bool ready_flag;
 			std::mutex sync_mutex;

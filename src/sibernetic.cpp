@@ -42,8 +42,8 @@ using sibernetic::graphics::graph;
 using sibernetic::graphics::g_config;
 
 
-void run_container(solver_container<float> &s_con){
-  s_con.run();
+void run_container(int argc, char **argv){
+  graph::run(argc, argv);
 }
 int main(int argc, char **argv) {
   arg_parser prsr(argc, argv);
@@ -61,6 +61,7 @@ int main(int argc, char **argv) {
   if (prsr.check_arg("--multi_dev")) {
     mode = 2;
   }
+  std::cout << sizeof(sibernetic::model::particle<float, 4>) << std::endl;
   try {
     std::shared_ptr<sph_model<float>> model(new sph_model<float>(model_name));
     auto config = new g_config{
@@ -76,10 +77,10 @@ int main(int argc, char **argv) {
     solver_container<float> &s_con =
         solver_container<float>::instance(model, mode);
 	graph::s_container = &s_con;
-//    std::thread t(run_container, std::ref(s_con));
+//	std::thread t(graph::run, argc, argv);
 //    t.detach();
-    //s_con.run();
-    graph::run(argc, argv);
+	s_con.run();
+    //graph::run(argc, argv);
   } catch (sibernetic::parser_error &e) {
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;

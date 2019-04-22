@@ -38,7 +38,7 @@ namespace sibernetic {
 				std::vector<std::thread> t_pool;
 				std::for_each(
 						_solvers.begin(), _solvers.end(), [&, this](std::shared_ptr<i_solver> &s) {
-							t_pool.push_back(std::thread(solver_container::run_solver, std::ref(s)));
+							t_pool.emplace_back(std::thread(solver_container::run_solver, std::ref(s)));
 						});
 				std::for_each(t_pool.begin(), t_pool.end(), [](std::thread &t) { t.join(); });
 			}

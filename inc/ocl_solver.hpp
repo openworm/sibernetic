@@ -89,10 +89,11 @@ namespace sibernetic {
 			// TODO rename method!!!
 			void init_model(const partition &p) override {
 				this->p = p;
+				prev_part_size = p.total_size();
 				init_buffers();
 				init_kernels();
 				copy_buffer_to_device((void *) &(model->get_particles()[p.ghost_start]),
-				                      b_particles, p.total_size() * sizeof(particle<T>));
+				                      b_particles, 0, p.total_size() * sizeof(particle<T>));
 			}
 
 			~ocl_solver() override = default;
@@ -102,6 +103,7 @@ namespace sibernetic {
 				run_hash_particles();
 				run_clear_grid_hash();
 				run_fill_particle_cell_hash();
+				sync();
 				run_neighbour_search();
 			}
 
@@ -124,7 +126,7 @@ namespace sibernetic {
 						&model->get_particles()[p.start],
 						b_particles,
 						p.size() * sizeof(particle<T>),
-						p.offset());
+						p.offset() * sizeof(particle<T>));
 				if(model->set_ready()){
 					model->sync();
 				} else {
@@ -132,16 +134,47 @@ namespace sibernetic {
 					model->get_sync_condition().wait(m, [&](){return model->get_ready();});
 					m.unlock();
 				}
+				copy_buffer_to_device(
+						(void *) &(model->get_particles()[p.ghost_start]),
+						b_particles,
+						0,
+						p.total_size() * sizeof(particle<T>));
+				prev_part_size = p.total_size();
+//				if(p.ghost_start == 0){
+//					copy_buffer_to_device(
+//							(void *) &(model->get_particles()[p.end]),
+//				            b_particles,
+//							p.end * sizeof(particle<T>),
+//							(p.ghost_end - p.end) * sizeof(particle<T>));
+//				} else if(p.ghost_end == model->size() - 1){
+//					copy_buffer_to_device(
+//							(void *) &(model->get_particles()[p.ghost_start]),
+//							b_particles,
+//							0,
+//							(p.start - p.ghost_start) * sizeof(particle<T>));
+//				} else {
+//					copy_buffer_to_device(
+//							(void *) &(model->get_particles()[p.end]),
+//							b_particles,
+//							p.end * sizeof(particle<T>),
+//							(p.ghost_end - p.end) * sizeof(particle<T>));
+//					copy_buffer_to_device(
+//							(void *) &(model->get_particles()[p.ghost_start]),
+//							b_particles,
+//							0,
+//							(p.start - p.ghost_start) * sizeof(particle<T>));
+//				}
 			}
 
 			void run() override {
 				neighbour_search();
-				physic();
-				sync();
+				//physic();
+
 			}
 
 		private:
 			model_ptr model;
+			size_t prev_part_size;
 			partition p;
 			shared_ptr<device> dev;
 			std::string msg = dev->name + '\n';
@@ -259,9 +292,10 @@ namespace sibernetic {
 			}
 
 			void copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,
+			                           const size_t offset,
 			                           const size_t size) {
 				// Actually we should check  size and type
-				int err = queue.enqueueWriteBuffer(ocl_b, CL_TRUE, 0, size, host_b);
+				int err = queue.enqueueWriteBuffer(ocl_b, CL_TRUE, offset, size, host_b);
 				if (err != CL_SUCCESS) {
 					std::string error_m =
 							make_msg("Copy buffer to device is failed error code is ", err);
@@ -271,7 +305,7 @@ namespace sibernetic {
 			}
 
 			void copy_buffer_from_device(void *host_b, const cl::Buffer &ocl_b,
-			                             const int size, int offset) {
+			                             const size_t size, size_t offset) {
 				// Actualy we should check  size and type
 				int err = queue.enqueueReadBuffer(ocl_b, CL_TRUE, offset, size, host_b);
 				if (err != CL_SUCCESS) {
