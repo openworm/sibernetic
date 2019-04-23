@@ -44,7 +44,11 @@ namespace sibernetic {
 			}
 
 			static void run_solver(std::shared_ptr<i_solver> &s) {
-				s->run();
+				int i = 0;
+				while(i < 10) {
+					s->run();
+					i++;
+				}
 			}
 
 		private:

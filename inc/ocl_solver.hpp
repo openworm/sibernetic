@@ -140,6 +140,7 @@ namespace sibernetic {
 						0,
 						p.total_size() * sizeof(particle<T>));
 				prev_part_size = p.total_size();
+				/*BOTTOM IS IMPROVE VERSION*/
 //				if(p.ghost_start == 0){
 //					copy_buffer_to_device(
 //							(void *) &(model->get_particles()[p.end]),

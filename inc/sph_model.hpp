@@ -165,8 +165,8 @@ namespace sibernetic {
 			void sync() {
 				std::lock_guard<std::mutex> lk(sync_mutex);
 				ready_flag = true;
-				ready = 0;
-				//arrange_particles();
+				ready = 1;
+				arrange_particles();
 				for(size_t p_index=0; p_index< partitions.size(); ++p_index){
 					if(p_index == 0){
 						sync_right_segment(p_index, 0);
@@ -177,6 +177,7 @@ namespace sibernetic {
 							sync_left_segment(p_index, partitions[p_index].end);
 					}
 				}
+				std::cout << "================New Iteration==============" << std::endl;
 				sync_condition.notify_all();
 			}
 
