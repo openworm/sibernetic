@@ -39,6 +39,7 @@
 #include "util/abstract_reader.h"
 #include "util/json_reader.hpp"
 #include "abstract_model.hpp"
+#include "isolver.h"
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -47,6 +48,8 @@
 #include <string>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
+#include <bitset>
 
 namespace sibernetic {
 	namespace model {
@@ -57,33 +60,34 @@ namespace sibernetic {
 
 		public:
 			sph_model(const std::string &config_file, abstract_reader<T> *serializer = new json_reader<T>())
-					: serializer(serializer) {
-				config = {{"particles",                   T()},
-				          {"x_max",                       T()},
-				          {"x_min",                       T()},
-				          {"y_max",                       T()},
-				          {"y_min",                       T()},
-				          {"z_max",                       T()},
-				          {"z_min",                       T()},
-				          {"mass",                        T()},
-				          {"time_step",                   T()},
-				          {"simulation_scale",            T()},
-				          {"rho0",                        T()},
-				          {"time_step",                   T()},
-				          {"h_scaled_2",                  T()},
-				          {"mass_mult_Wpoly6Coefficient", T()},
-				          {"mass_mult_divgradWviscosityCoefficient", T()}
-				          };
+					: serializer(serializer), ready_to_sync(0), iteration(0) {
+				config = {
+					{"particles",                   T()},
+					{"x_max",                       T()},
+					{"x_min",                       T()},
+					{"y_max",                       T()},
+					{"y_min",                       T()},
+					{"z_max",                       T()},
+					{"z_min",                       T()},
+					{"mass",                        T()},
+					{"time_step",                   T()},
+					{"simulation_scale",            T()},
+					{"rho0",                        T()},
+					{"time_step",                   T()},
+					{"h_scaled_2",                  T()},
+					{"mass_mult_Wpoly6Coefficient", T()},
+					{"mass_mult_divgradWviscosityCoefficient", T()}
+				};
 				this->serializer->serialize(config_file, this);
 				init_vars();
 				for (particle<T> &p: particles) {
 					this->calc_grid_id(p);
 				}
 				arrange_particles();
+				iteration = 0;
+
 				std::cout << "Model was loaded: " << particles.size() << " particles."
 				          << std::endl;
-				ready_flag = false;
-				ready = 1;
 			}
 
 			const sph_config &get_config() const { return config; }
@@ -163,9 +167,6 @@ namespace sibernetic {
 			}
 
 			void sync() {
-				std::lock_guard<std::mutex> lk(sync_mutex);
-				ready_flag = true;
-				ready = 1;
 				arrange_particles();
 				for(size_t p_index=0; p_index< partitions.size(); ++p_index){
 					if(p_index == 0){
@@ -177,8 +178,13 @@ namespace sibernetic {
 							sync_left_segment(p_index, partitions[p_index].end);
 					}
 				}
-				std::cout << "================New Iteration==============" << std::endl;
-				sync_condition.notify_all();
+
+				std::cout << "================New Iteration============== " << iteration << std::endl;
+				++iteration;
+				ready_to_sync = 0;
+				for(auto it: *solvers){
+					it->unfreeze();
+				}
 			}
 
 			void sync_right_segment(size_t p_index, size_t particle_start){
@@ -205,18 +211,12 @@ namespace sibernetic {
 			}
 
 			bool set_ready() {
-				ready_flag = false;
 				std::lock_guard<std::mutex> guard(sync_mutex);
-				if (ready == solver_count) {
-					ready = 1;
+				++ready_to_sync;
+				if (ready_to_sync == solvers->size()) {
 					return true;
 				}
-				++ready;
 				return false;
-			}
-
-			bool get_ready() {
-				return ready_flag;
 			}
 
 			~sph_model() {
@@ -239,21 +239,13 @@ namespace sibernetic {
 				return total_cell_num;
 			}
 
-			void set_solver_count(size_t num) {
-				solver_count = num;
-			}
-
 			const std::vector<partition>& get_partition() {
 				return partitions;
 			}
-			std::mutex &get_sync_mutex() {
-				return sync_mutex;
-			}
 
-			std::condition_variable &get_sync_condition() {
-				return sync_condition;
+			void set_solver_container(std::vector<std::shared_ptr<sibernetic::solver::i_solver>> *s){
+				solvers = s;
 			}
-
 		private:
 			abstract_reader<T> *serializer;
 			size_t next_partition;
@@ -262,11 +254,11 @@ namespace sibernetic {
 			int cell_num_y;
 			int cell_num_z;
 			int total_cell_num;
-			size_t solver_count;
-			int ready;
-			bool ready_flag;
+			std::vector<std::shared_ptr<sibernetic::solver::i_solver>> *solvers;
+			std::atomic<int> iteration;
+			std::atomic<int> ready_to_sync;
+
 			std::mutex sync_mutex;
-			std::condition_variable sync_condition;
 			container particles;
 			sph_config config;
 			std::map<std::string, T> phys_consts;

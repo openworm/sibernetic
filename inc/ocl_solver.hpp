@@ -78,7 +78,11 @@ namespace sibernetic {
 			typedef shared_ptr<sph_model<T>> model_ptr;
 
 		public:
-			ocl_solver(model_ptr &m, shared_ptr<device> d) : model(m), dev(std::move(d)) {
+			ocl_solver(model_ptr &m, shared_ptr<device> d, size_t idx):
+				model(m),
+				dev(std::move(d)),
+				device_index(idx)
+			{
 				try {
 					this->initialize_ocl();
 				} catch (ocl_error &ex) {
@@ -122,24 +126,29 @@ namespace sibernetic {
 			}
 
 			void sync() override {
+				is_synchronizing = true;
 				copy_buffer_from_device(
 						&model->get_particles()[p.start],
 						b_particles,
 						p.size() * sizeof(particle<T>),
 						p.offset() * sizeof(particle<T>));
+
 				if(model->set_ready()){
+					std::cout << "SYNCHRONIZER " << dev->name << std::endl;
 					model->sync();
 				} else {
-					std::unique_lock<std::mutex> m(model->get_sync_mutex());
-					model->get_sync_condition().wait(m, [&](){return model->get_ready();});
-					m.unlock();
+					std::cout << "LOOSER " << dev->name << std::endl;
+					while(is_synchronizing);
 				}
+
 				copy_buffer_to_device(
 						(void *) &(model->get_particles()[p.ghost_start]),
 						b_particles,
 						0,
 						p.total_size() * sizeof(particle<T>));
 				prev_part_size = p.total_size();
+
+
 				/*BOTTOM IS IMPROVE VERSION*/
 //				if(p.ghost_start == 0){
 //					copy_buffer_to_device(
@@ -167,18 +176,26 @@ namespace sibernetic {
 //				}
 			}
 
-			void run() override {
+		void run() override {
+			int i = 0;
+			while(i++ < 1000) {
 				neighbour_search();
-				//physic();
-
+				physic();
 			}
-
+			std::cout << "?????????????? END OF WORK ????????????????" << dev->name << std::endl;
+		}
+		void unfreeze() override {
+			is_synchronizing = false;
+		}
 		private:
+			bool is_synchronizing;
 			model_ptr model;
 			size_t prev_part_size;
+			size_t device_index;
 			partition p;
 			shared_ptr<device> dev;
 			std::string msg = dev->name + '\n';
+
 			const std::string cl_program_file = "cl_code//sph_cl_code.cl";
 			cl::Kernel k_init_ext_particles;
 			cl::Kernel k_hash_particles;
@@ -199,6 +216,7 @@ namespace sibernetic {
 			cl::Buffer b_grid_cell_id_list;
 			cl::CommandQueue queue;
 			cl::Program program;
+
 
 			void init_buffers() {
 				create_ocl_buffer("particles", b_particles, CL_MEM_READ_WRITE,

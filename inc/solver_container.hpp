@@ -31,6 +31,7 @@ namespace sibernetic {
 			static solver_container &instance(model_ptr &model, size_t devices_number = 1,
 			                                  SOLVER_TYPE s_t = OCL) {
 				static solver_container s(model, devices_number, s_t);
+				model->set_solver_container(s.solvers());
 				return s;
 			}
 
@@ -44,30 +45,29 @@ namespace sibernetic {
 			}
 
 			static void run_solver(std::shared_ptr<i_solver> &s) {
-				int i = 0;
-				while(i < 10) {
-					s->run();
-					i++;
-				}
+				s->run();
 			}
-
+			std::vector<std::shared_ptr<i_solver>>* solvers(){
+				return &_solvers;
+			}
 		private:
 			explicit solver_container(model_ptr &model, size_t devices_number = 1,
 			                          SOLVER_TYPE s_type = OCL) {
 				try {
 					std::priority_queue<std::shared_ptr<device>> dev_q = get_dev_queue();
+					size_t device_index = 0;
 					while (!dev_q.empty()) {
 						try {
 							std::shared_ptr<ocl_solver<T>> solver(
-									new ocl_solver<T>(model, dev_q.top()));
+									new ocl_solver<T>(model, dev_q.top(), device_index));
 							_solvers.push_back(solver);
+							++device_index;
 						} catch (ocl_error &ex) {
 							std::cout << ex.what() << std::endl;
 						}
 						dev_q.pop();
 					}
 					if (_solvers.size()) {
-						model->set_solver_count(_solvers.size());
 						model->make_partition(_solvers.size()); // TODO to think about is in future we
 						// can't init one or more
 						// devices
