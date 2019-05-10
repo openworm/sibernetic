@@ -22,13 +22,14 @@ public:
 		for (json::iterator it = o.begin(); it != o.end(); ++it) {
 			model->get_config()[it.key()] =  it.value();
 		}
-
+		int particle_id = 0;
 		// range-based for
 		for (auto& element : j.at("model")) {
 			sibernetic::model::particle<T> p;
 			p.pos = element.at("position");
 			p.vel = element.at("velocity");
 			p.type = element.at("type");
+			p.particle_id = particle_id++;
 			try {
 				p.mass = element.at("mass");
 			}

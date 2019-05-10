@@ -25,9 +25,42 @@ def gen(start, end, step):
         yield ret
         ret += step
 
+def calc_delta(params):
+    x = [1, 1, 0, -1, -1, -1, 0, 1, 1, 1,  0, -1, -1, -1, 0, 1, 1, 1, 0, -1, -1, -1, 0, 1, 2, -2, 0, 0,  0,  0,  0, 0]
+    y = [0, 1, 1, 1, 0, -1, -1, -1, 0, 1, 1, 1,  0, -1, -1, -1, 0, 1, 1, 1, 0, -1, -1, -1, 0, 0, 2, -2, 0, 0,  0,  0]
+    z = [0,  0,  0,  0,  0,  0,  0,  0,  1, 1, 1, 1, 1, 1,  1, 1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 2, -2, 1, -1]
+    sum1_x = 0.0
+    sum1_y = 0.0
+    sum1_z = 0.0
+    sum1 = 0.0
+    sum2 = 0.0
+    v_x = 0.0
+    v_y = 0.0
+    v_z = 0.0
+    dist = 0.0
+    particleRadius = math.pow(params["mass"] / params["rho0"], 1.0 / 3.0)
+    h_r_2 = 0.0
+    for i in range(len(x)):
+        v_x = x[i] * 0.8 * particleRadius
+        v_y = y[i] * 0.8 * particleRadius
+        v_z = z[i] * 0.8 * particleRadius
+        dist = math.sqrt(v_x * v_x + v_y * v_y + v_z * v_z)
+        if dist <= params["h"] * params["simulation_scale"]:
+            h_r_2 = math.pow((params["h"] * params["simulation_scale"] - dist), 2)
+            sum1_x += h_r_2 * v_x / dist
+            sum1_y += h_r_2 * v_y / dist
+            sum1_z += h_r_2 * v_z / dist
+
+            sum2 += h_r_2 * h_r_2
+
+    sum1 = sum1_x * sum1_x + sum1_y * sum1_y + sum1_z * sum1_z
+    result = 1.0 / (params["beta"] * params["grad_wspiky_coefficient"] * params["grad_wspiky_coefficient"] * (sum1 + sum2))
+    return result
+
 def gen_param_map(out, h, x_dim, y_dim, z_dim, mass=1.0):
     out["parameters"] = {}
     out["parameters"]["particles"] = 30
+    out["parameters"]["h"] = h
     out["parameters"]["x_max"] = h * x_dim
     out["parameters"]["x_min"] = 0
     out["parameters"]["y_max"] = h * y_dim
@@ -36,10 +69,23 @@ def gen_param_map(out, h, x_dim, y_dim, z_dim, mass=1.0):
     out["parameters"]["z_min"] = 0
     out["parameters"]["mass"] = 20.00e-13
     out["parameters"]["rho0"] = 1000.0
-    out["parameters"]["time_step"] = 0.0001
+    out["parameters"]["time_step"] = 4.0 * 5.0e-06
     out["parameters"]["simulation_scale"] = 0.0041 * math.pow(mass,1.0/3.0)/math.pow(0.00025, 1.0/3.0)
-    out["parameters"]["surf_tens_coeff"] = 1
-    out["parameters"]["delta"] = 1
+
+    out["parameters"]["beta"] =  out["parameters"]["time_step"] ** 2 * out["parameters"]["mass"] **2 * 2 /(out["parameters"]["rho0"] ** 2);
+    out["parameters"]["wpoly6_coefficient"] = h **2 * out["parameters"]["simulation_scale"] ** 2
+    out["parameters"]["grad_wspiky_coefficient"] = 315.0 / ( 64.0 * math.pi * math.pow( (h * out["parameters"]["simulation_scale"]), 9.0 ) )
+    out["parameters"]["divgrad_wviscosity_coefficient"] = -45.0 / ( math.pi * math.pow( (h * out["parameters"]["simulation_scale"]), 6.0 ) )
+    out["parameters"]["mass_mult_wpoly6_coefficient"] = out["parameters"]["mass"] * out["parameters"]["wpoly6_coefficient"]
+    out["parameters"]["mass_mult_grad_wspiky_coefficient"] = out["parameters"]["mass"] * out["parameters"]["grad_wspiky_coefficient"]
+    out["parameters"]["mass_mult_divgrad_viscosity_coefficient"] = out["parameters"]["mass"]  * out["parameters"]["wpoly6_coefficient"]
+    out["parameters"]["surf_tens_coeff"] = out["parameters"]["mass_mult_divgrad_viscosity_coefficient"] * out["parameters"]["simulation_scale"]
+    out["parameters"]["delta"] = calc_delta(out["parameters"])
+
+    out["parameters"]["gravity_x"] =  0.0
+    out["parameters"]["gravity_y"] =  -9.8
+    out["parameters"]["gravity_z"] = 0.0
+    out["parameters"]["mu"] = 0.1 * 0.00004
 
 def gen_model(x_dim, y_dim, z_dim, file_name="tmp"):
     particle_count = 0

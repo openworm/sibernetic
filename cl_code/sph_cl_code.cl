@@ -31,7 +31,8 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
- 
+
+
 #ifdef cl_amd_printf
 	#pragma OPENCL EXTENSION cl_amd_printf : enable
 	#define PRINTF_ON // this comment because using printf leads to very slow work on Radeon r9 290x on my machine
@@ -86,6 +87,7 @@ typedef struct particle{
 #endif
 	int type_;
 	int cell_id;
+	int particle_id;
 #ifdef _DOUBLE_PRECISION
 	double density;
 	double pressure;
@@ -453,20 +455,17 @@ __kernel void k_compute_density(
 	if(id >= PARTICLE_COUNT){
 		return;
 	}
-	int nc=0;							//neighbor counter
 	float density = 0.0f;
 	float r_ij2;						//squared r_ij
-	float hScaled6 = hScaled2*hScaled2*hScaled2;
-	int real_nc = 0;
+	float hScaled6 = hScaled2 * hScaled2 * hScaled2;
 
 	for(int i=0;i<NEIGHBOUR_COUNT;++i){
-		if( ext_particles[id].neighbour_list[i][1] != NO_PARTICLE_ID ) {
+		if( ext_particles[id].neighbour_list[i][0] != NO_PARTICLE_ID ) {
 			r_ij2 = ext_particles[id].neighbour_list[i][1];
 			r_ij2 *= r_ij2;
 			if (r_ij2 < hScaled2) {
 				density += (hScaled2 - r_ij2) * (hScaled2 - r_ij2) * (hScaled2 - r_ij2);
 				//if(r_ij2>hScaled2) printf("=Error: r_ij/h = %f\n", NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc ] ) / hScaled);
-				real_nc++;
 			}
 		} else {
 			break;
@@ -505,8 +504,11 @@ __kernel void k_compute_forces_init_pressure(
 	if(id >= PARTICLE_COUNT){
 		return;
 	}
-	if(particles[ id + OFFSET].type_ == BOUNDARY_PARTICLE){
-		particles[ id + OFFSET].acceleration = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
+	int real_id = id + OFFSET;
+	if(particles[real_id].type_ == BOUNDARY_PARTICLE){
+		particles[real_id].acceleration = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
+		particles[real_id].acceleration_n_1 = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
+		particles[real_id].pressure = 0.f;
 		return;
 	}
 	float4 acceleration_i;
@@ -529,34 +531,39 @@ __kernel void k_compute_forces_init_pressure(
 			r_ij2 = r_ij * r_ij;
 			if(r_ij<hScaled)
 			{
-				rho_i = particles[id + OFFSET].density;
+				rho_i = particles[real_id].density;
 				rho_j = particles[jd].density;
-				vi = particles[id + OFFSET].vel;
+				vi = particles[real_id].vel;
 				vj = particles[jd].vel;
-				not_bp = (float)(particles[jd].type_ != BOUNDARY_PARTICLE);
-				accel_viscosityForce += 1.0e-4f * (vj*not_bp-vi)*(hScaled-r_ij)/1000;
+				if(particles[jd].type_ == BOUNDARY_PARTICLE) {
+					accel_viscosityForce += 1.0e-4f * (-vi) * (hScaled - r_ij) / 1000.f;
+				} else {
+					accel_viscosityForce += 1.0e-4f * (vj - vi) * (hScaled - r_ij) / 1000.f;
+				}
 				float surffKern = (hScaled2 - r_ij2) * (hScaled2 - r_ij2) * (hScaled2 - r_ij2);
 				//high resolution?
 				//accel_surfTensForce += -1.7e-09f * surfTensCoeff * surffKern * (sortedPosition[id]-sortedPosition[jd]);
 
 				//low (1/2) resolution?
-				accel_surfTensForce += - 1.7e-09f * surf_tens_coeff * surffKern * (particles[id + OFFSET].pos-particles[jd].pos);
+				accel_surfTensForce += -1.7e-09f * surf_tens_coeff * surffKern * (particles[real_id].pos - particles[jd].pos);
 			}
+		} else {
+			break;
 		}
 	}
 
 	accel_surfTensForce.w = 0.f;
-	accel_surfTensForce /= particles[id + OFFSET].mass;
-	accel_viscosityForce *= 1.5f * mass_mult_divgradWviscosityCoefficient / particles[id + OFFSET].density;
+	accel_surfTensForce /= particles[real_id].mass;
+	accel_viscosityForce *= 1.5f * mass_mult_divgradWviscosityCoefficient / particles[real_id].density;
 	// apply external forces
 	acceleration_i = accel_viscosityForce;
 	acceleration_i += (float4)( gravity_x, gravity_y, gravity_z, 0.0f );
-	acceleration_i +=  accel_surfTensForce; //29aug_A.Palyanov
+	acceleration_i += accel_surfTensForce; //29aug_A.Palyanov
 
-	particles[id + OFFSET].acceleration = acceleration_i;
+	particles[real_id].acceleration = acceleration_i;
 	// 1st half of 'acceleration' array is used to store acceleration corresponding to gravity, visc. force etc.
-	particles[id + OFFSET].acceleration_n_1 = (float4)(0.0f, 0.0f, 0.0f, 0.0f );
-	particles[id + OFFSET].pressure = 0.f;
+	particles[real_id].acceleration_n_1 = (float4)(0.0f, 0.0f, 0.0f, 0.0f );
+	particles[real_id].pressure = 0.f;
 }
 
 // Boundary handling, according to the following article:
@@ -585,7 +592,6 @@ void computeInteractionWithBoundaryParticles(
 {
 	//track selected particle (indices are not shuffled anymore)
 	int id_b;//index of id's particle neighbour which is a boundary particle
-	int id_b_source_particle, nc = 0;
 	float4 n_c_i = (float4)(0.f,0.f,0.f,0.f);
 	float4 n_b;
 	float w_c_ib, w_c_ib_sum = 0.f, w_c_ib_second_sum = 0.f;
@@ -594,7 +600,7 @@ void computeInteractionWithBoundaryParticles(
 
 	for(int i=0; i< NEIGHBOUR_COUNT; ++i)
 	{
-		if( (id_b = ext_particles[id].neighbour_list[i][0]) == NO_PARTICLE_ID )
+		if( (id_b = ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID )
 		{
 			if(particles[id_b].type_ == BOUNDARY_PARTICLE){
 				x_ib_dist  = ((*pos_).x - particles[id_b].pos.x) * ((*pos_).x - particles[id_b].pos.x);
@@ -607,6 +613,8 @@ void computeInteractionWithBoundaryParticles(
 				w_c_ib_sum += w_c_ib;							//Ihmsen et. al., 2010, page 4, formula (11), sum #1
 				w_c_ib_second_sum += w_c_ib * (r0 - x_ib_dist); //Ihmsen et. al., 2010, page 4, formula (11), sum #2
 			}
+		} else {
+			break;
 		}
 	}
 	n_c_i_length = DOT(n_c_i,n_c_i);
@@ -634,7 +642,7 @@ void computeInteractionWithBoundaryParticles(
 *  is calculating from temp value of velocity which's tacking from predicted value of
 *  tempacceleration[id].
 */
-__kernel void ker_predict_positions(
+__kernel void k_predict_positions(
 		__global struct extend_particle * ext_particles,
         __global struct	particle * particles,
         float simulationScaleInv,
@@ -647,20 +655,22 @@ __kernel void ker_predict_positions(
 {
     int id = get_global_id( 0 );
     if( id >= PARTICLE_COUNT ) return;
-    float4 position_t = particles[ id  + OFFSET].pos;
-    if(particles[id  + OFFSET].type_ == BOUNDARY_PARTICLE){  //stationary (boundary) particles, right?
+    int real_id = id + OFFSET;
+    float4 position_t = particles[real_id].pos;
+    if(particles[real_id].type_ == BOUNDARY_PARTICLE){  //stationary (boundary) particles, right?
+	    particles[real_id].pos_n_1 = position_t;
         return;
     }
     //  pressure force (dominant)            + all other forces
-    float4 acceleration_t_dt = particles[id + OFFSET].acceleration + particles[id + OFFSET].acceleration_n_1;
-    float4 velocity_t = particles[id + OFFSET].vel;
+    float4 acceleration_t_dt = particles[real_id].acceleration + particles[real_id].acceleration_n_1;
+    float4 velocity_t = particles[real_id].vel;
 //    // Semi-implicit Euler integration
     float4 velocity_t_dt = velocity_t + timeStep * acceleration_t_dt; //newVelocity_.w = 0.f;
     float posTimeStep = timeStep * simulationScaleInv;
     float4 position_t_dt = position_t + posTimeStep * velocity_t_dt;  //newPosition_.w = 0.f;
 //    //sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity,
-//    computeInteractionWithBoundaryParticles(id, r0, ext_particles, particles, &position_t_dt, false, &velocity_t_dt);
-    particles[OFFSET + id].pos_n_1 = position_t_dt;// in current version sortedPosition array has double size,
+    computeInteractionWithBoundaryParticles(id, r0, ext_particles, particles, &position_t_dt, false, &velocity_t_dt);
+    particles[real_id].pos_n_1 = position_t_dt;// in current version sortedPosition array has double size,
 //    // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
 
@@ -696,15 +706,17 @@ __kernel void ker_predict_density(
 		if( (jd = (int)ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID )
 		{
 			r_ij = particles[id + OFFSET].pos - particles[jd + OFFSET].pos;
-			r_ij2 = (r_ij.x*r_ij.x+r_ij.y*r_ij.y+r_ij.z*r_ij.z);
-			if(r_ij2<h2)
+			r_ij2 = (r_ij.x * r_ij.x + r_ij.y * r_ij.y + r_ij.z * r_ij.z);
+			if(r_ij2 < h2)
 			{
-				density_accum += (h2-r_ij2)*(h2-r_ij2)*(h2-r_ij2);
+				density_accum += (h2 - r_ij2) * (h2 - r_ij2) * (h2 - r_ij2);
 			}
+		} else {
+			break
 		}
 	}
 	density = density_accum * simulation_scale6;
-	if(density<hScaled6)
+	if(density < hScaled6)
 	{
 		//density += hScaled6;
 		density = hScaled6;
@@ -727,13 +739,13 @@ __kernel void ker_correct_pressure(
 {
 	int id = get_global_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
-	int nc = 0;// neigbor counter
 	float rho_err;
 	float p_corr;
 
 	rho_err = particles[OFFSET + id].density - rho0;
-	p_corr = rho_err*delta;
-	if(p_corr < 0.0f) p_corr = 0.0f;//non-negative pressure
+	p_corr = rho_err * delta;
+	if(p_corr < 0.0f)
+		p_corr = 0.0f;//non-negative pressure
 	particles[OFFSET + id].pressure += p_corr;
 }
 
@@ -811,7 +823,7 @@ __kernel void ker_compute_pressure_force_acceleration(
  *  	  for integration 1th order
  *  NOTE: soon we plan to add Leap-frog 2th order
  */
-__kernel void ker_integrate(
+__kernel void k_integrate(
 		__global struct extend_particle * ext_particles,
 		__global struct	particle * particles,
 		float simulation_scale_inv,
@@ -825,6 +837,7 @@ __kernel void ker_integrate(
 		)
 {
 	int id = get_global_id( 0 );
+
 	if(id>=PARTICLE_COUNT) return;
 	int id_source_particle = id + OFFSET;
 	if(particles[id_source_particle].type_ == BOUNDARY_PARTICLE)
@@ -837,17 +850,20 @@ __kernel void ker_integrate(
 				+ particles[id_source_particle].acceleration;
 		return;
 	}
-	float4 acceleration_t = particles[id_source_particle].acceleration_n_0_5;    acceleration_t.w    = 0.f;
+	float4 acceleration_t = particles[id_source_particle].acceleration_n_0_5;
+	acceleration_t.w    = 0.f;
 	float4 velocity_t = particles[id_source_particle].vel;
 	int particleType = particles[ id_source_particle ].type_;
     if(mode == 2){
 		float4 acceleration_t_dt = particles[id_source_particle].acceleration_n_1
-		                           + particles[id_source_particle].acceleration; acceleration_t_dt.w = 0.f;
+		                           + particles[id_source_particle].acceleration;
+		acceleration_t_dt.w = 0.f;
 		float4 position_t = particles[id_source_particle].pos;
-		float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*time_step;						//
-		float4 position_t_dt = position_t + (velocity_t_dt)*time_step*simulation_scale_inv;		//
+		float4 velocity_t_dt = velocity_t + acceleration_t_dt * time_step;						//
+		float4 position_t_dt = position_t + velocity_t_dt * time_step * simulation_scale_inv;		//
 
-//	    computeInteractionWithBoundaryParticles(id,r0, ext_particles, particles, &position_t_dt,false, &velocity_t_dt,PARTICLE_COUNT);
+
+	    computeInteractionWithBoundaryParticles(id, r0, ext_particles, particles, &position_t_dt, false, &velocity_t_dt);
 
 		particles[ id_source_particle ].vel = velocity_t_dt;
 	    particles[ id_source_particle ].pos = position_t_dt;

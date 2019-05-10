@@ -75,8 +75,6 @@ namespace sibernetic {
 					{"rho0",                        T()},
 					{"time_step",                   T()},
 					{"h_scaled_2",                  T()},
-					{"mass_mult_Wpoly6Coefficient", T()},
-					{"mass_mult_divgradWviscosityCoefficient", T()}
 				};
 				this->serializer->serialize(config_file, this);
 				init_vars();
@@ -318,18 +316,7 @@ namespace sibernetic {
 
 				config["h_scaled"] = H * config["simulation_scale"];
 				config["simulation_scale_inv"] = 1 / config["simulation_scale"];
-				config["gravity_x"] =  0.0f;
-				config["gravity_y"] =  -9.8f;
-				config["gravity_z"] = 0.0f;
-				config["mu"] = DEFAULT_MU;
 				config["h_scaled_2"] = H * H * config["simulation_scale"] * config["simulation_scale"];
-				config["Wpoly6Coefficient"] = 315.0 / ( 64.0 * M_PI * pow( (double)(H * config["simulation_scale"]), 9.0 ) );
-				config["gradWspikyCoefficient"] = -45.0 / ( M_PI * pow( (double)(H * config["simulation_scale"]), 6.0 ) );
-				config["divgradWviscosityCoefficient"] = -config["gradWspikyCoefficient"];
-				config["mass_mult_Wpoly6Coefficient"] = (T) ( (double)DEFAULT_MASS * config["Wpoly6Coefficient"] );
-				config["mass_mult_gradWspikyCoefficient"] = (T) ( (double)DEFAULT_MASS * config["Wpoly6Coefficient"] );
-				config["mass_mult_divgradWviscosityCoefficient"] = (T) ( (double)DEFAULT_MASS * config["divgradWviscosityCoefficient"] );
-				config["surf_tens_coeff"] = config["mass_mult_Wpoly6Coefficient"] * config["surf_tens_coeff"];
 			}
 
 			/**Arrange particles according its cell id

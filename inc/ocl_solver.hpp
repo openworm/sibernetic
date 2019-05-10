@@ -127,17 +127,34 @@ namespace sibernetic {
 
 			void sync() override {
 				is_synchronizing = true;
+
+				std::vector<particle<T>> tmp(p.size());
+//				copy_buffer_from_device(
+//						&(tmp[0]),
+//						b_particles,
+//						p.size() * sizeof(particle<T>),
+//						p.offset() * sizeof(particle<T>));
+//
+//				for(int i=0;i<tmp.size();++i){
+//					if (tmp[i].pos[0] != model->get_particles()[p.start + i].pos[0] ||
+//					    tmp[i].pos[1] != model->get_particles()[p.start + i].pos[1] ||
+//					    tmp[i].pos[2] != model->get_particles()[p.start + i].pos[2]){
+//						std::cout << "Difference " << i << std::endl;
+//						std::cout << "Difference x " << tmp[i].pos[0] - model->get_particles()[p.start + i].pos[0] << std::endl;
+//						std::cout << "Difference y " << tmp[i].pos[1] - model->get_particles()[p.start + i].pos[1] << std::endl;
+//						std::cout << "Difference z " << tmp[i].pos[2] - model->get_particles()[p.start + i].pos[2] << std::endl;
+//						break;
+//					}
+//				}
 				copy_buffer_from_device(
-						&model->get_particles()[p.start],
+						&(model->get_particles()[p.start]),
 						b_particles,
 						p.size() * sizeof(particle<T>),
 						p.offset() * sizeof(particle<T>));
 
 				if(model->set_ready()){
-					std::cout << "SYNCHRONIZER " << dev->name << std::endl;
 					model->sync();
 				} else {
-					std::cout << "LOOSER " << dev->name << std::endl;
 					while(is_synchronizing);
 				}
 
@@ -149,7 +166,7 @@ namespace sibernetic {
 				prev_part_size = p.total_size();
 
 
-				/*BOTTOM IS IMPROVE VERSION*/
+				/*BOTTOM IS IMPROVED VERSION*/
 //				if(p.ghost_start == 0){
 //					copy_buffer_to_device(
 //							(void *) &(model->get_particles()[p.end]),
@@ -178,7 +195,7 @@ namespace sibernetic {
 
 		void run() override {
 			int i = 0;
-			while(i++ < 1000) {
+			while(i++ < 10000) {
 				neighbour_search();
 				physic();
 			}
@@ -205,11 +222,11 @@ namespace sibernetic {
 
 			cl::Kernel k_compute_density;
 			cl::Kernel k_compute_forces_init_pressure;
-			cl::Kernel ker_predict_positions;
+			cl::Kernel k_predict_positions;
 			cl::Kernel ker_predict_density;
 			cl::Kernel ker_correct_pressure;
 			cl::Kernel ker_compute_pressure_force_acceleration;
-			cl::Kernel ker_integrate;
+			cl::Kernel k_integrate;
 
 			cl::Buffer b_particles;
 			cl::Buffer b_ext_particles;
@@ -236,11 +253,11 @@ namespace sibernetic {
 
 				create_ocl_kernel("k_compute_density", k_compute_density);
 				create_ocl_kernel("k_compute_forces_init_pressure", k_compute_forces_init_pressure);
-				create_ocl_kernel("ker_predict_positions", ker_predict_positions);
+				create_ocl_kernel("k_predict_positions", k_predict_positions);
 				create_ocl_kernel("ker_predict_density", ker_predict_density);
 				create_ocl_kernel("ker_correct_pressure", ker_correct_pressure);
 				create_ocl_kernel("ker_compute_pressure_force_acceleration", ker_compute_pressure_force_acceleration);
-				create_ocl_kernel("ker_integrate", ker_integrate);
+				create_ocl_kernel("k_integrate", k_integrate);
 			}
 
 			void init_ext_particles() override {}
@@ -310,14 +327,16 @@ namespace sibernetic {
 				}
 			}
 
-			void copy_buffer_to_device(const void *host_b, cl::Buffer &ocl_b,
-			                           const size_t offset,
-			                           const size_t size) {
+			void copy_buffer_to_device(
+					const void *host_b,
+					cl::Buffer &ocl_b,
+			        const size_t offset,
+			        const size_t size) {
 				// Actually we should check  size and type
 				int err = queue.enqueueWriteBuffer(ocl_b, CL_TRUE, offset, size, host_b);
 				if (err != CL_SUCCESS) {
 					std::string error_m =
-							make_msg("Copy buffer to device is failed error code is ", err);
+							make_msg("Copy buffer to device is faqiled error code is ", err);
 					throw ocl_error(error_m);
 				}
 				queue.finish();
@@ -422,7 +441,7 @@ namespace sibernetic {
 						0,
 						this->b_ext_particles,
 						this->b_particles,
-						model->get_config()["mass_mult_Wpoly6Coefficient"],
+						model->get_config()["mass_mult_wpoly6_coefficient"],
 						model->get_config()["h_scaled_2"],
 						p.size(),
 						p.offset(),
@@ -439,7 +458,7 @@ namespace sibernetic {
 						this->b_ext_particles,
 						this->b_particles,
 						model->get_config()["surf_tens_coeff"],
-						model->get_config()["mass_mult_divgradWviscosityCoefficient"],
+						model->get_config()["mass_mult_divgrad_viscosity_coefficient"],
 						model->get_config()["h_scaled"],
 						model->get_config()["gravity_x"],
 						model->get_config()["gravity_y"],
@@ -453,7 +472,7 @@ namespace sibernetic {
 			void run_predict_positions(){
 				std::cout << "run predict_positions --> " << dev->name << std::endl;
 				this->kernel_runner(
-						this->ker_predict_positions,
+						this->k_predict_positions,
 						p.size(),
 						0,
 						this->b_ext_particles,
@@ -475,7 +494,7 @@ namespace sibernetic {
 						0,
 						this->b_ext_particles,
 						this->b_particles,
-						model->get_config()["mass_mult_Wpoly6Coefficient"],
+						model->get_config()["mass_mult_wpoly6_coefficient"],
 						sibernetic::model::H,
 						model->get_config()["simulation_scale"],
 						p.size(),
@@ -505,7 +524,7 @@ namespace sibernetic {
 						0,
 						this->b_ext_particles,
 						this->b_particles,
-						model->get_config()["mass_mult_gradWspikyCoefficient"],
+						model->get_config()["mass_mult_grad_wspiky_coefficient"],
 						model->get_config()["h_scaled"],
 						model->get_config()["simulation_scale"],
 						model->get_config()["delta"],
@@ -518,7 +537,7 @@ namespace sibernetic {
 			void run_integrate(){
 				std::cout << "run run_integrate --> " << dev->name << std::endl;
 				this->kernel_runner(
-						this->ker_compute_pressure_force_acceleration,
+						this->k_integrate,
 						p.size(),
 						0,
 						this->b_ext_particles,
@@ -527,7 +546,7 @@ namespace sibernetic {
 						model->get_config()["time_step"],
 						sibernetic::model::R_0,
 						1,
-						1,
+						2,
 						p.size(),
 						p.offset(),
 						p.limit()

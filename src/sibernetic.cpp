@@ -74,9 +74,7 @@ int main(int argc, char **argv) {
     };
     graph::config = config;
     graph::model = model;
-    solver_container<float> &s_con =
-        solver_container<float>::instance(model, mode);
-	graph::s_container = &s_con;
+    solver_container<float> &s_con = solver_container<float>::instance(model, mode);
 	std::thread t(graph::run, argc, argv);
 	s_con.run();
     t.join();

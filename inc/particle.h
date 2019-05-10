@@ -40,7 +40,7 @@
 namespace sibernetic {
 namespace model {
 // TODO write the docs
-// Write why alligment on 8 bytes is important!!
+// Write why alligment on 16 bytes is important!!
 // Also in this structure we store all enought information for particle which we
 // want to load from device it should be as small as possible for optimal
 template <class T, size_t dim = 4> struct alignas(16) particle {
@@ -53,6 +53,7 @@ template <class T, size_t dim = 4> struct alignas(16) particle {
   container accelation_n_0_5;
   int type;
   int cell_id;
+  int particle_id;
   T density;
   T pressure;
   T viscosity;
