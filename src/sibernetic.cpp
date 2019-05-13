@@ -38,13 +38,12 @@
 
 using sibernetic::model::sph_model;
 using sibernetic::solver::solver_container;
+using sibernetic::solver::EXECUTION_MODE;
 using sibernetic::graphics::graph;
+using sibernetic::graphics::UI_MODE;
 using sibernetic::graphics::g_config;
 
 
-void run_container(int argc, char **argv){
-  graph::run(argc, argv);
-}
 int main(int argc, char **argv) {
   arg_parser prsr(argc, argv);
   if (prsr.check_arg("-h") || prsr.check_arg("--help") ||
@@ -52,16 +51,19 @@ int main(int argc, char **argv) {
     return arg_parser::show_usage();
   }
   std::string model_name;
-  size_t mode = 1;
+  auto mode = EXECUTION_MODE::ONE;
+  auto ui_mode = UI_MODE::CLI;
   if (prsr.check_arg("-f")) {
     model_name = prsr.get_arg("-f");
   } else {
     model_name = "config/tmp";
   }
   if (prsr.check_arg("--multi_dev")) {
-    mode = 2;
+    mode = EXECUTION_MODE::ALL;
   }
-  std::cout << sizeof(sibernetic::model::particle<float, 4>) << std::endl;
+  if (prsr.check_arg("--with_g")) {
+    ui_mode = UI_MODE::OGL;
+  }
   try {
     std::shared_ptr<sph_model<float>> model(new sph_model<float>(model_name));
     auto config = new g_config{
@@ -75,10 +77,13 @@ int main(int argc, char **argv) {
     graph::config = config;
     graph::model = model;
     solver_container<float> &s_con = solver_container<float>::instance(model, mode);
-	std::thread t(graph::run, argc, argv);
-	s_con.run();
-    t.join();
-    //graph::run(argc, argv);
+    if(ui_mode == UI_MODE::OGL) {
+      std::thread graph_thread(graph::run, argc, argv);
+      s_con.run();
+      graph_thread.join();
+    } else {
+      s_con.run();
+    }
   } catch (sibernetic::parser_error &e) {
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;
@@ -86,6 +91,5 @@ int main(int argc, char **argv) {
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;
   }
-
   return EXIT_SUCCESS;
 }

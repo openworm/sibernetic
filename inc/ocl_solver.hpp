@@ -55,6 +55,7 @@
 #include "particle.h"
 #include "sph_model.hpp"
 #include "util/error.h"
+#include "util/json.hpp"
 #include "device.h"
 #include <fstream>
 #include <iostream>
@@ -68,6 +69,10 @@ namespace sibernetic {
 		using sibernetic::model::partition;
 		using sibernetic::model::sph_model;
 		using sibernetic::ocl_error;
+		enum LOGGING_MODE {
+			FULL,
+			NO
+		};
 // OCL constans block
 #define QUEUE_EACH_KERNEL 1
 
@@ -78,10 +83,15 @@ namespace sibernetic {
 			typedef shared_ptr<sph_model<T>> model_ptr;
 
 		public:
-			ocl_solver(model_ptr &m, shared_ptr<device> d, size_t idx):
+			ocl_solver(
+					model_ptr &m,
+					shared_ptr<device> d,
+					size_t idx,
+					LOGGING_MODE log_mode = LOGGING_MODE::NO):
 				model(m),
 				dev(std::move(d)),
-				device_index(idx)
+				device_index(idx),
+				log_mode(log_mode)
 			{
 				try {
 					this->initialize_ocl();
@@ -101,6 +111,42 @@ namespace sibernetic {
 			}
 
 			~ocl_solver() override = default;
+
+			void _debug_(){
+				std::vector<extend_particle> neighbour_map(p.size());
+				copy_buffer_from_device((void *) &(neighbour_map[0]), b_ext_particles, p.size() * sizeof(extend_particle), 0);
+				std::string big_s = "[";
+				//std::cout <<"HELLO " << sizeof(extend_particle) << std::endl;
+				for(auto p: neighbour_map){
+
+					big_s += "{\"particle\": ";
+					big_s += model->get_particle(p.p_id).jsonify();
+					big_s += ",";
+					big_s += "\"particle_id\": ";
+					big_s += std::to_string(p.p_id);
+					big_s += ",";
+					big_s += "\"n_list\":[";
+					for(int i=0;i<NEIGHBOUR_COUNT;++i) {
+						big_s += "{";
+						big_s += "\"n_particle_id\": ";
+						big_s += std::to_string(p.neighbour_list[i][0]);
+						big_s += ",";
+						big_s += "\"distance\": ";
+						big_s += std::to_string(p.neighbour_list[i][1]);
+						big_s += "}";
+						if(i != NEIGHBOUR_COUNT - 1)
+							big_s += ",";
+					}
+					big_s += "]";
+					big_s += "}";
+					if(p.p_id != neighbour_map.back().p_id)
+						big_s += ",";
+				}
+				big_s += "]";
+				std::ofstream debug_file("debug");
+				debug_file << big_s;
+				debug_file.close();
+			}
 
 			void neighbour_search() override {
 				run_init_ext_particles();
@@ -128,24 +174,6 @@ namespace sibernetic {
 			void sync() override {
 				is_synchronizing = true;
 
-				std::vector<particle<T>> tmp(p.size());
-//				copy_buffer_from_device(
-//						&(tmp[0]),
-//						b_particles,
-//						p.size() * sizeof(particle<T>),
-//						p.offset() * sizeof(particle<T>));
-//
-//				for(int i=0;i<tmp.size();++i){
-//					if (tmp[i].pos[0] != model->get_particles()[p.start + i].pos[0] ||
-//					    tmp[i].pos[1] != model->get_particles()[p.start + i].pos[1] ||
-//					    tmp[i].pos[2] != model->get_particles()[p.start + i].pos[2]){
-//						std::cout << "Difference " << i << std::endl;
-//						std::cout << "Difference x " << tmp[i].pos[0] - model->get_particles()[p.start + i].pos[0] << std::endl;
-//						std::cout << "Difference y " << tmp[i].pos[1] - model->get_particles()[p.start + i].pos[1] << std::endl;
-//						std::cout << "Difference z " << tmp[i].pos[2] - model->get_particles()[p.start + i].pos[2] << std::endl;
-//						break;
-//					}
-//				}
 				copy_buffer_from_device(
 						&(model->get_particles()[p.start]),
 						b_particles,
@@ -194,12 +222,12 @@ namespace sibernetic {
 			}
 
 		void run() override {
-			int i = 0;
-			while(i++ < 10000) {
+			while(true) {
 				neighbour_search();
-				physic();
+				_debug_();
+				//physic();
+				break;
 			}
-			std::cout << "?????????????? END OF WORK ????????????????" << dev->name << std::endl;
 		}
 		void unfreeze() override {
 			is_synchronizing = false;
@@ -212,8 +240,8 @@ namespace sibernetic {
 			partition p;
 			shared_ptr<device> dev;
 			std::string msg = dev->name + '\n';
-
 			const std::string cl_program_file = "cl_code//sph_cl_code.cl";
+			LOGGING_MODE log_mode;
 			cl::Kernel k_init_ext_particles;
 			cl::Kernel k_hash_particles;
 			cl::Kernel k_clear_grid_hash;
@@ -233,7 +261,6 @@ namespace sibernetic {
 			cl::Buffer b_grid_cell_id_list;
 			cl::CommandQueue queue;
 			cl::Program program;
-
 
 			void init_buffers() {
 				create_ocl_buffer("particles", b_particles, CL_MEM_READ_WRITE,
@@ -355,7 +382,8 @@ namespace sibernetic {
 			}
 
 			int run_init_ext_particles() {
-				std::cout << "run init_ext_particles --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run init_ext_particles --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_init_ext_particles,
 						p.size(),
@@ -366,7 +394,8 @@ namespace sibernetic {
 			}
 
 			int run_hash_particles() {
-				std::cout << "run hash_particles --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run hash_particles --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_hash_particles,
 						p.size(),
@@ -383,7 +412,9 @@ namespace sibernetic {
 			}
 
 			int run_clear_grid_hash() {
-				std::cout << "run clear_grid_hash --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run clear_grid_hash --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->k_clear_grid_hash,
 						p.total_cell_count(),
@@ -394,7 +425,9 @@ namespace sibernetic {
 			}
 
 			int run_fill_particle_cell_hash() {
-				std::cout << "run fill_particle_cell_hash --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run fill_particle_cell_hash --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->k_fill_particle_cell_hash,
 						p.total_size(),
@@ -407,7 +440,9 @@ namespace sibernetic {
 			}
 
 			int run_neighbour_search() {
-				std::cout << "run neighbour_search --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run neighbour_search --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->k_neighbour_search,
 						p.size(),
@@ -434,7 +469,9 @@ namespace sibernetic {
 			}
 
 			int run_compute_density() {
-				std::cout << "run compute_density --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run compute_density --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->k_compute_density,
 						p.size(),
@@ -450,7 +487,9 @@ namespace sibernetic {
 			}
 
 			int run_compute_forces_init_pressure() {
-				std::cout << "run compute_forces_init_pressure --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run compute_forces_init_pressure --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->k_compute_forces_init_pressure,
 						p.size(),
@@ -470,7 +509,9 @@ namespace sibernetic {
 			}
 
 			void run_predict_positions(){
-				std::cout << "run predict_positions --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run predict_positions --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->k_predict_positions,
 						p.size(),
@@ -487,7 +528,9 @@ namespace sibernetic {
 			}
 
 			void run_predict_density(){
-				std::cout << "run predict_density --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run predict_density --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->ker_predict_density,
 						p.size(),
@@ -503,7 +546,9 @@ namespace sibernetic {
 				);
 			}
 			void run_correct_pressure(){
-				std::cout << "run run_correct_pressure --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run run_correct_pressure --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->ker_correct_pressure,
 						p.size(),
@@ -517,7 +562,9 @@ namespace sibernetic {
 				);
 			}
 			void run_compute_pressure_force_acceleration(){
-				std::cout << "run run_compute_pressure_force_acceleration --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run run_compute_pressure_force_acceleration --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->ker_compute_pressure_force_acceleration,
 						p.size(),
@@ -535,7 +582,9 @@ namespace sibernetic {
 				);
 			}
 			void run_integrate(){
-				std::cout << "run run_integrate --> " << dev->name << std::endl;
+				if(log_mode == LOGGING_MODE::FULL)
+					std::cout << "run run_integrate --> " << dev->name << std::endl;
+
 				this->kernel_runner(
 						this->k_integrate,
 						p.size(),

@@ -16,6 +16,10 @@ namespace sibernetic {
 		using model::sph_model;
 		using std::shared_ptr;
 		using sibernetic::solver::ocl_solver;
+		enum EXECUTION_MODE {
+			ONE,
+			ALL
+		};
 
 		template<class T = float>
 		class solver_container {
@@ -28,9 +32,9 @@ namespace sibernetic {
 
 			/** Maer's singleton
 			 */
-			static solver_container &instance(model_ptr &model, size_t devices_number = 1,
+			static solver_container &instance(model_ptr &model, EXECUTION_MODE mode = EXECUTION_MODE::ONE,
 			                                  SOLVER_TYPE s_t = OCL) {
-				static solver_container s(model, devices_number, s_t);
+				static solver_container s(model, mode, s_t);
 				model->set_solver_container(s.solvers());
 				return s;
 			}
@@ -51,7 +55,7 @@ namespace sibernetic {
 				return &_solvers;
 			}
 		private:
-			explicit solver_container(model_ptr &model, size_t devices_number = 1,
+			explicit solver_container(model_ptr &model, EXECUTION_MODE mode = EXECUTION_MODE::ONE,
 			                          SOLVER_TYPE s_type = OCL) {
 				try {
 					std::priority_queue<std::shared_ptr<device>> dev_q = get_dev_queue();
@@ -62,6 +66,9 @@ namespace sibernetic {
 									new ocl_solver<T>(model, dev_q.top(), device_index));
 							_solvers.push_back(solver);
 							++device_index;
+							if(mode == EXECUTION_MODE::ONE){
+								break;
+							}
 						} catch (ocl_error &ex) {
 							std::cout << ex.what() << std::endl;
 						}

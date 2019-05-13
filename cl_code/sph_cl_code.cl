@@ -128,6 +128,9 @@ __kernel void k_init_ext_particles(
 	if(id > PARTICLE_COUNT){
 		return;
 	}
+//	if(id == 0) {
+//		printf("sizeof() of particles_f is %d \n", sizeof(ext_particles[0]));
+//	}
 	ext_particles[id].p_id = id;
 	for(int i=0;i<NEIGHBOUR_COUNT;++i){
 		ext_particles[id].neighbour_list[i][0] = NO_PARTICLE_ID;
@@ -218,7 +221,11 @@ int searchForNeighbors_b(
 	int *found_count)
 {
 	int baseParticleId = b_grid_cell_id_list[ searchCell_ ];
-	int i = 0;
+	if(baseParticleId == -1){
+		printf("\nBAD ASS\n");
+		return last_farthest;
+	}
+	int i = baseParticleId;
 	float _distanceSquared;
 	int neighborParticleId;
 	int farthest_neighbor = last_farthest;
@@ -233,7 +240,7 @@ int searchForNeighbors_b(
 				closest_distances[farthest_neighbor] = _distanceSquared;
 				closest_indexes[farthest_neighbor] = neighborParticleId;
 				if(*found_count < NEIGHBOUR_COUNT - 1){
-					(*found_count)++;
+					++(*found_count);
 					farthest_neighbor = *found_count;
 				} else{
 					farthest_neighbor = getMaxIndex(closest_distances);
@@ -347,6 +354,9 @@ __kernel void k_neighbour_search(
 	if(id >= PARTICLE_COUNT && id + OFFSET > LIMIT){
 		return;
 	}
+	if(id != 0){
+		return;
+	}
 	id += OFFSET;
 	float4 position_ = particles[ id ].pos;
 	int myCellId = particles[id].cell_id;//& 0xffffff;// truncate to low 16 bits
@@ -355,7 +365,7 @@ __kernel void k_neighbour_search(
 	float closest_distances[NEIGHBOUR_COUNT];
 	int closest_indexes[NEIGHBOUR_COUNT];
 	int found_count = 0;
-	for(int k=0;k<NEIGHBOUR_COUNT;k++){
+	for(int k=0;k<NEIGHBOUR_COUNT;++k){
 		closest_distances[k] = r_thr2;
 		closest_indexes[k] = -1;
 	}
@@ -379,12 +389,12 @@ __kernel void k_neighbour_search(
 	int4 delta;
 	int4 one = (int4)( 1, 1, 1, 1 );
 	delta = one + 2 * lo;
-	searchCells[1] = searchCell( myCellId, delta.x, 0, 0, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
-	searchCells[2] = searchCell( myCellId, 0, delta.y, 0, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
-	searchCells[3] = searchCell( myCellId, 0, 0, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
-	searchCells[4] = searchCell( myCellId, delta.x, delta.y, 0, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
-	searchCells[5] = searchCell( myCellId, delta.x, 0, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
-	searchCells[6] = searchCell( myCellId, 0, delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
+	searchCells[1] = searchCell( myCellId, delta.x, 0,       0,       grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
+	searchCells[2] = searchCell( myCellId, 0,       delta.y, 0,       grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
+	searchCells[3] = searchCell( myCellId, 0,       0,       delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
+	searchCells[4] = searchCell( myCellId, delta.x, delta.y, 0,       grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
+	searchCells[5] = searchCell( myCellId, delta.x, 0,       delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
+	searchCells[6] = searchCell( myCellId, 0,       delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
 	searchCells[7] = searchCell( myCellId, delta.x, delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
 
 	int last_farthest = 0;
@@ -712,7 +722,7 @@ __kernel void ker_predict_density(
 				density_accum += (h2 - r_ij2) * (h2 - r_ij2) * (h2 - r_ij2);
 			}
 		} else {
-			break
+			break;
 		}
 	}
 	density = density_accum * simulation_scale6;
@@ -795,7 +805,7 @@ __kernel void ker_compute_pressure_force_acceleration(
 				/*1*/value = -(h_scaled-r_ij)*(h_scaled-r_ij)*0.5f*(particles[id + OFFSET].pressure+particles[jd].pressure)/particles[jd].density;
 				/*2*///value = -(h_scaled-r_ij)*(h_scaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
 				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
-				vr_ij = (particles[id + OFFSET].pos - particles[jd].pos)*simulation_scale; vr_ij.w = 0.0f;
+				vr_ij = (particles[id_source_particle].pos - particles[jd].pos)*simulation_scale; vr_ij.w = 0.0f;
 
 
 				if(r_ij<0.5f*(h_scaled/2))//h_scaled/2 = r0
@@ -806,13 +816,15 @@ __kernel void ker_compute_pressure_force_acceleration(
 
 				result += value*vr_ij/r_ij;
 			}
+		} else {
+			break;
 		}
 
 	}
 
-	result *= mass_mult_gradWspikyCoefficient / particles[OFFSET + id].density;
+	result *= mass_mult_gradWspikyCoefficient / particles[id_source_particle].density;
 
-	particles[id + OFFSET].acceleration_n_1 = result;
+	particles[id_source_particle].acceleration_n_1 = result;
 }
 
 
@@ -851,7 +863,7 @@ __kernel void k_integrate(
 		return;
 	}
 	float4 acceleration_t = particles[id_source_particle].acceleration_n_0_5;
-	acceleration_t.w    = 0.f;
+	acceleration_t.w = 0.f;
 	float4 velocity_t = particles[id_source_particle].vel;
 	int particleType = particles[ id_source_particle ].type_;
     if(mode == 2){

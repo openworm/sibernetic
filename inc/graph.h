@@ -27,6 +27,10 @@
 
 namespace sibernetic {
 	namespace graphics {
+		enum UI_MODE{
+			OGL,
+			CLI
+		};
 		struct g_config{
 			float xmin;
 			float ymin;

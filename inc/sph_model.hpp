@@ -117,7 +117,8 @@ namespace sibernetic {
 			void make_partition(size_t dev_count) {
 				next_partition = 0;
 				if (dev_count == 1) {
-					partitions.push_back(partition{0, static_cast<size_t>(size() - 1)});
+					//partitions.push_back(partition{0, static_cast<size_t>(size() - 1)});
+					push_partition(0, size() - 1);
 					return;
 				}
 				auto part_size = static_cast<size_t>(size() / dev_count);

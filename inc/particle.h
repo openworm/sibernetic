@@ -33,6 +33,7 @@
 #ifndef PARTICLE_H
 #define PARTICLE_H
 
+#include "util/json.hpp"
 #include <algorithm>
 #include <array>
 #include <sstream>
@@ -48,9 +49,9 @@ template <class T, size_t dim = 4> struct alignas(16) particle {
   container pos;
   container pos_n_1;
   container vel;
-  container accelation;
-  container accelation_n_1;
-  container accelation_n_0_5;
+  container accel;
+  container accel_n_1;
+  container accel_n_0_5;
   int type;
   int cell_id;
   int particle_id;
@@ -64,6 +65,18 @@ template <class T, size_t dim = 4> struct alignas(16) particle {
     std::for_each(pos.begin(), pos.end(), [&s](T c) { s << c << ' '; });
     s << '\n';
     return s.str();
+  }
+  std::string jsonify() {
+	nlohmann::json j;
+	j["pos"] = {{"x", pos[0]}, {"y", pos[1]}, {"z", pos[2]}};
+	j["vel"] = {{"x", vel[0]}, {"y", vel[1]}, {"z", vel[2]}};
+	j["accel"] = {{"x", accel[0]}, {"y", accel[1]}, {"z", accel[2]}};
+	j["particle_id"] = particle_id;
+	j["density"] = density;
+	j["pressure"] = pressure;
+	j["viscosity"] = viscosity;
+	j["mass"] = mass;
+	return j.dump();
   }
   bool operator<(const particle<T> &p) { return cell_id < p.cell_id; }
 };
