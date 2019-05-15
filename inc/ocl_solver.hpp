@@ -114,7 +114,7 @@ namespace sibernetic {
 
 			void _debug_(){
 				std::vector<extend_particle> neighbour_map(p.size());
-				copy_buffer_from_device((void *) &(neighbour_map[0]), b_ext_particles, p.size() * sizeof(extend_particle), 0);
+				copy_buffer_from_device(&(neighbour_map[0]), b_ext_particles, p.size() * sizeof(extend_particle), 0);
 				std::string big_s = "[";
 				//std::cout <<"HELLO " << sizeof(extend_particle) << std::endl;
 				for(auto p: neighbour_map){

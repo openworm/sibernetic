@@ -88,6 +88,8 @@ class Particle:
     def compare_neighbour_list(self) -> bool:
         for i, n in enumerate(self.stored_n_map):
             if n != self.n_map[i]:
+                print(f"particle id - {self.id}, incorrect neigh {i}" )
+                #print(f"{}")
                 return False
 
         return True
@@ -105,11 +107,12 @@ def main() -> None:
         ns_map = json.load(f)
     if ns_map is not None:
         particle_list = [Particle(json_p) for json_p in ns_map]
-        
-        for p in particle_list[:1]:
+        particle_to_check = len(particle_list)#500
+        for p in particle_list[:particle_to_check]:
             p.calc_n_map(particle_list)
         
-        print(test_nmap(particle_list[:1]))
+        print(test_nmap(particle_list[:particle_to_check]))
+        print("Checked ", particle_to_check)
     else:
         print(False)
 

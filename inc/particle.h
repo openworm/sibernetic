@@ -76,6 +76,7 @@ template <class T, size_t dim = 4> struct alignas(16) particle {
 	j["pressure"] = pressure;
 	j["viscosity"] = viscosity;
 	j["mass"] = mass;
+	j["cell_id"] = cell_id;
 	return j.dump();
   }
   bool operator<(const particle<T> &p) { return cell_id < p.cell_id; }
