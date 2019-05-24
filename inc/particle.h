@@ -71,10 +71,12 @@ template <class T, size_t dim = 4> struct alignas(16) particle {
 	j["pos"] = {{"x", pos[0]}, {"y", pos[1]}, {"z", pos[2]}};
 	j["vel"] = {{"x", vel[0]}, {"y", vel[1]}, {"z", vel[2]}};
 	j["accel"] = {{"x", accel[0]}, {"y", accel[1]}, {"z", accel[2]}};
+	j["accel_n_1"] = {{"x", accel_n_1[0]}, {"y", accel_n_1[1]}, {"z", accel_n_1[2]}};
 	j["particle_id"] = particle_id;
 	j["density"] = density;
 	j["pressure"] = pressure;
 	j["viscosity"] = viscosity;
+	j["type"] = type;
 	j["mass"] = mass;
 	j["cell_id"] = cell_id;
 	return j.dump();

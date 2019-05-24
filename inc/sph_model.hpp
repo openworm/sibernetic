@@ -308,16 +308,16 @@ namespace sibernetic {
 			 */
 			void init_vars() {
 				cell_num_x =
-						static_cast<int>((config["x_max"] - config["x_min"]) / GRID_CELL_SIZE);
+						static_cast<int>((config["x_max"] - config["x_min"]) * GRID_CELL_SIZE_INV);
 				cell_num_y =
-						static_cast<int>((config["y_max"] - config["y_min"]) / GRID_CELL_SIZE);
+						static_cast<int>((config["y_max"] - config["y_min"]) * GRID_CELL_SIZE_INV);
 				cell_num_z =
-						static_cast<int>((config["z_max"] - config["z_min"]) / GRID_CELL_SIZE);
+						static_cast<int>((config["z_max"] - config["z_min"]) * GRID_CELL_SIZE_INV);
 				total_cell_num = cell_num_x * cell_num_y * cell_num_z;
 
 				config["h_scaled"] = H * config["simulation_scale"];
-				config["simulation_scale_inv"] = 1 / config["simulation_scale"];
-				config["h_scaled_2"] = H * H * config["simulation_scale"] * config["simulation_scale"];
+				config["simulation_scale_inv"] = 1.0f / config["simulation_scale"];
+				config["h_scaled_2"] = config["h_scaled"] * config["h_scaled"];
 			}
 
 			/**Arrange particles according its cell id
@@ -341,7 +341,7 @@ namespace sibernetic {
 				B = static_cast<int>(p.pos[1] * GRID_CELL_SIZE_INV);
 				C = static_cast<int>(p.pos[2] * GRID_CELL_SIZE_INV);
 				//p.cell_id = A + B * cell_num_x + cell_num_x * cell_num_y * C; // this stats indexing from x component
-				p.cell_id = B + C * cell_num_y + cell_num_y * cell_num_z * A; // now will indexing from y
+				p.cell_id = (B + C * cell_num_y + cell_num_y * cell_num_z * A); // now will indexing from y
 			}
 		};
 	} // namespace model

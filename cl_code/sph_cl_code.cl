@@ -189,95 +189,6 @@ __kernel void k_hash_particles(
 //	}
 }
 
-int getMaxIndex(
-		float *d_array
-)
-{
-	int result;
-	float max_d = -1.f;
-	for(int i=0; i<NEIGHBOUR_COUNT; i++){
-		if (d_array[i] > max_d){
-			max_d = d_array[i];
-			result = i;
-		}
-	}
-	return result;
-}
-
-// Neighbour Search algorithm function and kernel block
-/** Searching for neighbour in particular spatial cell for particular particle
- *  It takes every particles from particular cell and check if it satisfy
- *  a condition that distance between particles is <= closest_distance
- */
-int searchForNeighbors_b(
-	int searchCell_,
-	__global struct particle * particles,
-	__global int * b_grid_cell_id_list,
-	float4 position_,
-	int myParticleId,
-	int * closest_indexes,
-	float * closest_distances,
-	int last_farthest,
-	int *found_count)
-{
-	int baseParticleId = b_grid_cell_id_list[ searchCell_ ];
-	if(baseParticleId == -1){
-		printf("\nBAD ASS\n");
-		return last_farthest;
-	}
-	int i = baseParticleId;
-	float _distanceSquared;
-	int neighborParticleId;
-	int farthest_neighbor = last_farthest;
-	while( particles[i].cell_id == searchCell_){
-		neighborParticleId = i;
-		if(myParticleId != neighborParticleId)
-		{
-			float4 d = position_ - particles[neighborParticleId].pos;
-			_distanceSquared = d.x * d.x + d.y * d.y + d.z * d.z; // inlined openCL dot(d,d)
-			if( _distanceSquared <= closest_distances[farthest_neighbor])
-			{
-				closest_distances[farthest_neighbor] = _distanceSquared;
-				closest_indexes[farthest_neighbor] = neighborParticleId;
-				if(*found_count < NEIGHBOUR_COUNT - 1){
-					++(*found_count);
-					farthest_neighbor = *found_count;
-				} else{
-					farthest_neighbor = getMaxIndex(closest_distances);
-				}
-			}
-		}
-		++i;
-	}
-	return farthest_neighbor;
-}
-/** Return value of cellId from gridCellIndexFixedUp
- *  for particular cell and offset (deltaX,Y,Z)
- */
-int searchCell(
-		int cellId,
-		int deltaX,
-		int deltaY,
-		int deltaZ,
-		uint gridCellsX,
-		uint gridCellsY,
-		uint gridCellsZ,
-		uint gridCellCount
-)
-{
-	int dy = deltaY;
-	int dz = deltaZ * gridCellsY;
-	int dx = deltaX * gridCellsZ * gridCellsY;
-	int newCellId = cellId + dx + dy + dz;
-	if(newCellId < 0) {
-		newCellId = newCellId + gridCellCount;
-	}
-	if(newCellId >= gridCellCount){
-		newCellId =  newCellId - gridCellCount;
-	}
-	return newCellId;
-}
-
 /** Caculation spatial hash cellId for every particle
  *  Kernel fill up particleIndex buffer.
  */
@@ -322,6 +233,7 @@ __kernel void k_fill_particle_cell_hash(
 		return;
 	}
 	unsigned int particle_cell_id = particles[id].cell_id - DEVICE_CELL_OFFSET;
+
 	if(id == 0){
         b_grid_cell_id_list[particle_cell_id] = 0;
 		return;
@@ -329,6 +241,94 @@ __kernel void k_fill_particle_cell_hash(
 	if(particles[id].cell_id != particles[id - 1].cell_id){
         b_grid_cell_id_list[particle_cell_id] = id;
 	}
+}
+
+/** Return value of cellId from gridCellIndexFixedUp
+ *  for particular cell and offset (deltaX,Y,Z)
+ */
+int searchCell(
+		int cellId,
+		int deltaX,
+		int deltaY,
+		int deltaZ,
+		uint gridCellsX,
+		uint gridCellsY,
+		uint gridCellsZ,
+		uint gridCellCount
+)
+{
+	int dy = deltaY;
+	int dz = deltaZ * gridCellsY;
+	int dx = deltaX * gridCellsZ * gridCellsY;
+	int newCellId = cellId + dx + dy + dz;
+	if(newCellId < 0) {
+		newCellId = newCellId + gridCellCount;
+	}
+	if(newCellId >= gridCellCount){
+		newCellId =  newCellId - gridCellCount;
+	}
+	return newCellId;
+}
+
+int getMaxIndex(
+		float *d_array
+)
+{
+	int result;
+	float max_d = -1.f;
+	for(int i=0; i<NEIGHBOUR_COUNT; ++i){
+		if (d_array[i] > max_d){
+			max_d = d_array[i];
+			result = i;
+		}
+	}
+	return result;
+}
+
+// Neighbour Search algorithm function and kernel block
+/** Searching for neighbour in particular spatial cell for particular particle
+ *  It takes every particles from particular cell and check if it satisfy
+ *  a condition that distance between particles is <= closest_distance
+ */
+int searchForNeighbors_b(
+		int searchCell_,
+		__global struct particle * particles,
+		__global int * b_grid_cell_id_list,
+		float4 position_,
+		int myParticleId,
+		int * closest_indexes,
+		float * closest_distances,
+		int last_farthest,
+		int *found_count)
+{
+	int baseParticleId = b_grid_cell_id_list[ searchCell_ ];
+	if(baseParticleId == -1){
+		printf("\nBAD ASS\n");
+		return last_farthest;
+	}
+	float _distanceSquared;
+	int neighborParticleId = baseParticleId;
+	int farthest_neighbor = last_farthest;
+	while( particles[neighborParticleId].cell_id == searchCell_){
+		if(myParticleId != neighborParticleId)
+		{
+			float4 d = position_ - particles[neighborParticleId].pos;
+			_distanceSquared = d.x * d.x + d.y * d.y + d.z * d.z; // inlined openCL dot(d,d)
+			if( _distanceSquared <= closest_distances[farthest_neighbor])
+			{
+				closest_distances[farthest_neighbor] = _distanceSquared;
+				closest_indexes[farthest_neighbor] = neighborParticleId;
+				if(*found_count < NEIGHBOUR_COUNT - 1){
+					++(*found_count);
+					farthest_neighbor = *found_count;
+				} else{
+					farthest_neighbor = getMaxIndex(closest_distances);
+				}
+			}
+		}
+		++neighborParticleId;
+	}
+	return farthest_neighbor;
 }
 
 /** Searchin for neigbours foe each particles
@@ -358,9 +358,6 @@ __kernel void k_neighbour_search(
 	if(id >= PARTICLE_COUNT || id + OFFSET > LIMIT){
 		return;
 	}
-//	if(id != 64 ) {
-//		return ;
-//	}
 	id += OFFSET;
 	float4 position_ = particles[ id ].pos;
 	int myCellId = particles[id].cell_id;//& 0xffffff;// truncate to low 16 bits
@@ -389,14 +386,13 @@ __kernel void k_neighbour_search(
 	// lo.A is true if the current position is in the low half of the cell for dimension A
 	//float4 ttt = ( p - cf );
 	int4 lo;
-
+	int debug_id = 1455;
 	lo = isless(p, h + cf);
-//	printf("\n LO  %d, %d, %d\n", lo.x, lo.y, lo.z);
+	int p_id = id;//particles[id].particle_id;
 	int4 delta;
     int4 one = (int4)( 1, 1, 1, 1 );
 	delta = one + 2 * lo;
-
-//	printf("\n%d, %d, %d\n", delta.x, delta.y, delta.z);
+	int last_farthest = 0;
 
 	searchCells[1] = searchCell( myCellId, delta.x, 0,       0,       grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
 	searchCells[2] = searchCell( myCellId, 0,       delta.y, 0,       grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
@@ -406,9 +402,10 @@ __kernel void k_neighbour_search(
 	searchCells[6] = searchCell( myCellId, 0,       delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
 	searchCells[7] = searchCell( myCellId, delta.x, delta.y, delta.z, grid_cells_X, grid_cells_Y, grid_cells_Z, grid_cell_count ) - grid_offset;
 
-	//printf("\n%d, %d, %d, %d, %d, %d, %d\n", searchCells[0], searchCells[1], searchCells[2], searchCells[3], searchCells[4], searchCells[5], searchCells[6], searchCells[7]);
-	//return ;
-	int last_farthest = 0;
+	 if(p_id == debug_id) {
+	 	printf("\n%d, %d, %d, %d, %d, %d, %d\n", searchCells[0], searchCells[1], searchCells[2], searchCells[3],
+	 	       searchCells[4], searchCells[5], searchCells[6], searchCells[7]);
+	 }
 	// Search neighbour particles in every cells from searchCells list
 	last_farthest = searchForNeighbors_b( searchCells[0], particles, b_grid_cell_id_list, position_,
 	                                      id, closest_indexes, closest_distances,
@@ -448,12 +445,13 @@ __kernel void k_neighbour_search(
 	for(int j=0; j<NEIGHBOUR_COUNT; ++j){
 		float2 neighbor_data;
 		neighbor_data.x = closest_indexes[j];
-		//printf("\n      p_id %f, dist %f\n", neighbor_data.x, SQRT( closest_distances[j] ) * simulationScale);
 		if(closest_indexes[j] >= 0){
 			neighbor_data.y = SQRT( closest_distances[j] ) * simulationScale; // scaled, OK
 		}else{
 			neighbor_data.y = -1.f;
 		}
+		if(p_id == debug_id)
+			printf("\n      p_id %f, dist %f\n", neighbor_data.x, neighbor_data.y);
 		ext_particles[id - OFFSET].neighbour_list[j][0] = neighbor_data.x;
 		ext_particles[id - OFFSET].neighbour_list[j][1] = neighbor_data.y;
 	}
@@ -501,6 +499,9 @@ __kernel void k_compute_density(
 		density = hScaled6;
 	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
 	particles[id + OFFSET].density = density;
+//	if( particles[id + OFFSET].particle_id == 256) {
+//		printf("\n===[ density: %e]===\n", density);
+//	}
 }
 
 
@@ -530,6 +531,7 @@ __kernel void k_compute_forces_init_pressure(
 		return;
 	}
 	int real_id = id + OFFSET;
+
 	if(particles[real_id].type_ == BOUNDARY_PARTICLE){
 		particles[real_id].acceleration = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
 		particles[real_id].acceleration_n_1 = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
@@ -554,7 +556,7 @@ __kernel void k_compute_forces_init_pressure(
 		{
 			r_ij = ext_particles[id].neighbour_list[i][1];
 			r_ij2 = r_ij * r_ij;
-			if(r_ij<hScaled)
+			if(r_ij < hScaled)
 			{
 				rho_i = particles[real_id].density;
 				rho_j = particles[jd].density;
@@ -569,8 +571,11 @@ __kernel void k_compute_forces_init_pressure(
 				//high resolution?
 				//accel_surfTensForce += -1.7e-09f * surfTensCoeff * surffKern * (sortedPosition[id]-sortedPosition[jd]);
 
+				//printf("\n TEST %f, %e %e\n", r_ij, surf_tens_coeff, surffKern);
 				//low (1/2) resolution?
 				accel_surfTensForce += -1.7e-09f * surf_tens_coeff * surffKern * (particles[real_id].pos - particles[jd].pos);
+
+				//printf("\n ???? accel_surfTensForce  %f, %f, %f\n", accel_surfTensForce.x, accel_surfTensForce.y, accel_surfTensForce.z);
 			}
 		} else {
 			break;
@@ -584,11 +589,14 @@ __kernel void k_compute_forces_init_pressure(
 	acceleration_i = accel_viscosityForce;
 	acceleration_i += (float4)( gravity_x, gravity_y, gravity_z, 0.0f );
 	acceleration_i += accel_surfTensForce; //29aug_A.Palyanov
-
 	particles[real_id].acceleration = acceleration_i;
 	// 1st half of 'acceleration' array is used to store acceleration corresponding to gravity, visc. force etc.
 	particles[real_id].acceleration_n_1 = (float4)(0.0f, 0.0f, 0.0f, 0.0f );
 	particles[real_id].pressure = 0.f;
+//	if(real_id == 265) {
+//		printf("\n===[ pressure: %e]===\n", particles[real_id].pressure);
+//		printf("\n===[ accel: x %e, y %e, z %e, ]===\n", particles[real_id].acceleration.x, particles[real_id].acceleration.y, particles[real_id].acceleration.z);
+//	}
 }
 
 // Boundary handling, according to the following article:
@@ -625,9 +633,10 @@ void computeInteractionWithBoundaryParticles(
 
 	for(int i=0; i< NEIGHBOUR_COUNT; ++i)
 	{
-		if( (id_b = ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID )
+		if( (id_b = (int)ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID )
 		{
 			if(particles[id_b].type_ == BOUNDARY_PARTICLE){
+				//TODO this dist already in ext_particles[id] refactor this when it will work
 				x_ib_dist  = ((*pos_).x - particles[id_b].pos.x) * ((*pos_).x - particles[id_b].pos.x);
 				x_ib_dist += ((*pos_).y - particles[id_b].pos.y) * ((*pos_).y - particles[id_b].pos.y);
 				x_ib_dist += ((*pos_).z - particles[id_b].pos.z) * ((*pos_).z - particles[id_b].pos.z);
@@ -643,7 +652,7 @@ void computeInteractionWithBoundaryParticles(
 		}
 	}
 	n_c_i_length = DOT(n_c_i,n_c_i);
-	if(n_c_i_length != 0.f && w_c_ib_sum != 0.f){
+	if(n_c_i_length != 0.f){// && w_c_ib_sum != 0.f){
 		n_c_i_length = sqrt(n_c_i_length);
 		delta_pos = ((n_c_i/n_c_i_length) * w_c_ib_second_sum)/w_c_ib_sum;	//
 		(*pos_).x += delta_pos.x;								//
@@ -730,11 +739,16 @@ __kernel void ker_predict_density(
 	{
 		if( (jd = (int)ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID )
 		{
-			r_ij = particles[id + OFFSET].pos - particles[jd + OFFSET].pos;
+			r_ij = particles[id + OFFSET].pos_n_1 - particles[jd].pos_n_1;
 			r_ij2 = (r_ij.x * r_ij.x + r_ij.y * r_ij.y + r_ij.z * r_ij.z);
 			if(r_ij2 < h2)
 			{
 				density_accum += (h2 - r_ij2) * (h2 - r_ij2) * (h2 - r_ij2);
+			}
+			if(r_ij2==0.0f)
+			{
+				//printf("\a\n");
+				printf("@@@|>>[%d]-[%d]<<|@@@  @@@@ () () ####",id,jd);
 			}
 		} else {
 			break;
@@ -794,9 +808,10 @@ __kernel void ker_compute_pressure_force_acceleration(
 	if( id >= PARTICLE_COUNT ) return;
 	int id_source_particle = id + OFFSET;
 	if(particles[ id_source_particle ].type_ == BOUNDARY_PARTICLE){
+		particles[ id_source_particle ].acceleration = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
 		return;
 	}
-	float pressure_i  = particles[id_source_particle].pressure;
+	float pressure_i  = particles[ id_source_particle ].pressure;
 	float rho_i		  = particles[ id_source_particle ].density;
 	float4 result = (float4)( 0.0f, 0.0f, 0.0f, 0.0f );
 	float4 gradW_ij;
@@ -806,7 +821,7 @@ __kernel void ker_compute_pressure_force_acceleration(
 	float value;
 	for(int i=0;i<NEIGHBOUR_COUNT; ++i)
 	{
-		if( (jd = ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID)
+		if( (jd = (int)ext_particles[id].neighbour_list[i][0]) != NO_PARTICLE_ID)
 		{
 			r_ij = ext_particles[id].neighbour_list[i][1];
 			if(r_ij<h_scaled)
@@ -817,7 +832,7 @@ __kernel void ker_compute_pressure_force_acceleration(
 				// in more details here: http://www.ifi.uzh.ch/pax/uploads/pdf/publication/1299/Solenthaler.pdf, formula (3.3), end of page 29
 				// (B. Solenthaler's dissertation "Incompressible Fluid Simulation and Advanced Surface Handling with SPH")
 				//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				/*1*/value = -(h_scaled-r_ij)*(h_scaled-r_ij)*0.5f*(particles[id + OFFSET].pressure+particles[jd].pressure)/particles[jd].density;
+				/*1*/value = -(h_scaled-r_ij)*(h_scaled-r_ij)*0.5f*(particles[id_source_particle].pressure+particles[jd].pressure)/particles[jd].density;
 				/*2*///value = -(h_scaled-r_ij)*(h_scaled-r_ij)*( pressure[id]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id])
 				/*2*///										+pressure[jd]/(rho[PARTICLE_COUNT+id]*rho[PARTICLE_COUNT+id]) );
 				vr_ij = (particles[id_source_particle].pos - particles[jd].pos)*simulation_scale; vr_ij.w = 0.0f;
@@ -826,7 +841,7 @@ __kernel void ker_compute_pressure_force_acceleration(
 				if(r_ij<0.5f*(h_scaled/2))//h_scaled/2 = r0
 				{
 					value = -(h_scaled*0.25f-r_ij)*(h_scaled*0.25f-r_ij)*0.5f*(rho0*delta)/particles[jd].density;
-					vr_ij = (particles[id_source_particle].pos - particles[jd].pos)*simulation_scale; vr_ij.w = 0.0f;
+					//vr_ij = (particles[id_source_particle].pos - particles[jd].pos)*simulation_scale; vr_ij.w = 0.0f;
 				}
 
 				result += value*vr_ij/r_ij;
@@ -877,8 +892,8 @@ __kernel void k_integrate(
 				+ particles[id_source_particle].acceleration;
 		return;
 	}
-	float4 acceleration_t = particles[id_source_particle].acceleration_n_0_5;
-	acceleration_t.w = 0.f;
+	//float4 acceleration_t = particles[id_source_particle].acceleration_n_0_5;
+	//acceleration_t.w = 0.f;
 	float4 velocity_t = particles[id_source_particle].vel;
 	int particleType = particles[ id_source_particle ].type_;
     if(mode == 2){
@@ -897,7 +912,7 @@ __kernel void k_integrate(
 		//velocity[ id_source_particle ] = (float4)((float)velocity_t_dt_x, (float)velocity_t_dt_y, (float)velocity_t_dt_z, 0.f);
 		//position[ id_source_particle ] = (float4)((float)position_t_dt_x, (float)position_t_dt_y, (float)position_t_dt_z, particleType);
 
-	    particles[id_source_particle].acceleration_n_0_5 = acceleration_t_dt;
+	    //particles[id_source_particle].acceleration_n_0_5 = acceleration_t_dt;
 		return;
 	}
 	/**///	float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*time_step;						//
@@ -919,26 +934,26 @@ __kernel void k_integrate(
 	// for floats it works with a significant error, which neglects all advantages of this really nice method
 	// for example, at first time step we get 2.17819E-03 instead of 2.18000E-03, and such things occur at every step and accumulate.
 	// switching to doubles.
-  if(mode==0/*positions_mode*/)
-	{
-		float4 position_t = particles[ id ].pos;
-		float4 position_t_dt = position_t + (velocity_t*time_step + acceleration_t*time_step*time_step/2.f)*simulation_scale_inv;
-		particles[ id_source_particle ].pos_n_1 = position_t_dt;
-	}
-	else
-	if(mode==1/*velocities_mode*/)
-	{
-		float4 position_t_dt = particles[id_source_particle].pos;//necessary for computeInteractionsWithBoundaryParticles()
-		float4 acceleration_t_dt = particles[id_source_particle].acceleration_n_1
-		                           + particles[id_source_particle].acceleration; acceleration_t_dt.w = 0.f;
-		float4 velocity_t_dt = velocity_t + (acceleration_t + acceleration_t_dt)*time_step/2.f;
+//   if(mode==0/*positions_mode*/)
+// 	{
+// 		float4 position_t = particles[ id ].pos;
+// 		float4 position_t_dt = position_t + (velocity_t*time_step + acceleration_t*time_step*time_step/2.f)*simulation_scale_inv;
+// 		particles[ id_source_particle ].pos_n_1 = position_t_dt;
+// 	}
+// 	else
+// 	if(mode==1/*velocities_mode*/)
+// 	{
+// 		float4 position_t_dt = particles[id_source_particle].pos;//necessary for computeInteractionsWithBoundaryParticles()
+// 		float4 acceleration_t_dt = particles[id_source_particle].acceleration_n_1
+// 		                           + particles[id_source_particle].acceleration; acceleration_t_dt.w = 0.f;
+// 		float4 velocity_t_dt = velocity_t + (acceleration_t + acceleration_t_dt)*time_step/2.f;
 
-		//computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt, true, &velocity_t_dt,PARTICLE_COUNT);
-		particles[ id_source_particle ].vel = velocity_t_dt;
-		particles[id_source_particle].acceleration_n_0_5 = acceleration_t_dt;
+// 		//computeInteractionWithBoundaryParticles(id,r0,neighborMap,particleIndexBack,particleIndex,position,velocity,&position_t_dt, true, &velocity_t_dt,PARTICLE_COUNT);
+// 		particles[ id_source_particle ].vel = velocity_t_dt;
+// 		particles[id_source_particle].acceleration_n_0_5 = acceleration_t_dt;
 
-		particles[ id_source_particle ].pos = position_t_dt;
-	}
+// 		particles[ id_source_particle ].pos = position_t_dt;
+// 	}
   return;
 }
 

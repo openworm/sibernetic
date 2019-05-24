@@ -215,15 +215,20 @@ void graph::draw_partition() {
 }
 
 void graph::draw_model() {
+	glPointSize(1.3f * sqrt(sc / 0.025f));
 	for(auto p :model->get_particles()){
 		int i = 0;
 		for(auto partition: model->get_partition()){
 			if(p.cell_id >= partition.start_cell_id && p.cell_id <= partition.end_cell_id) {
 				if(i == 0) {
-					if(p.cell_id >= model->get_partition()[1].start_ghost_cell_id){
+					if(model->get_partition().size() > 1) {
+						if (p.cell_id >= model->get_partition()[1].start_ghost_cell_id) {
+							glColor4f(1.0, 1.0, 0.0, 1.0);
+						} else {
+							glColor4f(1.0, 0.0, 0.0, 1.0);
+						}
+					} else {
 						glColor4f(1.0, 1.0, 0.0, 1.0);
-					}else{
-						glColor4f(1.0, 0.0, 0.0, 1.0);
 					}
 				}
 				if(i == 1){
@@ -248,6 +253,7 @@ void graph::draw_model() {
 			++i;
 		}
 		if (p.type != 3) {
+
 			glBegin(GL_POINTS);
 			//glPointSize(1.3f * static_cast<float>(sqrt(sc / 0.025)));
 			glPointSize(2.f);
@@ -257,14 +263,14 @@ void graph::draw_model() {
 			           (p.pos[2] - config->zmax / 2) * sc);
 			glEnd();
 		} else if(p.type == 3) {
-			glBegin(GL_LINES);
-			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
-			           (p.pos[1] - config->ymax / 2) * sc,
-			           (p.pos[2] - config->zmax / 2) * sc);
-			glVertex3f((p.pos[0] + p.vel[0] - config->xmax / 2) * sc,
-			           (p.pos[1] + p.vel[1] - config->ymax / 2) * sc,
-			           (p.pos[2] + p.vel[2] - config->zmax / 2) * sc);
-			glEnd();
+//			glBegin(GL_LINES);
+//			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
+//			           (p.pos[1] - config->ymax / 2) * sc,
+//			           (p.pos[2] - config->zmax / 2) * sc);
+//			glVertex3f((p.pos[0] + p.vel[0] - config->xmax / 2) * sc,
+//			           (p.pos[1] + p.vel[1] - config->ymax / 2) * sc,
+//			           (p.pos[2] + p.vel[2] - config->zmax / 2) * sc);
+//			glEnd();
 		}
 	}
 }

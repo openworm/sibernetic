@@ -115,16 +115,16 @@ namespace sibernetic {
 			void _debug_(){
 				std::vector<extend_particle> neighbour_map(p.size());
 				copy_buffer_from_device(&(neighbour_map[0]), b_ext_particles, p.size() * sizeof(extend_particle), 0);
+				copy_buffer_from_device(&(model->get_particles()[0]), b_particles, p.size() * sizeof(particle<T>), 0);
 				std::string big_s = "[";
-				//std::cout <<"HELLO " << sizeof(extend_particle) << std::endl;
 				for(auto p: neighbour_map){
 
 					big_s += "{\"particle\": ";
 					big_s += model->get_particle(p.p_id).jsonify();
 					big_s += ",";
-					big_s += "\"particle_id\": ";
-					big_s += std::to_string(p.p_id);
-					big_s += ",";
+//					big_s += "\"particle_id\": ";
+//					big_s += std::to_string(p.p_id);
+//					big_s += ",";
 					big_s += "\"n_list\":[";
 					for(int i=0;i<NEIGHBOUR_COUNT;++i) {
 						big_s += "{";
@@ -139,6 +139,7 @@ namespace sibernetic {
 					}
 					big_s += "]";
 					big_s += "}";
+					//break;
 					if(p.p_id != neighbour_map.back().p_id)
 						big_s += ",";
 				}
@@ -159,9 +160,9 @@ namespace sibernetic {
 
 			void physic() override {
 				int iter = 0;
+				run_compute_density();
+				run_compute_forces_init_pressure();
 				while(iter < sibernetic::model::PCI_ITER_COUNT) {
-					run_compute_density();
-					run_compute_forces_init_pressure();
 					run_predict_positions();
 					run_predict_density();
 					run_correct_pressure();
@@ -195,38 +196,42 @@ namespace sibernetic {
 
 
 				/*BOTTOM IS IMPROVED VERSION*/
-//				if(p.ghost_start == 0){
-//					copy_buffer_to_device(
-//							(void *) &(model->get_particles()[p.end]),
-//				            b_particles,
-//							p.end * sizeof(particle<T>),
-//							(p.ghost_end - p.end) * sizeof(particle<T>));
-//				} else if(p.ghost_end == model->size() - 1){
-//					copy_buffer_to_device(
-//							(void *) &(model->get_particles()[p.ghost_start]),
-//							b_particles,
-//							0,
-//							(p.start - p.ghost_start) * sizeof(particle<T>));
-//				} else {
-//					copy_buffer_to_device(
-//							(void *) &(model->get_particles()[p.end]),
-//							b_particles,
-//							p.end * sizeof(particle<T>),
-//							(p.ghost_end - p.end) * sizeof(particle<T>));
-//					copy_buffer_to_device(
-//							(void *) &(model->get_particles()[p.ghost_start]),
-//							b_particles,
-//							0,
-//							(p.start - p.ghost_start) * sizeof(particle<T>));
-//				}
+				/*if(p.ghost_start == 0){
+					copy_buffer_to_device(
+							(void *) &(model->get_particles()[p.end]),
+				            b_particles,
+							p.end * sizeof(particle<T>),
+							(p.ghost_end - p.end) * sizeof(particle<T>));
+				} else if(p.ghost_end == model->size() - 1){
+					copy_buffer_to_device(
+							(void *) &(model->get_particles()[p.ghost_start]),
+							b_particles,
+							0,
+							(p.start - p.ghost_start) * sizeof(particle<T>));
+				} else {
+					copy_buffer_to_device(
+							(void *) &(model->get_particles()[p.end]),
+							b_particles,
+							p.end * sizeof(particle<T>),
+							(p.ghost_end - p.end) * sizeof(particle<T>));
+					copy_buffer_to_device(
+							(void *) &(model->get_particles()[p.ghost_start]),
+							b_particles,
+							0,
+							(p.start - p.ghost_start) * sizeof(particle<T>));
+				}*/
 			}
 
 		void run() override {
+			int i = 0;
 			while(true) {
 				neighbour_search();
-				_debug_();
-				//physic();
-				break;
+				if(i == 5) {
+					_debug_();
+					break;
+				}
+				physic();
+				++i;
 			}
 		}
 		void unfreeze() override {

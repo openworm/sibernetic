@@ -9,8 +9,9 @@ class ParticleType(enum.Enum):
     LIQUID = 1
     BOUND = 3
 
+MASS = 20.00e-13
 
-def make_particle(pos, vel=None, type=ParticleType.LIQUID, mass = 1.0):
+def make_particle(pos, vel=None, type=ParticleType.LIQUID, mass = MASS):
    particle_dict = {}
    particle_dict["position"] = pos
    particle_dict["type"] = type.value
@@ -57,7 +58,7 @@ def calc_delta(params):
     result = 1.0 / (params["beta"] * params["grad_wspiky_coefficient"] * params["grad_wspiky_coefficient"] * (sum1 + sum2))
     return result
 
-def gen_param_map(out, h, x_dim, y_dim, z_dim, mass=1.0):
+def gen_param_map(out, h, x_dim, y_dim, z_dim, mass=MASS):
     out["parameters"] = {}
     out["parameters"]["particles"] = 30
     out["parameters"]["h"] = h
@@ -67,19 +68,19 @@ def gen_param_map(out, h, x_dim, y_dim, z_dim, mass=1.0):
     out["parameters"]["y_min"] = 0
     out["parameters"]["z_max"] = h * z_dim
     out["parameters"]["z_min"] = 0
-    out["parameters"]["mass"] = 20.00e-13
+    out["parameters"]["mass"] = MASS
     out["parameters"]["rho0"] = 1000.0
     out["parameters"]["time_step"] = 4.0 * 5.0e-06
-    out["parameters"]["simulation_scale"] = 0.0041 * math.pow(mass,1.0/3.0)/math.pow(0.00025, 1.0/3.0)
+    out["parameters"]["simulation_scale"] = 0.0037 * math.pow(mass,1.0/3.0)/math.pow(0.00025, 1.0/3.0)
 
-    out["parameters"]["beta"] =  out["parameters"]["time_step"] ** 2 * out["parameters"]["mass"] **2 * 2 /(out["parameters"]["rho0"] ** 2);
-    out["parameters"]["wpoly6_coefficient"] = h **2 * out["parameters"]["simulation_scale"] ** 2
-    out["parameters"]["grad_wspiky_coefficient"] = 315.0 / ( 64.0 * math.pi * math.pow( (h * out["parameters"]["simulation_scale"]), 9.0 ) )
-    out["parameters"]["divgrad_wviscosity_coefficient"] = -45.0 / ( math.pi * math.pow( (h * out["parameters"]["simulation_scale"]), 6.0 ) )
+    out["parameters"]["beta"] = (out["parameters"]["time_step"] ** 2) * (out["parameters"]["mass"] **2) * 2 /(out["parameters"]["rho0"] ** 2);
+    out["parameters"]["wpoly6_coefficient"] = 315.0 / ( 64.0 * math.pi * math.pow(h * out["parameters"]["simulation_scale"], 9.0 ) )
+    out["parameters"]["grad_wspiky_coefficient"] = -45.0 / ( math.pi * math.pow( (h * out["parameters"]["simulation_scale"]), 6.0 ) )
+    out["parameters"]["divgrad_wviscosity_coefficient"] = -out["parameters"]["grad_wspiky_coefficient"]
     out["parameters"]["mass_mult_wpoly6_coefficient"] = out["parameters"]["mass"] * out["parameters"]["wpoly6_coefficient"]
     out["parameters"]["mass_mult_grad_wspiky_coefficient"] = out["parameters"]["mass"] * out["parameters"]["grad_wspiky_coefficient"]
-    out["parameters"]["mass_mult_divgrad_viscosity_coefficient"] = out["parameters"]["mass"]  * out["parameters"]["wpoly6_coefficient"]
-    out["parameters"]["surf_tens_coeff"] = out["parameters"]["mass_mult_divgrad_viscosity_coefficient"] * out["parameters"]["simulation_scale"]
+    out["parameters"]["mass_mult_divgrad_viscosity_coefficient"] = out["parameters"]["mass"]  * out["parameters"]["divgrad_wviscosity_coefficient"]
+    out["parameters"]["surf_tens_coeff"] = out["parameters"]["mass_mult_wpoly6_coefficient"] * out["parameters"]["simulation_scale"]
     out["parameters"]["delta"] = calc_delta(out["parameters"])
 
     out["parameters"]["gravity_x"] =  0.0
@@ -101,13 +102,38 @@ def gen_model(x_dim, y_dim, z_dim, file_name="tmp"):
     for x in gen(2 * r0, h * x_dim - r0, r0):
         for y in gen(2 * r0, h * y_dim - r0, r0):
             for z in gen(2 * r0, h * z_dim - r0, r0):
-                out["model"].append(make_particle(pos=[x, y, z, 1.0], type=ParticleType.LIQUID))
+                out["model"].append(make_particle(pos=[x, y, z, 1.0], type=ParticleType.LIQUID, mass=MASS))
 
     fp = open(file_name, 'w')
     json.dump(out, fp)
     print(len(out['model']), "particles generated")
     fp.close()
+    old_gen(out)
 
+def old_gen(model, file_name="old_tmp"):
+    fp = open(file_name, 'w')
+    fp.write("[simulation box]\n")
+    fp.write(f'{model["parameters"]["x_min"]}\n')
+    fp.write(f'{model["parameters"]["x_max"]}\n')
+    fp.write(f'{model["parameters"]["y_min"]}\n')
+    fp.write(f'{model["parameters"]["y_max"]}\n')
+    fp.write(f'{model["parameters"]["z_min"]}\n')
+    fp.write(f'{model["parameters"]["z_max"]}\n')
+
+    fp.write("[position]\n")
+    position_str = ""
+    velocity_str = ""
+    for p in model['model']:
+        position_str += f"{p['position'][0]}\t{p['position'][1]}\t{p['position'][2]}\t{p['type'] + 0.1}\n"
+        velocity_str += f"{p['velocity'][0]}\t{p['velocity'][1]}\t{p['velocity'][2]}\t{p['type'] + 0.1}\n"
+    fp.write(position_str)
+    fp.write("[velocity]\n")
+    fp.write(velocity_str)
+    fp.write("[connection]\n")
+    fp.write("[membranes]\n")
+    fp.write("[particleMemIndex]\n")
+    fp.write("[end]\n")
+    fp.close()
 
 def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
     nx = int( x_dim * h / r0 )  # Numbers of boundary particles on X-axis
@@ -293,7 +319,8 @@ def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
             )
 
 def main():
-    gen_model(12, 6, 12)
+    #gen_model(12, 6, 12)
+    gen_model(6, 6, 6)
 
 
 if __name__ == '__main__':
