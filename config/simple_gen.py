@@ -319,8 +319,8 @@ def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
             )
 
 def main():
-    #gen_model(12, 6, 12)
-    gen_model(6, 6, 6)
+    gen_model(12, 6, 12)
+    #gen_model(6, 6, 6)
 
 
 if __name__ == '__main__':

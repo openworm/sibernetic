@@ -152,9 +152,9 @@ namespace sibernetic {
 			void neighbour_search() override {
 				run_init_ext_particles();
 				run_hash_particles();
+				sync();
 				run_clear_grid_hash();
 				run_fill_particle_cell_hash();
-				sync();
 				run_neighbour_search();
 			}
 
@@ -186,7 +186,6 @@ namespace sibernetic {
 				} else {
 					while(is_synchronizing);
 				}
-
 				copy_buffer_to_device(
 						(void *) &(model->get_particles()[p.ghost_start]),
 						b_particles,
@@ -226,11 +225,11 @@ namespace sibernetic {
 			int i = 0;
 			while(true) {
 				neighbour_search();
-				if(i == 5) {
-					_debug_();
-					break;
-				}
-				physic();
+//				if(i == 350) {
+//					_debug_();
+//					break;
+//				}
+				//physic();
 				++i;
 			}
 		}
@@ -403,14 +402,14 @@ namespace sibernetic {
 					std::cout << "run hash_particles --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_hash_particles,
-						p.size(),
+						p.total_size(),
 						0,
 						this->b_particles,
 						model->get_cell_num_x(),
 						model->get_cell_num_y(),
 						model->get_cell_num_z(),
 						sibernetic::model::GRID_CELL_SIZE_INV,
-						p.size(),
+						p.total_size(),
 						p.offset(),
 						p.limit()
 				);

@@ -107,8 +107,8 @@ class Particle:
 
         if diff:
             print("DIff is", diff)
-            print("K1", self.n_map.keys())
-            print("K2", self.stored_n_map.keys())
+            print("K1", {k: particle_list[k].cell_id for k in self.n_map})
+            print("K2", {k: particle_list[k].cell_id for k in self.stored_n_map})
             return False
         return bad
 
@@ -135,6 +135,12 @@ def main() -> None:
         ns_map = json.load(f)
     if ns_map is not None:
         particle_list = [Particle(json_p) for json_p in ns_map]
+        sorted_p = sorted(particle_list, key= lambda p: p.cell_id)
+        # for i in range(len(particle_list)):
+        #     if sorted_p[i] != particle_list[i]:
+        #         print('Fail')
+        # return
+
         particle_to_check = len(particle_list)
         _all = True
         if _all:
@@ -142,7 +148,7 @@ def main() -> None:
                 p.calc_n_map(particle_list)
             print(test_nmap(particle_list))
         else:
-            p = particle_list[34]
+            p = particle_list[1455]
             p.calc_n_map(particle_list)
             print(test_nmap_particle(p, particle_list))
         
