@@ -328,6 +328,10 @@ def run(a=None,**kwargs):
         reportj['reference'] = a.reference
         reportj['c302params'] = a.c302params
         reportj['c302_version'] = c302.__version__
+        import neuroml
+        import pyneuroml
+        reportj['libNeuroML_version'] = neuroml.__version__
+        reportj['pyNeuroML_version'] = pyneuroml.__version__
     
     reportj['generation_time'] = '%s s'%(sim_start-gen_start)
     reportj['run_time'] = '%s s'%(sim_end-sim_start)
