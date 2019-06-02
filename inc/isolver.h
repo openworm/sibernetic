@@ -46,7 +46,7 @@ public:
   virtual ~i_solver() = default;;
   virtual void neighbour_search() = 0;
   virtual void physic() = 0;
-  virtual void init_model(const partition &) = 0;
+  virtual void init_model(partition *) = 0;
   virtual void run() = 0;
   virtual void unfreeze() = 0;
 private:

@@ -19,19 +19,31 @@ namespace sibernetic{
             size_t end;
             size_t ghost_start;
             size_t ghost_end;
-            uint start_cell_id;
-            uint end_cell_id;
-            uint start_ghost_cell_id;
-            uint end_ghost_cell_id;
-            uint size() const { return static_cast<uint>(end - start); }
-            uint total_size() const { return static_cast<uint>(ghost_end - ghost_start ); }
+            int start_cell_id;
+            int end_cell_id;
+            int start_ghost_cell_id;
+            int end_ghost_cell_id;
+            int size() const {
+            	if(start == 0)
+            	    return end - start;
+	            return end - start + 1;
+            }
+            int total_size() const {
+	            if(ghost_start == 0)
+		            return (ghost_end - ghost_start);
+            	return (ghost_end - ghost_start + 1);
+            }
             uint cell_count() const { return end_cell_id - start_cell_id + 1; }
-            uint total_cell_count() const { return end_ghost_cell_id - start_ghost_cell_id + 1; }
+            int total_cell_count() const {
+	            if(start_ghost_cell_id == 0)
+	                return end_ghost_cell_id - start_ghost_cell_id;
+	            return end_ghost_cell_id - start_ghost_cell_id;// + 1;
+            }
             int offset() {
                 return static_cast<int>((start > ghost_start) ? (start - ghost_start) : 0);
             }
             int limit() {
-                return static_cast<int>((end > ghost_start) ? (end - ghost_start) : 0);
+                return size() + offset();
             }
         };
     }

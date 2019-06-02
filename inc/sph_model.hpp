@@ -156,7 +156,7 @@ namespace sibernetic {
 				}
 			}
 
-			const partition &get_next_partition() {
+			partition &get_next_partition() {
 				++next_partition;
 				return partitions[next_partition - 1];
 			}
@@ -200,7 +200,7 @@ namespace sibernetic {
 			}
 
 			void sync_left_segment(size_t p_index, size_t particle_start){
-				for(size_t i = particle_start; i >= 0; --i){
+				for(size_t i = particle_start; i > 0; --i){
 					if(particles[i].cell_id == partitions[p_index].start_ghost_cell_id
 					   && particles[i - 1].cell_id != partitions[p_index].start_ghost_cell_id){
 						partitions[p_index].ghost_start = i;

@@ -74,13 +74,14 @@ namespace sibernetic {
 						}
 						dev_q.pop();
 					}
+
 					if (_solvers.size()) {
 						model->make_partition(_solvers.size()); // TODO to think about is in future we
 						// can't init one or more
 						// devices
 						// obvious we should reinit partitions case ...
 						for (auto s : _solvers) {
-							s->init_model(model->get_next_partition());
+							s->init_model(&(model->get_next_partition()));
 						}
 					} else {
 						throw ocl_error("No OpenCL devices were initialized.");

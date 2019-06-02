@@ -101,21 +101,19 @@ namespace sibernetic {
 			}
 
 			// TODO rename method!!!
-			void init_model(const partition &p) override {
+			void init_model(partition *p) override {
 				this->p = p;
-				prev_part_size = p.total_size();
+				prev_part_size = p->total_size();
 				init_buffers();
 				init_kernels();
-				copy_buffer_to_device((void *) &(model->get_particles()[p.ghost_start]),
-				                      b_particles, 0, p.total_size() * sizeof(particle<T>));
 			}
 
 			~ocl_solver() override = default;
 
 			void _debug_(){
-				std::vector<extend_particle> neighbour_map(p.size());
-				copy_buffer_from_device(&(neighbour_map[0]), b_ext_particles, p.size() * sizeof(extend_particle), 0);
-				copy_buffer_from_device(&(model->get_particles()[0]), b_particles, p.size() * sizeof(particle<T>), 0);
+				std::vector<extend_particle> neighbour_map(p->size());
+				copy_buffer_from_device(&(neighbour_map[0]), b_ext_particles, p->size() * sizeof(extend_particle), 0);
+				copy_buffer_from_device(&(model->get_particles()[0]), b_particles, p->size() * sizeof(particle<T>), 0);
 				std::string big_s = "[";
 				for(auto p: neighbour_map){
 
@@ -174,24 +172,37 @@ namespace sibernetic {
 
 			void sync() override {
 				is_synchronizing = true;
-
+				prev_part_size = p->total_size();
+				prev_start = p->ghost_start;
+				prev_end = p->ghost_end;
+				//if(dev->name.find("Hawaii") != std::string::npos) {
 				copy_buffer_from_device(
-						&(model->get_particles()[p.start]),
+						&(model->get_particles()[p->start]),
 						b_particles,
-						p.size() * sizeof(particle<T>),
-						p.offset() * sizeof(particle<T>));
-
+						p->size() * sizeof(particle<T>),
+						p->offset() * sizeof(particle<T>));
+				//}
 				if(model->set_ready()){
 					model->sync();
 				} else {
 					while(is_synchronizing);
 				}
-				copy_buffer_to_device(
-						(void *) &(model->get_particles()[p.ghost_start]),
-						b_particles,
-						0,
-						p.total_size() * sizeof(particle<T>));
-				prev_part_size = p.total_size();
+//				if(prev_part_size != p.total_size()){
+//					std::cout << "\n--------- PART SIZE HAS" << prev_part_size << " WAS " << p.total_size() << "=======\n";
+//				}
+//				if(prev_start != p.ghost_start){
+//					std::cout << "\n--------- START HAS" << prev_start << " WAS " << p.ghost_start << "=======\n";
+//				}
+//				if(prev_end != p.ghost_end){
+//					std::cout << "\n--------- END HAS" << prev_end << " WAS " << p.ghost_end << "=======\n";
+//				}
+//				copy_buffer_to_device(
+//						(void *) &(model->get_particles()[p->ghost_start]),
+//						b_particles,
+//						0,
+//						p->total_size() * sizeof(particle<T>));
+
+				init_buffers();
 
 
 				/*BOTTOM IS IMPROVED VERSION*/
@@ -225,11 +236,11 @@ namespace sibernetic {
 			int i = 0;
 			while(true) {
 				neighbour_search();
-//				if(i == 350) {
-//					_debug_();
-//					break;
-//				}
-				//physic();
+				if(i == 200) {
+					//_debug_();
+					break;
+				}
+				physic();
 				++i;
 			}
 		}
@@ -239,9 +250,11 @@ namespace sibernetic {
 		private:
 			bool is_synchronizing;
 			model_ptr model;
-			size_t prev_part_size;
+			int prev_part_size;
+			int prev_start;
+			int prev_end;
 			size_t device_index;
-			partition p;
+			partition* p;
 			shared_ptr<device> dev;
 			std::string msg = dev->name + '\n';
 			const std::string cl_program_file = "cl_code//sph_cl_code.cl";
@@ -268,11 +281,13 @@ namespace sibernetic {
 
 			void init_buffers() {
 				create_ocl_buffer("particles", b_particles, CL_MEM_READ_WRITE,
-				                  p.total_size() * sizeof(particle<T>));
+				                  p->total_size() * sizeof(particle<T>));
 				create_ocl_buffer("ext_particles", b_ext_particles, CL_MEM_READ_WRITE,
-				                  p.size() * sizeof(extend_particle));
+				                  p->total_size() * sizeof(extend_particle));
 				create_ocl_buffer("b_grid_cell_id_list", b_grid_cell_id_list, CL_MEM_READ_WRITE,
-				                  p.total_cell_count() * sizeof(int));
+				                  model->get_total_cell_num() * sizeof(int));
+				copy_buffer_to_device((void *) &(model->get_particles()[p->ghost_start]),
+				                      b_particles, 0, p->total_size() * sizeof(particle<T>));
 			}
 
 			void init_kernels() {
@@ -390,10 +405,10 @@ namespace sibernetic {
 					std::cout << "run init_ext_particles --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_init_ext_particles,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_ext_particles,
-						p.size()
+						p->total_size()
 				);
 			}
 
@@ -402,16 +417,16 @@ namespace sibernetic {
 					std::cout << "run hash_particles --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_hash_particles,
-						p.total_size(),
+						p->total_size(),
 						0,
 						this->b_particles,
 						model->get_cell_num_x(),
 						model->get_cell_num_y(),
 						model->get_cell_num_z(),
 						sibernetic::model::GRID_CELL_SIZE_INV,
-						p.total_size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 
@@ -421,10 +436,10 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->k_clear_grid_hash,
-						p.total_cell_count(),
+						model->get_total_cell_num(),//p.total_cell_count(),
 						0,
 						this->b_grid_cell_id_list,
-						p.total_cell_count()
+						model->get_total_cell_num()
 				);
 			}
 
@@ -434,12 +449,12 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->k_fill_particle_cell_hash,
-						p.total_size(),
+						p->total_size(),
 						0,
 						this->b_grid_cell_id_list,
 						this->b_particles,
-						p.start_ghost_cell_id,
-						p.total_size()
+						p->start_ghost_cell_id,
+						p->total_size()
 				);
 			}
 
@@ -449,7 +464,7 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->k_neighbour_search,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_ext_particles,
 						this->b_particles,
@@ -458,7 +473,7 @@ namespace sibernetic {
 						model->get_cell_num_y(),
 						model->get_cell_num_z(),
 						model->get_total_cell_num(),
-						p.start_cell_id,
+						p->start_ghost_cell_id,
 						sibernetic::model::H,
 						sibernetic::model::GRID_CELL_SIZE,
 						sibernetic::model::GRID_CELL_SIZE_INV,
@@ -466,9 +481,9 @@ namespace sibernetic {
 						model->get_config()["x_min"],
 						model->get_config()["y_min"],
 						model->get_config()["z_min"],
-						p.size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 
@@ -478,15 +493,15 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->k_compute_density,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_ext_particles,
 						this->b_particles,
 						model->get_config()["mass_mult_wpoly6_coefficient"],
 						model->get_config()["h_scaled_2"],
-						p.size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 
@@ -496,7 +511,7 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->k_compute_forces_init_pressure,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_ext_particles,
 						this->b_particles,
@@ -506,9 +521,9 @@ namespace sibernetic {
 						model->get_config()["gravity_x"],
 						model->get_config()["gravity_y"],
 						model->get_config()["gravity_z"],
-						p.size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 
@@ -518,16 +533,16 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->k_predict_positions,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_ext_particles,
 						this->b_particles,
 						model->get_config()["simulation_scale_inv"],
 						model->get_config()["time_step"],
 						sibernetic::model::R_0,
-						p.size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 
@@ -537,16 +552,16 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->ker_predict_density,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_ext_particles,
 						this->b_particles,
 						model->get_config()["mass_mult_wpoly6_coefficient"],
 						sibernetic::model::H,
 						model->get_config()["simulation_scale"],
-						p.size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 			void run_correct_pressure(){
@@ -555,14 +570,14 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->ker_correct_pressure,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_particles,
 						sibernetic::model::DENSITY_WATER,
 						model->get_config()["delta"],
-						p.size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 			void run_compute_pressure_force_acceleration(){
@@ -571,7 +586,7 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->ker_compute_pressure_force_acceleration,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_ext_particles,
 						this->b_particles,
@@ -580,9 +595,9 @@ namespace sibernetic {
 						model->get_config()["simulation_scale"],
 						model->get_config()["delta"],
 						sibernetic::model::DENSITY_WATER,
-						p.size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 			void run_integrate(){
@@ -591,7 +606,7 @@ namespace sibernetic {
 
 				this->kernel_runner(
 						this->k_integrate,
-						p.size(),
+						p->total_size(),
 						0,
 						this->b_ext_particles,
 						this->b_particles,
@@ -600,9 +615,9 @@ namespace sibernetic {
 						sibernetic::model::R_0,
 						1,
 						2,
-						p.size(),
-						p.offset(),
-						p.limit()
+						p->total_size(),
+						p->offset(),
+						p->limit()
 				);
 			}
 
