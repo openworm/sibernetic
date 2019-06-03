@@ -248,7 +248,7 @@ namespace sibernetic {
 			is_synchronizing = false;
 		}
 		private:
-			bool is_synchronizing;
+			std::atomic<bool> is_synchronizing;
 			model_ptr model;
 			int prev_part_size;
 			int prev_start;
