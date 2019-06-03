@@ -171,11 +171,19 @@ def check_file(file_name, dir, line_num=None):
         if count!=line_num:
             print_("Error: Expecting %s lines, but had %s!!"%(line_num,count))
             return False
-            
-            
-
+        
     return True
         
+def get_sibernetic_version():
+    #TODO make separate file for version info...
+    version = None
+    with open('src/main.cpp','r') as sib_main_file:
+        for l in sib_main_file:
+            ws = l.split()
+            if len(ws)>=4 and ws[0]=='std::string' and ws[1]=='version':
+                version = ws[3][1:-2]
+                print_("Sibernetic v%s"%version)
+    return version
     
 def run(a=None,**kwargs): 
     
@@ -324,6 +332,7 @@ def run(a=None,**kwargs):
     reportj['sim_ref'] = sim_ref
     reportj['noc302'] = a.noc302
     reportj['python_args'] = 'python ' + ' '.join(sys.argv)
+    reportj['sibernetic_version'] = get_sibernetic_version()
     if not a.noc302:
         reportj['reference'] = a.reference
         reportj['c302params'] = a.c302params
