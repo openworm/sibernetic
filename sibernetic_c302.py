@@ -9,6 +9,8 @@ import math
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
+script_version = '0.1.0' # This will change at different rate to C++ code...
+
 DEFAULTS = {'duration': 2.0,
             'dt': 0.005,
             'dtNrn': 0.05,
@@ -22,7 +24,22 @@ DEFAULTS = {'duration': 2.0,
             'outDir': 'simulations',
             'datareader': 'SpreadsheetDataReader',
             'test': False} 
-            
+         
+         
+'''
+    For recording the version of core Sibernetic in report file
+'''
+def get_sibernetic_version():
+    #TODO make separate file for version info...
+    version = None
+    with open('src/main.cpp','r') as sib_main_file:
+        for l in sib_main_file:
+            ws = l.split()
+            if len(ws)>=4 and ws[0]=='std::string' and ws[1]=='version':
+                version = ws[3][1:-2]
+                print_("Sibernetic v%s"%version)
+    return version
+        
             
 def process_args():
     """ 
@@ -171,9 +188,7 @@ def check_file(file_name, dir, line_num=None):
         if count!=line_num:
             print_("Error: Expecting %s lines, but had %s!!"%(line_num,count))
             return False
-            
-            
-
+        
     return True
         
     
@@ -324,11 +339,27 @@ def run(a=None,**kwargs):
     reportj['sim_ref'] = sim_ref
     reportj['noc302'] = a.noc302
     reportj['python_args'] = 'python ' + ' '.join(sys.argv)
+    reportj['sibernetic_version'] = get_sibernetic_version()
+    reportj['sibernetic_c302_version'] = script_version
+    
     if not a.noc302:
         reportj['reference'] = a.reference
         reportj['c302params'] = a.c302params
         reportj['c302_version'] = c302.__version__
-    
+        import neuroml
+        import pyneuroml
+        reportj['libneuroml_version'] = neuroml.__version__
+        reportj['pyneuroml_version'] = pyneuroml.__version__
+        from neuron import h
+        reportj['neuron_version'] = h.nrnversion()
+        
+        try:
+            import PyOpenWorm as P
+            reportj['pyopenworm_version'] = P.__version__
+        except:
+            pass # Not currently required for sims 
+        
+        
     reportj['generation_time'] = '%s s'%(sim_start-gen_start)
     reportj['run_time'] = '%s s'%(sim_end-sim_start)
     reportj['device'] = '%s'%(a.device)
@@ -338,7 +369,10 @@ def run(a=None,**kwargs):
     reportj['env'] = str(env)
     
     with open(os.path.join(sim_dir, 'report.json'), 'w') as report_file:
-        report_file.write(pp.pformat(reportj))
+        
+        import json
+        s = json.dumps(reportj, indent=4, sort_keys=True)
+        report_file.write(s)
         
     
     if not a.noc302:
@@ -385,8 +419,8 @@ def run(a=None,**kwargs):
                   save_figure1_to=os.path.join(sim_dir, 'worm_motion_1.png'),
                   save_figure2_to=os.path.join(sim_dir, 'worm_motion_2.png'),
                   save_figure3_to=os.path.join(sim_dir, 'worm_motion_3.png'))
-    
-    announce("Finished run in %s sec!\n\nSimulation saved in: %s\n\n"%((sim_end-sim_start),sim_dir) + \
+    run_dur_sec = sim_end-sim_start
+    announce("Finished run in %s sec (%s hours)!\n\nSimulation saved in: %s\n\n"%(run_dur_sec,run_dur_sec/3600.0,sim_dir) + \
              "Report of simulation at: %s/report.json\n\n"%(sim_dir)+ \
              "Replay recorded simulation with: ./Release/Sibernetic -l_from lpath=%s\n"%(sim_dir))
 
