@@ -9,5 +9,12 @@
 #else
 #include <CL/cl.hpp>
 #endif
-std::priority_queue<std::shared_ptr<device>> get_dev_queue();
+struct device_ptr_less{
+	bool operator()(const std::shared_ptr<device> &x, const std::shared_ptr<device> &y) const
+	{ return *x < *y; }
+};
+
+typedef std::priority_queue<std::shared_ptr<device>, std::deque<std::shared_ptr<device>>, device_ptr_less> p_q;
+
+p_q get_dev_queue();
 #endif // OCLHELPER_H

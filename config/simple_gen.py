@@ -320,7 +320,11 @@ def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
 
 def main():
     #gen_model(12, 6, 12)
-    gen_model(48, 24, 48)
+    gen_model(24, 12, 24)
+
+    #gen_model(48, 24, 48)
+    #gen_model(96, 48, 96)
+    #gen_model(192, 48, 192)
     #gen_model(6, 6, 6)
 
 

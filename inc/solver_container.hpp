@@ -32,9 +32,10 @@ namespace sibernetic {
 
 			/** Maer's singleton
 			 */
-			static solver_container &instance(model_ptr &model, EXECUTION_MODE mode = EXECUTION_MODE::ONE,
-			                                  SOLVER_TYPE s_t = OCL) {
-				static solver_container s(model, mode, s_t);
+			static solver_container &instance(model_ptr &model,
+					EXECUTION_MODE mode = EXECUTION_MODE::ONE, size_t dev_count = 0,
+			        SOLVER_TYPE s_t = OCL) {
+				static solver_container s(model, mode, s_t, dev_count);
 				model->set_solver_container(s.solvers());
 				return s;
 			}
@@ -56,18 +57,25 @@ namespace sibernetic {
 			}
 		private:
 			explicit solver_container(model_ptr &model, EXECUTION_MODE mode = EXECUTION_MODE::ONE,
-			                          SOLVER_TYPE s_type = OCL) {
+			                          SOLVER_TYPE s_type = OCL, size_t dev_count = 0) {
 				try {
-					std::priority_queue<std::shared_ptr<device>> dev_q = get_dev_queue();
+					p_q dev_q = get_dev_queue();
 					size_t device_index = 0;
 					while (!dev_q.empty()) {
 						try {
 							std::shared_ptr<ocl_solver<T>> solver(
 									new ocl_solver<T>(model, dev_q.top(), device_index));
 							_solvers.push_back(solver);
+							std::cout << "************* DEVICE *************" << std::endl;
+							dev_q.top()->show_info();
+							std::cout << "**********************************" << std::endl;
 							++device_index;
 							if(mode == EXECUTION_MODE::ONE){
 								break;
+							} else if(mode == EXECUTION_MODE::ALL){
+								if(dev_count > 0 && dev_count == device_index){
+									break;
+								}
 							}
 						} catch (ocl_error &ex) {
 							std::cout << ex.what() << std::endl;
@@ -76,7 +84,7 @@ namespace sibernetic {
 					}
 
 					if (_solvers.size()) {
-						model->make_partition(_solvers.size()); // TODO to think about is in future we
+						model->make_partition(_solvers.size(), std::vector<float>{0.45, 0.45, 0.1}); // TODO to think about is in future we
 						// can't init one or more
 						// devices
 						// obvious we should reinit partitions case ...

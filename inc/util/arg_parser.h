@@ -35,12 +35,14 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 // Class for parsing command line arguments
 class arg_parser {
 public:
   arg_parser(int argc, char **argv);
   bool check_arg(const std::string &arg) const;
   const std::string &get_arg(const std::string &arg) const;
+  const std::string get_arg_value(const std::string &arg) const;
   static int show_usage() {
     std::string version = "0.0.1";
     std::cout
@@ -60,8 +62,7 @@ public:
         << "to: <https://github.com/openworm/sibernetic/issues>\n";
     return EXIT_SUCCESS;
   }
-
 private:
-  std::vector<std::string> arguments;
+  std::unordered_map<std::string, std::string> arguments;
 };
 #endif // ARG_PARSER

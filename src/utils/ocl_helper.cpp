@@ -3,13 +3,22 @@
 #include <algorithm>
 #include <iostream>
 
+
 using sibernetic::ocl_error;
 
 void show_platform_info(const cl::Platform &);
-void init_cl_devices(std::priority_queue<std::shared_ptr<device>> &);
+void init_cl_devices(p_q &);
 
-std::priority_queue<std::shared_ptr<device>> get_dev_queue() {
-  std::priority_queue<std::shared_ptr<device>> q;
+
+//bool operator<(const std::shared_ptr<device> a, const std::shared_ptr<device> b)
+//{
+//	return a->device_compute_unit_num < b->device_compute_unit_num;
+//}
+//
+
+p_q get_dev_queue() {
+  //auto cmp = [](const std::shared_ptr<device> a, const std::shared_ptr<device> b){ return a < b;};
+  p_q q;
   init_cl_devices(q);
   if (q.size() < 1) {
     throw ocl_error("No OpenCL devices were found");
@@ -24,7 +33,7 @@ size_t get_device_count(const cl::Platform &p) {
 }
 
 void init_devices(cl::Platform &p,
-                  std::priority_queue<std::shared_ptr<device>> &q) {
+                  p_q &q) {
   cl_int err;
   cl::Context context;
   cl_context_properties cprops[3] = {CL_CONTEXT_PLATFORM,
@@ -40,7 +49,7 @@ void init_devices(cl::Platform &p,
   }
 }
 
-void init_cl_devices(std::priority_queue<std::shared_ptr<device>> &q) {
+void init_cl_devices(p_q &q) {
   cl_int err;
   std::vector<cl::Platform> platform_list;
   err = cl::Platform::get(
@@ -55,7 +64,7 @@ void init_cl_devices(std::priority_queue<std::shared_ptr<device>> &q) {
                        [](const cl::Platform &p1, const cl::Platform &p2) {
                          return get_device_count(p1) < get_device_count(p2);
                        });
-  if (get_device_count(*it) > 1 && platform_list.size() > 1) {
+  if (get_device_count(*it) == 1 && platform_list.size() > 1) {
     std::cout << "Use all available platforms" << std::endl;
     for_each(platform_list.begin(), platform_list.end(), [&](cl::Platform &p) {
       show_platform_info(p);

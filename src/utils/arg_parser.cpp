@@ -35,16 +35,31 @@
 
 arg_parser::arg_parser(int argc, char **argv) {
   for (int i = 1; i < argc; ++i) {
-    arguments.push_back(std::string(argv[i]));
+  	auto s = std::string(argv[i]);
+    arguments.insert({s.substr(0,s.find('=')), s});//.push_back(s.substr(s.find('=')));
   }
 }
+
 bool arg_parser::check_arg(const std::string &arg) const {
-  return std::find(arguments.begin(), arguments.end(), arg) != arguments.end();
+  return arguments.find(arg.substr(0,arg.find('='))) != arguments.end();
 }
 
 const std::string &arg_parser::get_arg(const std::string &arg) const {
-  auto itr = std::find(arguments.begin(), arguments.end(), arg);
-  if (itr != arguments.end() && ++itr != arguments.end())
-    return *itr;
+  auto key = arg.substr(0, arg.find('='));
+  auto itr = arguments.find(key);
+  if (itr != arguments.end())
+    return arguments.at(key);
   return std::string("");
+}
+
+const std::string arg_parser::get_arg_value(const std::string &arg) const {
+	auto itr = arguments.find(arg);
+	if (itr != arguments.end()) {
+		auto val = arguments.at(arg);
+		if (val.find('=') != std::string::npos) {
+			return val.substr(val.find('=') + 1);
+		}
+	}
+
+	return std::string("ALL");
 }

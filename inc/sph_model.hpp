@@ -50,6 +50,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <bitset>
+#include <time.h>
 
 namespace sibernetic {
 	namespace model {
@@ -83,7 +84,8 @@ namespace sibernetic {
 				}
 				arrange_particles();
 				iteration = 0;
-
+				clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
+				t0 = t1;
 				std::cout << "Model was loaded: " << particles.size() << " particles."
 				          << std::endl;
 			}
@@ -114,7 +116,7 @@ namespace sibernetic {
 
 			/** Make partition for device
 			 */
-			void make_partition(size_t dev_count) {
+			void make_partition(size_t dev_count, const std::vector<float> &balance_coeff) {
 				next_partition = 0;
 				if (dev_count == 1) {
 					//partitions.push_back(partition{0, static_cast<size_t>(size() - 1)});
@@ -122,9 +124,10 @@ namespace sibernetic {
 					return;
 				}
 				auto part_size = static_cast<size_t>(size() / dev_count);
-				size_t start = 0 * part_size;
-				size_t end = 1 * part_size;
+				size_t start = 0;
+				size_t end = 1;
 				for (size_t i = 0; i < dev_count; ++i) {
+					part_size = static_cast<size_t>(particles.size() * balance_coeff[i]);
 					if (i == dev_count - 1)
 						push_partition(start, static_cast<size_t>(size() - 1));
 					else {
@@ -178,7 +181,21 @@ namespace sibernetic {
 					}
 				}
 
-				std::cout << "================New Iteration============== " << iteration << std::endl;
+				clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
+				time_t sec = t2.tv_sec - t1.tv_sec;
+				long nsec;
+				if (t2.tv_nsec >= t1.tv_nsec) {
+					nsec = t2.tv_nsec - t1.tv_nsec;
+				} else {
+					nsec = 1000000000 - (t1.tv_nsec - t2.tv_nsec);
+					sec -= 1;
+				}
+
+				t1 = t2;
+				elapsedTime = (float)(t2.tv_sec - t0.tv_sec) * 1000.f +
+				              (float)(t2.tv_nsec - t0.tv_nsec) / 1000000.f;
+
+				std::cout << "========New Iteration====== " << iteration << "====time=== " << (float)sec * 1000.f + (float)nsec / 1000000.f << std::endl;
 				++iteration;
 				ready_to_sync = 0;
 				for(auto it: *solvers){
@@ -253,6 +270,12 @@ namespace sibernetic {
 			int cell_num_y;
 			int cell_num_z;
 			int total_cell_num;
+
+			timespec t0, t1, t2;
+			timespec t3, t4;
+			double us;
+			double elapsedTime;
+
 			std::vector<std::shared_ptr<sibernetic::solver::i_solver>> *solvers;
 			std::atomic<int> iteration;
 			std::atomic<int> ready_to_sync;

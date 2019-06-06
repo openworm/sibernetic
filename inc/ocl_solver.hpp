@@ -175,32 +175,16 @@ namespace sibernetic {
 				prev_part_size = p->total_size();
 				prev_start = p->ghost_start;
 				prev_end = p->ghost_end;
-				//if(dev->name.find("Hawaii") != std::string::npos) {
 				copy_buffer_from_device(
 						&(model->get_particles()[p->start]),
 						b_particles,
 						p->size() * sizeof(particle<T>),
 						p->offset() * sizeof(particle<T>));
-				//}
 				if(model->set_ready()){
 					model->sync();
 				} else {
 					while(is_synchronizing);
 				}
-//				if(prev_part_size != p.total_size()){
-//					std::cout << "\n--------- PART SIZE HAS" << prev_part_size << " WAS " << p.total_size() << "=======\n";
-//				}
-//				if(prev_start != p.ghost_start){
-//					std::cout << "\n--------- START HAS" << prev_start << " WAS " << p.ghost_start << "=======\n";
-//				}
-//				if(prev_end != p.ghost_end){
-//					std::cout << "\n--------- END HAS" << prev_end << " WAS " << p.ghost_end << "=======\n";
-//				}
-//				copy_buffer_to_device(
-//						(void *) &(model->get_particles()[p->ghost_start]),
-//						b_particles,
-//						0,
-//						p->total_size() * sizeof(particle<T>));
 
 				init_buffers();
 

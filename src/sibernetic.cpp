@@ -53,13 +53,18 @@ int main(int argc, char **argv) {
   std::string model_name;
   auto mode = EXECUTION_MODE::ONE;
   auto ui_mode = UI_MODE::CLI;
+  size_t dev_count = 0;
   if (prsr.check_arg("-f")) {
     model_name = prsr.get_arg("-f");
   } else {
     model_name = "config/tmp";
   }
   if (prsr.check_arg("--multi_dev")) {
-    mode = EXECUTION_MODE::ALL;
+  	auto v = prsr.get_arg_value("--multi_dev");
+  	if(v != "ALL"){
+		dev_count = std::stol(v);
+  	}
+  	mode = EXECUTION_MODE::ALL;
   }
   if (prsr.check_arg("--with_g")) {
     ui_mode = UI_MODE::OGL;
@@ -76,7 +81,7 @@ int main(int argc, char **argv) {
     };
     graph::config = config;
     graph::model = model;
-    solver_container<float> &s_con = solver_container<float>::instance(model, mode);
+    solver_container<float> &s_con = solver_container<float>::instance(model, mode, dev_count);
     if(ui_mode == UI_MODE::OGL) {
       std::thread graph_thread(graph::run, argc, argv);
       s_con.run();

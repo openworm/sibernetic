@@ -66,8 +66,12 @@ private:
     name = c_buffer;
     result = dev.getInfo(CL_DEVICE_TYPE, &c_buffer);
     t = ((int)c_buffer[0] == CL_DEVICE_TYPE_CPU) ? CPU : GPU;
-    result =
-        dev.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &device_compute_unit_num);
+    if(t == CPU){
+	    device_compute_unit_num = 8;
+    } else {
+	    result =
+			    dev.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &device_compute_unit_num);
+    }
   }
 };
 

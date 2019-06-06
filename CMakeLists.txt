@@ -4,30 +4,33 @@ project(sibernetic)
 
 set(CMAKE_CXX_STANDARD 14)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 
 include_directories(/usr/local/cuda/include/)
 
-#include_directories(/usr/include/)
-
 include_directories(inc)
 
+set(CMAKE_BUILD_TYPE Release)
+
+if(CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -Wall -Wextra -O0 -g")
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL Release)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -Wall -Wextra -O3")
+endif()
+
+#set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+#set(CMAKE_CXX_FLAGS_DEBUG "-g")
+#set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 #include_directories(graphics)
 
 set(TARGET sibernetic)
-
 set(SOURCE_EXE src/sibernetic.cpp)
-
 set(SOURCE_ARG_P src/utils/arg_parser.cpp)
-
 set(SOURCE_HELPER src/utils/ocl_helper.cpp inc/util/json_reader.hpp inc/util/json.hpp src/utils/graph.cpp)
-
 set(OPENCL_LIB OpenCL)
-
 set(GLU_LIB GLU)
-
 set(GL_LIB GL)
-
 set(GLUT_LIB glut)
 
 #set(GRAPH_LIB owgraph)
