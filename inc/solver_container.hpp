@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <thread>
+#include <cmath>
 
 namespace sibernetic {
 	namespace solver {
@@ -84,7 +85,9 @@ namespace sibernetic {
 					}
 
 					if (_solvers.size()) {
-						model->make_partition(_solvers.size(), std::vector<float>{0.45, 0.45, 0.1}); // TODO to think about is in future we
+                        init_weights();
+						model->make_partition(_solvers.size(), this->weights); // TODO to think about is in future we
+                        //model->make_partition(_solvers.size(), std::vector<float>{0.5, 0.4, 0.1});
 						// can't init one or more
 						// devices
 						// obvious we should reinit partitions case ...
@@ -99,8 +102,31 @@ namespace sibernetic {
 				}
 			}
 
-			~solver_container() = default;
+            void init_weights(){
+			    size_t total_compute_power = 0;
+			    std::for_each(_solvers.begin(), _solvers.end(),
+			            [&total_compute_power](std::shared_ptr<i_solver> s) -> void {
+			                total_compute_power += s->get_device()->max_thread_count;
+			        }
+			    );
+                float prev = 0.f;
+                float rest = 1.f;
+			    for(int i=0; i < _solvers.size(); ++i){
+                    float cur;
+			        if(i == _solvers.size() - 1) {
+			            cur = roundf(10.f * rest) / 10.f;
+			        }else {
+			            auto s = _solvers[i];
+			            cur = static_cast<float>(s->get_device()->max_thread_count) / static_cast<float>(total_compute_power);
+			            cur = roundf(10.f * cur) / 10.f;
+			            rest -= cur;
+			        }
+			        weights.push_back(cur);
+			    }
+			}
 
+			~solver_container() = default;
+            std::vector<float> weights;
 			std::vector<std::shared_ptr<i_solver>> _solvers;
 		};
 	} // namespace solver

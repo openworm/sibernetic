@@ -21,13 +21,16 @@ struct device {
   cl::Device dev;
   cl::Context context;
   size_t device_compute_unit_num; // criteria to sort devices
+  size_t global_work_group_size; // criteria to sort devices
+  size_t max_thread_count;
   bool operator<(const device &d1) {
-    return device_compute_unit_num < d1.device_compute_unit_num;
+    return  max_thread_count < d1.max_thread_count;
   }
+
   void show_info() {
     char c_buffer[100];
     cl_int result;
-    int work_group_size, comp_unints_count;
+    size_t work_group_size, comp_unints_count;
     // Print some information about chosen platform
     result = dev.getInfo(CL_DEVICE_NAME, &c_buffer); // CL_INVALID_VALUE = -30;
     if (result == CL_SUCCESS) {
@@ -43,6 +46,7 @@ struct device {
                 << std::endl;
     }
     result = dev.getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &work_group_size);
+
     if (result == CL_SUCCESS) {
       std::cout << "CL_CONTEXT_PLATFORM [" << platform_id
                 << "]: CL_DEVICE_MAX_WORK_GROUP_SIZE [" << dev_id << "]: \t"
@@ -60,18 +64,25 @@ private:
   void init_params() {
     char c_buffer[100];
     cl_int result;
+    size_t work_group_size;
     result = dev.getInfo(CL_DEVICE_NAME, &c_buffer);
     if (result != CL_SUCCESS) {
     }
     name = c_buffer;
-    result = dev.getInfo(CL_DEVICE_TYPE, &c_buffer);
-    t = ((int)c_buffer[0] == CL_DEVICE_TYPE_CPU) ? CPU : GPU;
-    if(t == CPU){
-	    device_compute_unit_num = 8;
+    dev.getInfo(CL_DEVICE_TYPE, &c_buffer);
+    dev.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &device_compute_unit_num);
+    result = dev.getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &work_group_size);
+    if(result != CL_SUCCESS){
+        global_work_group_size = 256;
     } else {
-	    result =
-			    dev.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &device_compute_unit_num);
+        if(work_group_size > 1024) {
+            global_work_group_size = 256;
+        }
+        else {
+            global_work_group_size = work_group_size;
+        }
     }
+    max_thread_count = global_work_group_size * device_compute_unit_num;
   }
 };
 

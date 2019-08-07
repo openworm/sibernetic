@@ -34,8 +34,10 @@
 #define ISOLVER_H
 #include "partition.h"
 #include "ocl_struct.h"
+#include "device.h"
 #include <vector>
 #include <string>
+#include <memory>
 namespace sibernetic {
 namespace solver {
 enum SOLVER_TYPE { OCL = 1, CUDA, SINGLE, PARALLEL };
@@ -49,6 +51,7 @@ public:
   virtual void init_model(partition *) = 0;
   virtual void run() = 0;
   virtual void unfreeze() = 0;
+  virtual std::shared_ptr<device> get_device() = 0; // TODO extract device interface later
 private:
   virtual void init_ext_particles() = 0;
 };

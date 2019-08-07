@@ -99,7 +99,9 @@ namespace sibernetic {
 					throw;
 				}
 			}
-
+            std::shared_ptr<device> get_device(){
+                return this->dev;
+			}
 			// TODO rename method!!!
 			void init_model(partition *p) override {
 				this->p = p;
@@ -618,14 +620,15 @@ namespace sibernetic {
 
 			template<typename U>
 			int kernel_runner(cl::Kernel &ker, unsigned int dim, unsigned int arg_pos, U &arg) {
+			    auto lk = this->dev->global_work_group_size;
 				ker.setArg(arg_pos, arg);
-				auto dim_round_up = (((dim - 1) / LOCAL_NDRANGE_SIZE) + 1) * LOCAL_NDRANGE_SIZE;
+				auto dim_round_up = (((dim - 1) / lk) + 1) * lk;
 				int err = queue.enqueueNDRangeKernel(
 						ker, cl::NullRange, cl::NDRange(dim_round_up),
 #if defined(__APPLE__)
 						cl::NullRange, nullptr, nullptr);
 #else
-						cl::NDRange(LOCAL_NDRANGE_SIZE), nullptr, nullptr);
+						cl::NDRange(this->dev->global_work_group_size), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
 				queue.finish();

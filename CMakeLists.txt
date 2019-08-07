@@ -19,11 +19,6 @@ if(CMAKE_BUILD_TYPE STREQUAL Release)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -Wall -Wextra -O3")
 endif()
 
-#set(CMAKE_CXX_FLAGS "-Wall -Wextra")
-#set(CMAKE_CXX_FLAGS_DEBUG "-g")
-#set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-#include_directories(graphics)
-
 set(TARGET sibernetic)
 set(SOURCE_EXE src/sibernetic.cpp)
 set(SOURCE_ARG_P src/utils/arg_parser.cpp)
@@ -35,7 +30,7 @@ set(GLUT_LIB glut)
 
 #set(GRAPH_LIB owgraph)
 
-#LINK_DIRECTORIES(graphics/cmake-build-debug)
+LINK_DIRECTORIES(graphics/cmake-build-debug)
 
 #add_library(foo SHARED ${SOURCE_LIB})	# Создание статической библиотеки с именем foo
 add_executable(${TARGET} ${SOURCE_EXE} ${SOURCE_HELPER} ${SOURCE_ARG_P})
