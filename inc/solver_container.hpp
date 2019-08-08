@@ -86,12 +86,15 @@ namespace sibernetic {
 
 					if (_solvers.size()) {
                         init_weights();
-						model->make_partition(_solvers.size(), this->weights); // TODO to think about is in future we
+                        model->set_balance_vector(this->weights);
+						model->make_partition(_solvers.size()); // TODO to think about is in future we
                         //model->make_partition(_solvers.size(), std::vector<float>{0.5, 0.4, 0.1});
 						// can't init one or more
 						// devices
 						// obvious we should reinit partitions case ...
+						int i=0;
 						for (auto s : _solvers) {
+						    s->get_device()->balance_coeff = weights[i++];
 							s->init_model(&(model->get_next_partition()));
 						}
 					} else {
@@ -114,11 +117,11 @@ namespace sibernetic {
 			    for(int i=0; i < _solvers.size(); ++i){
                     float cur;
 			        if(i == _solvers.size() - 1) {
-			            cur = roundf(10.f * rest) / 10.f;
+			            cur = ceilf(rest * 100) / 100;
 			        }else {
 			            auto s = _solvers[i];
 			            cur = static_cast<float>(s->get_device()->max_thread_count) / static_cast<float>(total_compute_power);
-			            cur = roundf(10.f * cur) / 10.f;
+			            cur = (cur * 100 + 0.5f) / 100.f;
 			            rest -= cur;
 			        }
 			        weights.push_back(cur);

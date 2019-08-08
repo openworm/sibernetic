@@ -87,7 +87,7 @@ namespace sibernetic {
 					model_ptr &m,
 					shared_ptr<device> d,
 					size_t idx,
-					LOGGING_MODE log_mode = LOGGING_MODE::NO):
+					LOGGING_MODE log_mode = LOGGING_MODE::FULL):
 				model(m),
 				dev(std::move(d)),
 				device_index(idx),
@@ -162,21 +162,18 @@ namespace sibernetic {
 				int iter = 0;
 				run_compute_density();
 				run_compute_forces_init_pressure();
-				while(iter < sibernetic::model::PCI_ITER_COUNT) {
-					run_predict_positions();
-					run_predict_density();
-					run_correct_pressure();
-					run_compute_pressure_force_acceleration();
-					++iter;
-				}
-				run_integrate();
+//				while(iter < sibernetic::model::PCI_ITER_COUNT) {
+//					run_predict_positions();
+//					run_predict_density();
+//					run_correct_pressure();
+//					run_compute_pressure_force_acceleration();
+//					++iter;
+//				}
+//				run_integrate();
 			}
 
 			void sync() override {
 				is_synchronizing = true;
-				prev_part_size = p->total_size();
-				prev_start = p->ghost_start;
-				prev_end = p->ghost_end;
 				copy_buffer_from_device(
 						&(model->get_particles()[p->start]),
 						b_particles,
@@ -222,7 +219,7 @@ namespace sibernetic {
 			int i = 0;
 			while(true) {
 				neighbour_search();
-				if(i == 200) {
+				if(i == 2000) {
 					//_debug_();
 					break;
 				}

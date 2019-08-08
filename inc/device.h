@@ -23,6 +23,7 @@ struct device {
   size_t device_compute_unit_num; // criteria to sort devices
   size_t global_work_group_size; // criteria to sort devices
   size_t max_thread_count;
+  float balance_coeff;
   bool operator<(const device &d1) {
     return  max_thread_count < d1.max_thread_count;
   }
@@ -70,7 +71,10 @@ private:
     }
     name = c_buffer;
     dev.getInfo(CL_DEVICE_TYPE, &c_buffer);
-    dev.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &device_compute_unit_num);
+    auto err = dev.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &device_compute_unit_num);
+    if(err != CL_SUCCESS || device_compute_unit_num > 1000){
+        device_compute_unit_num = 1;
+    }
     result = dev.getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &work_group_size);
     if(result != CL_SUCCESS){
         global_work_group_size = 256;

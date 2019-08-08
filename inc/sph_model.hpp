@@ -116,7 +116,7 @@ namespace sibernetic {
 
 			/** Make partition for device
 			 */
-			void make_partition(size_t dev_count, const std::vector<float> &balance_coeff) {
+			void make_partition(size_t dev_count) {
 				next_partition = 0;
 				if (dev_count == 1) {
 					//partitions.push_back(partition{0, static_cast<size_t>(size() - 1)});
@@ -159,6 +159,10 @@ namespace sibernetic {
 				}
 			}
 
+			void set_balance_vector(const std::vector<float> &balance_coeff){
+			    this->balance_coeff = balance_coeff;
+			}
+
 			partition &get_next_partition() {
 				++next_partition;
 				return partitions[next_partition - 1];
@@ -170,16 +174,18 @@ namespace sibernetic {
 
 			void sync() {
 				arrange_particles();
-				for(size_t p_index=0; p_index< partitions.size(); ++p_index){
-					if(p_index == 0){
-						sync_right_segment(p_index, 0);
-					} else {
-						partitions[p_index].start = partitions[p_index - 1].end + 1;
-						sync_right_segment(p_index, partitions[p_index].start);
-						if(p_index == partitions.size() - 1)
-							sync_left_segment(p_index, partitions[p_index].end);
-					}
-				}
+//				for(size_t p_index=0; p_index< partitions.size(); ++p_index){
+//					if(p_index == 0){
+//						sync_right_segment(p_index, 0);
+//					} else {
+//						partitions[p_index].start = partitions[p_index - 1].end + 1;
+//						sync_right_segment(p_index, partitions[p_index].start);
+//						if(p_index == partitions.size() - 1)
+//							sync_left_segment(p_index, partitions[p_index].end);
+//					}
+//				}
+
+                update_partition_distrib();
 
 				clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
 				time_t sec = t2.tv_sec - t1.tv_sec;
@@ -226,7 +232,7 @@ namespace sibernetic {
 				}
 			}
 
-			bool set_ready() {
+            bool set_ready() {
 				std::lock_guard<std::mutex> guard(sync_mutex);
 				++ready_to_sync;
 				if (ready_to_sync == solvers->size()) {
@@ -263,6 +269,7 @@ namespace sibernetic {
 				solvers = s;
 			}
 		private:
+		    std::vector<float> balance_coeff;
 			abstract_reader<T> *serializer;
 			size_t next_partition;
 			// vars block end
@@ -297,10 +304,12 @@ namespace sibernetic {
 					if (start_ghost_cell_id < 1) {
 						ghost_start = 0;
 					} else {
-						while (particles[ghost_start].cell_id != start_ghost_cell_id - 1) {
+						while (ghost_start != 0 && particles[ghost_start].cell_id != start_ghost_cell_id - 1) {
 							--ghost_start;
 						}
-						++ghost_start;
+						if(ghost_start != 0) {
+                            ++ghost_start;
+                        }
 					}
 				}
 
@@ -309,7 +318,7 @@ namespace sibernetic {
 					if (end_ghost_cell_id + 1 >= total_cell_num) {
 						ghost_end = particles.size() - 1;
 					} else {
-						while (particles[ghost_end].cell_id != end_ghost_cell_id + 1) {
+						while (ghost_end != size() && particles[ghost_end].cell_id != end_ghost_cell_id + 1) {
 							++ghost_end;
 						}
 						--ghost_end;
@@ -326,6 +335,90 @@ namespace sibernetic {
 						end_ghost_cell_id
 				});
 			}
+
+            void update_partition_distrib() {
+                size_t dev_count = balance_coeff.size();
+                next_partition = 0;
+                if (dev_count == 1) {
+                    update_partition(0, size() - 1, 0);
+                    return;
+                }
+                auto part_size = static_cast<size_t>(size() / dev_count);
+                size_t start = 0;
+                size_t end = 1;
+                for (size_t i = 0; i < dev_count; ++i) {
+                    part_size = static_cast<size_t>((float)particles.size() * balance_coeff[i]);
+                    if (i == dev_count - 1)
+                        update_partition(start, static_cast<size_t>(size() - 1), i);
+                    else {
+                        if (particles[start + part_size].cell_id != particles[start + part_size + 1].cell_id) {
+                            update_partition(start, start + part_size, i);
+                            start += part_size + 1;
+                        } else {
+                            end = start + part_size;
+                            while (particles[end].cell_id == particles[end + 1].cell_id) {
+                                if (end + 1 > size()) {
+                                    break;
+                                }
+                                ++end;
+                            }
+                            if ((particles[end].cell_id + 1) % (cell_num_y * cell_num_z) != 0) {
+                                auto rest = (particles[end].cell_id + 1) % (cell_num_y * cell_num_z);
+                                auto last_cell = particles[end].cell_id + (cell_num_y * cell_num_z - rest) + 1;
+                                while (particles[end].cell_id != last_cell) {
+                                    ++end;
+                                }
+                                update_partition(start, end - 1, i);
+                                start = end;
+                            } else {
+                                update_partition(start, end, i);
+                                start = end + 1;
+                            }
+                        }
+                    }
+                }
+            }
+
+            void update_partition(size_t start, size_t end, size_t p_id) {
+                auto start_cell_id = particles[start].cell_id;
+                auto end_cell_id = particles[end].cell_id;
+                auto ghost_end = end;
+                auto ghost_start = start;
+                size_t start_ghost_cell_id = 0, end_ghost_cell_id = end_cell_id;
+                if (start_cell_id != 0) {
+                    start_ghost_cell_id = start_cell_id - cell_num_y * cell_num_z;
+                    if (start_ghost_cell_id < 1) {
+                        ghost_start = 0;
+                    } else {
+                        while ( ghost_start != 0 && particles[ghost_start].cell_id != start_ghost_cell_id - 1) {
+                            --ghost_start;
+                        }
+                        if(ghost_start != 0){
+                            ++ghost_start;
+                        }
+                    }
+                }
+
+                if (end_cell_id != total_cell_num - 1) {
+                    end_ghost_cell_id = end_cell_id + cell_num_y * cell_num_z;
+                    if (end_ghost_cell_id + 1 >= total_cell_num) {
+                        ghost_end = particles.size() - 1;
+                    } else {
+                        while (ghost_end != size() && particles[ghost_end].cell_id != end_ghost_cell_id + 1) {
+                            ++ghost_end;
+                        }
+                        --ghost_end;
+                    }
+                }
+                partitions[p_id].start = start;
+                partitions[p_id].end = end;
+                partitions[p_id].ghost_start = ghost_start;
+                partitions[p_id].ghost_end = ghost_end;
+                partitions[p_id].start_cell_id = start_cell_id;
+                partitions[p_id].end_cell_id = end_cell_id;
+                partitions[p_id].start_ghost_cell_id = start_ghost_cell_id;
+                partitions[p_id].end_ghost_cell_id = end_ghost_cell_id;
+            }
 
 			/** Init variables for simulation
 			 */
