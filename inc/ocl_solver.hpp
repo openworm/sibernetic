@@ -87,7 +87,7 @@ namespace sibernetic {
 					model_ptr &m,
 					shared_ptr<device> d,
 					size_t idx,
-					LOGGING_MODE log_mode = LOGGING_MODE::FULL):
+					LOGGING_MODE log_mode = LOGGING_MODE::NO):
 				model(m),
 				dev(std::move(d)),
 				device_index(idx),
@@ -99,7 +99,7 @@ namespace sibernetic {
 					throw;
 				}
 			}
-            std::shared_ptr<device> get_device(){
+            std::shared_ptr<device> get_device() override {
                 return this->dev;
 			}
 			// TODO rename method!!!
@@ -162,14 +162,14 @@ namespace sibernetic {
 				int iter = 0;
 				run_compute_density();
 				run_compute_forces_init_pressure();
-//				while(iter < sibernetic::model::PCI_ITER_COUNT) {
-//					run_predict_positions();
-//					run_predict_density();
-//					run_correct_pressure();
-//					run_compute_pressure_force_acceleration();
-//					++iter;
-//				}
-//				run_integrate();
+				while(iter < sibernetic::model::PCI_ITER_COUNT) {
+					run_predict_positions();
+					run_predict_density();
+					run_correct_pressure();
+					run_compute_pressure_force_acceleration();
+					++iter;
+				}
+				run_integrate();
 			}
 
 			void sync() override {
@@ -186,46 +186,23 @@ namespace sibernetic {
 				}
 
 				init_buffers();
-
-
-				/*BOTTOM IS IMPROVED VERSION*/
-				/*if(p.ghost_start == 0){
-					copy_buffer_to_device(
-							(void *) &(model->get_particles()[p.end]),
-				            b_particles,
-							p.end * sizeof(particle<T>),
-							(p.ghost_end - p.end) * sizeof(particle<T>));
-				} else if(p.ghost_end == model->size() - 1){
-					copy_buffer_to_device(
-							(void *) &(model->get_particles()[p.ghost_start]),
-							b_particles,
-							0,
-							(p.start - p.ghost_start) * sizeof(particle<T>));
-				} else {
-					copy_buffer_to_device(
-							(void *) &(model->get_particles()[p.end]),
-							b_particles,
-							p.end * sizeof(particle<T>),
-							(p.ghost_end - p.end) * sizeof(particle<T>));
-					copy_buffer_to_device(
-							(void *) &(model->get_particles()[p.ghost_start]),
-							b_particles,
-							0,
-							(p.start - p.ghost_start) * sizeof(particle<T>));
-				}*/
 			}
 
 		void run() override {
 			int i = 0;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
 			while(true) {
-				neighbour_search();
-				if(i == 2000) {
+				if(i == 690) {
 					//_debug_();
-					break;
+					//break;
+					std::cout << "??????????????" << std::endl;
 				}
+				neighbour_search();
 				physic();
 				++i;
 			}
+#pragma clang diagnostic pop
 		}
 		void unfreeze() override {
 			is_synchronizing = false;
@@ -365,7 +342,7 @@ namespace sibernetic {
 				int err = queue.enqueueWriteBuffer(ocl_b, CL_TRUE, offset, size, host_b);
 				if (err != CL_SUCCESS) {
 					std::string error_m =
-							make_msg("Copy buffer to device is faqiled error code is ", err);
+							make_msg("Copy buffer to device is failed error code is ", err);
 					throw ocl_error(error_m);
 				}
 				queue.finish();

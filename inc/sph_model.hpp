@@ -294,46 +294,8 @@ namespace sibernetic {
 			std::vector<partition> partitions;
 
 			void push_partition(size_t start, size_t end) {
-				auto start_cell_id = particles[start].cell_id;
-				auto end_cell_id = particles[end].cell_id;
-				auto ghost_end = end;
-				auto ghost_start = start;
-				size_t start_ghost_cell_id = 0, end_ghost_cell_id = end_cell_id;
-				if (start_cell_id != 0) {
-					start_ghost_cell_id = start_cell_id - cell_num_y * cell_num_z;
-					if (start_ghost_cell_id < 1) {
-						ghost_start = 0;
-					} else {
-						while (ghost_start != 0 && particles[ghost_start].cell_id != start_ghost_cell_id - 1) {
-							--ghost_start;
-						}
-						if(ghost_start != 0) {
-                            ++ghost_start;
-                        }
-					}
-				}
-
-				if (end_cell_id != total_cell_num - 1) {
-					end_ghost_cell_id = end_cell_id + cell_num_y * cell_num_z;
-					if (end_ghost_cell_id + 1 >= total_cell_num) {
-						ghost_end = particles.size() - 1;
-					} else {
-						while (ghost_end != size() && particles[ghost_end].cell_id != end_ghost_cell_id + 1) {
-							++ghost_end;
-						}
-						--ghost_end;
-					}
-				}
-				partitions.push_back(partition{
-						start,
-						end,
-						ghost_start,
-						ghost_end,
-						start_cell_id,
-						end_cell_id,
-						start_ghost_cell_id,
-						end_ghost_cell_id
-				});
+				auto p = prepare_partition(start, end);
+				partitions.push_back(p);
 			}
 
             void update_partition_distrib() {
@@ -380,6 +342,18 @@ namespace sibernetic {
             }
 
             void update_partition(size_t start, size_t end, size_t p_id) {
+                auto p = prepare_partition(start, end);
+                partitions[p_id].start = p.start;
+                partitions[p_id].end = p.end;
+                partitions[p_id].ghost_start = p.ghost_start;
+                partitions[p_id].ghost_end = p.ghost_end;
+                partitions[p_id].start_cell_id = p.start_cell_id;
+                partitions[p_id].end_cell_id = p.end_cell_id;
+                partitions[p_id].start_ghost_cell_id = p.start_ghost_cell_id;
+                partitions[p_id].end_ghost_cell_id = p.end_ghost_cell_id;
+            }
+
+            partition prepare_partition(size_t start, size_t end) {
                 auto start_cell_id = particles[start].cell_id;
                 auto end_cell_id = particles[end].cell_id;
                 auto ghost_end = end;
@@ -390,11 +364,15 @@ namespace sibernetic {
                     if (start_ghost_cell_id < 1) {
                         ghost_start = 0;
                     } else {
-                        while ( ghost_start != 0 && particles[ghost_start].cell_id != start_ghost_cell_id - 1) {
-                            --ghost_start;
+                        while ( particles[ghost_start].cell_id > start_ghost_cell_id - 1) {
+                            if(ghost_start > 0) {
+                                --ghost_start;
+                            } else {
+                                break;
+                            }
                         }
-                        if(ghost_start != 0){
-                            ++ghost_start;
+                        if(ghost_start != 0) {
+                            ghost_start++;
                         }
                     }
                 }
@@ -404,21 +382,30 @@ namespace sibernetic {
                     if (end_ghost_cell_id + 1 >= total_cell_num) {
                         ghost_end = particles.size() - 1;
                     } else {
-                        while (ghost_end != size() && particles[ghost_end].cell_id != end_ghost_cell_id + 1) {
-                            ++ghost_end;
+                        while (particles[ghost_end].cell_id < end_ghost_cell_id + 1) {
+                            if(ghost_end < size() - 1) {
+                                ++ghost_end;
+                            } else {
+                                break;
+                            }
                         }
-                        --ghost_end;
+                        if(ghost_end != size() - 1) {
+                            --ghost_end;
+                        }
                     }
                 }
-                partitions[p_id].start = start;
-                partitions[p_id].end = end;
-                partitions[p_id].ghost_start = ghost_start;
-                partitions[p_id].ghost_end = ghost_end;
-                partitions[p_id].start_cell_id = start_cell_id;
-                partitions[p_id].end_cell_id = end_cell_id;
-                partitions[p_id].start_ghost_cell_id = start_ghost_cell_id;
-                partitions[p_id].end_ghost_cell_id = end_ghost_cell_id;
-            }
+
+                return partition{
+                    start,
+                    end,
+                    ghost_start,
+                    ghost_end,
+                    start_cell_id,
+                    end_cell_id,
+                    start_ghost_cell_id,
+                    end_ghost_cell_id
+                };
+			}
 
 			/** Init variables for simulation
 			 */
