@@ -854,7 +854,7 @@ void computeInteractionWithBoundaryParticles(
 				x_ib_dist += ((*pos_).z - particles[id_b].pos.z) * ((*pos_).z - particles[id_b].pos.z);
 				x_ib_dist = SQRT(x_ib_dist);
 				w_c_ib = max(0.f,(r0-x_ib_dist)/r0);			//Ihmsen et. al., 2010, page 4, formula (10)
-				n_b = particles[id_b].vel;			//ATTENTION! for boundary, non-moving particles velocity has no sense, but instead we need to store normal vector. We keep it in velocity data structure for memory economy.
+				n_b = particles[id_b].vel;			            //ATTENTION! for boundary, non-moving particles velocity has no sense, but instead we need to store normal vector. We keep it in velocity data structure for memory economy.
 				n_c_i += n_b * w_c_ib;							//Ihmsen et. al., 2010, page 4, formula (9)
 				w_c_ib_sum += w_c_ib;							//Ihmsen et. al., 2010, page 4, formula (11), sum #1
 				w_c_ib_second_sum += w_c_ib * (r0 - x_ib_dist); //Ihmsen et. al., 2010, page 4, formula (11), sum #2
@@ -870,7 +870,7 @@ void computeInteractionWithBoundaryParticles(
 		(*pos_).x += delta_pos.x;								//
 		(*pos_).y += delta_pos.y;								// Ihmsen et. al., 2010, page 4, formula (11)
 		(*pos_).z += delta_pos.z;								//
-		if(tangVel){// tangential component of velocity
+		if(tangVel){                                            // tangential component of velocity
 			float eps = 0.99f; //eps should be <= 1.0			// controls the friction of the collision
 			float vel_n_len = n_c_i.x * (*vel).x + n_c_i.y * (*vel).y + n_c_i.z * (*vel).z;
 			if(vel_n_len < 0){
@@ -915,7 +915,7 @@ __kernel void k_predict_positions(
     float posTimeStep = timeStep * simulationScaleInv;
     float4 position_t_dt = position_t + posTimeStep * velocity_t_dt;  //newPosition_.w = 0.f;
 //    //sortedVelocity[id] = newVelocity_;// sorted position, as well as velocity,
-    computeInteractionWithBoundaryParticles(real_id, r0, ext_particles, particles, &position_t_dt, false, &velocity_t_dt);
+    computeInteractionWithBoundaryParticles(real_id, r0, ext_particles, particles, &position_t_dt, true, &velocity_t_dt);
     particles[real_id].pos_n_1 = position_t_dt;// in current version sortedPosition array has double size,
 //    // PARTICLE_COUNT*2, to store both x(t) and x*(t+1)
 }
@@ -1121,14 +1121,33 @@ __kernel void k_integrate(
 		float4 position_t_dt = position_t + velocity_t_dt * time_step * simulation_scale_inv;		//
 
 
-	    computeInteractionWithBoundaryParticles(id_source_particle, r0, ext_particles, particles, &position_t_dt, false, &velocity_t_dt);
+	    computeInteractionWithBoundaryParticles(id_source_particle, r0, ext_particles, particles, &position_t_dt, true, &velocity_t_dt);
 
-		particles[ id_source_particle ].vel = velocity_t_dt;
-	    particles[ id_source_particle ].pos = position_t_dt;
 		//velocity[ id_source_particle ] = (float4)((float)velocity_t_dt_x, (float)velocity_t_dt_y, (float)velocity_t_dt_z, 0.f);
 		//position[ id_source_particle ] = (float4)((float)position_t_dt_x, (float)position_t_dt_y, (float)position_t_dt_z, particleType);
 
 	    //particles[id_source_particle].acceleration_n_0_5 = acceleration_t_dt;
+
+//	    if(particles[ id_source_particle ].pos.x <= 0 || particles[ id_source_particle ].pos.y <= 0 || particles[ id_source_particle ].pos.z <= 0 ){
+//            printf("\n===[ BAD ASS %f %f %f]===", particles[ id_source_particle ].pos.x, particles[ id_source_particle ].pos.y, particles[ id_source_particle ].pos.z);
+//
+//            printf("\n===[ BAD ASS %f %f %f]===", particles[ id_source_particle ].vel.x, particles[ id_source_particle ].vel.y, particles[ id_source_particle ].vel.z);
+//	    }
+//
+//	    if(position_t_dt.x > 0){
+//            particles[ id_source_particle ].pos.x = position_t_dt.x;
+//	    }
+//
+//        if(position_t_dt.y > 0){
+//            particles[ id_source_particle ].pos.y = position_t_dt.y;
+//        }
+//
+//        if(position_t_dt.z > 0){
+//            particles[ id_source_particle ].pos.z = position_t_dt.z;
+//        }
+
+        particles[ id_source_particle ].vel = velocity_t_dt;
+        particles[ id_source_particle ].pos = position_t_dt;
 		return;
 	}
 	/**///	float4 velocity_t_dt = velocity_t + (acceleration_t_dt)*time_step;						//

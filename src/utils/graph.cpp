@@ -263,14 +263,22 @@ void graph::draw_model() {
 			           (p.pos[2] - config->zmax / 2) * sc);
 			glEnd();
 		} else if(p.type == 3) {
-//			glBegin(GL_LINES);
-//			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
-//			           (p.pos[1] - config->ymax / 2) * sc,
-//			           (p.pos[2] - config->zmax / 2) * sc);
-//			glVertex3f((p.pos[0] + p.vel[0] - config->xmax / 2) * sc,
-//			           (p.pos[1] + p.vel[1] - config->ymax / 2) * sc,
-//			           (p.pos[2] + p.vel[2] - config->zmax / 2) * sc);
-//			glEnd();
+            glBegin(GL_POINTS);
+            //glPointSize(1.3f * static_cast<float>(sqrt(sc / 0.025)));
+            glPointSize(4.f);
+            //glColor4f(0, 0, 0, 1.0f); // color of elastic particles
+            glVertex3f((p.pos[0] - config->xmax / 2) * sc,
+                       (p.pos[1] - config->ymax / 2) * sc,
+                       (p.pos[2] - config->zmax / 2) * sc);
+            glEnd();
+			glBegin(GL_LINES);
+			glVertex3f((p.pos[0] - config->xmax / 2) * sc,
+			           (p.pos[1] - config->ymax / 2) * sc,
+			           (p.pos[2] - config->zmax / 2) * sc);
+			glVertex3f((p.pos[0] + p.vel[0] - config->xmax / 2) * sc,
+			           (p.pos[1] + p.vel[1] - config->ymax / 2) * sc,
+			           (p.pos[2] + p.vel[2] - config->zmax / 2) * sc);
+			glEnd();
 		}
 	}
 }
