@@ -99,7 +99,7 @@ def gen_model(x_dim, y_dim, z_dim, file_name="tmp"):
 
     #draw_bounds(out, x_dim, y_dim, z_dim, h, r0)
     draw_bounds(out, x_dim, y_dim, z_dim, h, r0)
-    for x in gen(2 * r0, h * x_dim // 2 - 2 * r0, r0):
+    for x in gen(2 * r0, h * x_dim / 1.1 - 2 * r0, r0):
         for y in gen(2 * r0, h * y_dim - 2 * r0, r0):
             for z in gen(2 * r0, h * z_dim - 2 * r0, r0):
                 out["model"].append(make_particle(pos=[x, y, z, 1.0], type=ParticleType.LIQUID, mass=MASS))
@@ -322,7 +322,7 @@ def main():
     #gen_model(12, 6, 12)
     #gen_model(48, 12, 24)
 
-    gen_model(96, 24, 48)
+    gen_model(192, 48, 48)
     #gen_model(96, 48, 96)
     #gen_model(192, 48, 192)
     #gen_model(6, 6, 6)
