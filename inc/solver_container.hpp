@@ -4,6 +4,7 @@
 #include "isolver.h"
 #include "ocl_const.h"
 #include "ocl_solver.hpp"
+#include "isort_solver.h"
 #include "sph_model.hpp"
 #include "util/ocl_helper.h"
 #include "util/error.h"
@@ -17,6 +18,7 @@ namespace sibernetic {
 		using model::sph_model;
 		using std::shared_ptr;
 		using sibernetic::solver::ocl_solver;
+        using sibernetic::solver::i_sort_solver;
 		enum EXECUTION_MODE {
 			ONE,
 			ALL
@@ -131,6 +133,7 @@ namespace sibernetic {
 			~solver_container() = default;
             std::vector<float> weights;
 			std::vector<std::shared_ptr<i_solver>> _solvers;
+            std::shared_ptr<i_sort_solver> sort_solver;
 		};
 	} // namespace solver
 } // namespace sibernetic

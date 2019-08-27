@@ -30,8 +30,8 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
-#ifndef ISOLVER_H
-#define ISOLVER_H
+#ifndef ISORT_SOLVER_H
+#define ISORT_SOLVER_H
 #include "partition.h"
 #include "ocl_struct.h"
 #include "device.h"
@@ -43,7 +43,6 @@ namespace solver {
 using sibernetic::model::partition;
 class i_sort_solver {
 public:
-  virtual void sync() = 0;
   virtual ~i_sort_solver() = default;;
   virtual void sort() = 0;
   virtual std::shared_ptr<device> get_device() = 0; // TODO extract device interface later

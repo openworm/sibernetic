@@ -103,14 +103,26 @@ typedef struct particle{
 
 /** Just for test
 */
-__kernel void k_sort(__global struct particle	* particles, int step){
+__kernel void k_sort(
+        __global struct particle* particles,
+        __global int * index_array,
+        int step,
+        int total_size
+){
 	int id = get_global_id(0);
-#ifdef PRINTF_ON
-	if(id == 0){
-		printf("sizeof() of particles_f is %d\n", sizeof(particle) );
+    if(id > total_size) {
+        return;
+    }
+}
+
+__kernel void k_fill_index_array(
+        __global int * index_array,
+        int total_size
+){
+    int id = get_global_id(0);
+    if(id >= total_size){
+        return;
 	}
-	if(id == 0 && particles[0].pos.x == 1.67 && particles[0].pos.y == 1.67 && particles[0].pos.z == 1.67 ){
-		printf("\nTEST PASSED.\n");
-	}
-#endif
+
+	index_array[id] = id;
 }

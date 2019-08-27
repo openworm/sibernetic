@@ -103,47 +103,47 @@ namespace sibernetic {
                 return this->dev;
 			}
 			// TODO rename method!!!
-			void init_model() override {
+			void init_model() {
 				init_buffers();
 				init_kernels();
 			}
 
-			~ocl_solver() override = default;
+			~ocl_sort_solver() override = default;
 			void _debug_(){
-				std::vector<extend_particle> neighbour_map(p->size());
-				copy_buffer_from_device(&(neighbour_map[0]), b_ext_particles, p->size() * sizeof(extend_particle), 0);
-				copy_buffer_from_device(&(model->get_particles()[0]), b_particles, p->size() * sizeof(particle<T>), 0);
-				std::string big_s = "[";
-				for(auto p: neighbour_map){
-
-					big_s += "{\"particle\": ";
-					big_s += model->get_particle(p.p_id).jsonify();
-					big_s += ",";
-//					big_s += "\"particle_id\": ";
-//					big_s += std::to_string(p.p_id);
+//				std::vector<extend_particle> neighbour_map(p->size());
+//				copy_buffer_from_device(&(neighbour_map[0]), b_ext_particles, p->size() * sizeof(extend_particle), 0);
+//				copy_buffer_from_device(&(model->get_particles()[0]), b_particles, p->size() * sizeof(particle<T>), 0);
+//				std::string big_s = "[";
+//				for(auto p: neighbour_map){
+//
+//					big_s += "{\"particle\": ";
+//					big_s += model->get_particle(p.p_id).jsonify();
 //					big_s += ",";
-					big_s += "\"n_list\":[";
-					for(int i=0;i<NEIGHBOUR_COUNT;++i) {
-						big_s += "{";
-						big_s += "\"n_particle_id\": ";
-						big_s += std::to_string(p.neighbour_list[i][0]);
-						big_s += ",";
-						big_s += "\"distance\": ";
-						big_s += std::to_string(p.neighbour_list[i][1]);
-						big_s += "}";
-						if(i != NEIGHBOUR_COUNT - 1)
-							big_s += ",";
-					}
-					big_s += "]";
-					big_s += "}";
-					//break;
-					if(p.p_id != neighbour_map.back().p_id)
-						big_s += ",";
-				}
-				big_s += "]";
-				std::ofstream debug_file("debug");
-				debug_file << big_s;
-				debug_file.close();
+////					big_s += "\"particle_id\": ";
+////					big_s += std::to_string(p.p_id);
+////					big_s += ",";
+//					big_s += "\"n_list\":[";
+//					for(int i=0;i<NEIGHBOUR_COUNT;++i) {
+//						big_s += "{";
+//						big_s += "\"n_particle_id\": ";
+//						big_s += std::to_string(p.neighbour_list[i][0]);
+//						big_s += ",";
+//						big_s += "\"distance\": ";
+//						big_s += std::to_string(p.neighbour_list[i][1]);
+//						big_s += "}";
+//						if(i != NEIGHBOUR_COUNT - 1)
+//							big_s += ",";
+//					}
+//					big_s += "]";
+//					big_s += "}";
+//					//break;
+//					if(p.p_id != neighbour_map.back().p_id)
+//						big_s += ",";
+//				}
+//				big_s += "]";
+//				std::ofstream debug_file("debug");
+//				debug_file << big_s;
+//				debug_file.close();
 			}
 
 			void sort() override {
@@ -153,6 +153,7 @@ namespace sibernetic {
 		private:
 			model_ptr model;
 			size_t device_index;
+            shared_ptr<device> dev;
 			std::string msg = dev->name + '\n';
 			const std::string cl_program_file = "cl_code//cl_sort.cl";
 			LOGGING_MODE log_mode;
@@ -166,9 +167,9 @@ namespace sibernetic {
 
 			void init_buffers() {
 				create_ocl_buffer("particles", b_particles, CL_MEM_READ_WRITE,
-				                  p->total_size() * sizeof(particle<T>));
+                                  model->size() * sizeof(particle<T>));
 				create_ocl_buffer("index_array", b_index_array, CL_MEM_READ_WRITE,
-				                  p->total_size() * sizeof(int));
+				                  model->size() * sizeof(int));
 			}
 
 			void init_kernels() {
@@ -270,27 +271,27 @@ namespace sibernetic {
 
 			int run_init_index_array() {
 				if(log_mode == LOGGING_MODE::FULL)
-					std::cout << "run init_ext_particles --> " << dev->name << std::endl;
+					std::cout << "run init index buffer --> " << dev->name << std::endl;
 				this->kernel_runner(
 						this->k_fill_index_array,
-						p->total_size(),
+                        model->size(),
 						0,
 						this->b_index_array,
-						p->total_size()
+                        model->size()
 				);
 			}
 
 			int run_sort() {
-				for(int step = 2; step < m->size() / 2; step<<=1){
-					if(log_mode == LOGGING_MODE::FULL)
-						std::cout << "run init_ext_particles --> " << dev->name << std::endl;
+                if(log_mode == LOGGING_MODE::FULL)
+                    std::cout << "run run sort --> " << dev->name << std::endl;
+				for(int step = 2; step < model->size() / 2; step<<=1){
 					this->kernel_runner(
 							this->k_sort,
-							m->size(),
+                            model->size(),
 							0,
 							this->b_particles,
 							this->b_index_array,
-							m->size(),
+                            model->size(),
 							step
 					);
 				}
