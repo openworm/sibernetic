@@ -15,7 +15,10 @@ BINARY_DIR = $(BUILD_DIR)/obj
 OCL_INC  = -I/usr/local/cuda/include/
 OCL_LIB  = -L/usr/lib64/OpenCL/vendors/amd/
 
-LIBS := -lOpenCL
+OCL_INC = -I/opt/intel/opencl/SDK/include
+OCL_LIB  = -lOpenCL
+
+LIBS := -lOpenCL -lGL -lGL -lglut
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S), Darwin)
 	LIBS := -framework OpenCL
