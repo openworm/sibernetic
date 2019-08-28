@@ -5,8 +5,8 @@ project(sibernetic)
 set(CMAKE_CXX_STANDARD 14)
 
 
-#include_directories(/usr/local/cuda/include/)
-include_directories(/opt/intel/opencl/SDK/include/)
+include_directories(/usr/local/cuda/include/)
+#include_directories(/opt/intel/opencl/SDK/include/)
 
 include_directories(inc)
 

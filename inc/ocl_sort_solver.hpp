@@ -103,40 +103,19 @@ namespace sibernetic {
 
 			~ocl_sort_solver() override = default;
 			void _debug_(){
-//				std::vector<extend_particle> neighbour_map(p->size());
-//				copy_buffer_from_device(&(neighbour_map[0]), b_ext_particles, p->size() * sizeof(extend_particle), 0);
-//				copy_buffer_from_device(&(model->get_particles()[0]), b_particles, p->size() * sizeof(particle<T>), 0);
-//				std::string big_s = "[";
-//				for(auto p: neighbour_map){
-//
-//					big_s += "{\"particle\": ";
-//					big_s += model->get_particle(p.p_id).jsonify();
-//					big_s += ",";
-////					big_s += "\"particle_id\": ";
-////					big_s += std::to_string(p.p_id);
-////					big_s += ",";
-//					big_s += "\"n_list\":[";
-//					for(int i=0;i<NEIGHBOUR_COUNT;++i) {
-//						big_s += "{";
-//						big_s += "\"n_particle_id\": ";
-//						big_s += std::to_string(p.neighbour_list[i][0]);
-//						big_s += ",";
-//						big_s += "\"distance\": ";
-//						big_s += std::to_string(p.neighbour_list[i][1]);
-//						big_s += "}";
-//						if(i != NEIGHBOUR_COUNT - 1)
-//							big_s += ",";
-//					}
-//					big_s += "]";
-//					big_s += "}";
-//					//break;
-//					if(p.p_id != neighbour_map.back().p_id)
-//						big_s += ",";
-//				}
-//				big_s += "]";
-//				std::ofstream debug_file("debug");
-//				debug_file << big_s;
-//				debug_file.close();
+				copy_buffer_from_device(&(model->get_particles()[0]), b_particles, model->size() * sizeof(particle<T>), 0);
+				std::string big_s = "[";
+				for(auto p: model->get_particles()){
+
+					big_s += "{\"particle\": ";
+					big_s += p.jsonify();
+					big_s += "}";
+					//break;
+				}
+				big_s += "]";
+				std::ofstream debug_file("debug");
+				debug_file << big_s;
+				debug_file.close();
 			}
 
 			void sort() override {
@@ -314,6 +293,16 @@ namespace sibernetic {
                         need_swap = true;
 				    }
 				}
+				std::vector<int> v(model->size());
+				if(need_swap){
+				    copy_buffer_from_device(&(v[0]), b_swap_index_array, model->size() * sizeof(int), 0);
+				} else {
+                    copy_buffer_from_device(&(v[0]), b_index_array, model->size() * sizeof(int), 0);
+				}
+				std::cout << "HELLO" << std::endl;
+//				for(int i =0;i<v.size();++i){
+//				    auto tmp = model->get_particles()[]
+//				}
 			}
 			template<typename U, typename... Args>
 			int kernel_runner(
