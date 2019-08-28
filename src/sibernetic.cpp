@@ -82,13 +82,14 @@ int main(int argc, char **argv) {
     graph::config = config;
     graph::model = model;
     solver_container<float> &s_con = solver_container<float>::instance(model, mode, dev_count);
-    if(ui_mode == UI_MODE::OGL) {
-      std::thread graph_thread(graph::run, argc, argv);
-      s_con.run();
-      graph_thread.join();
-    } else {
-      s_con.run();
-    }
+    model->get_sort_solver()->sort();
+//    if(ui_mode == UI_MODE::OGL) {
+//      std::thread graph_thread(graph::run, argc, argv);
+//      s_con.run();
+//      graph_thread.join();
+//    } else {
+//      s_con.run();
+//    }
   } catch (sibernetic::parser_error &e) {
     std::cout << e.what() << std::endl;
     return EXIT_FAILURE;

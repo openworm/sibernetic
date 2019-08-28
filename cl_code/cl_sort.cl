@@ -106,6 +106,7 @@ typedef struct particle{
 __kernel void k_sort(
         __global struct particle* particles,
         __global int * index_array,
+        __global int * result_index_array,
         int step,
         int total_size
 ){
@@ -113,6 +114,8 @@ __kernel void k_sort(
     if(id > total_size) {
         return;
     }
+
+
 }
 
 __kernel void k_fill_index_array(
@@ -123,6 +126,5 @@ __kernel void k_fill_index_array(
     if(id >= total_size){
         return;
 	}
-
-	index_array[id] = id;
+    index_array[id] = id;
 }

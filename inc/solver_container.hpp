@@ -4,7 +4,7 @@
 #include "isolver.h"
 #include "ocl_const.h"
 #include "ocl_solver.hpp"
-#include "isort_solver.h"
+#include "ocl_sort_solver.hpp"
 #include "sph_model.hpp"
 #include "util/ocl_helper.h"
 #include "util/error.h"
@@ -18,7 +18,7 @@ namespace sibernetic {
 		using model::sph_model;
 		using std::shared_ptr;
 		using sibernetic::solver::ocl_solver;
-        using sibernetic::solver::i_sort_solver;
+        using sibernetic::solver::ocl_sort_solver;
 		enum EXECUTION_MODE {
 			ONE,
 			ALL
@@ -64,44 +64,51 @@ namespace sibernetic {
 				try {
 					p_q dev_q = get_dev_queue();
 					size_t device_index = 0;
-					while (!dev_q.empty()) {
-						try {
-							std::shared_ptr<ocl_solver<T>> solver(
-									new ocl_solver<T>(model, dev_q.top(), device_index));
-							_solvers.push_back(solver);
-							std::cout << "************* DEVICE *************" << std::endl;
-							dev_q.top()->show_info();
-							std::cout << "**********************************" << std::endl;
-							++device_index;
-							if(mode == EXECUTION_MODE::ONE){
-								break;
-							} else if(mode == EXECUTION_MODE::ALL){
-								if(dev_count > 0 && dev_count == device_index){
-									break;
-								}
-							}
-						} catch (ocl_error &ex) {
-							std::cout << ex.what() << std::endl;
-						}
-						dev_q.pop();
+//					while (!dev_q.empty()) {
+//						try {
+//							std::shared_ptr<ocl_solver<T>> solver(
+//									new ocl_solver<T>(model, dev_q.top(), device_index));
+//							_solvers.push_back(solver);
+//							std::cout << "************* DEVICE *************" << std::endl;
+//							dev_q.top()->show_info();
+//							std::cout << "**********************************" << std::endl;
+//							++device_index;
+//							if(mode == EXECUTION_MODE::ONE){
+//								break;
+//							} else if(mode == EXECUTION_MODE::ALL){
+//								if(dev_count > 0 && dev_count == device_index){
+//								    break;
+//								}
+//							}
+//						} catch (ocl_error &ex) {
+//							std::cout << ex.what() << std::endl;
+//						}
+//						dev_q.pop();
+//					}
+
+					if(!dev_q.empty()) {
+					    std::shared_ptr<ocl_sort_solver<T>> sort_solver(
+					            new ocl_sort_solver<T>(model, dev_q.top(), device_index+1));
+					    sort_solver->init_model();
+					    model->set_sort_solver(sort_solver);
 					}
 
-					if (_solvers.size()) {
-                        init_weights();
-                        model->set_balance_vector(this->weights);
-						model->make_partition(_solvers.size()); // TODO to think about is in future we
-                        //model->make_partition(_solvers.size(), std::vector<float>{0.5, 0.4, 0.1});
-						// can't init one or more
-						// devices
-						// obvious we should reinit partitions case ...
-						int i=0;
-						for (auto s : _solvers) {
-						    s->get_device()->balance_coeff = weights[i++];
-							s->init_model(&(model->get_next_partition()));
-						}
-					} else {
-						throw ocl_error("No OpenCL devices were initialized.");
-					}
+//					if (_solvers.size()) {
+//                        init_weights();
+//                        model->set_balance_vector(this->weights);
+//						model->make_partition(_solvers.size()); // TODO to think about is in future we
+//                        //model->make_partition(_solvers.size(), std::vector<float>{0.5, 0.4, 0.1});
+//						// can't init one or more
+//						// devices
+//						// obvious we should reinit partitions case ...
+//						int i=0;
+//						for (auto s : _solvers) {
+//						    s->get_device()->balance_coeff = weights[i++];
+//							s->init_model(&(model->get_next_partition()));
+//						}
+//					} else {
+//						throw ocl_error("No OpenCL devices were initialized.");
+//					}
 				} catch (sibernetic::ocl_error &err) {
 					throw;
 				}

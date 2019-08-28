@@ -32,8 +32,8 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
-#ifndef OCLSOLVER_HPP
-#define OCLSOLVER_HPP
+#ifndef OCL_SORT_SOLVER_HPP
+#define OCL_SORT_SOLVER_HPP
 
 #if defined(_WIN32) || defined(_WIN64)
 #pragma comment(lib, "opencl.lib") // opencl.lib
@@ -69,14 +69,8 @@ namespace sibernetic {
 		using sibernetic::model::partition;
 		using sibernetic::model::sph_model;
 		using sibernetic::ocl_error;
-		enum LOGGING_MODE {
-			FULL,
-			NO
-		};
 // OCL constans block
 #define QUEUE_EACH_KERNEL 1
-
-		const int LOCAL_NDRANGE_SIZE = 256;
 
 		template<class T = float>
 		class ocl_sort_solver : public i_sort_solver {
@@ -161,7 +155,8 @@ namespace sibernetic {
 			cl::Kernel k_fill_index_array;
 			
 			cl::Buffer b_particles;
-			cl::Buffer b_index_array;
+            cl::Buffer b_index_array;
+            cl::Buffer b_swap_index_array;
 			cl::CommandQueue queue;
 			cl::Program program;
 
@@ -170,6 +165,8 @@ namespace sibernetic {
                                   model->size() * sizeof(particle<T>));
 				create_ocl_buffer("index_array", b_index_array, CL_MEM_READ_WRITE,
 				                  model->size() * sizeof(int));
+                create_ocl_buffer("swap_index_array", b_swap_index_array, CL_MEM_READ_WRITE,
+                                  model->size() * sizeof(int));
 			}
 
 			void init_kernels() {
@@ -277,6 +274,7 @@ namespace sibernetic {
                         model->size(),
 						0,
 						this->b_index_array,
+                        this->b_swap_index_array,
                         model->size()
 				);
 			}
@@ -284,16 +282,33 @@ namespace sibernetic {
 			int run_sort() {
                 if(log_mode == LOGGING_MODE::FULL)
                     std::cout << "run run sort --> " << dev->name << std::endl;
+                bool need_swap = false;
 				for(int step = 2; step < model->size() / 2; step<<=1){
-					this->kernel_runner(
-							this->k_sort,
-                            model->size(),
-							0,
-							this->b_particles,
-							this->b_index_array,
-                            model->size(),
-							step
-					);
+				    if(need_swap) {
+                        this->kernel_runner(
+                                this->k_sort,
+                                model->size() / step,
+                                0,
+                                this->b_particles,
+                                this->b_swap_index_array,
+                                this->b_index_array,
+                                model->size(),
+                                step
+                        );
+                        need_swap = false;
+                    } else {
+                        this->kernel_runner(
+                                this->k_sort,
+                                model->size() / step,
+                                0,
+                                this->b_particles,
+                                this->b_index_array,
+                                this->b_swap_index_array,
+                                model->size(),
+                                step
+                        );
+                        need_swap = true;
+				    }
 				}
 			}
 			template<typename U, typename... Args>
@@ -331,4 +346,4 @@ namespace sibernetic {
 		};
 	} // namespace solver
 } // namespace sibernetic
-#endif // OCLSOLVER_HPP
+#endif // OCL_SORT_SOLVER_HPP

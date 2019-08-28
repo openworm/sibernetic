@@ -40,6 +40,7 @@
 #include "util/json_reader.hpp"
 #include "abstract_model.hpp"
 #include "isolver.h"
+#include "isort_solver.h"
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -261,6 +262,14 @@ namespace sibernetic {
 				return total_cell_num;
 			}
 
+            std::shared_ptr<sibernetic::solver::i_sort_solver> get_sort_solver() {
+                return sort_solver;
+            }
+
+            void set_sort_solver(std::shared_ptr<sibernetic::solver::i_sort_solver> new_solver) {
+                sort_solver = new_solver;
+            }
+
 			const std::vector<partition>& get_partition() {
 				return partitions;
 			}
@@ -272,6 +281,7 @@ namespace sibernetic {
 		    std::vector<float> balance_coeff;
 			abstract_reader<T> *serializer;
 			size_t next_partition;
+			std::shared_ptr<sibernetic::solver::i_sort_solver> sort_solver;
 			// vars block end
 			int cell_num_x;
 			int cell_num_y;
