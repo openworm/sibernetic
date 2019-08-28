@@ -107,21 +107,17 @@ __kernel void k_sort(
         __global struct particle* particles,
         __global int * index_array,
         __global int * result_index_array,
-        int step,
-        int total_size
+        uint total_size,
+        uint step
 ){
 	int id = get_global_id(0);
     if(id > total_size) {
         return;
     }
 
-
 }
 
-__kernel void k_fill_index_array(
-        __global int * index_array,
-        int total_size
-){
+__kernel void k_fill_index_array(__global int * index_array, uint total_size){
     int id = get_global_id(0);
     if(id >= total_size){
         return;

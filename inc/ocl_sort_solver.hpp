@@ -81,7 +81,7 @@ namespace sibernetic {
 					model_ptr &m,
 					shared_ptr<device> d,
 					size_t idx,
-					LOGGING_MODE log_mode = LOGGING_MODE::NO):
+					LOGGING_MODE log_mode = LOGGING_MODE::FULL):
 				model(m),
 				dev(std::move(d)),
 				device_index(idx),
@@ -98,7 +98,6 @@ namespace sibernetic {
 			}
 			// TODO rename method!!!
 			void init_model() {
-				init_buffers();
 				init_kernels();
 			}
 
@@ -141,7 +140,9 @@ namespace sibernetic {
 			}
 
 			void sort() override {
-				
+                init_buffers();
+				run_init_index_array();
+				run_sort();
 			}
 
 		private:
@@ -167,6 +168,9 @@ namespace sibernetic {
 				                  model->size() * sizeof(int));
                 create_ocl_buffer("swap_index_array", b_swap_index_array, CL_MEM_READ_WRITE,
                                   model->size() * sizeof(int));
+
+                copy_buffer_to_device((void *) &(model->get_particles()[0]),
+                                      b_particles, 0, model->size() * sizeof(particle<T>));
 			}
 
 			void init_kernels() {
@@ -274,8 +278,7 @@ namespace sibernetic {
                         model->size(),
 						0,
 						this->b_index_array,
-                        this->b_swap_index_array,
-                        model->size()
+                        static_cast<unsigned int>(model->size())
 				);
 			}
 
@@ -283,7 +286,7 @@ namespace sibernetic {
                 if(log_mode == LOGGING_MODE::FULL)
                     std::cout << "run run sort --> " << dev->name << std::endl;
                 bool need_swap = false;
-				for(int step = 2; step < model->size() / 2; step<<=1){
+				for(unsigned int step = 2; step < model->size() / 2; step<<=1){
 				    if(need_swap) {
                         this->kernel_runner(
                                 this->k_sort,
@@ -292,7 +295,7 @@ namespace sibernetic {
                                 this->b_particles,
                                 this->b_swap_index_array,
                                 this->b_index_array,
-                                model->size(),
+                                static_cast<unsigned int>(model->size()),
                                 step
                         );
                         need_swap = false;
@@ -304,7 +307,7 @@ namespace sibernetic {
                                 this->b_particles,
                                 this->b_index_array,
                                 this->b_swap_index_array,
-                                model->size(),
+                                static_cast<unsigned int>(model->size()),
                                 step
                         );
                         need_swap = true;
@@ -332,7 +335,7 @@ namespace sibernetic {
 #if defined(__APPLE__)
 						cl::NullRange, nullptr, nullptr);
 #else
-						cl::NDRange(this->dev->global_work_group_size), nullptr, nullptr);
+						cl::NDRange(lk), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
 				queue.finish();
