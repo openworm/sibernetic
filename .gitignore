@@ -42,3 +42,5 @@ Debug/*
 .idea/*
 bin/*
 cmake-build-debug/*
+*/bin/*
+*/*tmp*

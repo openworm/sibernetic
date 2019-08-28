@@ -286,11 +286,12 @@ namespace sibernetic {
                 if(log_mode == LOGGING_MODE::FULL)
                     std::cout << "run run sort --> " << dev->name << std::endl;
                 bool need_swap = false;
-				for(unsigned int step = 2; step < model->size() / 2; step<<=1){
+				for(unsigned int step = 2; step <= model->size() / 2; step<<=1){
+                    auto _count = (model->size() / step == 0) ? model->size() / step : model->size() / step + 1;
 				    if(need_swap) {
                         this->kernel_runner(
                                 this->k_sort,
-                                model->size() / step,
+                                _count,
                                 0,
                                 this->b_particles,
                                 this->b_swap_index_array,
@@ -302,7 +303,7 @@ namespace sibernetic {
                     } else {
                         this->kernel_runner(
                                 this->k_sort,
-                                model->size() / step,
+                                _count,
                                 0,
                                 this->b_particles,
                                 this->b_index_array,
