@@ -266,7 +266,7 @@ namespace sibernetic {
                     std::cout << "run run sort --> " << dev->name << std::endl;
                 bool need_swap = false;
 				for(unsigned int step = 2; step < model->size(); step<<=1){
-                    auto _count = (model->size() / step == 0) ? model->size() / step : model->size() / step + 1;
+                    auto _count = (model->size() % step == 0) ? model->size() / step : model->size() / step + 1;
 				    if(need_swap) {
                         this->kernel_runner(
                                 this->k_sort,
@@ -276,7 +276,8 @@ namespace sibernetic {
                                 this->b_swap_index_array,
                                 this->b_index_array,
                                 static_cast<unsigned int>(model->size()),
-                                step
+                                step,
+                                static_cast<unsigned int>(_count)
                         );
                         need_swap = false;
                     } else {
@@ -288,7 +289,8 @@ namespace sibernetic {
                                 this->b_index_array,
                                 this->b_swap_index_array,
                                 static_cast<unsigned int>(model->size()),
-                                step
+                                step,
+                                static_cast<unsigned int>(_count)
                         );
                         need_swap = true;
 				    }

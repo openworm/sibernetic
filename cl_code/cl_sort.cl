@@ -108,10 +108,11 @@ __kernel void k_sort(
         __global int * index_array,
         __global int * result_index_array,
         uint total_size,
-        uint step
+        uint step,
+        uint block_count
 ){
 	int id = get_global_id(0);
-    if(id > total_size) {
+    if(id >= block_count) {
         return;
     }
     int start = id * step;
@@ -119,7 +120,7 @@ __kernel void k_sort(
     if(end > total_size ) {
         end = total_size;
     }
-    if (end - 1 - start == 1){
+    if (end - start == 1){
         result_index_array[end - 1] = index_array[end - 1];
         return;
     }
@@ -133,12 +134,12 @@ __kernel void k_sort(
     bool copy_from_left = false, copy_from_right = false;
     int idx = start;
     while(1){
-        if(particles[i].cell_id > particles[j].cell_id ){
+        if(particles[i].cell_id >= particles[j].cell_id ){
             result_index_array[idx++] = index_array[j++];
         } else {
             result_index_array[idx++] = index_array[i++];
         }
-        if(i >= first_sub_array_end) {
+        if(i > first_sub_array_end) {
             copy_from_right = true;
             break;
         }else if(j >= second_sub_array_end){
