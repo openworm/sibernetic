@@ -124,17 +124,29 @@ __kernel void k_sort(
         result_index_array[end - 1] = index_array[end - 1];
         return;
     }
-    int mid = (end - start) >> 1;
-    int first_sub_array_start = start;
-    int second_sub_array_start = mid + 1;
+    int mid = start + ((end - start) >> 1);
+    int len = end - start;
 
+    int first_sub_array_start = start;
     int first_sub_array_end = mid;
+
+    int second_sub_array_start = mid + 1;
     int second_sub_array_end = end;
+
+    if(len % 2 == 0) {
+        first_sub_array_end = mid - 1;
+        second_sub_array_start = mid;
+    } else {
+        first_sub_array_end = mid - 1;
+        second_sub_array_start = mid + 1;
+        result_index_array[mid] = index_array[mid];
+    }
+
     int i=first_sub_array_start, j=second_sub_array_start;
     bool copy_from_left = false, copy_from_right = false;
     int idx = start;
     while(1){
-        if(particles[i].cell_id >= particles[j].cell_id ){
+        if(particles[i].cell_id > particles[j].cell_id ){
             result_index_array[idx++] = index_array[j++];
         } else {
             result_index_array[idx++] = index_array[i++];
@@ -152,7 +164,7 @@ __kernel void k_sort(
             result_index_array[idx++] = index_array[j++];
         }
     } else if(copy_from_right) {
-        while(i <= first_sub_array_end){
+        while(i < first_sub_array_end){
             result_index_array[idx++] = index_array[i++];
         }
     }
