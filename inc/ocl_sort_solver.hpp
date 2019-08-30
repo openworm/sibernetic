@@ -59,6 +59,7 @@
 #include "device.h"
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 
 namespace sibernetic {
 	namespace solver {
@@ -89,6 +90,7 @@ namespace sibernetic {
 			{
 				try {
 					this->initialize_ocl();
+					result_index.reserve(model->size());
 				} catch (ocl_error &ex) {
 					throw;
 				}
@@ -140,7 +142,10 @@ namespace sibernetic {
 			cl::CommandQueue queue;
 			cl::Program program;
 
-			void init_buffers() {
+            std::unordered_map<int, int> _result_map;
+            std::vector<int> result_index;
+
+            void init_buffers() {
 				create_ocl_buffer("particles", b_particles, CL_MEM_READ_WRITE,
                                   model->size() * sizeof(particle<T>));
 				create_ocl_buffer("index_array", b_index_array, CL_MEM_READ_WRITE,
@@ -295,16 +300,27 @@ namespace sibernetic {
                         need_swap = true;
 				    }
 				}
-				std::vector<int> v(model->size());
 				if(need_swap){
-				    copy_buffer_from_device(&(v[0]), b_swap_index_array, model->size() * sizeof(int), 0);
+				    copy_buffer_from_device(&(result_index[0]), b_swap_index_array, model->size() * sizeof(int), 0);
 				} else {
-                    copy_buffer_from_device(&(v[0]), b_index_array, model->size() * sizeof(int), 0);
+                    copy_buffer_from_device(&(result_index[0]), b_index_array, model->size() * sizeof(int), 0);
 				}
-				std::cout << "HELLO" << std::endl;
-//				for(int i =0;i<v.size();++i){
-//				    auto tmp = model->get_particles()[]
-//				}
+				std::cout << std::endl;
+
+				for(int i =0;i<result_index.size();++i){
+                    _result_map[result_index[i]] = i;
+				    std::cout << result_index[i] << '\t';
+				}
+				particle<T> tmp;
+				for(int i=0; i<result_index.size();) {
+				    if(i != result_index[i]) {
+                        tmp = model->get_particles()[result_index[i]];
+                        model->get_particles()[result_index[i]] = model->get_particles()[i];
+                        i = result_index[i];
+				    }
+				}
+                std::cout << std::endl;
+
 			}
 			template<typename U, typename... Args>
 			int kernel_runner(

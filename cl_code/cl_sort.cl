@@ -116,28 +116,26 @@ __kernel void k_sort(
         return;
     }
     int start = id * step;
-    int end = start + step;
-    if(end > total_size ) {
-        end = total_size;
+    int end = start + step - 1;
+    if(end >= total_size ) {
+        end = total_size - 1;
     }
-    if (end - start == 1){
-        result_index_array[end - 1] = index_array[end - 1];
+    if (end - start == 0){
+        result_index_array[end] = index_array[end];
         return;
     }
-    int mid = start + ((end - start) >> 1);
-    int len = end - start;
+    int len = end - start + 1;
+    int mid = start + (len >> 1);
 
     int first_sub_array_start = start;
-    int first_sub_array_end = mid;
+    int first_sub_array_end = mid - 1;
 
-    int second_sub_array_start = mid + 1;
+    int second_sub_array_start;
     int second_sub_array_end = end;
 
     if(len % 2 == 0) {
-        first_sub_array_end = mid - 1;
         second_sub_array_start = mid;
     } else {
-        first_sub_array_end = mid - 1;
         second_sub_array_start = mid + 1;
         result_index_array[mid] = index_array[mid];
     }
@@ -145,6 +143,9 @@ __kernel void k_sort(
     int i=first_sub_array_start, j=second_sub_array_start;
     bool copy_from_left = false, copy_from_right = false;
     int idx = start;
+//    if(id == 0){
+//        printf("mid - %d, first start - %d, first end - %d, second start - %d, second end - %d", mid, first_sub_array_start,first_sub_array_end, second_sub_array_end,second_sub_array_end);
+//    }
     while(1){
         if(particles[i].cell_id > particles[j].cell_id ){
             result_index_array[idx++] = index_array[j++];
@@ -154,18 +155,18 @@ __kernel void k_sort(
         if(i > first_sub_array_end) {
             copy_from_right = true;
             break;
-        }else if(j >= second_sub_array_end){
+        }else if(j > second_sub_array_end){
             copy_from_left = true;
             break;
         }
     }
     if(copy_from_left) {
-        while(j < second_sub_array_end){
-            result_index_array[idx++] = index_array[j++];
+        while(i <= first_sub_array_end){
+            result_index_array[idx++] = index_array[i++];
         }
     } else if(copy_from_right) {
-        while(i < first_sub_array_end){
-            result_index_array[idx++] = index_array[i++];
+        while(j <= second_sub_array_end){
+            result_index_array[idx++] = index_array[j++];
         }
     }
 }
