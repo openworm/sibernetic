@@ -315,12 +315,11 @@ namespace sibernetic {
 
 				for(int i; i++ < result_index.size();){
                     if(result_index[i] != i) {
-                        int first_index = 
-                        while(first)
-                        break;
+
                     }
 
 				}
+
                 std::cout << std::endl;
 
 			}
