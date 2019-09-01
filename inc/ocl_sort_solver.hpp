@@ -312,12 +312,14 @@ namespace sibernetic {
 				    std::cout << result_index[i] << '\t';
 				}
 				particle<T> tmp;
-				for(int i=0; i<result_index.size();) {
-				    if(i != result_index[i]) {
-                        tmp = model->get_particles()[result_index[i]];
-                        model->get_particles()[result_index[i]] = model->get_particles()[i];
-                        i = result_index[i];
-				    }
+
+				for(int i; i++ < result_index.size();){
+                    if(result_index[i] != i) {
+                        int first_index = 
+                        while(first)
+                        break;
+                    }
+
 				}
                 std::cout << std::endl;
 
