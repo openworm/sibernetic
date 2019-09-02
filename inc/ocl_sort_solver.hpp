@@ -90,7 +90,7 @@ namespace sibernetic {
 			{
 				try {
 					this->initialize_ocl();
-					result_index.reserve(model->size());
+					result_index=std::vector<int>(model->size());
 				} catch (ocl_error &ex) {
 					throw;
 				}
@@ -308,14 +308,24 @@ namespace sibernetic {
 				std::cout << std::endl;
 
 				for(int i =0;i<result_index.size();++i){
-                    _result_map[result_index[i]] = i;
+                    _result_map[i] = result_index[i];
 				    std::cout << result_index[i] << '\t';
 				}
 				particle<T> tmp;
-
-				for(int i; i++ < result_index.size();){
-                    if(result_index[i] != i) {
-
+				for(int i=0; i < result_index.size();++i){
+				    if(result_index[i] != i && _result_map[i] != -1) {
+                        auto where = _result_map[i];
+                        bool first_it = true;
+                        while(where != -1){
+                            if(first_it) {
+                                model->get_particles()[where] = model->get_particles()[i];
+                                first_it = false;
+                                tmp = model->get_particles()[where];
+                            } else {
+                                std::swap<particle<T>>(model->get_particles()[where], tmp);
+                            }
+                            where = _result_map[where];
+                        }
                     }
 
 				}

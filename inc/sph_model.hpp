@@ -53,6 +53,9 @@
 #include <bitset>
 #include <time.h>
 
+
+#include <cstdlib>
+
 namespace sibernetic {
 	namespace model {
 		/* const block end */
@@ -83,7 +86,7 @@ namespace sibernetic {
 				for (particle<T> &p: particles) {
 					this->calc_grid_id(p);
 				}
-				arrange_particles();
+				//arrange_particles();
 				iteration = 0;
 				clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
 				t0 = t1;
@@ -454,7 +457,8 @@ namespace sibernetic {
 				B = static_cast<int>(p.pos[1] * GRID_CELL_SIZE_INV);
 				C = static_cast<int>(p.pos[2] * GRID_CELL_SIZE_INV);
 				//p.cell_id = A + B * cell_num_x + cell_num_x * cell_num_y * C; // this stats indexing from x component
-				p.cell_id = (B + C * cell_num_y + cell_num_y * cell_num_z * A); // now will indexing from y
+				//p.cell_id = (B + C * cell_num_y + cell_num_y * cell_num_z * A); // now will indexing from y
+                p.cell_id = ( std::rand() % ( 10 + 1 ) );
 			}
 		};
 	} // namespace model
