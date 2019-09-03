@@ -143,14 +143,14 @@ __kernel void k_sort(
     int i=first_sub_array_start, j=second_sub_array_start;
     bool copy_from_left = false, copy_from_right = false;
     int idx = start;
-    if(id == 0){
-        printf("\nmid - %d, first start - %d, first end - %d, second start - %d, second end - %d\n", mid, first_sub_array_start,first_sub_array_end, second_sub_array_end,second_sub_array_end);
-    }
+    printf("\nSTEP - %d, LEN - %d, mid - %d, first start - %d, first end - %d, second start - %d, second end - %d\n", step, len, mid, first_sub_array_start,first_sub_array_end, second_sub_array_start, second_sub_array_end);
     while(1){
         if(particles[i].cell_id > particles[j].cell_id ){
             result_index_array[idx++] = index_array[j++];
+            printf("\n====1 idx %d val %d\n", idx - 1, result_index_array[idx-1]);
         } else {
             result_index_array[idx++] = index_array[i++];
+            printf("\n====2 idx %d val %d\n", idx - 1, result_index_array[idx-1]);
         }
         if(i > first_sub_array_end) {
             copy_from_right = true;
