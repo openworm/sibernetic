@@ -270,7 +270,7 @@ namespace sibernetic {
                 if(log_mode == LOGGING_MODE::FULL)
                     std::cout << "run run sort --> " << dev->name << std::endl;
                 bool need_swap = false;
-				for(unsigned int step = 2; step < model->size(); step<<=1){
+				for(unsigned int step = 2; step <= 4/*model->size()*/; step<<=1){
                     auto _count = (model->size() % step == 0) ? model->size() / step : model->size() / step + 1;
 				    if(need_swap) {
                         this->kernel_runner(
@@ -309,8 +309,10 @@ namespace sibernetic {
 
 				for(int i =0;i<result_index.size();++i){
                     _result_map[i] = result_index[i];
-				    std::cout << result_index[i] << '\t';
+                    std::cout << "index " << result_index[i] << " " << model->get_particles()[result_index[i]].cell_id << '\t' << std::endl;
+				    //std::cout << "==== " << i << "\t" << result_index[i] << '\n' ;
 				}
+                return 1;
 				particle<T> tmp;
 				for(int i=0; i < result_index.size();++i){
 				    if(result_index[i] != i && _result_map[i] != -1) {

@@ -143,9 +143,9 @@ __kernel void k_sort(
     int i=first_sub_array_start, j=second_sub_array_start;
     bool copy_from_left = false, copy_from_right = false;
     int idx = start;
-//    if(id == 0){
-//        printf("mid - %d, first start - %d, first end - %d, second start - %d, second end - %d", mid, first_sub_array_start,first_sub_array_end, second_sub_array_end,second_sub_array_end);
-//    }
+    if(id == 0){
+        printf("\nmid - %d, first start - %d, first end - %d, second start - %d, second end - %d\n", mid, first_sub_array_start,first_sub_array_end, second_sub_array_end,second_sub_array_end);
+    }
     while(1){
         if(particles[i].cell_id > particles[j].cell_id ){
             result_index_array[idx++] = index_array[j++];
