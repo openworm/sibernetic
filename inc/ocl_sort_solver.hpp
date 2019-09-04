@@ -317,25 +317,23 @@ namespace sibernetic {
 				for(int i=0; i < result_index.size();++i){
 				    if(result_index[i] != i && _result_map[i] != -1) {
                         auto where = _result_map[i];
+                        auto from = i;
                         bool first_it = true;
                         while(where != -1){
                             if(first_it) {
                                 tmp = model->get_particles()[where];
-                                model->get_particles()[where] = model->get_particles()[i];
+                                model->get_particles()[where] = model->get_particles()[from];
                                 first_it = false;
                             } else {
                                 std::swap<particle<T>>(model->get_particles()[where], tmp);
                             }
-                            auto t = _result_map[where];
-                            _result_map[where] = -1;
-                            where = t;
+                            _result_map[from] = -1;
+                            from = where;
+                            where = _result_map[where];
                         }
                     }
-
 				}
-
                 std::cout << std::endl;
-
 			}
 			template<typename U, typename... Args>
 			int kernel_runner(
