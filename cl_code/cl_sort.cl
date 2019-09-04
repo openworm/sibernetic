@@ -143,14 +143,25 @@ __kernel void k_sort(
     int i=first_sub_array_start, j=second_sub_array_start;
     bool copy_from_left = false, copy_from_right = false;
     int idx = start;
-    printf("\nSTEP - %d, LEN - %d, mid - %d, first start - %d, first end - %d, second start - %d, second end - %d\n", step, len, mid, first_sub_array_start,first_sub_array_end, second_sub_array_start, second_sub_array_end);
+//    if(id == 0 && step == 4)
+//        printf("\nSTEP - %d, LEN - %d, mid - %d, first start - %d, first end - %d, second start - %d, second end - %d\n", step, len, mid, first_sub_array_start,first_sub_array_end, second_sub_array_start, second_sub_array_end);
     while(1){
-        if(particles[i].cell_id > particles[j].cell_id ){
+        int p_idx_i = index_array[i];
+        int p_idx_j = index_array[j];
+        if(particles[p_idx_i].cell_id > particles[p_idx_j].cell_id ){
+//            if(id == 0 && step == 4) {
+//                printf("\n====1 idx %d val %d\n", idx, index_array[j]);
+//                printf("\n====1 WHAT COMPARE i %d j %d\n", i, j);
+//                printf("\n====1 CELL ID i %d j %d\n", particles[p_idx_i].cell_id, particles[p_idx_j].cell_id);
+//            }
             result_index_array[idx++] = index_array[j++];
-            printf("\n====1 idx %d val %d\n", idx - 1, result_index_array[idx-1]);
         } else {
+//            if(id == 0 && step == 4) {
+//                printf("\n====2 idx %d val %d\n", idx, index_array[i]);
+//                printf("\n====2WHAT COMPARE i %d j %d\n", i, j);
+//                printf("\n====1 CELL ID i %d j %d\n", particles[p_idx_i].cell_id, particles[p_idx_j].cell_id);
+//            }
             result_index_array[idx++] = index_array[i++];
-            printf("\n====2 idx %d val %d\n", idx - 1, result_index_array[idx-1]);
         }
         if(i > first_sub_array_end) {
             copy_from_right = true;
