@@ -320,13 +320,15 @@ namespace sibernetic {
                         bool first_it = true;
                         while(where != -1){
                             if(first_it) {
+                                tmp = model->get_particles()[where];
                                 model->get_particles()[where] = model->get_particles()[i];
                                 first_it = false;
-                                tmp = model->get_particles()[where];
                             } else {
                                 std::swap<particle<T>>(model->get_particles()[where], tmp);
                             }
-                            where = _result_map[where];
+                            auto t = _result_map[where];
+                            _result_map[where] = -1;
+                            where = t;
                         }
                     }
 
