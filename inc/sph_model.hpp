@@ -442,10 +442,14 @@ namespace sibernetic {
 			 * TODO make sort parallel
 			 */
 			void arrange_particles() {
-				std::sort(particles.begin(), particles.end(),
-				          [](const particle<T> &p1, const particle<T> &p2) {
-					          return p1.cell_id < p2.cell_id;
-				          });
+			    if(this->sort_solver == nullptr) {
+                    std::sort(particles.begin(), particles.end(),
+                              [](const particle<T> &p1, const particle<T> &p2) {
+                                  return p1.cell_id < p2.cell_id;
+                              });
+                } else {
+			        this->sort_solver->sort();
+			    }
 			}
 
 			// Addition methods

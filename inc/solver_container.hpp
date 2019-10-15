@@ -35,10 +35,14 @@ namespace sibernetic {
 
 			/** Maer's singleton
 			 */
-			static solver_container &instance(model_ptr &model,
-					EXECUTION_MODE mode = EXECUTION_MODE::ONE, size_t dev_count = 0,
-			        SOLVER_TYPE s_t = OCL) {
-				static solver_container s(model, mode, s_t, dev_count);
+			static solver_container &instance(
+			        model_ptr &model,
+					EXECUTION_MODE mode = EXECUTION_MODE::ONE,
+					size_t dev_count = 0,
+			        SOLVER_TYPE s_t = OCL,
+			        bool p_sort = false
+			        ) {
+				static solver_container s(model, mode, s_t, dev_count, p_sort);
 				model->set_solver_container(s.solvers());
 				return s;
 			}
@@ -60,55 +64,58 @@ namespace sibernetic {
 			}
 		private:
 			explicit solver_container(model_ptr &model, EXECUTION_MODE mode = EXECUTION_MODE::ONE,
-			                          SOLVER_TYPE s_type = OCL, size_t dev_count = 0) {
+			                          SOLVER_TYPE s_type = OCL, size_t dev_count = 0, bool p_sort = false) {
 				try {
 					p_q dev_q = get_dev_queue();
 					size_t device_index = 0;
-//					while (!dev_q.empty()) {
-//						try {
-//							std::shared_ptr<ocl_solver<T>> solver(
-//									new ocl_solver<T>(model, dev_q.top(), device_index));
-//							_solvers.push_back(solver);
-//							std::cout << "************* DEVICE *************" << std::endl;
-//							dev_q.top()->show_info();
-//							std::cout << "**********************************" << std::endl;
-//							++device_index;
-//							if(mode == EXECUTION_MODE::ONE){
-//								break;
-//							} else if(mode == EXECUTION_MODE::ALL){
-//								if(dev_count > 0 && dev_count == device_index){
-//								    break;
-//								}
-//							}
-//						} catch (ocl_error &ex) {
-//							std::cout << ex.what() << std::endl;
-//						}
-//						dev_q.pop();
-//					}
+					size_t total_dev_count = dev_q.size();
+					while (!dev_q.empty()) {
+						try {
+							std::shared_ptr<ocl_solver<T>> solver(
+									new ocl_solver<T>(model, dev_q.top(), device_index));
+							_solvers.push_back(solver);
+							std::cout << "************* DEVICE *************" << std::endl;
+							dev_q.top()->show_info();
+							std::cout << "**********************************" << std::endl;
+							++device_index;
+							if(mode == EXECUTION_MODE::ONE){
+								break;
+							} else if(mode == EXECUTION_MODE::ALL){
+								if(dev_count > 0 && dev_count == device_index){
+								    break;
+								} else if(p_sort && total_dev_count % 2 == 1 && total_dev_count > 2 && device_index == total_dev_count - 1) {
+                                    break;
+								}
+							}
+						} catch (ocl_error &ex) {
+							std::cout << ex.what() << std::endl;
+						}
+						dev_q.pop();
+					}
 
-					if(!dev_q.empty()) {
+					if(!dev_q.empty() && p_sort) {
 					    std::shared_ptr<ocl_sort_solver<T>> sort_solver(
 					            new ocl_sort_solver<T>(model, dev_q.top(), device_index+1));
 					    sort_solver->init_model();
 					    model->set_sort_solver(sort_solver);
 					}
 
-//					if (_solvers.size()) {
-//                        init_weights();
-//                        model->set_balance_vector(this->weights);
-//						model->make_partition(_solvers.size()); // TODO to think about is in future we
-//                        //model->make_partition(_solvers.size(), std::vector<float>{0.5, 0.4, 0.1});
-//						// can't init one or more
-//						// devices
-//						// obvious we should reinit partitions case ...
-//						int i=0;
-//						for (auto s : _solvers) {
-//						    s->get_device()->balance_coeff = weights[i++];
-//							s->init_model(&(model->get_next_partition()));
-//						}
-//					} else {
-//						throw ocl_error("No OpenCL devices were initialized.");
-//					}
+					if (_solvers.size()) {
+                        init_weights();
+                        model->set_balance_vector(this->weights);
+						model->make_partition(_solvers.size()); // TODO to think about is in future we
+                        //model->make_partition(_solvers.size(), std::vector<float>{0.5, 0.4, 0.1});
+						// can't init one or more
+						// devices
+						// obvious we should reinit partitions case ...
+						int i=0;
+						for (auto s : _solvers) {
+						    s->get_device()->balance_coeff = weights[i++];
+							s->init_model(&(model->get_next_partition()));
+						}
+					} else {
+						throw ocl_error("No OpenCL devices were initialized.");
+					}
 				} catch (sibernetic::ocl_error &err) {
 					throw;
 				}
