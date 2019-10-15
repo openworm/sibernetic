@@ -308,7 +308,7 @@ namespace sibernetic {
 				std::cout << std::endl;
 
 				for(int i =0;i<result_index.size();++i){
-                    _result_map[i] = result_index[i];
+                    _result_map[result_index[i]] = i;
                     std::cout << "index " << result_index[i] << " " << model->get_particles()[result_index[i]].cell_id << '\t' << std::endl;
 				    //std::cout << "==== " << i << "\t" << result_index[i] << '\n' ;
 				}
@@ -316,20 +316,14 @@ namespace sibernetic {
 				particle<T> tmp;
 				for(int i=0; i < result_index.size();++i){
 				    if(result_index[i] != i && _result_map[i] != -1) {
-                        auto where = _result_map[i];
                         auto from = i;
-                        bool first_it = true;
-                        while(where != -1){
-                            if(first_it) {
-                                tmp = model->get_particles()[where];
-                                model->get_particles()[where] = model->get_particles()[from];
-                                first_it = false;
-                            } else {
-                                std::swap<particle<T>>(model->get_particles()[where], tmp);
-                            }
+                        auto to = _result_map[i];
+                        tmp = model->get_particles()[from];
+                        while(to != -1){
+                            std::swap<particle<T>>(model->get_particles()[to], tmp);
                             _result_map[from] = -1;
-                            from = where;
-                            where = _result_map[where];
+                            from = to;
+                            to = _result_map[to];
                         }
                     }
 				}
