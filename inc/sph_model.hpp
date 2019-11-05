@@ -52,7 +52,7 @@
 #include <atomic>
 #include <bitset>
 #include <time.h>
-
+#include <cstdio>
 
 #include <cstdlib>
 
@@ -88,8 +88,6 @@ namespace sibernetic {
 				}
 				//arrange_particles();
 				iteration = 0;
-				clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
-				t0 = t1;
 				std::cout << "Model was loaded: " << particles.size() << " particles."
 				          << std::endl;
 			}
@@ -177,35 +175,16 @@ namespace sibernetic {
 			}
 
 			void sync() {
-				arrange_particles();
-//				for(size_t p_index=0; p_index< partitions.size(); ++p_index){
-//					if(p_index == 0){
-//						sync_right_segment(p_index, 0);
-//					} else {
-//						partitions[p_index].start = partitions[p_index - 1].end + 1;
-//						sync_right_segment(p_index, partitions[p_index].start);
-//						if(p_index == partitions.size() - 1)
-//							sync_left_segment(p_index, partitions[p_index].end);
-//					}
-//				}
+			    auto delta_sph = profile();
+                //std::cout << "======== || SPH took ====== " << iteration << delta << "s" << std::endl;
 
+                clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
+                arrange_particles();
+                auto delta_sort = profile();
+                //std::cout << "======== " << ((sort_solver == nullptr)? "": "||") << " SORT took ====== " << delta << "s" << std::endl;
                 update_partition_distrib();
-
-				clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
-				time_t sec = t2.tv_sec - t1.tv_sec;
-				long nsec;
-				if (t2.tv_nsec >= t1.tv_nsec) {
-					nsec = t2.tv_nsec - t1.tv_nsec;
-				} else {
-					nsec = 1000000000 - (t1.tv_nsec - t2.tv_nsec);
-					sec -= 1;
-				}
-
-				t1 = t2;
-				elapsedTime = (float)(t2.tv_sec - t0.tv_sec) * 1000.f +
-				              (float)(t2.tv_nsec - t0.tv_nsec) / 1000000.f;
-
-				std::cout << "========New Iteration====== " << iteration << "====time=== " << (float)sec * 1000.f + (float)nsec / 1000000.f << std::endl;
+                std::cout << iteration << '\t' << delta_sph << '\t' << delta_sort << std::endl;
+                clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
 				++iteration;
 				ready_to_sync = 0;
 				for(auto it: *solvers){
@@ -213,30 +192,13 @@ namespace sibernetic {
 				}
 			}
 
-			void sync_right_segment(size_t p_index, size_t particle_start){
-				for(size_t i = particle_start; i < particles.size(); ++i){
-					if(particles[i].cell_id == partitions[p_index].end_cell_id
-					   && particles[i + 1].cell_id != partitions[p_index].end_cell_id){
-						partitions[p_index].end = i;
-					} else if(particles[i].cell_id == partitions[p_index].end_ghost_cell_id
-					          && particles[i + 1].cell_id != partitions[p_index].end_ghost_cell_id){
-						partitions[p_index].ghost_end = i;
-						break;
-					}
-				}
+			float profile() {
+                clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
+                auto delta = ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_nsec - t1.tv_nsec) / 1000 ) / 1000000.0 ;
+                return delta;
 			}
 
-			void sync_left_segment(size_t p_index, size_t particle_start){
-				for(size_t i = particle_start; i > 0; --i){
-					if(particles[i].cell_id == partitions[p_index].start_ghost_cell_id
-					   && particles[i - 1].cell_id != partitions[p_index].start_ghost_cell_id){
-						partitions[p_index].ghost_start = i;
-						break;
-					}
-				}
-			}
-
-            bool set_ready() {
+			bool set_ready() {
 				std::lock_guard<std::mutex> guard(sync_mutex);
 				++ready_to_sync;
 				if (ready_to_sync == solvers->size()) {
@@ -279,6 +241,9 @@ namespace sibernetic {
 
 			void set_solver_container(std::vector<std::shared_ptr<sibernetic::solver::i_solver>> *s){
 				solvers = s;
+			}
+			void sort(){
+			    arrange_particles();
 			}
 		private:
 		    std::vector<float> balance_coeff;
@@ -442,15 +407,36 @@ namespace sibernetic {
 			 * TODO make sort parallel
 			 */
 			void arrange_particles() {
-			    if(this->sort_solver == nullptr) {
-                    std::sort(particles.begin(), particles.end(),
-                              [](const particle<T> &p1, const particle<T> &p2) {
-                                  return p1.cell_id < p2.cell_id;
-                              });
+                if(this->sort_solver == nullptr) {
+                    this->single_thread_sort();
                 } else {
-			        this->sort_solver->sort();
+                    this->sort_solver->sort();
 			    }
 			}
+
+			void single_thread_sort(){
+                std::sort(particles.begin(), particles.end(),
+                          [](const particle<T> &p1, const particle<T> &p2) {
+                              return p1.cell_id < p2.cell_id;
+                          });
+			}
+            void _debug_(std::vector<particle<T>> & p_list, std::string file_name="debug"){
+                std::string big_s = "[";
+                int l = 0;
+                for(auto p: p_list){
+                    big_s += "{\"particleId\":" + std::to_string(p.particle_id) + ",";
+                    big_s += "\"cellId\": " + std::to_string(p.cell_id) + "}";
+                    if(l != p_list.size() - 1){
+                        big_s += ",";
+                    }
+                    ++l;
+                    //break;
+                }
+                big_s += "]";
+                std::ofstream debug_file(file_name.c_str());
+                debug_file << big_s;
+                debug_file.close();
+            }
 
 			// Addition methods
 			/** TODO Description here
@@ -460,9 +446,8 @@ namespace sibernetic {
 				A = static_cast<int>(p.pos[0] * GRID_CELL_SIZE_INV);
 				B = static_cast<int>(p.pos[1] * GRID_CELL_SIZE_INV);
 				C = static_cast<int>(p.pos[2] * GRID_CELL_SIZE_INV);
-				//p.cell_id = A + B * cell_num_x + cell_num_x * cell_num_y * C; // this stats indexing from x component
 				p.cell_id = (B + C * cell_num_y + cell_num_y * cell_num_z * A); // now will indexing from y
-                //p.cell_id = ( std::rand() % ( 10 + 1 ) );
+                //p.cell_id = ( std::rand() % ( 100 + 1 ) );
 			}
 		};
 	} // namespace model

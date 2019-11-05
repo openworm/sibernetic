@@ -82,11 +82,12 @@ namespace sibernetic {
 					model_ptr &m,
 					shared_ptr<device> d,
 					size_t idx,
-					LOGGING_MODE log_mode = LOGGING_MODE::FULL):
+					LOGGING_MODE log_mode = LOGGING_MODE::NO):
 				model(m),
 				dev(std::move(d)),
 				device_index(idx),
-				log_mode(log_mode)
+				log_mode(log_mode),
+                GREATEST_NEAR_POW_OF_2(2)
 			{
 				try {
 					this->initialize_ocl();
@@ -100,7 +101,14 @@ namespace sibernetic {
 			}
 			// TODO rename method!!!
 			void init_model() {
-				init_kernels();
+                init_buffers();
+                init_kernels();
+                unsigned int n = model->size();
+                if (n && !(n & (n - 1)))
+                    GREATEST_NEAR_POW_OF_2 = n;
+
+                while (GREATEST_NEAR_POW_OF_2 < n)
+                    GREATEST_NEAR_POW_OF_2 <<= 1;
 			}
 
 			~ocl_sort_solver() override = default;
@@ -121,8 +129,9 @@ namespace sibernetic {
 			}
 
 			void sort() override {
-                init_buffers();
-				run_init_index_array();
+                copy_buffer_to_device((void *) &(model->get_particles()[0]),
+                                      b_particles, 0, model->size() * sizeof(particle<T>));
+                run_init_index_array();
 				run_sort();
 			}
 
@@ -133,6 +142,7 @@ namespace sibernetic {
 			std::string msg = dev->name + '\n';
 			const std::string cl_program_file = "cl_code//cl_sort.cl";
 			LOGGING_MODE log_mode;
+            unsigned int GREATEST_NEAR_POW_OF_2;
 			cl::Kernel k_sort;
 			cl::Kernel k_fill_index_array;
 			
@@ -270,7 +280,10 @@ namespace sibernetic {
                 if(log_mode == LOGGING_MODE::FULL)
                     std::cout << "run run sort --> " << dev->name << std::endl;
                 bool need_swap = false;
-				for(unsigned int step = 2; step <= model->size(); step<<=1){
+//                for(auto p: model->get_particles()){
+//                    std::cout << p.particle_id << "\t" << p.cell_id << std::endl;
+//                }
+				for(unsigned int step = 2; step <= GREATEST_NEAR_POW_OF_2; step<<=1){
                     auto _count = (model->size() % step == 0) ? model->size() / step : model->size() / step + 1;
 				    if(need_swap) {
                         this->kernel_runner(
@@ -299,23 +312,31 @@ namespace sibernetic {
                         );
                         need_swap = true;
 				    }
+//				    if(step == 128) {
+//                        std::cout << "================" << std::endl;
+//                        shuffle_particles(need_swap);
+//                        for (auto p: model->get_particles()) {
+//
+//                            std::cout << p.particle_id << "\t" << p.cell_id << std::endl;
+//                        }
+//                        std::cout << "================" << std::endl;
+//                    }
 				}
-				if(need_swap){
-				    copy_buffer_from_device(&(result_index[0]), b_swap_index_array, model->size() * sizeof(int), 0);
-				} else {
+				shuffle_particles(need_swap);
+			}
+			void shuffle_particles(bool need_swap){
+                if(need_swap){
+                    copy_buffer_from_device(&(result_index[0]), b_swap_index_array, model->size() * sizeof(int), 0);
+                } else {
                     copy_buffer_from_device(&(result_index[0]), b_index_array, model->size() * sizeof(int), 0);
-				}
-				std::cout << std::endl;
-
-				for(int i =0;i<result_index.size();++i){
+                }
+                for(int i =0;i<result_index.size();++i){
                     _result_map[result_index[i]] = i;
-                    std::cout << "index " << result_index[i] << " " << model->get_particles()[result_index[i]].cell_id << '\t' << std::endl;
-				    //std::cout << "==== " << i << "\t" << result_index[i] << '\n' ;
-				}
+                }
                 //return 1;
-				particle<T> tmp;
-				for(int i=0; i < result_index.size();++i){
-				    if(result_index[i] != i && _result_map[i] != -1) {
+                particle<T> tmp;
+                for(int i=0; i < result_index.size();++i){
+                    if(result_index[i] != i && _result_map[i] != -1) {
                         auto from = i;
                         auto to = _result_map[i];
                         tmp = model->get_particles()[from];
@@ -326,9 +347,8 @@ namespace sibernetic {
                             to = _result_map[to];
                         }
                     }
-				}
-                std::cout << std::endl;
-			}
+                }
+            }
 			template<typename U, typename... Args>
 			int kernel_runner(
 					cl::Kernel &ker,

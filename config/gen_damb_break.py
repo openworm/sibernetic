@@ -99,40 +99,42 @@ def gen_model(x_dim, y_dim, z_dim, file_name="tmp"):
 
     #draw_bounds(out, x_dim, y_dim, z_dim, h, r0)
     draw_bounds(out, x_dim, y_dim, z_dim, h, r0)
-    for x in gen(2 * r0, h * x_dim / 1.1 - 2 * r0, r0):
-        for y in gen(2 * r0, h * y_dim - 2 * r0, r0):
-            for z in gen(2 * r0, h * z_dim - 2 * r0, r0):
+    for x in gen(3 * r0, h * x_dim * 5/7 - 3 * r0, r0):
+        for y in gen(3 * r0, h * y_dim - 3 * r0, r0):
+            for z in gen(3 * r0, h * z_dim - 3 * r0, r0):
                 out["model"].append(make_particle(pos=[x, y, z, 1.0], type=ParticleType.LIQUID, mass=MASS))
 
-    fp = open(file_name, 'w')
-    json.dump(out, fp)
+    # fp = open("model.json", 'w')
+    # json.dump(out, fp)
     print(len(out['model']), "particles generated")
-    fp.close()
+    # fp.close()
     old_gen(out)
 
-def old_gen(model, file_name="old_tmp"):
+def old_gen(model, file_name="model.txt"):
     fp = open(file_name, 'w')
-    fp.write("[simulation box]\n")
-    fp.write(f'{model["parameters"]["x_min"]}\n')
-    fp.write(f'{model["parameters"]["x_max"]}\n')
-    fp.write(f'{model["parameters"]["y_min"]}\n')
-    fp.write(f'{model["parameters"]["y_max"]}\n')
-    fp.write(f'{model["parameters"]["z_min"]}\n')
-    fp.write(f'{model["parameters"]["z_max"]}\n')
-
-    fp.write("[position]\n")
+    fp.write("parameters[\n")
+    for p in model["parameters"]:
+        fp.write(f'{p}: {model["parameters"][p]}\n')
+    fp.write("]\n")
+    fp.write("model[\n")
+    fp.write("position[\n")
     position_str = ""
     velocity_str = ""
     for p in model['model']:
         position_str += f"{p['position'][0]}\t{p['position'][1]}\t{p['position'][2]}\t{p['type'] + 0.1}\n"
         velocity_str += f"{p['velocity'][0]}\t{p['velocity'][1]}\t{p['velocity'][2]}\t{p['type'] + 0.1}\n"
     fp.write(position_str)
-    fp.write("[velocity]\n")
+    fp.write("]\n")
+    fp.write("velocity[\n")
     fp.write(velocity_str)
-    fp.write("[connection]\n")
-    fp.write("[membranes]\n")
-    fp.write("[particleMemIndex]\n")
-    fp.write("[end]\n")
+    fp.write("]\n")
+    fp.write("connection[\n")
+    fp.write("]\n")
+    fp.write("membranes[\n")
+    fp.write("]\n")
+    fp.write("particleMemIndex[\n")
+    fp.write("]\n")
+    fp.write("]\n")
     fp.close()
 
 def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
@@ -287,7 +289,7 @@ def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
                 )
 
     #3 - side walls OY-OZ and opposite
-    for iy in range(1,ny - 1):
+    for iy in range(1, ny - 1):
         for iz in range(1,nz - 1):
             x = 0.0 * r0 + r0 / 2.0
             y = iy * r0 + r0 / 2.0
@@ -319,11 +321,15 @@ def draw_bounds(particles, x_dim, y_dim, z_dim, h, r0):
             )
 
 def main():
-    gen_model(1, 1, 1)
-    #gen_model(48, 12, 24)
+    #gen_model(1, 1, 1)
+    #gen_model(8, 8, 8)
+    #gen_model(128, 128, 128)
+    gen_model(192, 96, 96)
+    #gen_model(48, 24, 24)
+    #gen_model(96, 96, 96)
 
     #gen_model(192, 48, 48)
-    #gen_model(96, 48, 96)
+    #gen_model(96, 24, 24)
     #gen_model(192, 48, 192)
     #gen_model(6, 6, 6)
 

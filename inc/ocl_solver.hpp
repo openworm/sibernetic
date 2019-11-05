@@ -193,11 +193,11 @@ namespace sibernetic {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
 			while(true) {
-				if(i == 690) {
-					//_debug_();
-					//break;
-					std::cout << "??????????????" << std::endl;
-				}
+//				if(i == 690) {
+//					_debug_();
+//					break;
+//					std::cout << "??????????????" << std::endl;
+//				}
 				neighbour_search();
 				physic();
 				++i;

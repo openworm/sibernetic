@@ -182,11 +182,11 @@ __kernel void k_hash_particles(
 	}
 	int4 cellFactors_ = cell_factors( &particles[ id ], hashGridCellSizeInv );
 	int cellId_ = cell_id( cellFactors_, gridCellsX, gridCellsY, gridCellsZ );// & 0xffffff; // truncate to low 16 bits
-	if(cellId_ < 0){
-		printf("\n===== Cell id less than 0 %d was %d \n", cellId_, particles[ id ].cell_id );
-        printf("\n===== cellFactors_: %d %d %d %d \n", cellFactors_.x, cellFactors_.y, cellFactors_.z, cellFactors_.w );
-        printf("\n===== pos: %f %f %f %f \n", particles[ id ].pos.x, particles[ id ].pos.y, particles[ id ].pos.z, particles[ id ].pos.w );
-	}
+//	if(cellId_ < 0){
+//		printf("\n===== Cell id less than 0 %d was %d \n", cellId_, particles[ id ].cell_id );
+//        printf("\n===== cellFactors_: %d %d %d %d \n", cellFactors_.x, cellFactors_.y, cellFactors_.z, cellFactors_.w );
+//        printf("\n===== pos: %f %f %f %f \n", particles[ id ].pos.x, particles[ id ].pos.y, particles[ id ].pos.z, particles[ id ].pos.w );
+//	}
 	particles[ id ].cell_id = cellId_;
 }
 

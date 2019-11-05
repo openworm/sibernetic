@@ -5,6 +5,7 @@
 #include "ocl_const.h"
 #include "ocl_solver.hpp"
 #include "ocl_sort_solver.hpp"
+#include "ocl_radix_sort.hpp"
 #include "sph_model.hpp"
 #include "util/ocl_helper.h"
 #include "util/error.h"
@@ -19,6 +20,7 @@ namespace sibernetic {
 		using std::shared_ptr;
 		using sibernetic::solver::ocl_solver;
         using sibernetic::solver::ocl_sort_solver;
+        using sibernetic::solver::ocl_radix_sort_solver;
 		enum EXECUTION_MODE {
 			ONE,
 			ALL
@@ -74,28 +76,26 @@ namespace sibernetic {
 							std::shared_ptr<ocl_solver<T>> solver(
 									new ocl_solver<T>(model, dev_q.top(), device_index));
 							_solvers.push_back(solver);
-							std::cout << "************* DEVICE *************" << std::endl;
+							std::cout << "************* DEVICE For Phys *************" << std::endl;
 							dev_q.top()->show_info();
 							std::cout << "**********************************" << std::endl;
 							++device_index;
+                            dev_q.pop();
 							if(mode == EXECUTION_MODE::ONE){
 								break;
 							} else if(mode == EXECUTION_MODE::ALL){
 								if(dev_count > 0 && dev_count == device_index){
 								    break;
-								} else if(p_sort && total_dev_count % 2 == 1 && total_dev_count > 2 && device_index == total_dev_count - 1) {
-                                    break;
 								}
 							}
 						} catch (ocl_error &ex) {
 							std::cout << ex.what() << std::endl;
 						}
-						dev_q.pop();
 					}
 
-					if(!dev_q.empty() && p_sort) {
-					    std::shared_ptr<ocl_sort_solver<T>> sort_solver(
-					            new ocl_sort_solver<T>(model, dev_q.top(), device_index+1));
+					if(/*!dev_q.empty() &&*/ p_sort) {
+					    std::shared_ptr<ocl_radix_sort_solver<T>> sort_solver(
+					            new ocl_radix_sort_solver<T>(model, _solvers[0]->get_device(), device_index+1));
 					    sort_solver->init_model();
 					    model->set_sort_solver(sort_solver);
 					}

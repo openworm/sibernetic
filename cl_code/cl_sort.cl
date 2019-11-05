@@ -101,7 +101,7 @@ typedef struct particle{
 } particle;
 
 
-/** Just for test
+/** merge sort
 */
 __kernel void k_sort(
         __global struct particle* particles,
@@ -115,6 +115,7 @@ __kernel void k_sort(
     if(id >= block_count) {
         return;
     }
+
     int start = id * step;
     int end = start + step - 1;
     if(end >= total_size ) {
@@ -126,6 +127,9 @@ __kernel void k_sort(
     }
     int len = end - start + 1;
     int mid = start + (len >> 1);
+    if((step >> 1) < len) {
+        mid = start + (step >> 1);
+    }
 
     int first_sub_array_start = start;
     int first_sub_array_end = mid - 1;
@@ -143,23 +147,23 @@ __kernel void k_sort(
     int i=first_sub_array_start, j=second_sub_array_start;
     bool copy_from_left = false, copy_from_right = false;
     int idx = start;
-//    if(id == 0 && step == 4)
-//        printf("\nSTEP - %d, LEN - %d, mid - %d, first start - %d, first end - %d, second start - %d, second end - %d\n", step, len, mid, first_sub_array_start,first_sub_array_end, second_sub_array_start, second_sub_array_end);
+    //if(step == 64)
+    //    printf("\nSTEP - %d, LEN - %d, mid - %d, first start - %d, first end - %d, second start - %d, second end - %d, id - %d, start - %d\n", step, len, mid, first_sub_array_start,first_sub_array_end, second_sub_array_start, second_sub_array_end, id, start);
     while(1){
         int p_idx_i = index_array[i];
         int p_idx_j = index_array[j];
-        if(particles[p_idx_i].cell_id > particles[p_idx_j].cell_id ){
-//            if(id == 0 && step == 4) {
-//                printf("\n====1 idx %d val %d\n", idx, index_array[j]);
-//                printf("\n====1 WHAT COMPARE i %d j %d\n", i, j);
-//                printf("\n====1 CELL ID i %d j %d\n", particles[p_idx_i].cell_id, particles[p_idx_j].cell_id);
-//            }
+        if(particles[p_idx_i].cell_id > particles[p_idx_j].cell_id){
             result_index_array[idx++] = index_array[j++];
         } else {
-//            if(id == 0 && step == 4) {
-//                printf("\n====2 idx %d val %d\n", idx, index_array[i]);
-//                printf("\n====2WHAT COMPARE i %d j %d\n", i, j);
-//                printf("\n====1 CELL ID i %d j %d\n", particles[p_idx_i].cell_id, particles[p_idx_j].cell_id);
+            //TODO: Not nesser remove this after fix
+//            if(particles[p_idx_i].cell_id == particles[p_idx_j].cell_id) {
+//                if(particles[p_idx_i].particle_id < particles[p_idx_j].particle_id) {
+//                    result_index_array[idx++] = index_array[i++];
+//                } else {
+//                    result_index_array[idx++] = index_array[j++];
+//                }
+//            } else {
+//                result_index_array[idx++] = index_array[i++];
 //            }
             result_index_array[idx++] = index_array[i++];
         }
@@ -171,15 +175,15 @@ __kernel void k_sort(
             break;
         }
     }
-    if(copy_from_left) {
-        while(i <= first_sub_array_end){
-            result_index_array[idx++] = index_array[i++];
-        }
-    } else if(copy_from_right) {
-        while(j <= second_sub_array_end){
-            result_index_array[idx++] = index_array[j++];
-        }
-    }
+//    if(copy_from_left) {
+//        while(i <= first_sub_array_end){
+//            result_index_array[idx++] = index_array[i++];
+//        }
+//    } else if(copy_from_right) {
+//        while(j <= second_sub_array_end){
+//            result_index_array[idx++] = index_array[j++];
+//        }
+//    }
 }
 
 __kernel void k_fill_index_array(__global int * index_array, uint total_size){

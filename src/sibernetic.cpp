@@ -31,7 +31,9 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 #include "solver_container.hpp"
+#include "isolver.h"
 #include "util/arg_parser.h"
+#include "util/custom_reader.hpp"
 #include "graph.h"
 #include <iostream>
 #include <thread>
@@ -56,9 +58,9 @@ int main(int argc, char **argv) {
   bool parallel_sort = false;
   size_t dev_count = 0;
   if (prsr.check_arg("-f")) {
-    model_name = prsr.get_arg("-f");
+    model_name = prsr.get_arg_value("-f");
   } else {
-    model_name = "config/tmp";
+    model_name = "config/model.txt";
   }
   if (prsr.check_arg("--multi_dev")) {
   	auto v = prsr.get_arg_value("--multi_dev");
@@ -71,10 +73,17 @@ int main(int argc, char **argv) {
     ui_mode = UI_MODE::OGL;
   }
   if (prsr.check_arg("--p_sort")) {
-    parallel_sort = false;
+    parallel_sort = true;
   }
   try {
-    std::shared_ptr<sph_model<float>> model(new sph_model<float>(model_name));
+    abstract_reader<float> * reader = nullptr;
+    if (prsr.check_arg("--json")) {
+        reader = new json_reader<float>();
+    } else {
+        reader = new custom_reader<float>();
+    }
+
+    std::shared_ptr<sph_model<float>> model(new sph_model<float>(model_name, reader));
     auto config = new g_config{
       model->get_config()["x_min"],
       model->get_config()["y_min"],
@@ -85,8 +94,14 @@ int main(int argc, char **argv) {
     };
     graph::config = config;
     graph::model = model;
-    solver_container<float> &s_con = solver_container<float>::instance(model, mode, dev_count);
-    //model->get_sort_solver()->sort();
+    solver_container<float> &s_con = solver_container<float>::instance(
+            model,
+            mode,
+            dev_count,
+            sibernetic::solver::OCL,
+            parallel_sort
+    );
+    //model->sort();
     if(ui_mode == UI_MODE::OGL) {
       std::thread graph_thread(graph::run, argc, argv);
       s_con.run();

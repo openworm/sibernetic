@@ -2,8 +2,8 @@
 // Created by sergey on 12.02.19.
 //
 
-#ifndef SIBERNETIC_JSON_READER_HPP
-#define SIBERNETIC_JSON_READER_HPP
+#ifndef SIBERNETIC_CUSTOM_READER_HPP
+#define SIBERNETIC_CUSTOM_READER_HPP
 
 #include "abstract_reader.h"
 #include "error.h"
@@ -54,15 +54,13 @@ public:
                     continue;
                 }
                 if (mode == PARAMS) {
-                    std::regex rgx("^\\s*(\\w+)\\s*:\\s*(\\d+(\\.\\d*([eE]?[+-]?\\d+)?)?)"
+                    std::regex rgx("^\\s*(\\w+)\\s*:\\s*(-?\\d+(\\.?\\d*([eE]?[+-]?\\d+)?)?)"
                                    "\\s*(//.*)?$");
                     std::smatch matches;
                     if (std::regex_search(cur_line, matches, rgx)) {
                         if (matches.size() > 2) {
-                            if (model->get_config().find(matches[1]) != model->get_config().end()) {
-                                model->get_config()[matches[1]] = static_cast<T>(stod(matches[2].str()));
-                                continue;
-                            }
+                            model->get_config()[matches[1]] = static_cast<T>(stod(matches[2].str()));
+                            continue;
                         } else {
                             std::string msg = sibernetic::make_msg(
                                     "Problem with parsing parameters:", matches[0].str(),
@@ -79,6 +77,10 @@ public:
                         case POS: {
                             sibernetic::model::particle<T> p;
                             p.pos = *get_vector(cur_line);
+                            p.mass = model->get_config()["mass"];
+                            p.viscosity = model->get_config()["mu"];
+                            p.density = 1000.f;
+                            p.type = static_cast<int>(p.pos[3]);
                             model->push_back(p);
                             break;
                         }
@@ -87,6 +89,7 @@ public:
                                 throw sibernetic::parser_error(
                                         "Config file problem. Velocities more than partiles is.");
                             model->get_particle(index).vel = *get_vector(cur_line);
+                            model->get_particle(index).particle_id = index;
                             ++index;
                             break;
                         }
@@ -111,4 +114,4 @@ private:
         return v;
     }
 };
-#endif //SIBERNETIC_JSON_READER_HPP
+#endif //SIBERNETIC_CUSTOM_READER_HPP
