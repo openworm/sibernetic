@@ -9,7 +9,7 @@ import math
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
-script_version = '0.1.0' # This will change at different rate to C++ code...
+script_version = '0.1.1' # This will change at different rate to C++ code...
 
 DEFAULTS = {'duration': 2.0,
             'dt': 0.005,
@@ -320,6 +320,9 @@ def run(a=None,**kwargs):
     
     sim_start = time.time()
     
+    reportj = {}
+    
+    completion_status = 'Completed successfully'
     announce("Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"%(a.duration, command, run_dir, env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
     try:
@@ -327,10 +330,14 @@ def run(a=None,**kwargs):
         #pynml.execute_command_in_dir_with_realtime_output(command, os.environ['SIBERNETIC_HOME'], prefix="Sibernetic: ", env=env, verbose=True)
     except KeyboardInterrupt:
         print_("\nCaught CTRL+C. Continue...\n")
+        completion_status = 'Caught CTRL+C'
+    except Except as e:
+        print_("\nError in running Sibernetic: %s...\n"%e)
+        completion_status = 'Error during simulation'
     
+    reportj['completion_status'] = completion_status
     sim_end = time.time()
     
-    reportj = {}
     
     reportj['duration'] = '%s ms'%a.duration
     reportj['dt'] = '%s ms'%a.dt
