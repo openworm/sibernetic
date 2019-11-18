@@ -67,3 +67,6 @@ simulations
 /test2.sh
 /wcon/*.png
 /run_fw*.sh
+.vscode/*
+.settings/*
+.idea/*
