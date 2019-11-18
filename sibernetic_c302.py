@@ -353,10 +353,22 @@ def run(a=None,**kwargs):
         reportj['reference'] = a.reference
         reportj['c302params'] = a.c302params
         reportj['c302_version'] = c302.__version__
-        import neuroml
-        import pyneuroml
-        reportj['libneuroml_version'] = neuroml.__version__
-        reportj['pyneuroml_version'] = pyneuroml.__version__
+        
+        import platform
+        reportj['python_version'] = platform.python_version()
+        
+        for m in ['pyneuroml','neuroml','matplotlib','numpy']:
+            if m=='neuroml':
+                m_='libneuroml'
+            else:
+                m_ = m
+            try:
+                exec('import %s'%m)
+                installed_ver = '%s'%eval('%s.__version__'%m)
+                reportj['%s_version'%m_] = installed_ver
+            except:
+                reportj['%s_version'%m_] = '-- Not found! --'
+                
         from neuron import h
         reportj['neuron_version'] = h.nrnversion()
         
