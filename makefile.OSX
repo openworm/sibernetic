@@ -9,7 +9,8 @@ src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \
 src/owWorldSimulation.cpp \
-src/owNeuronSimulator.cpp
+src/owNeuronSimulator.cpp \
+src/owConfigProperty.cpp
 
 TEST_SOURCES = src/test/owPhysicTest.cpp
 
@@ -25,9 +26,9 @@ OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
 CPP_DEPS = $(OBJECTS:.o=.d)
 
 # Change these to set the different python directories
-PYTHONHEADERDIR = /opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7/
-PYTHONLIBDIR = /opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/
-PYTHONFRAMEWORKDIR = /Library/Frameworks/
+PYTHONHEADERDIR = /System/Library/Frameworks/Python.framework/Versions/2.7/Headers/
+PYTHONLIBDIR = /System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/
+PYTHONFRAMEWORKDIR = /System/Library/Frameworks/
 
 LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
 
