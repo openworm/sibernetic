@@ -149,7 +149,7 @@ def build_namespace(a=None,**kwargs):
             setattr(a,key,value)
 
     # Change all values to under_score from camelCase.  
-    for key,value in a.__dict__.items():
+    for key,value in list(a.__dict__.items()):
         new_key = convert_case(key)
         if new_key != key:
             setattr(a,new_key,value)
@@ -191,7 +191,16 @@ def check_file(file_name, dir, line_num=None):
         
     return True
         
-    
+def dynamic_import(abs_module_path, class_name):
+
+    from importlib import import_module
+
+    module_object = import_module(abs_module_path)
+
+    target_class = getattr(module_object, class_name)
+
+    return target_class
+ 
 def run(a=None,**kwargs): 
     
     try:
@@ -207,7 +216,7 @@ def run(a=None,**kwargs):
     if not a.noc302:
 
         try:
-            if os.environ.has_key('C302_HOME'):
+            if 'C302_HOME' in os.environ:
                 os.environ['C302_HOME']
                 sys.path.append(os.environ['C302_HOME'])
                 print_('Python path now: %s'%sys.path)
@@ -252,8 +261,8 @@ def run(a=None,**kwargs):
     if not a.noc302:
     
         id = '%s_%s'%(a.c302params,ref)
-    
-        exec('from c302.c302_%s import setup'%ref)
+        
+        setup = dynamic_import('c302.c302_%s'%ref, 'setup')
     
         setup(a.c302params, 
           generate=True,

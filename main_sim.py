@@ -64,12 +64,12 @@ def parallel_waves(n=muscle_row_count, #24 for our first test?
     if (step>1200000): 
         velocity = 4 * 0.000015*0.72#crawling
         max_muscle_force_coeff = 1.0
-        row_positions = np.linspace(0,2.97*math.pi,j)		
+        row_positions = np.linspace(0,2.97*math.pi,int(j))		
         wave_m = np.linspace(1,0.6,j) 		
     else:
         velocity = 4 * 0.000015*3.7#swimming
         max_muscle_force_coeff = 0.575
-        row_positions = np.linspace(0,0.81*math.pi,j)
+        row_positions = np.linspace(0,0.81*math.pi,int(j))
         #wave_m = [0.8,0.7,0.8,0.93,1.0,1.0,1.0,1.0,0.93,0.8,0.6,0.4] 		
         #wave_m = [0.8,0.7,0.8,0.93,1.0,1.0,1.0,1.0,0.93,0.8,0.65,0.5] 		
         #wave_m = [0.8,0.7,0.8,0.93,1.0,1.0,1.0,0.93,0.8,0.6,0.4,0.2] 		
@@ -124,6 +124,7 @@ class MuscleSimulation():
         pass
 
     def run(self, skip_to_time=0, do_plot = True):
+
         self.contraction_array =  parallel_waves(step = self.step)
         self.step += self.increment
         #if (self.step>1000000):
