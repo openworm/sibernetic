@@ -207,7 +207,7 @@ def run(a=None,**kwargs):
     if not a.noc302:
 
         try:
-            if os.environ.has_key('C302_HOME'):
+            if 'C302_HOME' in os.environ:
                 os.environ['C302_HOME']
                 sys.path.append(os.environ['C302_HOME'])
                 print_('Python path now: %s'%sys.path)
@@ -252,9 +252,9 @@ def run(a=None,**kwargs):
     if not a.noc302:
     
         id = '%s_%s'%(a.c302params,ref)
-    
-        exec('from c302.c302_%s import setup'%ref)
-    
+        
+        setup = __import__('c302.c302_%s'%ref, fromlist=['object']).setup
+
         setup(a.c302params, 
           generate=True,
           duration = a.duration,
