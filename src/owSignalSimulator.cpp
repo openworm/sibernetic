@@ -54,10 +54,15 @@ SignalSimulator::SignalSimulator(const std::string &simFileName,
 
   // Initialize the Python interpreter
   Py_Initialize();
+  
   PyObject *pName;
   // Convert the file name to a Python string.
-  pName = PyString_FromString(simFileName.c_str());
-  const char *s = PyString_AsString(pName);
+  pName = PyUnicode_FromString(simFileName.c_str());
+  PyObject * temp_bytes = PyUnicode_AsEncodedString(pName, "UTF-8", "strict");
+  const char * s = PyBytes_AS_STRING(temp_bytes);
+  s = strdup(s);
+  Py_DECREF(temp_bytes);
+
   printf("[debug] pName = \"%s\"\n", s);
   const char *s2 = Py_GetPath();
   printf("[debug] PyPath = \"%s\"\n", s2);

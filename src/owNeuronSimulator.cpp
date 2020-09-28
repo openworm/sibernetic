@@ -54,13 +54,19 @@ owNeuronSimulator::owNeuronSimulator(int muscleNumber, float timeStep,
                                      const std::string &simFileName) {
   // Initialize the Python interpreter
   Py_Initialize();
+
   PyObject *pName;
   // Convert the file name to a Python string.
-  pName = PyString_FromString(simFileName.c_str());
-  const char *s = PyString_AsString(pName);
+  pName = PyUnicode_FromString(simFileName.c_str());
+  PyObject * temp_bytes = PyUnicode_AsEncodedString(pName, "UTF-8", "strict");
+  const char * s = PyBytes_AS_STRING(temp_bytes);
+  s = strdup(s);
+  Py_DECREF(temp_bytes);
+
   printf("[debug] pName = \"%s\"\n", s);
   const char *s2 = Py_GetPath();
   printf("[debug] PyPath = \"%s\"\n", s2);
+
   // Import the file as a Python module.
   pModule = PyImport_Import(pName);
   if (PyErr_Occurred())
@@ -74,7 +80,7 @@ owNeuronSimulator::owNeuronSimulator(int muscleNumber, float timeStep,
       muscleNumber); // size should be equal to number of muscles in model
   for (int i = 0; i < muscleNumber; ++i)
     PyList_SetItem(sectionNames, i,
-                   PyString_FromString("SMDDR_mus")); // there you actually need
+                   PyUnicode_FromString("SMDDR_mus")); // there you actually need
                                                       // put section names (from
                                                       // you'r .hoc file)
                                                       // file with NEURON model
@@ -83,7 +89,7 @@ owNeuronSimulator::owNeuronSimulator(int muscleNumber, float timeStep,
   // from model file in sibernetic_NEURON you can find it in folder
   // (path/to/sibewnretic_NEURON/model/c.elegans/ria_.hoc)
   PyObject *dt = PyFloat_FromDouble(timeStep); // Create time step argument
-  PyObject *fileName = PyString_FromString(
+  PyObject *fileName = PyUnicode_FromString(
       modelFileName.c_str()); // Create model file name argument
   PyObject *args = PyTuple_Pack(
       3, dt, fileName,
