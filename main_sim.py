@@ -124,6 +124,7 @@ class MuscleSimulation():
         pass
 
     def run(self, skip_to_time=0, do_plot = True):
+
         self.contraction_array =  parallel_waves(step = self.step)
         self.step += self.increment
         #if (self.step>1000000):

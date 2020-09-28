@@ -64,15 +64,13 @@ owNeuronSimulator::owNeuronSimulator(int muscleNumber, float timeStep,
   Py_DECREF(temp_bytes);
 
   printf("[debug] pName = \"%s\"\n", s);
-  
 
+  
   #if PY_MAJOR_VERSION == 3
     setlocale(LC_ALL, "en_US.utf8");
     char s2[10000];
     const wchar_t * s2_wide = Py_GetPath();
     std::wcstombs(s2, s2_wide, 10000);
-    int argc = 0; wchar_t *argv[1] = {NULL};
-    PySys_SetArgv(argc,argv);
   #else
     const char *s2 = Py_GetPath();
   #endif
