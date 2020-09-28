@@ -149,7 +149,7 @@ def build_namespace(a=None,**kwargs):
             setattr(a,key,value)
 
     # Change all values to under_score from camelCase.  
-    for key,value in a.__dict__.items():
+    for key,value in list(a.__dict__.items()):
         new_key = convert_case(key)
         if new_key != key:
             setattr(a,new_key,value)
@@ -191,7 +191,16 @@ def check_file(file_name, dir, line_num=None):
         
     return True
         
-    
+def dynamic_import(abs_module_path, class_name):
+
+    from importlib import import_module
+
+    module_object = import_module(abs_module_path)
+
+    target_class = getattr(module_object, class_name)
+
+    return target_class
+ 
 def run(a=None,**kwargs): 
     
     try:
@@ -253,8 +262,8 @@ def run(a=None,**kwargs):
     
         id = '%s_%s'%(a.c302params,ref)
         
-        setup = __import__('c302.c302_%s'%ref, fromlist=['object']).setup
-
+        setup = dynamic_import('c302.c302_%s'%ref, 'setup')
+        
         setup(a.c302params, 
           generate=True,
           duration = a.duration,

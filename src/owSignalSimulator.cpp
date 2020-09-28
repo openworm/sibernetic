@@ -71,8 +71,7 @@ SignalSimulator::SignalSimulator(const std::string &simFileName,
     char s2[10000];
     const wchar_t * s2_wide = Py_GetPath();
     std::wcstombs(s2, s2_wide, 10000);
-    int argc = 0; wchar_t *argv[1] = {NULL};
-    PySys_SetArgv(argc,argv);
+    
   #else
     const char *s2 = Py_GetPath();
   #endif
