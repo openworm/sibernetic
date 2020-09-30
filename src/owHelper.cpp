@@ -590,7 +590,7 @@ bool owHelper::loadConfigurationFromFile(float *&position, float *&connections,
     positionFile.open(positionFileName.c_str());
   }
   unsigned int i = 0;
-  float x, y, z, p_type;
+  float x, y, z, p_type=0;
   if (positionFile.is_open()) {
     if (iteration == 0) {
       float valueF;

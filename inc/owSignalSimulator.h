@@ -36,7 +36,7 @@
 //#include "/usr/include/python2.7/Python.h"  //need to fix
 //#define MS_NO_COREDLL
 #if defined(_WIN32) || defined (_WIN64)
-  #include "C:/Python27/include/Python.h" // TODO make it optional
+  #include "Python.h" // TODO make it optional
 #else
   #include <Python.h>
 #endif

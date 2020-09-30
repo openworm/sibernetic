@@ -43,7 +43,7 @@
 #define INC_OWNEURONSIMULATOR_H_
 
 #if defined(_WIN32) || defined (_WIN64)
-  #include "C:/Python27/include/Python.h" // TODO make it optional
+  #include "Python.h" // TODO make it optional
 #else
   #include <Python.h>
 #endif

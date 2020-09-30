@@ -36,6 +36,11 @@
 #include <stdexcept>
 #include <iomanip>>
 
+#if defined(_WIN32) || defined (_WIN64)
+    #include "gettimeofday.h"
+    #include < WinSock2.h>
+#endif
+
 #include "owPhysicsFluidSimulator.h"
 #include "owSignalSimulator.h"
 #include "owVtkExport.h"

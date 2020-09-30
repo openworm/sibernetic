@@ -34,6 +34,10 @@
 #ifndef OW_PHYSICS_SIMULATOR_H
 #define OW_PHYSICS_SIMULATOR_H
 
+#if defined(_WIN32) || defined (_WIN64)
+	#include < WinSock2.h>
+#endif
+
 #include <time.h>
 
 #include "owPhysicsConstant.h"
