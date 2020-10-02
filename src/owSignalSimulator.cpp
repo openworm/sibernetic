@@ -60,7 +60,7 @@ SignalSimulator::SignalSimulator(const std::string &simFileName,
   pName = PyUnicode_FromString(simFileName.c_str());
   PyObject * temp_bytes = PyUnicode_AsEncodedString(pName, "UTF-8", "strict");
   const char * s = PyBytes_AS_STRING(temp_bytes);
-  s = _strdup(s);
+  s = strdup(s);
   Py_DECREF(temp_bytes);
 
   printf("[debug] pName = \"%s\"\n", s);
