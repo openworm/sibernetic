@@ -325,7 +325,8 @@ def run(a=None,**kwargs):
     command = './Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%('' if a.noc302 else '-c302', a.configuration, sim_dir, a.duration/1000.0, a.dt/1000, a.logstep, a.device)
     
     #env={"PYTHONPATH":".:%s" % sim_dir}
-    env={"PYTHONPATH":".:%s" % os.path.abspath(sim_dir)}
+    env = dict(os.environ)
+    env["PYTHONPATH"] = ".:%s:%s" % (os.environ.get('PYTHONPATH'), os.path.abspath(sim_dir))
     
     sim_start = time.time()
     
