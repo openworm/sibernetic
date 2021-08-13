@@ -37,6 +37,11 @@ endif
 CXXFLAGS += -fPIE
 EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
 
+ifeq ($(FFMPEG),true)
+LIBS += -lavcodec -lswscale -lavutil -lavformat
+CXXFLAGS += -DFFMPEG=1 -I/usr/include/x86_64-linux-gnu
+endif
+
 all: CXXFLAGS += -O3
 all : $(TARGET)
 
@@ -63,5 +68,8 @@ clean :
 	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
-.PHONY: all clean dependents
+docker:
+	cd docker && make
+
+.PHONY: all clean dependents docker
 .SECONDARY:
