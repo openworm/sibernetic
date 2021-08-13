@@ -92,6 +92,12 @@ int usage() {
       << "                               and sibernetic_neuron bridge\n\n"
       << "    -c302                      Run worm model with c302 "
          "(Note: use `python sibernetic_c302.py` for all options)\n\n"
+#if FFMPEG
+      << "    -vout <video_filename>     Save the simulation display to a video"
+         " file\n\n"
+      << "    -vcodec <video_codec>      Use the given codec for encoding the"
+         " video\n\n"
+#endif
       << "    -help, -h, -?, --help      Print this information\n\n"
       << "Full documentation at: <https://github.com/openworm/sibernetic>\n"
       << "Please report any bugs/issues "
@@ -100,7 +106,7 @@ int usage() {
 }
 
 int main(int argc, char **argv) {
-  int exitStatus;
+  int exitStatus = 0;
   if (argc == 1) {
     std::cout << "Sibernetic: no arguments specified, run method executing\n";
     exitStatus = run(argc, argv);
@@ -115,10 +121,10 @@ int main(int argc, char **argv) {
           std::string("-h").compare(argv[i]) == 0) { // print usage information
         return usage();
       }
-      if (std::string("-no_g").compare(argv[i]) == 0) // run without graphics
+      if (std::string("-no_g").compare(argv[i]) == 0) { // run without graphics
         graph = false;
-      if (std::string("-l_to").compare(argv[i]) ==
-          0) { // run load config to file mode
+      }
+      if (std::string("-l_to").compare(argv[i]) == 0) { // run load config to file mode
         std::cout
             << "-l_to flag: Sibernetic will save simulation results to disk\n";
         load_to = true;
@@ -126,8 +132,7 @@ int main(int argc, char **argv) {
       if (std::string("-export_vtk").compare(argv[i]) == 0) {
         owVtkExport::isActive = true;
       }
-      if (std::string("-l_from").compare(argv[i]) ==
-          0) { // run load config from file mode
+      if (std::string("-l_from").compare(argv[i]) == 0) { // run load config from file mode
         graph = true;
         load_from_file = true;
       }
@@ -146,8 +151,9 @@ int main(int argc, char **argv) {
     }
     if (run_tests) {
       test_energy_conservation(argc, argv);
-    } else
+    } else {
       exitStatus = run(argc, argv, graph);
+    }
   }
   return exitStatus;
 }

@@ -35,8 +35,10 @@
 #include <csignal>
 #include <sstream>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "owWorldSimulation.h"
+#include "owVideoWriter.h"
 
 extern bool load_from_file;
 extern bool load_to;
@@ -62,9 +64,15 @@ float *ec_cpp;
 float *v_cpp;
 float *muscle_activation_signal_cpp;
 int *md_cpp; // pointer to membraneData_cpp
+const int WIDTH = 1200;
+const int HEIGHT = 800;
+
 owPhysicsFluidSimulator *fluid_simulation;
 owHelper *helper;
 owConfigProperty *localConfig;
+#ifdef FFPMEG
+owVideoWriter *videoWriter;
+#endif
 int iteration = 0;
 
 static char label[1000]; /* Storage for current string   */
@@ -117,7 +125,7 @@ void glPrint3D(float x, float y, float z, const char *s, void *font) {
 
 std::ifstream musclesActivityFile;
 
-int read_muscles_activity_signals_from_log_file(
+void read_muscles_activity_signals_from_log_file(
     int iterationCount, float *muscle_activation_signal_cpp,
     owConfigProperty *config) {
   std::string musclesActivityFileName =
@@ -143,11 +151,9 @@ int read_muscles_activity_signals_from_log_file(
  */
 void display(void) {
   // Update Scene if not paused
-  int i, j, k;
-  int err_coord_cnt = 0;
-  double calculationTime;
+  unsigned int i, j, k;
+  double calculationTime = 0.0;
   double renderTime;
-  void *m_font = GLUT_BITMAP_8_BY_13;
   if (!sPause) {
     if (!load_from_file) {
       try {
@@ -164,7 +170,7 @@ void display(void) {
         cleanupSimulation();
         std::cout << "ERROR: " << ex.what() << std::endl;
         exit(EXIT_FAILURE); // unfortunately we cannot leave glutmain loop by
-                            // the other way
+        // the other way
       }
       int pib;
       for (i = 0; i < localConfig->getParticleCount(); ++i) {
@@ -177,12 +183,12 @@ void display(void) {
         std::cout << "Simulation has reached the time limit..." << std::endl;
         cleanupSimulation();
         exit(EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by
-                            // the other way
+        // the other way
       }
     } else {
       try {
         if (owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp,
-                                                localConfig, iteration)) {
+              localConfig, iteration)) {
           read_muscles_activity_signals_from_log_file(
               iteration, muscle_activation_signal_cpp, localConfig);
           iteration++;
@@ -251,33 +257,17 @@ void display(void) {
                      (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
           glPointSize(1.3f * sqrt(sc / 0.025f));
           glEnd();
-
-          if (!((p_cpp[i * 4] >= 0) && (p_cpp[i * 4] <= localConfig->xmax) &&
-                (p_cpp[i * 4 + 1] >= 0) &&
-                (p_cpp[i * 4 + 1] <= localConfig->ymax) &&
-                (p_cpp[i * 4 + 2] >= 0) &&
-                (p_cpp[i * 4 + 2] <= localConfig->zmax))) {
-            /*char label[50];
-            beginWinCoords();
-            glRasterPos2f (0.01F, 0.05F);
-            if(err_coord_cnt<50){
-            sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4
-            ],p_cpp[i*4+1],p_cpp[i*4+2]);
-            glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
-            if(err_coord_cnt==50) {
-            glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
-            err_coord_cnt++;
-            endWinCoords();*/
-          }
         }
       }
   }
   glLineWidth((GLfloat)0.1);
   // Display elastic connections
-  for (int i_ec = 0; i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT;
+  for (unsigned int i_ec = 0; i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT;
        ++i_ec) {
     // offset = 0
-    if ((j = (int)ec_cpp[4 * i_ec + 0]) >= 0) {
+    int _j = (int)ec_cpp[4 * i_ec + 0];
+    if (_j >= 0) {
+        j = _j;
       i = (i_ec / MAX_NEIGHBOR_COUNT); // +
       // (generateInitialConfiguration!=1)*numOfBoundaryP;
       if (i < j) {
@@ -290,7 +280,7 @@ void display(void) {
             // agar particles which contacted the worm
             continue;
           }
-            
+
 
         if (ec_cpp[4 * i_ec + 2] > 1.f) // muscles
         {
@@ -484,6 +474,11 @@ void display(void) {
   }
   glLineWidth((GLfloat)1.0);
   glutSwapBuffers();
+#ifdef FFMPEG
+  if (localConfig->isVout()) {
+      videoWriter->write_video_frame();
+  }
+#endif
   helper->watch_report(
       "graphics: \t\t%9.3f ms\n====================================\n");
   renderTime = helper->getElapsedTime();
@@ -986,14 +981,19 @@ void Timer(int value) {
 }
 
 GLvoid resize(GLsizei width, GLsizei height) {
-
+#ifdef FFMPEG
+  if (localConfig->isVout()) {
+    height = HEIGHT;
+    width = WIDTH;
+    glutReshapeWindow(WIDTH, HEIGHT);
+  }
+#endif
   if (height == 0) {
     height = 1;
   }
   if (width == 0) {
     width = 1;
   }
-
   glViewport(0, 0, width, height); // Set view area
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
@@ -1014,6 +1014,7 @@ GLvoid resize(GLsizei width, GLsizei height) {
   glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
   glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
 }
+
 inline void init(void) {
   glEnable(GL_LIGHTING);
   glEnable(GL_COLOR_MATERIAL);
@@ -1033,6 +1034,15 @@ inline void init(void) {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
+
+void deinit(void) {
+#ifdef FFMPEG
+  if (localConfig->isVout()) {
+    delete videoWriter;
+  }
+#endif
+}
+
 void sighandler(int s) {
   std::cout << "\nCaught signal CTRL+C. Exit Simulation...\n"; // this is
                                                                // undefined
@@ -1076,13 +1086,20 @@ int run(int argc, char **argv, const bool with_graphics) {
   if (with_graphics) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(1200, 800);
+    glutInitWindowSize(WIDTH, HEIGHT);
     glutInitWindowPosition(100, 100);
     glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey "
                      "Khayrulin. Build from 28/10/2017 sources (development "
                      "branch)");
     glutIdleFunc(idle);
     init();
+#ifdef FFMPEG
+    if (localConfig->isVout()) {
+      std::string formatName = localConfig->getVideoCodecName();
+      std::string fileName = localConfig->getVideoFileName();
+      videoWriter = new owVideoWriter(formatName, fileName, 25, WIDTH, HEIGHT);
+    }
+#endif
     glutDisplayFunc(display);
     glutReshapeFunc(resize);
     glutMouseFunc(respond_mouse);
@@ -1090,6 +1107,7 @@ int run(int argc, char **argv, const bool with_graphics) {
         mouse_motion); // process movement in case if the mouse is clicked,
     glutKeyboardFunc(respondKey);
     glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
+    atexit(deinit);
     glutMainLoop();
     if (!load_from_file) {
       cleanupSimulation();

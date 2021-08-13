@@ -34,7 +34,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
-#include <iomanip>>
+#include <iomanip>
 
 #include "owPhysicsFluidSimulator.h"
 #include "owSignalSimulator.h"
@@ -232,7 +232,7 @@ int update_worm_motion_log_file(
   float log_x[200], log_y[200], log_z[200], log_n[200];
   // float * ec_cpp = getElasticConnectionsData_cpp();
   // float * p_cpp = getPosition_cpp();
-  int L_index_i, i, ecc = 0; // elastic connections counter;
+  unsigned int L_index_i, i; // elastic connections counter;
 
   std::ofstream wormMotionLogFile;
   std::string wormMotionLogFileName =
@@ -448,7 +448,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   printf("------------------------------------\n");
   if (load_to) {
     if (iterationCount == 0) {
-      
+
       owHelper::loadConfigurationToFile(position_cpp, config,
                                         elasticConnectionsData_cpp,
                                         membraneData_cpp, true);
@@ -471,32 +471,33 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   }
 
   config->updateNeuronSimulation(muscle_activation_signal_cpp);
-  /* // signal correction switched off
-    float correction_coeff;
+#if 0
+  // signal correction switched off
+  float correction_coeff;
 
-    for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
+  for (unsigned int i = 0; i < config->MUSCLE_COUNT; ++i) {
       correction_coeff = sqrt(
-          1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f)
-  / 12.5f));
+              1.f - ((1 + i % 24 - 12.5f) / 12.5f) * ((1 + i % 24 - 12.5f)
+                  / 12.5f));
       // printf("\n%d\t%d\t%f\n",i,1+i%24,correction_coeff);
       //muscle_activation_signal_cpp[i] *= correction_coeff;
-            muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
-            muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
-          //if(muscle_activation_signal_cpp[i]<0.25f*0.9f)
-  muscle_activation_signal_cpp[i] = 0.f;
-    }
+      muscle_activation_signal_cpp[i] *= muscle_activation_signal_cpp[i];
+      muscle_activation_signal_cpp[i] *= 1.0f*(1.f-0.4f*(i%24)/24.f);
+      //if(muscle_activation_signal_cpp[i]<0.25f*0.9f)
+      muscle_activation_signal_cpp[i] = 0.f;
+  }
 
-  /**/
 
-  /* //smooth start switched off
-        if(iterationCount<5000)
-        {
-                for(int i=0;i<config->MUSCLE_COUNT;i++)
-                {
-                        muscle_activation_signal_cpp[i] *=
-     (float)iterationCount/5000.f;
-                }
-        }/**/
+  //smooth start switched off
+  if(iterationCount<5000)
+  {
+      for(int i=0;i<config->MUSCLE_COUNT;i++)
+      {
+          muscle_activation_signal_cpp[i] *=
+              (float)iterationCount/5000.f;
+      }
+  }
+#endif
 
   if (iterationCount % config->getLogStep() == 0) {
     update_muscle_activity_signals_log_file(

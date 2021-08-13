@@ -61,13 +61,13 @@ struct owConfigProperty {
   // smoothing radius h
 public:
   typedef unsigned int uint;
-  const int getParticleCount() { return PARTICLE_COUNT; }
+  const unsigned int getParticleCount() { return PARTICLE_COUNT; }
   void setParticleCount(int value) {
     PARTICLE_COUNT = value;
     PARTICLE_COUNT_RoundedUp =
         (((PARTICLE_COUNT - 1) / local_NDRange_size) + 1) * local_NDRange_size;
   }
-  float getConst(const std::string &name) throw(param_error) {
+  float getConst(const std::string &name) {
     if (constMap.find(name) == constMap.end())
       throw param_error(std::string("No param with name...") + name);
     return constMap[name];
@@ -138,6 +138,11 @@ public:
     fileName += ss.str();
     return fileName;
   }
+#if FFMPEG
+  bool isVout() { return vout; }
+  std::string getVideoFileName() { return videoFileName; }
+  std::string getVideoCodecName() { return videoCodecName; }
+#endif
   // Constructor
   owConfigProperty(int argc, char **argv);
   void initGridCells() {
@@ -230,7 +235,7 @@ private:
     delta = (float)result;
   }
   void fillConstMap();
-  int PARTICLE_COUNT;
+  unsigned int PARTICLE_COUNT;
   int PARTICLE_COUNT_RoundedUp;
   int totalNumberOfIterations;
   int logStep;
@@ -250,6 +255,11 @@ private:
   bool nrnSimRun; // indicates if we also run NEURON simulation
   bool c302;      // indicates if we also run NEURON simulation
   std::string nrnSimulationFileName;
+#if FFMPEG
+  bool vout; // if true, then we'll save a video file to videoFileName
+  std::string videoFileName;
+  std::string videoCodecName;
+#endif
   std::map<std::string, float> constMap;
 };
 
