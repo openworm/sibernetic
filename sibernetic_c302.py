@@ -329,7 +329,7 @@ def run(a=None,**kwargs):
 
     #env={"PYTHONPATH":".:%s" % sim_dir}
     env = dict(os.environ)
-    env["PYTHONPATH"] = ".:%s:%s" % (os.environ.get('PYTHONPATH'), os.path.abspath(sim_dir))
+    env = {"PYTHONPATH": ".:%s:%s" % (os.environ.get('PYTHONPATH'), os.path.abspath(sim_dir))}
 
     sim_start = time.time()
 
@@ -344,7 +344,7 @@ def run(a=None,**kwargs):
     except KeyboardInterrupt:
         print_("\nCaught CTRL+C. Continue...\n")
         completion_status = 'Caught CTRL+C'
-    except Except as e:
+    except Exception as e:
         print_("\nError in running Sibernetic: %s...\n"%e)
         completion_status = 'Error during simulation'
 
