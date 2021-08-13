@@ -23,9 +23,9 @@ DEFAULTS = {'duration': 2.0,
             'noc302': False,
             'outDir': 'simulations',
             'datareader': 'SpreadsheetDataReader',
-            'test': False} 
-         
-         
+            'test': False}
+
+
 '''
     For recording the version of core Sibernetic in report file
 '''
@@ -39,88 +39,88 @@ def get_sibernetic_version():
                 version = ws[3][1:-2]
                 print_("Sibernetic v%s"%version)
     return version
-        
-            
+
+
 def process_args():
-    """ 
+    """
     Parse command-line arguments.
     """
     parser = argparse.ArgumentParser(
                 description=("A script which can run Sibernetic, controlled by a "+
                 "neuronal network in c302"))
 
-    parser.add_argument('-test', 
+    parser.add_argument('-test',
                         action='store_true',
                         default=DEFAULTS['test'],
                         help="Use this flag to run some tests on the outputted files after the run, default: %s"%DEFAULTS['test'])
 
-    parser.add_argument('-noc302', 
+    parser.add_argument('-noc302',
                         action='store_true',
                         default=DEFAULTS['noc302'],
                         help="Use this flag to run Sibernetic with the inbuilt (Python based) sine wave generator, using specified duration/configuration etc. and saving in simulations directory, default: %s"%DEFAULTS['noc302'])
 
-    parser.add_argument('-duration', 
+    parser.add_argument('-duration',
                         type=float,
                         metavar='<duration>',
                         default=DEFAULTS['duration'],
                         help="Duration of simulation in ms, default: %sms"%DEFAULTS['duration'])
-                        
-    parser.add_argument('-dt', 
+
+    parser.add_argument('-dt',
                         type=float,
                         metavar='<dt>',
                         default=DEFAULTS['dt'],
                         help="Time step for SIBERNETIC in ms, default: %sms"%DEFAULTS['dt'])
-                        
-    parser.add_argument('-dtNrn', 
+
+    parser.add_argument('-dtNrn',
                         type=float,
                         metavar='<dtNrn>',
                         default=DEFAULTS['dtNrn'],
                         help="Time step for NEURON in ms, default: %sms"%DEFAULTS['dtNrn'])
-                        
-    parser.add_argument('-logstep', 
+
+    parser.add_argument('-logstep',
                         type=int,
                         metavar='<logstep>',
                         default=DEFAULTS['logstep'],
                         help="Frequency of logging data into file, default: %s (note: Sibernetic's is 10)"%DEFAULTS['logstep'])
-                        
-    parser.add_argument('-device', 
+
+    parser.add_argument('-device',
                         type=str,
                         metavar='<device>',
                         default=DEFAULTS['device'],
                         help="Tell OpenCL to run on this device (could be cpu or gpu), default: %s"%DEFAULTS['device'])
-                        
-    parser.add_argument('-configuration', 
+
+    parser.add_argument('-configuration',
                         type=str,
                         metavar='<configuration>',
                         default=DEFAULTS['configuration'],
                         help="Run Sibernetic with this configuration (e.g. worm_no_water, worm_deep_water), default: %s"%DEFAULTS['configuration'])
-                        
-    parser.add_argument('-reference', 
+
+    parser.add_argument('-reference',
                         type=str,
                         metavar='<reference>',
                         default=DEFAULTS['reference'],
                         help="Reference for c302 network subset (Muscles, Full, etc.), default: %s"%DEFAULTS['reference'])
-                        
-    parser.add_argument('-c302params', 
+
+    parser.add_argument('-c302params',
                         type=str,
                         metavar='<c302params>',
                         default=DEFAULTS['c302params'],
                         help="Parameter set from c302 (A, B, C, C1), default: %s"%DEFAULTS['c302params'])
 
-    parser.add_argument('-datareader', 
+    parser.add_argument('-datareader',
                         type=str,
                         metavar='<datareader>',
                         default=DEFAULTS['datareader'],
                         help="DataReader, default: %s"%DEFAULTS['datareader'])
 
-    parser.add_argument('-outDir', 
+    parser.add_argument('-outDir',
                         type=str,
                         metavar='<outDir>',
                         default=DEFAULTS['outDir'],
                         help="Output directory, default: %s"%DEFAULTS['outDir'])
-                        
+
     return parser.parse_args()
-                        
+
 
 
 
@@ -133,27 +133,30 @@ def main(args=None):
     if args is None:
         args = process_args()
     run(a=args)
-    
+
 
 def build_namespace(a=None,**kwargs):
     if a is None:
         a = argparse.Namespace()
-    
-    # Add arguments passed in by keyword.  
+
+    # Add arguments passed in by keyword.
     for key,value in kwargs.items():
         setattr(a,key,value)
 
-    # Add defaults for arguments not provided.  
+    # Add defaults for arguments not provided.
     for key,value in DEFAULTS.items():
         if not hasattr(a,key):
             setattr(a,key,value)
 
-    # Change all values to under_score from camelCase.  
-    for key,value in list(a.__dict__.items()):
+    # Change all values to under_score from camelCase.
+    name_changes = []
+    for key, value in a.__dict__.items():
         new_key = convert_case(key)
         if new_key != key:
-            setattr(a,new_key,value)
-            delattr(a,key)
+            name_changes.append((key, new_key, value))
+    for old_key, new_key, value in name_changes:
+        setattr(a, new_key, value)
+        delattr(a, old_key)
 
     return a
 
@@ -165,7 +168,7 @@ def convert_case(name):
 
 
 def announce(message):
-    
+
     print_("\n************************************************************************\n*")
     print_("*  %s"%message.replace('\n','\n*  '))
     print_("*\n************************************************************************")
@@ -188,9 +191,9 @@ def check_file(file_name, dir, line_num=None):
         if count!=line_num:
             print_("Error: Expecting %s lines, but had %s!!"%(line_num,count))
             return False
-        
+
     return True
-        
+
 def dynamic_import(abs_module_path, class_name):
 
     from importlib import import_module
@@ -200,9 +203,9 @@ def dynamic_import(abs_module_path, class_name):
     target_class = getattr(module_object, class_name)
 
     return target_class
- 
-def run(a=None,**kwargs): 
-    
+
+def run(a=None,**kwargs):
+
     try:
         import neuroml
         import pyneuroml
@@ -210,9 +213,9 @@ def run(a=None,**kwargs):
     except Exception as e:
         print_("Cannot import one of the required packages. Please install!\n"
              "Exception: %s\n"%e)
-    
+
     a = build_namespace(a,**kwargs)
-    
+
     if not a.noc302:
 
         try:
@@ -228,49 +231,49 @@ def run(a=None,**kwargs):
                  +"Please see installation instructions at https://github.com/openworm/c302!\n")
 
             exit(-1)
-        
-    
+
+
     gen_start = time.time()
-    
-    
+
+
     #if not os.path.isdir('simulations'):
     #    os.mkdir('simulations')
     if not os.path.isdir(a.out_dir):
         os.mkdir(a.out_dir)
-        
+
     current_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
-     
-    
+
+
     if not a.noc302:
 
         ref = a.reference
         sim_ref = "%s_%s_%s" % (a.c302params, ref, current_time)
-        
+
     else:
         sim_ref = "Sibernetic_%s" % (current_time)
-        
+
     #sim_dir = "simulations/%s" % (sim_ref)
     sim_dir = os.path.join(a.out_dir, sim_ref)
 
     os.mkdir(sim_dir)
-    
+
     run_dir = '.'
     if 'SIBERNETIC_HOME' in os.environ:
         run_dir = os.environ['SIBERNETIC_HOME']
-    
+
     if not a.noc302:
-    
+
         id = '%s_%s'%(a.c302params,ref)
-        
+
         setup = dynamic_import('c302.c302_%s'%ref, 'setup')
-        
-        setup(a.c302params, 
+
+        setup(a.c302params,
           generate=True,
           duration = a.duration,
           dt = a.dt,
           target_directory=sim_dir,
           data_reader=a.datareader)
-    
+
 
         lems_file0 = os.path.join(sim_dir, 'LEMS_c302_%s.xml' % id)
         lems_file = os.path.join(sim_dir, 'LEMS_c302.xml')
@@ -281,8 +284,8 @@ def run(a=None,**kwargs):
 
         pynml.run_lems_with_jneuroml_neuron(lems_file,
                                             only_generate_scripts=True,
-                                            nogui=True, 
-                                            load_saved_data=False, 
+                                            nogui=True,
+                                            load_saved_data=False,
                                             verbose=True,
                                             realtime_output=True)
 
@@ -310,7 +313,7 @@ def run(a=None,**kwargs):
             main_nrn_py.write(updated)"""
         main_nrn_py = open('%s/LEMS_c302_nrn.py'%(sim_dir),'w')
         main_nrn_py.write(updated)
-        main_nrn_py.close() 
+        main_nrn_py.close()
 
         command = 'nrnivmodl %s' % sim_dir
         #command = 'nrnivmodl .'
@@ -323,15 +326,15 @@ def run(a=None,**kwargs):
             sys.exit()
 
     command = './Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s'%('' if a.noc302 else '-c302', a.configuration, sim_dir, a.duration/1000.0, a.dt/1000, a.logstep, a.device)
-    
+
     #env={"PYTHONPATH":".:%s" % sim_dir}
     env = dict(os.environ)
     env["PYTHONPATH"] = ".:%s:%s" % (os.environ.get('PYTHONPATH'), os.path.abspath(sim_dir))
-    
+
     sim_start = time.time()
-    
+
     reportj = {}
-    
+
     completion_status = 'Completed successfully'
     announce("Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"%(a.duration, command, run_dir, env))
     #pynml.execute_command_in_dir('env', run_dir, prefix="Sibernetic: ",env=env,verbose=True)
@@ -344,11 +347,11 @@ def run(a=None,**kwargs):
     except Except as e:
         print_("\nError in running Sibernetic: %s...\n"%e)
         completion_status = 'Error during simulation'
-    
+
     reportj['completion_status'] = completion_status
     sim_end = time.time()
-    
-    
+
+
     reportj['duration'] = '%s ms'%a.duration
     reportj['dt'] = '%s ms'%a.dt
     reportj['dtNrn'] = '%s ms'%a.dt_nrn
@@ -358,15 +361,15 @@ def run(a=None,**kwargs):
     reportj['python_args'] = 'python ' + ' '.join(sys.argv)
     reportj['sibernetic_version'] = get_sibernetic_version()
     reportj['sibernetic_c302_version'] = script_version
-    
+
     if not a.noc302:
         reportj['reference'] = a.reference
         reportj['c302params'] = a.c302params
         reportj['c302_version'] = c302.__version__
-        
+
         import platform
         reportj['python_version'] = platform.python_version()
-        
+
         for m in ['pyneuroml','neuroml','matplotlib','numpy']:
             if m=='neuroml':
                 m_='libneuroml'
@@ -378,17 +381,17 @@ def run(a=None,**kwargs):
                 reportj['%s_version'%m_] = installed_ver
             except:
                 reportj['%s_version'%m_] = '-- Not found! --'
-                
+
         from neuron import h
         reportj['neuron_version'] = h.nrnversion()
-        
+
         try:
             import PyOpenWorm as P
             reportj['pyopenworm_version'] = P.__version__
         except:
-            pass # Not currently required for sims 
-        
-        
+            pass # Not currently required for sims
+
+
     reportj['generation_time'] = '%s s'%(sim_start-gen_start)
     reportj['run_time'] = '%s s'%(sim_end-sim_start)
     reportj['device'] = '%s'%(a.device)
@@ -396,33 +399,33 @@ def run(a=None,**kwargs):
     reportj['run_command'] = command
     reportj['outDir'] = a.out_dir
     reportj['env'] = str(env)
-    
+
     with open(os.path.join(sim_dir, 'report.json'), 'w') as report_file:
-        
+
         import json
         s = json.dumps(reportj, indent=4, sort_keys=True)
         report_file.write(s)
-        
-    
+
+
     if not a.noc302:
 
         announce("Generating images for neuronal activity...")
 
-        results = pynml.reload_saved_data(lems_file, 
+        results = pynml.reload_saved_data(lems_file,
                           base_dir=sim_dir,
-                          plot=False, 
-                          show_plot_already=False, 
-                          simulator=None, 
+                          plot=False,
+                          show_plot_already=False,
+                          simulator=None,
                           verbose=True)
 
         c302_utils.plot_c302_results(results,
-                                     config=a.reference, 
-                                     parameter_set=a.c302params, 
+                                     config=a.reference,
+                                     parameter_set=a.c302params,
                                      directory=sim_dir,
                                      save=True,
                                      show_plot_already=False)
-                                 
-    
+
+
     ####   WCON plotting better...
     #pos_file_name = os.path.abspath('%s/position_buffer.txt'%sim_dir)
     #announce("Plotting positions of worm body particles in %s..."%pos_file_name)
@@ -430,13 +433,13 @@ def run(a=None,**kwargs):
     #if not os.path.isfile(pos_file_name):
     #    time.sleep(2)
     #plot_positions(pos_file_name,rate_to_plot = int(a.duration/5), show_plot=False)
-    
+
     from plot_positions import plot_muscle_activity
     musc_act_file = os.path.join(sim_dir, 'muscles_activity_buffer.txt')
     plot_muscle_activity(musc_act_file,a.dt,a.logstep, show_plot=False)
-    
+
     from wcon.generate_wcon import generate_wcon
-    
+
     num_steps = int(a.duration/a.dt)
     num_steps_logged = num_steps/a.logstep
     rate = max(1,int(num_steps_logged/20.0))
@@ -455,34 +458,34 @@ def run(a=None,**kwargs):
 
 
     if a.test:
-        
+
         announce("Running tests...")
         passed = True
-        
+
         total_steps = int(a.duration/a.dt)
         sib_recorded_steps = int(math.ceil(float(total_steps)/a.logstep))
-        
+
         print_("Expected Sibernetic to have recorded %s steps of %s total in %s ms..."%(sib_recorded_steps,total_steps,a.duration))
-        
+
         passed = passed and check_file('worm_motion_log.txt',sim_dir,line_num=sib_recorded_steps)
         passed = passed and check_file('worm_motion_log.wcon',sim_dir)
         passed = passed and check_file('worm_motion_1.png',sim_dir)
         passed = passed and check_file('worm_motion_2.png',sim_dir)
         passed = passed and check_file('worm_motion_3.png',sim_dir)
-        
-        passed = passed and check_file('connection_buffer.txt',sim_dir)
-        passed = passed and check_file('membranes_buffer.txt',sim_dir)  
-        passed = passed and check_file('muscles_activity_buffer.txt',sim_dir,line_num=sib_recorded_steps)  
-        passed = passed and check_file('position_buffer.txt',sim_dir)  
-        passed = passed and check_file('report.json',sim_dir) 
 
-        
+        passed = passed and check_file('connection_buffer.txt',sim_dir)
+        passed = passed and check_file('membranes_buffer.txt',sim_dir)
+        passed = passed and check_file('muscles_activity_buffer.txt',sim_dir,line_num=sib_recorded_steps)
+        passed = passed and check_file('position_buffer.txt',sim_dir)
+        passed = passed and check_file('report.json',sim_dir)
+
+
         if not passed:
             announce("Failed tests!!")
             exit(-1)
         else:
             announce("Passed all tests!!")
-            
+
 
 
 if __name__ == '__main__':
