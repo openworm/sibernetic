@@ -240,8 +240,8 @@ void ffmpeg_encoder_glread_rgb(uint8_t **rgb, GLubyte **pixels, unsigned int wid
     size_t i, j, k, cur_gl, cur_rgb, nvals;
     const size_t format_nchannels = 4;
     nvals = format_nchannels * width * height;
-    *pixels = realloc(*pixels, nvals * sizeof(GLubyte));
-    *rgb = realloc(*rgb, nvals * sizeof(uint8_t));
+    *pixels = realloc((void*)*pixels, nvals * sizeof(GLubyte));
+    *rgb = realloc((void*)*rgb, nvals * sizeof(uint8_t));
     /* Get RGBA to align to 32 bits instead of just 24 for RGB. May be faster for FFmpeg. */
     glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, *pixels);
     for (i = 0; i < height; i++) {
