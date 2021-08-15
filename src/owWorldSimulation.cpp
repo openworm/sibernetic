@@ -240,8 +240,8 @@ void ffmpeg_encoder_glread_rgb(uint8_t **rgb, GLubyte **pixels, unsigned int wid
     size_t i, j, k, cur_gl, cur_rgb, nvals;
     const size_t format_nchannels = 4;
     nvals = format_nchannels * width * height;
-    *pixels = realloc((void*)*pixels, nvals * sizeof(GLubyte));
-    *rgb = realloc((void*)*rgb, nvals * sizeof(uint8_t));
+    *pixels = (GLubyte*) realloc((void*)*pixels, nvals * sizeof(GLubyte));
+    *rgb = (uint8_t*) realloc((void*)*rgb, nvals * sizeof(uint8_t));
     /* Get RGBA to align to 32 bits instead of just 24 for RGB. May be faster for FFmpeg. */
     glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, *pixels);
     for (i = 0; i < height; i++) {
@@ -391,13 +391,13 @@ void display(void) {
                      (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
           glPointSize(1.3f * sqrt(sc / 0.025f));
           glEnd();
-
+          /*
           if (!((p_cpp[i * 4] >= 0) && (p_cpp[i * 4] <= localConfig->xmax) &&
                 (p_cpp[i * 4 + 1] >= 0) &&
                 (p_cpp[i * 4 + 1] <= localConfig->ymax) &&
                 (p_cpp[i * 4 + 2] >= 0) &&
                 (p_cpp[i * 4 + 2] <= localConfig->zmax))) {
-            /*char label[50];
+            char label[50];
             beginWinCoords();
             glRasterPos2f (0.01F, 0.05F);
             if(err_coord_cnt<50){
@@ -407,8 +407,9 @@ void display(void) {
             if(err_coord_cnt==50) {
             glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
             err_coord_cnt++;
-            endWinCoords();*/
+            endWinCoords();
           }
+          */
         }
       }
   }
