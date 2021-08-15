@@ -71,6 +71,7 @@ float *v_cpp;
 float *muscle_activation_signal_cpp;
 int *md_cpp; // pointer to membraneData_cpp
 static GLubyte *pixels = NULL;
+static uint8_t *rgb = NULL;
 
 owPhysicsFluidSimulator *fluid_simulation;
 owHelper *helper;
