@@ -63,6 +63,7 @@ int buttonState = 0;
 float sc = 0.025f; // 0.0145;//0.045;//0.07
 double totalTime = 0;
 int frames_counter = 0;
+uint64_t nframes = 0;
 double fps;
 double prevTime;
 unsigned int *p_indexb;
@@ -628,7 +629,7 @@ void display(void) {
   glLineWidth((GLfloat)1.0);
   glutSwapBuffers();
 #if FFMPEG
-  frame->pts = frames_counter;
+  frame->pts = nframes;
   ffmpeg_encoder_glread_rgb(&rgb, &pixels, width, height);
   ffmpeg_encoder_encode_frame(rgb);
 #endif
@@ -636,6 +637,7 @@ void display(void) {
       "graphics: \t\t%9.3f ms\n====================================\n");
   renderTime = helper->getElapsedTime();
   totalTime += calculationTime + renderTime;
+  nframes += 1;
   calculateFPS();
 }
 /** Drawing main scene and bounding box
