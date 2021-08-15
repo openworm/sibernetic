@@ -22,8 +22,8 @@ LIBS := -lpython2.7 -lGL -lGLU -lOpenCL -lrt -lglut
 CXXFLAGS = $(CC)
 EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
 
-ffmpeg: LIBS += -lavcodec -lswscale -lavutil
-ffmpeg: CXXFLAGS += -DFFMPEG=1
+#ffmpeg: LIBS += -lavcodec -lswscale -lavutil
+ffmpeg: CXXFLAGS += -DFFMPEG=1 -I/usr/include/x86_64-linux-gnu
 ffmpeg: $(TARGET)
 
 all: CXXFLAGS += -O3
