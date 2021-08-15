@@ -35,6 +35,14 @@
 #include <csignal>
 #include <sstream>
 #include <stdio.h>
+#include <stdlib.h>
+
+#if FFMPEG
+#include <libavcodec/avcodec.h>
+#include <libavutil/imgutils.h>
+#include <libavutil/opt.h>
+#include <libswscale/swscale.h>
+#endif
 
 #include "owWorldSimulation.h"
 
@@ -149,55 +157,55 @@ void display(void) {
   double renderTime;
   void *m_font = GLUT_BITMAP_8_BY_13;
   if (!sPause) {
-    if (!load_from_file) {
-      try {
-        calculationTime = fluid_simulation->simulationStep(
-            load_to); // Run one simulation step
-        p_indexb = fluid_simulation->getParticleIndex_cpp();
-        p_cpp = fluid_simulation->getPosition_cpp();
-        d_cpp = fluid_simulation->getDensity_cpp();
-        ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
-        v_cpp = fluid_simulation->getVelocity_cpp();
-        if (!load_from_file)
-          md_cpp = fluid_simulation->getMembraneData_cpp();
-      } catch (std::runtime_error &ex) {
-        cleanupSimulation();
-        std::cout << "ERROR: " << ex.what() << std::endl;
-        exit(EXIT_FAILURE); // unfortunately we cannot leave glutmain loop by
-                            // the other way
-      }
-      int pib;
-      for (i = 0; i < localConfig->getParticleCount(); ++i) {
-        pib = p_indexb[2 * i + 1];
-        p_indexb[2 * pib + 0] = i;
-      }
+      if (!load_from_file) {
+          try {
+              calculationTime = fluid_simulation->simulationStep(
+                      load_to); // Run one simulation step
+              p_indexb = fluid_simulation->getParticleIndex_cpp();
+              p_cpp = fluid_simulation->getPosition_cpp();
+              d_cpp = fluid_simulation->getDensity_cpp();
+              ec_cpp = fluid_simulation->getElasticConnectionsData_cpp();
+              v_cpp = fluid_simulation->getVelocity_cpp();
+              if (!load_from_file)
+                  md_cpp = fluid_simulation->getMembraneData_cpp();
+          } catch (std::runtime_error &ex) {
+              cleanupSimulation();
+              std::cout << "ERROR: " << ex.what() << std::endl;
+              exit(EXIT_FAILURE); // unfortunately we cannot leave glutmain loop by
+              // the other way
+          }
+          int pib;
+          for (i = 0; i < localConfig->getParticleCount(); ++i) {
+              pib = p_indexb[2 * i + 1];
+              p_indexb[2 * pib + 0] = i;
+          }
 
-      if (fluid_simulation->getIteration() ==
-          localConfig->getNumberOfIterations()) {
-        std::cout << "Simulation has reached the time limit..." << std::endl;
-        cleanupSimulation();
-        exit(EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by
-                            // the other way
+          if (fluid_simulation->getIteration() ==
+                  localConfig->getNumberOfIterations()) {
+              std::cout << "Simulation has reached the time limit..." << std::endl;
+              cleanupSimulation();
+              exit(EXIT_SUCCESS); // unfortunately we cannot leave glutmain loop by
+              // the other way
+          }
+      } else {
+          try {
+              if (owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp,
+                          localConfig, iteration)) {
+                  read_muscles_activity_signals_from_log_file(
+                          iteration, muscle_activation_signal_cpp, localConfig);
+                  iteration++;
+              } else {
+                  cleanupSimulation();
+                  std::cout << "Simulation has reached end of file" << std::endl;
+                  exit(EXIT_SUCCESS);
+              }
+          } catch (std::exception &e) {
+              cleanupSimulation();
+              std::cout << "ERROR: " << e.what() << std::endl;
+              exit(EXIT_FAILURE);
+          }
       }
-    } else {
-      try {
-        if (owHelper::loadConfigurationFromFile(p_cpp, ec_cpp, md_cpp,
-                                                localConfig, iteration)) {
-          read_muscles_activity_signals_from_log_file(
-              iteration, muscle_activation_signal_cpp, localConfig);
-          iteration++;
-        } else {
-          cleanupSimulation();
-          std::cout << "Simulation has reached end of file" << std::endl;
-          exit(EXIT_SUCCESS);
-        }
-      } catch (std::exception &e) {
-        cleanupSimulation();
-        std::cout << "ERROR: " << e.what() << std::endl;
-        exit(EXIT_FAILURE);
-      }
-    }
-    helper->refreshTime();
+      helper->refreshTime();
   }
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -484,6 +492,11 @@ void display(void) {
   }
   glLineWidth((GLfloat)1.0);
   glutSwapBuffers();
+#if FFMPEG
+  frame->pts = frames_counter;
+  ffmpeg_encoder_glread_rgb(&rgb, &pixels, width, height);
+  ffmpeg_encoder_encode_frame(rgb);
+#endif
   helper->watch_report(
       "graphics: \t\t%9.3f ms\n====================================\n");
   renderTime = helper->getElapsedTime();
@@ -986,7 +999,9 @@ void Timer(int value) {
 }
 
 GLvoid resize(GLsizei width, GLsizei height) {
-
+  glutReshapeWindow(1200, 800);
+  return;
+#if 0
   if (height == 0) {
     height = 1;
   }
@@ -1013,7 +1028,134 @@ GLvoid resize(GLsizei width, GLsizei height) {
   glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
   glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
   glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
+#endif
 }
+#if FFMPEG
+/* Adapted from: https://github.com/cirosantilli/cpp-cheat/blob/19044698f91fefa9cb75328c44f7a487d336b541/ffmpeg/encode.c */
+
+static AVCodecContext *c = NULL;
+static AVFrame *frame;
+static AVPacket pkt;
+static FILE *file;
+static struct SwsContext *sws_context = NULL;
+static uint8_t *rgb = NULL;
+
+static void ffmpeg_encoder_set_frame_yuv_from_rgb(uint8_t *rgb) {
+    const int in_linesize[1] = { 4 * c->width };
+    sws_context = sws_getCachedContext(sws_context,
+            c->width, c->height, AV_PIX_FMT_RGB32,
+            c->width, c->height, AV_PIX_FMT_YUV420P,
+            0, NULL, NULL, NULL);
+    sws_scale(sws_context, (const uint8_t * const *)&rgb, in_linesize, 0,
+            c->height, frame->data, frame->linesize);
+}
+
+void ffmpeg_encoder_start(const char *filename, int codec_id, int fps, int width, int height) {
+    AVCodec *codec;
+    int ret;
+    avcodec_register_all();
+    codec = avcodec_find_encoder(codec_id);
+    if (!codec) {
+        fprintf(stderr, "Codec not found\n");
+        exit(1);
+    }
+    c = avcodec_alloc_context3(codec);
+    if (!c) {
+        fprintf(stderr, "Could not allocate video codec context\n");
+        exit(1);
+    }
+    c->bit_rate = 400000;
+    c->width = width;
+    c->height = height;
+    c->time_base.num = 1;
+    c->time_base.den = fps;
+    c->gop_size = 10;
+    c->max_b_frames = 1;
+    c->pix_fmt = AV_PIX_FMT_YUV420P;
+    if (codec_id == AV_CODEC_ID_H264)
+        av_opt_set(c->priv_data, "preset", "slow", 0);
+    if (avcodec_open2(c, codec, NULL) < 0) {
+        fprintf(stderr, "Could not open codec\n");
+        exit(1);
+    }
+    file = fopen(filename, "wb");
+    if (!file) {
+        fprintf(stderr, "Could not open %s\n", filename);
+        exit(1);
+    }
+    frame = av_frame_alloc();
+    if (!frame) {
+        fprintf(stderr, "Could not allocate video frame\n");
+        exit(1);
+    }
+    frame->format = c->pix_fmt;
+    frame->width  = c->width;
+    frame->height = c->height;
+    ret = av_image_alloc(frame->data, frame->linesize, c->width, c->height, c->pix_fmt, 32);
+    if (ret < 0) {
+        fprintf(stderr, "Could not allocate raw picture buffer\n");
+        exit(1);
+    }
+}
+
+void ffmpeg_encoder_finish(void) {
+    uint8_t endcode[] = { 0, 0, 1, 0xb7 };
+    int got_output, ret;
+    do {
+        fflush(stdout);
+        ret = avcodec_encode_video2(c, &pkt, NULL, &got_output);
+        if (ret < 0) {
+            fprintf(stderr, "Error encoding frame\n");
+            exit(1);
+        }
+        if (got_output) {
+            fwrite(pkt.data, 1, pkt.size, file);
+            av_packet_unref(&pkt);
+        }
+    } while (got_output);
+    fwrite(endcode, 1, sizeof(endcode), file);
+    fclose(file);
+    avcodec_close(c);
+    av_free(c);
+    av_freep(&frame->data[0]);
+    av_frame_free(&frame);
+}
+
+void ffmpeg_encoder_encode_frame(uint8_t *rgb) {
+    int ret, got_output;
+    ffmpeg_encoder_set_frame_yuv_from_rgb(rgb);
+    av_init_packet(&pkt);
+    pkt.data = NULL;
+    pkt.size = 0;
+    ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
+    if (ret < 0) {
+        fprintf(stderr, "Error encoding frame\n");
+        exit(1);
+    }
+    if (got_output) {
+        fwrite(pkt.data, 1, pkt.size, file);
+        av_packet_unref(&pkt);
+    }
+}
+
+void ffmpeg_encoder_glread_rgb(uint8_t **rgb, GLubyte **pixels, unsigned int width, unsigned int height) {
+    size_t i, j, k, cur_gl, cur_rgb, nvals;
+    const size_t format_nchannels = 4;
+    nvals = format_nchannels * width * height;
+    *pixels = realloc(*pixels, nvals * sizeof(GLubyte));
+    *rgb = realloc(*rgb, nvals * sizeof(uint8_t));
+    /* Get RGBA to align to 32 bits instead of just 24 for RGB. May be faster for FFmpeg. */
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, *pixels);
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
+            cur_gl  = format_nchannels * (width * (height - i - 1) + j);
+            cur_rgb = format_nchannels * (width * i + j);
+            for (k = 0; k < format_nchannels; k++)
+                (*rgb)[cur_rgb + k] = (*pixels)[cur_gl + k];
+        }
+    }
+}
+#endif
 inline void init(void) {
   glEnable(GL_LIGHTING);
   glEnable(GL_COLOR_MATERIAL);
@@ -1032,6 +1174,11 @@ inline void init(void) {
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+void deinit(void) {
+  free(pixels);
+  ffmpeg_encoder_finish();
+  free(rgb);
 }
 void sighandler(int s) {
   std::cout << "\nCaught signal CTRL+C. Exit Simulation...\n"; // this is
@@ -1090,6 +1237,7 @@ int run(int argc, char **argv, const bool with_graphics) {
         mouse_motion); // process movement in case if the mouse is clicked,
     glutKeyboardFunc(respondKey);
     glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
+    atexit(deinit);
     glutMainLoop();
     if (!load_from_file) {
       cleanupSimulation();
