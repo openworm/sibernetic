@@ -1184,6 +1184,9 @@ inline void init(void) {
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#if FFMPEG
+  ffmpeg_encoder_start("/home/ow/shared/output/simulation.mpg", AV_CODEC_ID_MPEG1VIDEO, 25, width, height);
+#endif
 }
 void deinit(void) {
   free(pixels);
