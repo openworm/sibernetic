@@ -70,6 +70,8 @@ float *ec_cpp;
 float *v_cpp;
 float *muscle_activation_signal_cpp;
 int *md_cpp; // pointer to membraneData_cpp
+static GLubyte *pixels = NULL;
+
 owPhysicsFluidSimulator *fluid_simulation;
 owHelper *helper;
 owConfigProperty *localConfig;
@@ -155,7 +157,7 @@ void display(void) {
   int err_coord_cnt = 0;
   double calculationTime;
   double renderTime;
-  void *m_font = GLUT_BITMAP_8_BY_13;
+  //void *m_font = GLUT_BITMAP_8_BY_13;
   if (!sPause) {
       if (!load_from_file) {
           try {
@@ -298,7 +300,7 @@ void display(void) {
             // agar particles which contacted the worm
             continue;
           }
-            
+
 
         if (ec_cpp[4 * i_ec + 2] > 1.f) // muscles
         {
