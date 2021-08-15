@@ -628,6 +628,7 @@ void display(void) {
   }
   glLineWidth((GLfloat)1.0);
   glutSwapBuffers();
+  std::cout << "nframes = " << nframes << std::endl;
 #if FFMPEG
   frame->pts = nframes;
   ffmpeg_encoder_glread_rgb(&rgb, &pixels, width, height);
@@ -637,7 +638,7 @@ void display(void) {
       "graphics: \t\t%9.3f ms\n====================================\n");
   renderTime = helper->getElapsedTime();
   totalTime += calculationTime + renderTime;
-  nframes += 1;
+  nframes++;
   calculateFPS();
 }
 /** Drawing main scene and bounding box
