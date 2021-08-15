@@ -148,7 +148,7 @@ static void ffmpeg_encoder_set_frame_yuv_from_rgb(uint8_t *rgb) {
             c->height, frame->data, frame->linesize);
 }
 
-void ffmpeg_encoder_start(const char *filename, int codec_id, int fps, int width, int height) {
+void ffmpeg_encoder_start(const char *filename, AVCodecID codec_id, int fps, int width, int height) {
     AVCodec *codec;
     int ret;
     avcodec_register_all();
