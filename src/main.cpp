@@ -140,6 +140,9 @@ int main(int argc, char **argv) {
       if (std::string("-skip_display_connections").compare(argv[i]) == 0) {
         skip_display_connections = true;
       }
+      if (std::string("-skip_display_connections").compare(argv[i]) == 0) {
+        skip_display_connections = true;
+      }
       if (std::string("-test").compare(argv[i]) == 0) { // run tests
         run_tests = true;
       }

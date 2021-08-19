@@ -46,10 +46,11 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
   std::string strTemp;
   configFileName = "demo1"; // by default
   std::string simName = "";
+  videoFileName = "";
   nrnSimRun = false;
   nrnSimulationFileName = "";
   simulation = nullptr;
-    
+
   fillConstMap(); // map must be filled before parsing arguments, otherwise beta will be NaN because of division by zero
 
   for (int i = 1; i < argc; i++) {
@@ -108,7 +109,7 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
           configFileName = configFileName.substr(found + 1);
         }
       } else
-        throw std::runtime_error("You forget add configuration file name. "
+        throw std::runtime_error("You forgot to add a configuration file name. "
                                  "Please add it and try again");
     }
     if (strTemp.find("sigsim=") == 0) {
@@ -120,10 +121,19 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
       if (i + 1 < argc) {
         nrnSimulationFileName = argv[i + 1];
       } else
-        throw std::runtime_error("You forget add NEURON model file name. "
+        throw std::runtime_error("You forgot to add a NEURON model file name. "
                                  "Please add it and try again");
     }
 
+    if (strTemp == "-vout") {
+      vout = true;
+      if (i + 1 < argc) {
+        videoFileName = argv[i + 1];
+      } else {
+        throw std::runtime_error("You forgot to add a video file name for `vout`. "
+                                 "Please add it and try again");
+      }
+    }
     if (strTemp.find("-c302") == 0) {
       // int result = strTemp.find("-c302");
       // printf("\n%s: %d c302=%d\n",strTemp.c_str(),result,c302==true);

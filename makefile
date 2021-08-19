@@ -14,12 +14,13 @@ SOURCES = $(wildcard $(SRCDIR)/*.$(SRCEXT))
 BINARYTESTDIR = $(BINARYDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
+PYTHON ?= python3.7
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
-LIBS := -lpython2.7 -lGL -lGLU -lOpenCL -lrt -lglut
+LIBS := $(shell /usr/bin/$(PYTHON)-config --embed --libs) -lGL -lGLU -lOpenCL -lrt -lglut
 
-CXXFLAGS = $(CC)
+CXXFLAGS = $(CC) $(shell /usr/bin/$(PYTHON)-config --embed --cflags)
 EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
 
 ifeq ($(FFMPEG),true)
@@ -45,7 +46,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	$(CXXFLAGS) -I/usr/include/python2.7 -I/opt/AMDAPPSDK-3.0/include/ -I/opt/AMDAPP/include/ -I$(INCDIR) -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	$(CXXFLAGS) -I/opt/AMDAPPSDK-3.0/include/ -I/opt/AMDAPP/include/ -I$(INCDIR) -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

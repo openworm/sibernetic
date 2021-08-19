@@ -630,9 +630,11 @@ void display(void) {
   glutSwapBuffers();
   std::cout << "nframes = " << nframes << std::endl;
 #if FFMPEG
-  frame->pts = nframes;
-  ffmpeg_encoder_glread_rgb(&rgb, &pixels, width, height);
-  ffmpeg_encoder_encode_frame(rgb);
+  if (localConfig->isVout()) {
+      frame->pts = nframes;
+      ffmpeg_encoder_glread_rgb(&rgb, &pixels, width, height);
+      ffmpeg_encoder_encode_frame(rgb);
+  }
 #endif
   helper->watch_report(
       "graphics: \t\t%9.3f ms\n====================================\n");
@@ -1187,14 +1189,15 @@ inline void init(void) {
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-#if FFMPEG
-  ffmpeg_encoder_start("/home/ow/shared/output/simulation.mpg", AV_CODEC_ID_MPEG1VIDEO, 25, width, height);
-#endif
 }
 void deinit(void) {
-  free(pixels);
-  ffmpeg_encoder_finish();
-  free(rgb);
+#ifdef FFMPEG
+  if (localConfig->isVout()) {
+      free(pixels);
+      ffmpeg_encoder_finish();
+      free(rgb);
+  }
+#endif
 }
 void sighandler(int s) {
   std::cout << "\nCaught signal CTRL+C. Exit Simulation...\n"; // this is
@@ -1246,6 +1249,11 @@ int run(int argc, char **argv, const bool with_graphics) {
                      "branch)");
     glutIdleFunc(idle);
     init();
+#if FFMPEG
+    if (localConfig->isVout()) {
+        ffmpeg_encoder_start(localConfig->getVideoFileName(), AV_CODEC_ID_MPEG1VIDEO, 25, width, height);
+    }
+#endif
     glutDisplayFunc(display);
     glutReshapeFunc(resize);
     glutMouseFunc(respond_mouse);

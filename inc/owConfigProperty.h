@@ -138,6 +138,8 @@ public:
     fileName += ss.str();
     return fileName;
   }
+  bool isVout() { return vout; }
+  std::string getVideoFileName() { return videoFileName; }
   // Constructor
   owConfigProperty(int argc, char **argv);
   void initGridCells() {
@@ -250,6 +252,8 @@ private:
   bool nrnSimRun; // indicates if we also run NEURON simulation
   bool c302;      // indicates if we also run NEURON simulation
   std::string nrnSimulationFileName;
+  bool vout; // if true, then we'll save a video file to videoFileName
+  std::string videoFileName;
   std::map<std::string, float> constMap;
 };
 
