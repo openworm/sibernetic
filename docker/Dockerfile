@@ -2,7 +2,7 @@ FROM debian:11
 
 ENV PYTHON_VERSION 3.9
 # pkg-config is needed because, somehow, the CFLAGS in the python config script
-# adds cflags that depend on a file from a package pkg-config depends on...
+# adds a flag that depends on a file from a package pkg-config depends on...
 RUN apt-get update && \
     apt-get install -y wget \
                        make \
@@ -23,10 +23,16 @@ RUN cd intel-opencl-tmp && \
 
 RUN cp -R /opt/intel/opencl/include/CL /usr/include/
 
+ARG FFMPEG
+ENV FFMPEG=${FFMPEG:-true}
+
+RUN if [ "$FFMPEG" = true ] ; then \
+        apt-get update && apt-get install -y libswscale-dev libavutil-dev libavcodec-dev ; \
+    fi
+
 COPY sibernetic/inc inc
 COPY sibernetic/src src
 COPY sibernetic/makefile makefile
-
 
 ENV PYTHON_CONFIG /usr/bin/python${PYTHON_VERSION}-config
 RUN make clean && make all  # Use python 3 libs

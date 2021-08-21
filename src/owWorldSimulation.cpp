@@ -1251,7 +1251,7 @@ int run(int argc, char **argv, const bool with_graphics) {
     init();
 #if FFMPEG
     if (localConfig->isVout()) {
-        ffmpeg_encoder_start(localConfig->getVideoFileName(), AV_CODEC_ID_MPEG1VIDEO, 25, width, height);
+        ffmpeg_encoder_start(localConfig->getVideoFileName().c_str(), AV_CODEC_ID_MPEG1VIDEO, 25, width, height);
     }
 #endif
     glutDisplayFunc(display);
