@@ -20,7 +20,7 @@ CPP_DEPS = $(OBJECTS:.o=.d)
 
 LIBS := $(shell /usr/bin/$(PYTHON)-config --embed --libs) -lGL -lGLU -lOpenCL -lrt -lglut
 
-CXXFLAGS = $(CC) $(shell /usr/bin/$(PYTHON)-config --embed --cflags)
+CXXFLAGS = $(CC) $(shell /usr/bin/$(PYTHON)-config --embed --cflags) -fPIE
 EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
 
 ifeq ($(FFMPEG),true)
