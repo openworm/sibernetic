@@ -18,9 +18,11 @@ PYTHON_CONFIG ?= /usr/bin/python3.7-config
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
-LIBS := $(shell $(PYTHON_CONFIG) --embed --libs) -lGL -lGLU -lOpenCL -lrt -lglut
+LIBS := -lGL -lGLU -lOpenCL -lrt -lglut
+# For python3.8+, you have to include a --embed option
+LIBS += $(shell $(PYTHON_CONFIG) --embed --libs || $(PYTHON_CONFIG) --libs) 
 
-CXXFLAGS = $(CC) $(shell $(PYTHON_CONFIG) --embed --cflags) -fPIE
+CXXFLAGS = $(CC) $(shell $(PYTHON_CONFIG) --cflags) -fPIE
 EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
 
 ifeq ($(FFMPEG),true)

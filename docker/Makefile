@@ -1,13 +1,11 @@
-main: sibernetic Dockerfile
-	cp Dockerfile sibernetic/
-	docker build -t sibernetic sibernetic
+main: sibernetic intel-opencl-tmp Dockerfile
+	docker build -t sibernetic .
 	date > main
 
-sibernetic: ../src intel-opencl-tmp ../makefile ../inc
+sibernetic: ../src ../makefile ../inc 
 	rm -rf sibernetic
 	mkdir sibernetic
 	cp -r ../src sibernetic/
-	cp -r intel-opencl-tmp sibernetic/
 	cp ../makefile sibernetic/
 	cp -r ../inc sibernetic/
 
