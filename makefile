@@ -14,13 +14,13 @@ SOURCES = $(wildcard $(SRCDIR)/*.$(SRCEXT))
 BINARYTESTDIR = $(BINARYDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
-PYTHON ?= python3.7
+PYTHON_CONFIG ?= /usr/bin/python3.7-config
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
-LIBS := $(shell /usr/bin/$(PYTHON)-config --embed --libs) -lGL -lGLU -lOpenCL -lrt -lglut
+LIBS := $(shell $(PYTHON_CONFIG) --embed --libs) -lGL -lGLU -lOpenCL -lrt -lglut
 
-CXXFLAGS = $(CC) $(shell /usr/bin/$(PYTHON)-config --embed --cflags) -fPIE
+CXXFLAGS = $(CC) $(shell $(PYTHON_CONFIG) --embed --cflags) -fPIE
 EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
 
 ifeq ($(FFMPEG),true)
