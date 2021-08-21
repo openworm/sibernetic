@@ -20,7 +20,16 @@ CPP_DEPS = $(OBJECTS:.o=.d)
 
 LIBS := -lGL -lGLU -lOpenCL -lrt -lglut
 # For python3.8+, you have to include a --embed option
-LIBS += $(shell $(PYTHON_CONFIG) --embed --libs || $(PYTHON_CONFIG) --libs) 
+PYTHON_CONFIG_BASENAME=$(basename $(PYTHON_CONFIG))
+PYTHON_VERSION=$(patsubst python%-config,%,$(PYTHON_CONFIG_BASENAME))
+
+ifneq (,$(findstring 3.6,$(PYTHON_CONFIG)))
+LIBS += $(shell $(PYTHON_CONFIG) --libs)
+else ifneq (,$(findstring 3.7,$(PYTHON_CONFIG)))
+LIBS += $(shell $(PYTHON_CONFIG) --libs)
+else
+LIBS += $(shell $(PYTHON_CONFIG) --embed --libs)
+endif
 
 CXXFLAGS = $(CC) $(shell $(PYTHON_CONFIG) --cflags) -fPIE
 EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
