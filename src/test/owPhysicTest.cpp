@@ -108,7 +108,7 @@ void test_energy_conservation(int argc, char **argv) {
 float calcPotentialEnergy(owConfigProperty *config, float *p_buffer) {
   float e = 0.f;
   float l = 0.f;
-  for (int i = 0; i < config->getParticleCount(); i++) {
+  for (unsigned int i = 0; i < config->getParticleCount(); i++) {
     if ((int)(p_buffer[4 * i + 3]) != BOUNDARY_PARTICLE) {
       l = (p_buffer[4 * i + 1] <= r0) ? 0.f
                                       : p_buffer[4 * i + 1] * simulationScale;
@@ -121,7 +121,7 @@ float calcPotentialEnergy(owConfigProperty *config, float *p_buffer) {
 float calcKineticEnergy(owConfigProperty *config, float *v_buffer,
                         float *p_buffer) {
   float e = 0.f;
-  for (int i = 0; i < config->getParticleCount(); i++) {
+  for (unsigned int i = 0; i < config->getParticleCount(); i++) {
     if ((int)(p_buffer[4 * i + 3]) != BOUNDARY_PARTICLE) {
       e += config->getConst("mass") * pow(get_len(v_buffer + 4 * i + 0), 2.0f) /
            2.0f; //

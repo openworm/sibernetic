@@ -61,7 +61,7 @@ struct owConfigProperty {
   // smoothing radius h
 public:
   typedef unsigned int uint;
-  const int getParticleCount() { return PARTICLE_COUNT; }
+  const unsigned int getParticleCount() { return PARTICLE_COUNT; }
   void setParticleCount(int value) {
     PARTICLE_COUNT = value;
     PARTICLE_COUNT_RoundedUp =
@@ -232,7 +232,7 @@ private:
     delta = (float)result;
   }
   void fillConstMap();
-  int PARTICLE_COUNT;
+  unsigned int PARTICLE_COUNT;
   int PARTICLE_COUNT_RoundedUp;
   int totalNumberOfIterations;
   int logStep;

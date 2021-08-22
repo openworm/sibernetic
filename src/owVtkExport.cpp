@@ -59,7 +59,7 @@ namespace owVtkExport {
 			char c[4];
 		} bint = {0x01020304};
 		*/
-		isBigEndian = true; // (bint.c[0] == 1); // TODO figure it out why it wont to compile 
+		isBigEndian = true; // (bint.c[0] == 1); // TODO figure it out why it wont to compile
 	}
 
 	void printParticles(std::ofstream & outFile, float * position,
@@ -68,7 +68,7 @@ namespace owVtkExport {
 		outFile << "<Points>\n";
 		outFile << "<DataArray NumberOfComponents=\"3\" type=\"Float32\""
 				<< " format=\"ascii\">";
-		for (int i = 0; i < config->getParticleCount(); i++) {
+		for (unsigned int i = 0; i < config->getParticleCount(); i++) {
 				outFile << position[i * 4 + 0] << " "
 						<< position[i * 4 + 1] << " "
 						<< position[i * 4 + 2] << " ";
@@ -78,14 +78,14 @@ namespace owVtkExport {
 
 		outFile << "<PointData>\n";
 		outFile << "<DataArray Name=\"ParticleType\" type=\"Int32\" format=\"ascii\">";
-		for (int i = 0; i < config->getParticleCount(); i++) {
+		for (unsigned int i = 0; i < config->getParticleCount(); i++) {
 			outFile << (int) position[i * 4 + 3] << " ";
 		}
 		outFile << "</DataArray>\n";
 
 		outFile << "<DataArray Name=\"Velocity\" type=\"Float32\""
 				<< " NumberOfComponents=\"3\" format=\"ascii\">";
-		for (int i = 0; i < config->getParticleCount(); i++) {
+		for (unsigned int i = 0; i < config->getParticleCount(); i++) {
 			outFile << velocity[i * 4 + 0] << " "
 					<< velocity[i * 4 + 1] << " "
 					<< velocity[i * 4 + 2] << " ";

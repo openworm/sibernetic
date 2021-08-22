@@ -77,12 +77,14 @@ int *md_cpp; // pointer to membraneData_cpp
 /* Adapted from: https://github.com/cirosantilli/cpp-cheat/blob/19044698f91fefa9cb75328c44f7a487d336b541/ffmpeg/encode.c */
 
 static GLubyte *pixels = NULL;
-static AVCodecContext *c = NULL;
+static AVCodecContext *avcodec_ctx = NULL;
 static AVFrame *frame;
 static AVPacket pkt;
 static FILE *file;
 static struct SwsContext *sws_context = NULL;
 static uint8_t *rgb = NULL;
+static char averror_strbuf[AV_ERROR_MAX_STRING_SIZE];
+#define ERRMSG_AV(__retcode) av_make_error_string(averror_strbuf, sizeof(averror_strbuf), (__retcode))
 #endif
 int width = 1200;
 int height = 800;
@@ -142,40 +144,40 @@ void glPrint3D(float x, float y, float z, const char *s, void *font) {
 
 #if FFMPEG
 static void ffmpeg_encoder_set_frame_yuv_from_rgb(uint8_t *rgb) {
-    const int in_linesize[1] = { 4 * c->width };
+    const int in_linesize[1] = { 4 * avcodec_ctx->width };
     sws_context = sws_getCachedContext(sws_context,
-            c->width, c->height, AV_PIX_FMT_RGB32,
-            c->width, c->height, AV_PIX_FMT_YUV420P,
+            avcodec_ctx->width, avcodec_ctx->height, AV_PIX_FMT_RGB32,
+            avcodec_ctx->width, avcodec_ctx->height, AV_PIX_FMT_YUV420P,
             0, NULL, NULL, NULL);
+    /* Take the rgb data in `rgb' and put it in the frame */
     sws_scale(sws_context, (const uint8_t * const *)&rgb, in_linesize, 0,
-            c->height, frame->data, frame->linesize);
+            avcodec_ctx->height, frame->data, frame->linesize);
 }
 
 void ffmpeg_encoder_start(const char *filename, AVCodecID codec_id, int fps, int width, int height) {
     AVCodec *codec;
     int ret;
-    avcodec_register_all();
     codec = avcodec_find_encoder(codec_id);
     if (!codec) {
         fprintf(stderr, "Codec not found\n");
         exit(1);
     }
-    c = avcodec_alloc_context3(codec);
-    if (!c) {
+    avcodec_ctx = avcodec_alloc_context3(codec);
+    if (!avcodec_ctx) {
         fprintf(stderr, "Could not allocate video codec context\n");
         exit(1);
     }
-    c->bit_rate = 400000;
-    c->width = width;
-    c->height = height;
-    c->time_base.num = 1;
-    c->time_base.den = fps;
-    c->gop_size = 10;
-    c->max_b_frames = 1;
-    c->pix_fmt = AV_PIX_FMT_YUV420P;
+    avcodec_ctx->bit_rate = 400000;
+    avcodec_ctx->width = width;
+    avcodec_ctx->height = height;
+    avcodec_ctx->time_base.num = 1;
+    avcodec_ctx->time_base.den = fps;
+    avcodec_ctx->gop_size = 10;
+    avcodec_ctx->max_b_frames = 1;
+    avcodec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
     if (codec_id == AV_CODEC_ID_H264)
-        av_opt_set(c->priv_data, "preset", "slow", 0);
-    if (avcodec_open2(c, codec, NULL) < 0) {
+        av_opt_set(avcodec_ctx->priv_data, "preset", "slow", 0);
+    if (avcodec_open2(avcodec_ctx, codec, NULL) < 0) {
         fprintf(stderr, "Could not open codec\n");
         exit(1);
     }
@@ -189,10 +191,10 @@ void ffmpeg_encoder_start(const char *filename, AVCodecID codec_id, int fps, int
         fprintf(stderr, "Could not allocate video frame\n");
         exit(1);
     }
-    frame->format = c->pix_fmt;
-    frame->width  = c->width;
-    frame->height = c->height;
-    ret = av_image_alloc(frame->data, frame->linesize, c->width, c->height, c->pix_fmt, 32);
+    frame->format = avcodec_ctx->pix_fmt;
+    frame->width  = avcodec_ctx->width;
+    frame->height = avcodec_ctx->height;
+    ret = av_image_alloc(frame->data, frame->linesize, avcodec_ctx->width, avcodec_ctx->height, avcodec_ctx->pix_fmt, 32);
     if (ret < 0) {
         fprintf(stderr, "Could not allocate raw picture buffer\n");
         exit(1);
@@ -201,42 +203,64 @@ void ffmpeg_encoder_start(const char *filename, AVCodecID codec_id, int fps, int
 
 void ffmpeg_encoder_finish(void) {
     uint8_t endcode[] = { 0, 0, 1, 0xb7 };
-    int got_output, ret;
-    do {
+    int ret;
+    // put ourselves into "draining mode"
+    ret = avcodec_send_frame(avcodec_ctx, NULL);
+    if (ret < 0) {
+        std::cerr << "Error entering draining mode??: " << ERRMSG_AV(ret) << std::endl;
+        exit(1);
+    }
+    while (true) {
         fflush(stdout);
-        ret = avcodec_encode_video2(c, &pkt, NULL, &got_output);
-        if (ret < 0) {
-            fprintf(stderr, "Error encoding frame\n");
-            exit(1);
-        }
-        if (got_output) {
+        //ret = avcodec_encode_video2(avcodec_ctx, &pkt, NULL, &got_output);
+        ret = avcodec_receive_packet(avcodec_ctx, &pkt);
+        if (ret == 0) {
             fwrite(pkt.data, 1, pkt.size, file);
-            av_packet_unref(&pkt);
+        } else if (ret == AVERROR_EOF) {
+            // all done...
+            break;
+        } else {
+            std::cerr << "Error in receiving packet: " << ERRMSG_AV(ret) << std::endl;
+            break;
         }
-    } while (got_output);
+    }
+    av_packet_unref(&pkt);
     fwrite(endcode, 1, sizeof(endcode), file);
     fclose(file);
-    avcodec_close(c);
-    av_free(c);
+    avcodec_close(avcodec_ctx);
+    av_free(avcodec_ctx);
     av_freep(&frame->data[0]);
     av_frame_free(&frame);
 }
 
 void ffmpeg_encoder_encode_frame(uint8_t *rgb) {
-    int ret, got_output;
+    int ret;
     ffmpeg_encoder_set_frame_yuv_from_rgb(rgb);
+    // XXX: do we need to initialize?
     av_init_packet(&pkt);
     pkt.data = NULL;
     pkt.size = 0;
-    ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
+    //ret = avcodec_encode_video2(avcodec_ctx, &pkt, frame, &got_output);
+    ret = avcodec_send_frame(avcodec_ctx, frame);
     if (ret < 0) {
-        fprintf(stderr, "Error encoding frame\n");
+        std::cerr << "Error encoding frame: " << ERRMSG_AV(ret) << std::endl;
         exit(1);
     }
-    if (got_output) {
-        fwrite(pkt.data, 1, pkt.size, file);
-        av_packet_unref(&pkt);
+    while (true) {
+        ret = avcodec_receive_packet(avcodec_ctx, &pkt);
+        if (ret == 0) {
+            fwrite(pkt.data, 1, pkt.size, file);
+        } else if (ret == AVERROR(EAGAIN)) {
+            // no packets to receive... just keep it moving
+            break;
+        } else {
+            // TODO: Do some proper error handling here
+            std::cerr << "Error in receiving packet: " << ERRMSG_AV(ret) << std::endl;
+            break;
+        }
     }
+    // XXX: Should we unref here?
+    av_packet_unref(&pkt);
 }
 
 void ffmpeg_encoder_glread_rgb(uint8_t **rgb, GLubyte **pixels, unsigned int width, unsigned int height) {
@@ -286,11 +310,9 @@ void read_muscles_activity_signals_from_log_file(
  */
 void display(void) {
   // Update Scene if not paused
-  int i, j, k;
-  int err_coord_cnt = 0;
-  double calculationTime;
+  unsigned int i, j, k;
+  double calculationTime = 0.0;
   double renderTime;
-  //void *m_font = GLUT_BITMAP_8_BY_13;
   if (!sPause) {
       if (!load_from_file) {
           try {
@@ -394,31 +416,12 @@ void display(void) {
                      (p_cpp[i * 4 + 2] - localConfig->zmax / 2) * sc);
           glPointSize(1.3f * sqrt(sc / 0.025f));
           glEnd();
-          /*
-          if (!((p_cpp[i * 4] >= 0) && (p_cpp[i * 4] <= localConfig->xmax) &&
-                (p_cpp[i * 4 + 1] >= 0) &&
-                (p_cpp[i * 4 + 1] <= localConfig->ymax) &&
-                (p_cpp[i * 4 + 2] >= 0) &&
-                (p_cpp[i * 4 + 2] <= localConfig->zmax))) {
-            char label[50];
-            beginWinCoords();
-            glRasterPos2f (0.01F, 0.05F);
-            if(err_coord_cnt<50){
-            sprintf(label,"%d: %f , %f , %f",i,p_cpp[i*4
-            ],p_cpp[i*4+1],p_cpp[i*4+2]);
-            glPrint( 0.f, (float)(50+err_coord_cnt*11), label, m_font);}
-            if(err_coord_cnt==50) {
-            glPrint( 0, (float)(50+err_coord_cnt*11), "............", m_font);}
-            err_coord_cnt++;
-            endWinCoords();
-          }
-          */
         }
       }
   }
   glLineWidth((GLfloat)0.1);
   // Display elastic connections
-  for (int i_ec = 0; i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT;
+  for (unsigned int i_ec = 0; i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT;
        ++i_ec) {
     // offset = 0
     if ((j = (int)ec_cpp[4 * i_ec + 0]) >= 0) {

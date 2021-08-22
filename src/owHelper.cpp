@@ -419,7 +419,7 @@ void owHelper::loadConfigurationToFile(float *position,
                                "file for logging Check the path.");
   }
   if (size == 0) {
-    for (int i = 0; i < config->getParticleCount(); i++) {
+    for (unsigned int i = 0; i < config->getParticleCount(); i++) {
       if ((int)position[4 * i + 3] != BOUNDARY_PARTICLE || firstIteration) {
         positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1]
                      << "\t" << position[i * 4 + 2] << "\t"
@@ -487,7 +487,7 @@ void owHelper::loadPressureToFile(float *pressure_buffer,
                                "file for logging Check the path.");
   }
   pressureFile << "[Iteration " << iteration << "]\n";
-  for (int i = 0; i < shell_particles.size(); ++i) {
+  for (unsigned int i = 0; i < shell_particles.size(); ++i) {
     int id = shell_particles[i];
     pressureFile << "Particle:\t" << id << "\n";
     pressureFile << "\tPosition:\t";
@@ -529,11 +529,11 @@ void owHelper::loadConfigurationToFile(float *position, float *velocity,
   configFile << config->zmin << "\n";
   configFile << config->zmax << "\n";
   configFile << "[position]\n";
-  for (int i = 0; i < config->getParticleCount(); i++)
+  for (unsigned int i = 0; i < config->getParticleCount(); i++)
     configFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t"
                << position[i * 4 + 2] << "\t" << position[i * 4 + 3] << "\n";
   configFile << "[velocity]\n";
-  for (int i = 0; i < config->getParticleCount(); i++)
+  for (unsigned int i = 0; i < config->getParticleCount(); i++)
     configFile << velocity[i * 4 + 0] << "\t" << velocity[i * 4 + 1] << "\t"
                << velocity[i * 4 + 2] << "\t" << velocity[i * 4 + 3] << "\n";
   configFile << "[connection]\n";
