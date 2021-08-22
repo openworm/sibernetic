@@ -7,9 +7,8 @@ RUN apt-get update && \
     apt-get install -y wget \
                        make \
                        ocl-icd-opencl-dev \
-                       vim \
-                       g++ libpython3-dev \
-                       pkg-config \
+                       g++ \
+                       libdpkg-perl \
                        "^python${PYTHON_VERSION}-dev$" \
                        freeglut3-dev libglu1-mesa-dev
 
