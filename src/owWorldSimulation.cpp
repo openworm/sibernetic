@@ -1138,7 +1138,7 @@ void Timer(int value) {
   glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
 }
 
-GLvoid resize(GLsizei width, GLsizei height) {
+GLvoid resize(GLsizei _ignored_width, GLsizei _ignored_height) {
   glutReshapeWindow(width, height);
   return;
 #if 0
