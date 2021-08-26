@@ -47,6 +47,7 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
   configFileName = "demo1"; // by default
   std::string simName = "";
   videoFileName = "";
+  videoCodecName = "";
   nrnSimRun = false;
   nrnSimulationFileName = "";
   simulation = nullptr;
@@ -132,6 +133,14 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
       } else {
         throw std::runtime_error("You forgot to add a video file name for `vout`. "
                                  "Please add it and try again");
+      }
+    }
+    if (strTemp == "-vcodec") {
+      if (i + 1 < argc) {
+        videoCodecName = argv[i + 1];
+      } else {
+        throw std::runtime_error("You forgot to add a video file name for `vout`. "
+            "Please add it and try again");
       }
     }
     if (strTemp.find("-c302") == 0) {

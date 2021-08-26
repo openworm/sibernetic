@@ -154,13 +154,15 @@ static void ffmpeg_encoder_set_frame_yuv_from_rgb(uint8_t *rgb) {
             avcodec_ctx->height, frame->data, frame->linesize);
 }
 
-void ffmpeg_encoder_start(const char *filename, AVCodecID codec_id, int fps, int width, int height) {
+void ffmpeg_encoder_start(const char *filename, const char *codec_id, int fps, int width, int height) {
     AVCodec *codec;
     int ret;
-    codec = avcodec_find_encoder(codec_id);
+    codec = avcodec_find_encoder_by_name(codec_id);
     if (!codec) {
-        fprintf(stderr, "Codec not found\n");
+        std::cerr << "Codec not found: " << codec_id << std::endl;
         exit(1);
+    } else {
+        std::cerr << "Found codec: " << codec_id << std::endl;
     }
     avcodec_ctx = avcodec_alloc_context3(codec);
     if (!avcodec_ctx) {
@@ -175,8 +177,9 @@ void ffmpeg_encoder_start(const char *filename, AVCodecID codec_id, int fps, int
     avcodec_ctx->gop_size = 10;
     avcodec_ctx->max_b_frames = 1;
     avcodec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
-    if (codec_id == AV_CODEC_ID_H264)
+    if (codec->id == AV_CODEC_ID_H264) {
         av_opt_set(avcodec_ctx->priv_data, "preset", "slow", 0);
+    }
     if (avcodec_open2(avcodec_ctx, codec, NULL) < 0) {
         fprintf(stderr, "Could not open codec\n");
         exit(1);
@@ -246,11 +249,13 @@ void ffmpeg_encoder_encode_frame(uint8_t *rgb) {
         std::cerr << "Error encoding frame: " << ERRMSG_AV(ret) << std::endl;
         exit(1);
     }
+    std::cerr << "Encoding frame: " << ERRMSG_AV(ret) << std::endl;
     while (true) {
+        std::cerr << "Receiving packets..." << std::endl;
         ret = avcodec_receive_packet(avcodec_ctx, &pkt);
         if (ret == 0) {
             fwrite(pkt.data, 1, pkt.size, file);
-        } else if (ret == AVERROR(EAGAIN)) {
+        } else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
             // no packets to receive... just keep it moving
             break;
         } else {
@@ -1254,7 +1259,10 @@ int run(int argc, char **argv, const bool with_graphics) {
     init();
 #if FFMPEG
     if (localConfig->isVout()) {
-        ffmpeg_encoder_start(localConfig->getVideoFileName().c_str(), AV_CODEC_ID_MPEG4, 25, width, height);
+        ffmpeg_encoder_start(
+                localConfig->getVideoFileName().c_str(),
+                localConfig->getVideoCodecName().c_str(),
+                25, width, height);
     }
 #endif
     glutDisplayFunc(display);

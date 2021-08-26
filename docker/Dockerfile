@@ -10,6 +10,7 @@ RUN apt-get update && \
                        g++ \
                        libdpkg-perl \
                        "^python${PYTHON_VERSION}-dev$" \
+                       python3-pip \
                        freeglut3-dev libglu1-mesa-dev
 
 COPY intel-opencl-tmp intel-opencl-tmp
@@ -29,9 +30,16 @@ RUN if [ "$FFMPEG" = true ] ; then \
         apt-get update && apt-get install -y libswscale-dev libavutil-dev libavcodec-dev ; \
     fi
 
+COPY sibernetic/configuration configuration
+
+RUN pip3 install numpy
+
 COPY sibernetic/inc inc
 COPY sibernetic/src src
 COPY sibernetic/makefile makefile
+COPY sibernetic/main_sim.py main_sim.py
 
 ENV PYTHON_CONFIG /usr/bin/python${PYTHON_VERSION}-config
+ENV PYTHONPATH $PYTHONPATH:.
 RUN make clean && make all  # Use python 3 libs
+ENTRYPOINT ["Release/Sibernetic"]

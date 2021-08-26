@@ -140,6 +140,7 @@ public:
   }
   bool isVout() { return vout; }
   std::string getVideoFileName() { return videoFileName; }
+  std::string getVideoCodecName() { return videoCodecName; }
   // Constructor
   owConfigProperty(int argc, char **argv);
   void initGridCells() {
@@ -254,6 +255,7 @@ private:
   std::string nrnSimulationFileName;
   bool vout; // if true, then we'll save a video file to videoFileName
   std::string videoFileName;
+  std::string videoCodecName;
   std::map<std::string, float> constMap;
 };
 

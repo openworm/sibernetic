@@ -5,9 +5,7 @@ main: sibernetic intel-opencl-tmp Dockerfile
 sibernetic: ../src ../makefile ../inc 
 	rm -rf sibernetic
 	mkdir sibernetic
-	cp -r ../src sibernetic/
-	cp ../makefile sibernetic/
-	cp -r ../inc sibernetic/
+	cp -r ../src ../makefile ../inc ../main_sim.py ../configuration sibernetic/
 
 clean-docker:
 	docker rmi sibernetic
