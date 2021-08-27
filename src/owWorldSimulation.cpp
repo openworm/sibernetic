@@ -247,9 +247,7 @@ void ffmpeg_encoder_encode_frame(uint8_t *rgb) {
         std::cerr << "Error encoding frame: " << ERRMSG_AV(ret) << std::endl;
         exit(1);
     }
-    std::cerr << "Encoding frame: " << ERRMSG_AV(ret) << std::endl;
     while (true) {
-        std::cerr << "Receiving packets..." << std::endl;
         ret = avcodec_receive_packet(avcodec_ctx, &pkt);
         if (ret == 0) {
             fwrite(pkt.data, 1, pkt.size, file);
@@ -257,7 +255,6 @@ void ffmpeg_encoder_encode_frame(uint8_t *rgb) {
             // no packets to receive... just keep it moving
             break;
         } else {
-            // TODO: Do some proper error handling here
             std::cerr << "Error in receiving packet: " << ERRMSG_AV(ret) << std::endl;
             break;
         }
@@ -427,7 +424,9 @@ void display(void) {
   for (unsigned int i_ec = 0; i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT;
        ++i_ec) {
     // offset = 0
-    if ((j = (int)ec_cpp[4 * i_ec + 0]) >= 0) {
+    int _j = (int)ec_cpp[4 * i_ec + 0];
+    if (_j >= 0) {
+        j = _j;
       i = (i_ec / MAX_NEIGHBOR_COUNT); // +
       // (generateInitialConfiguration!=1)*numOfBoundaryP;
       if (i < j) {
