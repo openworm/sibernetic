@@ -126,6 +126,7 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
                                  "Please add it and try again");
     }
 
+#if FFMPEG
     if (strTemp == "-vout") {
       vout = true;
       if (i + 1 < argc) {
@@ -143,6 +144,11 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
             "Please add it and try again");
       }
     }
+#else
+    if (strTemp == "-vout" || strTemp == "-vcodec") {
+      throw std::runtime_error("This Sibernetic does not support video output");
+    }
+#endif
     if (strTemp.find("-c302") == 0) {
       // int result = strTemp.find("-c302");
       // printf("\n%s: %d c302=%d\n",strTemp.c_str(),result,c302==true);

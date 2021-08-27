@@ -138,9 +138,11 @@ public:
     fileName += ss.str();
     return fileName;
   }
+#if FFMPEG
   bool isVout() { return vout; }
   std::string getVideoFileName() { return videoFileName; }
   std::string getVideoCodecName() { return videoCodecName; }
+#endif
   // Constructor
   owConfigProperty(int argc, char **argv);
   void initGridCells() {
@@ -253,9 +255,11 @@ private:
   bool nrnSimRun; // indicates if we also run NEURON simulation
   bool c302;      // indicates if we also run NEURON simulation
   std::string nrnSimulationFileName;
+#if FFMPEG
   bool vout; // if true, then we'll save a video file to videoFileName
   std::string videoFileName;
   std::string videoCodecName;
+#endif
   std::map<std::string, float> constMap;
 };
 

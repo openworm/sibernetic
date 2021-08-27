@@ -92,10 +92,12 @@ int usage() {
       << "                               and sibernetic_neuron bridge\n\n"
       << "    -c302                      Run worm model with c302 "
          "(Note: use `python sibernetic_c302.py` for all options)\n\n"
+#if FFMPEG
       << "    -vout <video_filename>     Save the simulation display to a video"
          " file\n\n"
       << "    -vcodec <video_codec>      Use the given codec for encoding the"
          " video\n\n"
+#endif
       << "    -help, -h, -?, --help      Print this information\n\n"
       << "Full documentation at: <https://github.com/openworm/sibernetic>\n"
       << "Please report any bugs/issues "
