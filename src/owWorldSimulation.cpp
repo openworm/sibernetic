@@ -157,6 +157,9 @@ static void ffmpeg_encoder_set_frame_yuv_from_rgb(uint8_t *rgb) {
 void ffmpeg_encoder_start(const char *filename, const char *codec_id, int fps, int width, int height) {
     AVCodec *codec;
     int ret;
+#if ( LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58,9,100) )
+    avcodec_register_all();
+#endif
     codec = avcodec_find_encoder_by_name(codec_id);
     if (!codec) {
         std::cerr << "Codec not found: " << codec_id << std::endl;
