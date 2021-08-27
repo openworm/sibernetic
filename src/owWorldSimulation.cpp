@@ -1144,6 +1144,25 @@ void Timer(int value) {
 }
 
 GLvoid resize(GLsizei _ignored_width, GLsizei _ignored_height) {
+  glViewport(0, 0, width, height); // Set view area
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+
+  float aspectRatio = (GLfloat)width / (GLfloat)height;
+  if (aspectRatio > 1.f)
+    glFrustum(-1 * aspectRatio, 1 * aspectRatio, -1, 1, 3, 45);
+  else
+    glFrustum(-1, 1, -1 / aspectRatio, 1 / aspectRatio, 3, 45);
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+
+  for (int c = 0; c < 3; ++c) {
+    camera_trans_lag[c] += (camera_trans[c] - camera_trans_lag[c]);
+    camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]);
+  }
+  glTranslatef(camera_trans_lag[0], camera_trans_lag[1], camera_trans_lag[2]);
+  glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
+  glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
   glutReshapeWindow(width, height);
   return;
 #if 0
