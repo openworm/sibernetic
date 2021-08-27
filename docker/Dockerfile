@@ -13,13 +13,11 @@ RUN apt-get update && \
                        python3-pip \
                        freeglut3-dev libglu1-mesa-dev
 
-COPY intel-opencl-tmp intel-opencl-tmp
+COPY intel-opencl intel-opencl
 
-RUN cd intel-opencl-tmp && \
-  cp -R intel-opencl/* / && \
+RUN cp -R intel-opencl/* / && \
   ldconfig && \
-  cd .. && \
-  rm -r intel-opencl-tmp
+  rm -r intel-opencl
 
 RUN cp -R /opt/intel/opencl/include/CL /usr/include/
 

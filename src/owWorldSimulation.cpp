@@ -161,8 +161,6 @@ void ffmpeg_encoder_start(const char *filename, const char *codec_id, int fps, i
     if (!codec) {
         std::cerr << "Codec not found: " << codec_id << std::endl;
         exit(1);
-    } else {
-        std::cerr << "Found codec: " << codec_id << std::endl;
     }
     avcodec_ctx = avcodec_alloc_context3(codec);
     if (!avcodec_ctx) {
