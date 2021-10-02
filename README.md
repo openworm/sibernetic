@@ -199,7 +199,7 @@ than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 Configuration file format
 ---------------
 The configuration file consists of:
-First block is an optional if you didn't indicate this block then sibernetic will init consts by default value which you can find in [owPhyowPhysicsConstant.h ](./inc/owPhyowPhysicsConstant.h).
+First block is an optional if you didn't indicate this block then sibernetic will init consts by default value which you can find in [owPhysicsConstant.h ](./inc/owPhysicsConstant.h).
 ```
 [physical parameters]
 mass: 5.4e-14
