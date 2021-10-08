@@ -73,12 +73,12 @@ def generate_wcon(pos_file_name,
             if t_s > max_time_s:
                 print_("Finished parsing file, as max time reached!")
                 break
-            x[t_s] = [float(w) for w in words[2:2 + points]]
-            y[t_s] = [float(w) for w in words[3 + points:3 + 2 * points]]
-            z[t_s] = [float(w) for w in words[4 + 2 * points:]]
+            x[t_s] = [float(w) for w in words[2:2 + int(points)]]
+            y[t_s] = [float(w) for w in words[3 + int(points):3 + 2 * int(points)]]
+            z[t_s] = [float(w) for w in words[4 + 2 * int(points):]]
 
             print_("L%i: at time: %s sec found %i points: [(%s,%s,%s),...,(%s,%s,%s)]" % (
-                line_num, t_s, points, x[t_s][0], y[t_s][0], z[t_s][0], x[t_s][points-1], y[t_s][points-1], z[t_s][points-1]))
+                line_num, t_s, points, x[t_s][0], y[t_s][0], z[t_s][0], x[t_s][int(points)-1], y[t_s][int(points)-1], z[t_s][int(points)-1]))
 
             spacing = 0.05
 
@@ -109,11 +109,11 @@ def generate_wcon(pos_file_name,
             if len(middle_points) > 0:
                 dt = t_s - time_points[-1]
                 middle_point_speed_x.append(
-                    (xs[middle_point] - offset -
+                    (xs[int(middle_point)] - offset -
                      middle_points[-1][0]) / dt)
 
                 middle_point_speed_y.append(
-                    (ys[middle_point] - middle_points[-1][1]) / dt)
+                    (ys[int(middle_point)] - middle_points[-1][1]) / dt)
                 dav = dist(avx, avy, ave_points[-1][0], ave_points[-1][1])
 
                 ave_point_speed_x.append((avx - ave_points[-1][0]) / dt)
@@ -122,8 +122,8 @@ def generate_wcon(pos_file_name,
                 print_("  Speed of point" +
                       " %i: (%s,%s) -> (%s,%s): x %sum/s, y %sum/s" %
                       (middle_point, middle_points[-1][0],
-                       middle_points[-1][1], xs[middle_point],
-                       ys[middle_point], middle_point_speed_x[-1],
+                       middle_points[-1][1], xs[int(middle_point)],
+                       ys[int(middle_point)], middle_point_speed_x[-1],
                        middle_point_speed_y[-1]))
 
                 print_("  Speed of av point " +
@@ -132,7 +132,7 @@ def generate_wcon(pos_file_name,
                        ave_point_speed_x[-1], ave_point_speed_y[-1]))
 
             middle_points.append(
-                (xs[middle_point] - offset, ys[middle_point]))
+                (xs[int(middle_point)] - offset, ys[int(middle_point)]))
             ave_points.append((avx, avy))
             time_points.append(t_s)
 
@@ -278,9 +278,9 @@ def generate_wcon(pos_file_name,
     plt.title(info)
     
     xt = ax.get_xticks()
-    print xt
+    print(xt)
     time_ticks = [time_points[int(ti)] if (ti>=0 and ti<len(time_points)) else 0 for ti in xt]
-    print time_ticks
+    print(time_ticks)
     ax.set_xticklabels(time_ticks)
 
     fig.colorbar(plot0)
@@ -378,7 +378,7 @@ if __name__ == '__main__':
         mx = y[t]
         my = x[t]
         for li in range(len(mx)-1):
-            print '------------'
+            print('------------')
             mi = 23-int(li/4.1)
             mt = ti*2
             scale = 1.5
