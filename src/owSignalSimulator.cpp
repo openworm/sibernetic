@@ -101,7 +101,8 @@ SignalSimulator::SignalSimulator(const std::string &simFileName,
     PyObject *dt = Py_BuildValue("f", timeStep); // Create tuple of arguments for initialization
     PyObject *pFuncName = Py_BuildValue("s", "set_timestep");
     //pInstance = PyObject_CallMethod(pInstance, "set_timestep", "(f)", timeStep);
-    PyObject_CallMethodObjArgs(pInstance, pFuncName, dt, nullptr);
+    // PyObject_CallMethodObjArgs(pInstance, pFuncName, dt, nullptr);
+    PyObject_CallMethodObjArgs(pInstance, pFuncName, dt, NULL);
     if (PyErr_Occurred())
       PyErr_Print();
     Py_DECREF(dt);

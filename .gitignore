@@ -70,3 +70,6 @@ simulations
 .vscode/*
 .settings/*
 .idea/*
+
+# Jupyter
+/notebooks
