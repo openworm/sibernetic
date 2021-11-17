@@ -478,7 +478,7 @@ __kernel void pcisph_computeDensity(
 									 __global uint * particleIndexBack,
 									 uint PARTICLE_COUNT )
 {
-	int id = get_global_id( 0 );
+	int id = get_group_id( 0 );
 	if( id >= PARTICLE_COUNT ) return;
 	id = particleIndexBack[id];			//track selected particle (indices are not shuffled anymore)
 	int idx = id * MAX_NEIGHBOR_COUNT;
@@ -488,25 +488,41 @@ __kernel void pcisph_computeDensity(
 	float hScaled6 = hScaled2*hScaled2*hScaled2;
 	int real_nc = 0;
 
-	do                                  // gather density contribution from all neighbors (if they exist)
-	{
-		if( NEIGHBOR_MAP_ID( neighborMap[ idx + nc ] ) != NO_PARTICLE_ID )
-		{
+    int lid = get_local_id(0);
+    __local float l_density[MAX_NEIGHBOR_COUNT/2];
+    
+    l_density[lid] = 0.0;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    nc = lid;
+    int offset = MAX_NEIGHBOR_COUNT/2;
+
+		if( NEIGHBOR_MAP_ID( neighborMap[ idx + nc ] ) != NO_PARTICLE_ID ) {
 			r_ij2= NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc ] );	// distance is already scaled here
 			r_ij2 *= r_ij2;
-			if(r_ij2<hScaled2)
-			{
-				density += (hScaled2-r_ij2)*(hScaled2-r_ij2)*(hScaled2-r_ij2);
-				//if(r_ij2>hScaled2) printf("=Error: r_ij/h = %f\n", NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc ] ) / hScaled);
-				real_nc++;
+			if(r_ij2<hScaled2) {
+				l_density[lid] += (hScaled2-r_ij2)*(hScaled2-r_ij2)*(hScaled2-r_ij2);
+			}
+		}
+        if( NEIGHBOR_MAP_ID( neighborMap[ idx + nc + offset ] ) != NO_PARTICLE_ID ) {
+			r_ij2= NEIGHBOR_MAP_DISTANCE( neighborMap[ idx + nc + offset ] );	// distance is already scaled here
+			r_ij2 *= r_ij2;
+			if(r_ij2<hScaled2) {
+				l_density[lid] += (hScaled2-r_ij2)*(hScaled2-r_ij2)*(hScaled2-r_ij2);
 			}
 		}
 
-	}while( ++nc < MAX_NEIGHBOR_COUNT );
-	if(density<hScaled6)
-		density = hScaled6;
-	density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
-	rho[ id ] = density;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (lid == 0) {
+        for (int i = 0; i < MAX_NEIGHBOR_COUNT/2; i++) {
+            density += l_density[i];
+        }
+	    if(density<hScaled6) {
+		    density = hScaled6;
+        }
+	    density *= mass_mult_Wpoly6Coefficient; // since all particles are same fluid type, factor this out to here
+	    rho[ id ] = density;
+    }
 }
 
 /** Run pcisph_computeForcesAndInitPressure kernel

@@ -37,6 +37,7 @@
 #include <stdexcept>
 
 #include "owOpenCLSolver.h"
+#include "owOpenCLConstant.h"
 
 int comparator(const void *v1, const void *v2);
 
@@ -731,11 +732,11 @@ owOpenCLSolver::_run_pcisph_computeDensity(owConfigProperty *config) {
   pcisph_computeDensity.setArg(5, config->getParticleCount());
   int err = queue.enqueueNDRangeKernel(
       pcisph_computeDensity, cl::NullRange,
-      cl::NDRange((int)(config->getParticleCount_RoundUp())),
+      cl::NDRange((int)(config->getParticleCount_RoundUp()*local_NDRange_size/2)),
 #if defined(__APPLE__)
       cl::NullRange, nullptr, nullptr);
 #else
-      cl::NDRange((int)(local_NDRange_size)), nullptr, nullptr);
+      cl::NDRange((int)(local_NDRange_size/2)), nullptr, nullptr);
 #endif
 #if QUEUE_EACH_KERNEL
   queue.finish();
