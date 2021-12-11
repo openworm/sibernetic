@@ -177,10 +177,14 @@ void owVideoWriter::encoder_start(const char *filename, const char *codec_id) {
     avformat_alloc_output_context2(&oc, NULL, codec_id, filename);
     if (!oc) {
         std::cerr << "Output format " << codec_id << " not found for " << filename << std::endl;
-        const AVOutputFormat *item = NULL;
-        void *iter = NULL;
         std::cerr << "Available formats: " << std::endl;
+        const AVOutputFormat *item = NULL;
+#if ( LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(58,9,100) )
+        void *iter = NULL;
         while ((item = av_muxer_iterate(&iter)) != NULL) {
+#else
+        while ((item = av_oformat_next(item)) != NULL) {
+#endif
             std::cerr << item->name << " : " << item->long_name
                 << " : " << item->extensions << std::endl;
         }
