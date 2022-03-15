@@ -49,8 +49,13 @@ jobs:
     - name: Build Sibernetic
       run: |
 
-        sudo apt install -y python3.7-dev freeglut3-dev libglu1-mesa-dev 
+        sudo apt install -y python3.7-dev freeglut3-dev libglu1-mesa-dev
         python -V
         ls -alt
         make clean
         make
+
+    - name: Run quick Sibernetic test
+      run: |
+
+        ./Release/Sibernetic -no_g timelimit=0.001
