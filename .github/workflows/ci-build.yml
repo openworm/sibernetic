@@ -49,8 +49,8 @@ jobs:
     - name: Build Sibernetic
       run: |
 
+        sudo apt install -y python-dev 
         python -V
         ls -alt
         make clean
         make
-        
