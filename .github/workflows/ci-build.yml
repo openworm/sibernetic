@@ -49,7 +49,7 @@ jobs:
     - name: Build Sibernetic
       run: |
 
-        sudo apt install -y python3-dev 
+        sudo apt install -y python3.7-dev 
         python -V
         ls -alt
         make clean
