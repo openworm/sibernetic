@@ -59,3 +59,9 @@ jobs:
       run: |
 
         ./Release/Sibernetic -no_g timelimit=0.001
+
+    - name: Final version info
+      run: |
+
+        python -V
+        pip list
