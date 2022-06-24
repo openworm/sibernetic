@@ -45,7 +45,7 @@ jobs:
 
         sudo apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
         python -V
-        ll /usr/bin/python*
+        ls -alt /usr/bin/python*
         ls -alt
         make clean
         make
