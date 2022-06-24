@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ ubuntu-18.04, ubuntu-20.04 ]
+        runs-on: [ ubuntu-18.04, ubuntu-20.04, ubuntu-22.04 ]
 
     steps:
     - uses: actions/checkout@v2
@@ -52,7 +52,7 @@ jobs:
 
     - name: Run quick Sibernetic test
       run: |
-
+        ldd ./Release/Sibernetic
         ./Release/Sibernetic -no_g timelimit=0.001
 
     - name: Final version info
