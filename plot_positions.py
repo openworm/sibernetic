@@ -1,12 +1,17 @@
-import sys 
+import sys
+
+
+def print_(msg):
+
+    print("c302 plot >>> %s"%(msg))
 
 '''
     Plot the positions from a saved Sibernetic position_buffer.txt file
 '''
 def plot_positions(pos_file_name, rate_to_plot = 100, save_figure=True, show_plot=True):
-    
+
     postions_file = open(pos_file_name)
-    
+
     rate_to_plot = max(1,int(rate_to_plot))
 
     index = 0
@@ -20,7 +25,7 @@ def plot_positions(pos_file_name, rate_to_plot = 100, save_figure=True, show_plo
 
     import matplotlib.pyplot as plt
 
-    print("Loading: %s"%pos_file_name)
+    print_("Loading: %s"%pos_file_name)
 
     fig = plt.figure()
 
@@ -40,13 +45,13 @@ def plot_positions(pos_file_name, rate_to_plot = 100, save_figure=True, show_plo
     in_frame = 0
     xs = []
     ys = []
-    
+
     num_plotted_frames = 0
 
     for line in postions_file:
 
         if index>max_lines:
-            print("Finished parsing file, as max number of lines reached!")
+            print_("Finished parsing file, as max number of lines reached!")
             break
 
         if index==0: xmin=float(line)
@@ -71,7 +76,7 @@ def plot_positions(pos_file_name, rate_to_plot = 100, save_figure=True, show_plo
             t_ms = frame * steps_per_frame * dt * 1000
 
             if t_ms>max_time_ms:
-                print("Finished parsing file, as max time (%s ms) reached!"%max_time_ms)
+                print_("Finished parsing file, as max time (%s ms) reached!"%max_time_ms)
 
                 break
 
@@ -93,27 +98,27 @@ def plot_positions(pos_file_name, rate_to_plot = 100, save_figure=True, show_plo
             if in_frame == a+b+c-1:
 
                 if plot_frame:
-                    print(" >> Plotting frame %i at %s ms; line %i: %s...\n"%(num_plotted_frames,t_ms,index,line))
+                    print_(" >> Plotting frame %i at %s ms; line %i: %s...\n"%(num_plotted_frames,t_ms,index,line))
                     ax.plot(xs,ys,'.', markersize=1)
                     num_plotted_frames+=1
                     if num_plotted_frames%3 == 1:
                         time = '%sms'%t_ms if not t_ms==int(t_ms) else '%sms'%int(t_ms)
                         ax.text(50+((num_plotted_frames-1)*30), 510, time, fontsize=12)
 
-                frame+=1 
+                frame+=1
                 in_frame = 0
-                print("New positions (#%i) at time %s ms; line %i: %s"%(frame,t_ms,index,line))
+                print_("New positions (#%i) at time %s ms; line %i: %s"%(frame,t_ms,index,line))
                 xs = []
                 ys = []
 
 
         index+=1
 
-    print("Loaded: %s points from %s, showing %s points in %i plots"%(index,pos_file_name,points_plotted,num_plotted_frames))
+    print_("Loaded: %s points from %s, showing %s points in %i plots"%(index,pos_file_name,points_plotted,num_plotted_frames))
 
     if save_figure:
         plt.savefig('%s.png'%pos_file_name,bbox_inches='tight')
-  
+
     if show_plot:
         plt.show()
 
@@ -125,49 +130,49 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
     a = []
     times = []
     muscle_names = []
-    
+
     quadrant0 = 'MDR'
     quadrant1 = 'MVR'
     quadrant2 = 'MVL'
     quadrant3 = 'MDL'
     qs = [quadrant0,quadrant1,quadrant2,quadrant3]
-    
+
     activations = {}
-    
+
     for q in qs:
         activations[q] = {}
         for i in range(24):
             activations[q][i] = []
             muscle_names.append('%s%s'%(q,i))
-    max_act = 0 
+    max_act = 0
     for line in muscle_file:
 
         acts = [float(w) for w in line.split()]
-        
-        print("Found %s activation values (%s,...,%s) at line %s"%(len(acts),acts[0],acts[-1],count))
+
+        print_("Found %s activation values (%s,...,%s) at line %s"%(len(acts),acts[0],acts[-1],count))
         a.append(acts)
-        
+
         for qi in range(len(qs)):
             q = qs[qi]
             for mi in range(24):
                 index = qi*24 + mi
                 activations[q][mi].append(acts[index])
                 max_act = max(max_act,acts[index])
-        
+
         times.append(count*dt*logstep/1000)
 
         count+=1
-        
-    
+
+
     import matplotlib.pyplot as plt
     import numpy as np
-    
-    
+
+
     fig, ax0 = plt.subplots(4, sharex=True, sharey=True)
-        
+
     info = "Muscle activation values per quadrant"
     fig.canvas.set_window_title(info)
-    
+
     ax0[0].set_title('Muscle activation values per quadrant - '+quadrant0, size='small')
     ax0[0].set_ylabel('muscle #')
     ax0[1].set_title(quadrant3, size='small')
@@ -177,8 +182,8 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
     ax0[3].set_title(quadrant2, size='small')
     ax0[3].set_ylabel('muscle #')
     ax0[3].set_xlabel('time (s)'%())
-    
-        
+
+
     arr0 = []
     arr1 = []
     arr2 = []
@@ -188,16 +193,16 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
         arr1.append(activations[quadrant3][i])
         arr2.append(activations[quadrant1][i])
         arr3.append(activations[quadrant2][i])
-        
+
     ax0[0].imshow(arr0, interpolation='none', aspect='auto', vmin=0, vmax=max_act)
     ax0[1].imshow(arr1, interpolation='none', aspect='auto', vmin=0, vmax=max_act)
     ax0[2].imshow(arr2, interpolation='none', aspect='auto', vmin=0, vmax=max_act)
     ax0[3].imshow(arr3, interpolation='none', aspect='auto', vmin=0, vmax=max_act)
     #fig.colorbar(im0)
-    
-    
-    
-    
+
+
+
+
     ax1 = plt.gca();
     xt = ax1.get_xticks()
     time_ticks = [times[int(ti)] if (ti>=0 and ti<len(times)) else 0 for ti in xt]
@@ -205,43 +210,39 @@ def plot_muscle_activity(muscle_file_name, dt, logstep, save_figure=True, show_p
     #print ax1.get_yticks()
     #ax1.set_yticks([i-1 for i in ax1.get_yticks()])
     #print ax1.get_yticks()
-    
+
     if save_figure:
         plt.savefig('%s.png'%muscle_file_name,bbox_inches='tight')
     '''
     aa = np.array(a).transpose()
     fig, ax = plt.subplots()
-    
+
     #plot0 = ax.pcolormesh(aa)
-    
+
     plot0 = plt.imshow(aa, interpolation='nearest', aspect='auto')
     ax = plt.gca();
-    
-    
+
+
     ax.set_yticks(np.arange(aa.shape[0]) + 0.5, minor=False)
     ax.set_yticklabels(muscle_names, size='x-small')
-    
+
     ax1 = plt.gca();
     xt = ax1.get_xticks()
     time_ticks = [times[int(ti)] if (ti>=0 and ti<len(times)) else 0 for ti in xt]
     ax1.set_xticklabels(time_ticks)
-    
+
     fig.colorbar(plot0)
-    
+
     if save_figure:
         plt.savefig('%s0.png'%muscle_file_name,bbox_inches='tight')'''
-        
+
     if show_plot:
         plt.show()
-        
+
     return activations, times
 
 if __name__ == '__main__':
-    
-    plot_muscle_activity('simulations/Sibernetic_2018-01-17_20-13-38/muscles_activity_buffer.txt',0.005,50, save_figure=True, show_plot=True)
-    plot_muscle_activity('simulations/Sibernetic_2018-01-17_21-10-11/muscles_activity_buffer.txt',0.005,1000, save_figure=True, show_plot=True)
-    plot_muscle_activity('simulations/C0_TargetMuscle_2018-01-18_19-43-31/muscles_activity_buffer.txt',0.005,1000, save_figure=True, show_plot=True)
-    exit()
+
 
     if len(sys.argv) == 2:
         pos_file_name = sys.argv[1]
