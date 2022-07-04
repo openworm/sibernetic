@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ 3.7 ]
-        runs-on: [ ubuntu-18.04, ubuntu-20.04 ]
+        runs-on: [ ubuntu-18.04 ]
 
     steps:
     - uses: actions/checkout@v2
@@ -50,6 +50,7 @@ jobs:
       run: |
 
         sudo apt install -y python3.7-dev freeglut3-dev libglu1-mesa-dev
+        sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for soem reason...
         python -V
         ls -alt
         make clean
