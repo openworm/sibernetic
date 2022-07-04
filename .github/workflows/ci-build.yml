@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ ubuntu-20.04 ]
+        runs-on: [ ubuntu-18.04 ]
 
     steps:
     - uses: actions/checkout@v2
@@ -44,6 +44,8 @@ jobs:
       run: |
 
         sudo apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
+        sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for soem reason...
+
         python -V
         ls -alt /usr/bin/python*
         ls -alt
