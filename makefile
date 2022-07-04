@@ -14,7 +14,7 @@ SOURCES = $(wildcard $(SRCDIR)/*.$(SRCEXT))
 BINARYTESTDIR = $(BINARYDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
-PYTHON_VER_MAIN = $(shell python -c 'import sys; vv=sys.version_info[:];print(str(vv[0])+str(1.0)[1]+str(vv[1]))')
+PYTHON_VER_MAIN = $(shell python3 -c 'import sys; vv=sys.version_info[:];print(str(vv[0])+str(1.0)[1]+str(vv[1]))')
 #PYTHON_VER_MAIN = 3.8 # Hardcode if necessary
 PYTHON_CONFIG ?= /usr/bin/python$(PYTHON_VER_MAIN)-config
 
@@ -53,6 +53,7 @@ $(TARGET):$(OBJECTS)
 	@echo ' '
 
 $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
+	@echo 'Assuming Python: $(PYTHON_VER_MAIN)'
 	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
