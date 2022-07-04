@@ -63,6 +63,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo ' '
 
 clean :
+	@echo 'Assuming Python: $(PYTHON_VER_MAIN)'
 	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
