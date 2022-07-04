@@ -44,7 +44,7 @@ jobs:
       run: |
 
         sudo apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
-        sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for soem reason...
+        sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for some reason...
 
         python -V
         ls -alt /usr/bin/python*
