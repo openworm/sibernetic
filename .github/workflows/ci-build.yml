@@ -14,10 +14,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ ubuntu-18.04, ubuntu20.04, ubuntu-latest ]
+        python-version: [ 3.6 ]
+        runs-on: [ ubuntu-18.04, ubuntu20.04, ubuntu22.04 ]
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Set up Python  ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version:  ${{ matrix.python-version }}
 
     - name: Install Intel OpenCL libraries needed for Sibernetic
       run: |
@@ -45,7 +51,6 @@ jobs:
 
         sudo apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
         #sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for some reason...
-
         python -V
         ls -alt /usr/bin/python*
         ls -alt
@@ -55,6 +60,7 @@ jobs:
     - name: Run quick Sibernetic test
       run: |
         ldd ./Release/Sibernetic
+
         ./Release/Sibernetic -no_g timelimit=0.001
 
     - name: Final version info
