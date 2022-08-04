@@ -487,7 +487,7 @@ void owHelper::loadPressureToFile(float *pressure_buffer,
                                "file for logging Check the path.");
   }
   pressureFile << "[Iteration " << iteration << "]\n";
-  for (int i = 0; i < shell_particles.size(); ++i) {
+  for (int i = 0; (unsigned)i < shell_particles.size(); ++i) {
     int id = shell_particles[i];
     pressureFile << "Particle:\t" << id << "\n";
     pressureFile << "\tPosition:\t";
@@ -612,7 +612,7 @@ bool owHelper::loadConfigurationFromFile(float *&position, float *&connections,
                                config->numOfBoundaryP);
       position = new float[4 * config->getParticleCount()];
     }
-    while (positionFile.good() && i < config->getParticleCount()) {
+    while (positionFile.good() && (int)i < config->getParticleCount()) {
       if (static_cast<int>(p_type) != BOUNDARY_PARTICLE || iteration == 0) {
         positionFile >> x >> y >> z >> p_type;
         position[i * 4 + 0] = x;

@@ -117,7 +117,7 @@ void glPrint3D(float x, float y, float z, const char *s, void *font) {
 
 std::ifstream musclesActivityFile;
 
-int read_muscles_activity_signals_from_log_file(
+void read_muscles_activity_signals_from_log_file(
     int iterationCount, float *muscle_activation_signal_cpp,
     owConfigProperty *config) {
   std::string musclesActivityFileName =
@@ -145,10 +145,10 @@ void display(void) {
   std::cout << "owD1\n";
   // Update Scene if not paused
   int i, j, k;
-  int err_coord_cnt = 0;
-  double calculationTime;
+  //int err_coord_cnt = 0;
+  double calculationTime = 0;
   double renderTime;
-  void *m_font = GLUT_BITMAP_8_BY_13;
+  //void *m_font = GLUT_BITMAP_8_BY_13;
   if (!sPause) {
     if (!load_from_file) {
       try {
@@ -275,7 +275,7 @@ void display(void) {
   }
   glLineWidth((GLfloat)0.1);
   // Display elastic connections
-  for (int i_ec = 0; i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT;
+  for (int i_ec = 0; (unsigned)i_ec < localConfig->numOfElasticP * MAX_NEIGHBOR_COUNT;
        ++i_ec) {
     // offset = 0
     if ((j = (int)ec_cpp[4 * i_ec + 0]) >= 0) {

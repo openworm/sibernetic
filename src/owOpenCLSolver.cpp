@@ -97,7 +97,8 @@ owOpenCLSolver::owOpenCLSolver(const float *position_cpp,
                       computeInteractionWithMembranes);
     create_ocl_kernel("computeInteractionWithMembranes_finalize",
                       computeInteractionWithMembranes_finalize);
-  } catch (std::runtime_error &ex) {
+  } catch (std::runtime_error &ex) {  
+          std::cout << "errrr\n";
     destroy();
     throw;
   }
