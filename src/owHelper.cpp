@@ -359,7 +359,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp,
   } else
     throw std::runtime_error("Could not open file configuration file");
   configFile.close();
-  std::cout << "Configuration was loaded" << std::endl;
+  std::cout << "Configuration has been loaded" << std::endl;
 }
 /** Load configuration from simulation to files
  *

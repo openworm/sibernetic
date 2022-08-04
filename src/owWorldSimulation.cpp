@@ -1101,7 +1101,7 @@ int run(int argc, char **argv, const bool with_graphics) {
     glutKeyboardFunc(respondKey);
     std::cout << "S1g4\n";
     glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
-    std::cout << "S1g4\n";
+    std::cout << "S1g4a\n";
     glutMainLoop();
     std::cout << "S1g4e\n";
     if (!load_from_file) {
