@@ -63,11 +63,14 @@ owOpenCLSolver::owOpenCLSolver(const float *position_cpp,
                                const int *membraneData_cpp,
                                const int *particleMembranesList_cpp) {
   try {
+      std::cout << "owC1\n";
     initializeOpenCL(config);
+            std::cout << "owC10\n";
     // Create OpenCL buffers
     initializeBuffers(position_cpp, velocity_cpp, config,
                       elasticConnectionsData_cpp, membraneData_cpp,
                       particleMembranesList_cpp);
+                          std::cout << "owC1a\n";
     // Create OpenCL kernels
     create_ocl_kernel("clearBuffers", clearBuffers);
     create_ocl_kernel("findNeighbors", findNeighbors);
@@ -87,6 +90,8 @@ owOpenCLSolver::owOpenCLSolver(const float *position_cpp,
     create_ocl_kernel("pcisph_computeElasticForces",
                       pcisph_computeElasticForces);
     // membrane handling kernels
+
+        std::cout << "owC1b\n";
     create_ocl_kernel("clearMembraneBuffers", clearMembraneBuffers);
     create_ocl_kernel("computeInteractionWithMembranes",
                       computeInteractionWithMembranes);
@@ -233,13 +238,18 @@ void owOpenCLSolver::initializeBuffers(const float *position_cpp,
  *  Contain information about simulating configuration
  */
 void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
+  std::cout << "owCi1\n";
   cl_int err;
   std::vector<cl::Platform> platformList;
+    std::cout << "owCi1a\n";
   err = cl::Platform::get(
       &platformList); // TODO make check that returned value isn't error
+        std::cout << "owCi1b\n";
   if (platformList.size() < 1 || err != CL_SUCCESS) {
+    std::cout << "No OpenCL platforms found, error code: "<< err<< " \n";
     throw std::runtime_error("No OpenCL platforms found");
   }
+    std::cout << "owCi2\n";
   char cBuffer[1024];
   cl_platform_id cl_pl_id[10];
   cl_uint n_pl;
@@ -256,6 +266,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
       printf(" Error %i in clGetPlatformInfo Call !!!\n\n", ciErrNum);
     }
   }
+    std::cout << "owCi2\n";
   // 0-CPU, 1-GPU // depends on the time order of system OpenCL drivers
   // installation on your local machine
   // CL_DEVICE_TYPE
