@@ -34,7 +34,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
-#include <iomanip>>
+#include <iomanip>
 
 #include "owPhysicsFluidSimulator.h"
 #include "owSignalSimulator.h"
@@ -88,8 +88,12 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
         position_cpp, velocity_cpp, elasticConnectionsData_cpp,
         membraneData_cpp, particleMembranesList_cpp,
         config); // Load configuration from file to buffer
+
+    std::cout << "owP1\n";
     this->helper = helper;
+        std::cout << "owP1a\n";
     if (config->numOfElasticP != 0) {
+        std::cout << "owP1b\n";
       ocl_solver = new owOpenCLSolver(
           position_cpp, velocity_cpp, config, elasticConnectionsData_cpp,
           membraneData_cpp,
@@ -109,6 +113,8 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
     delete config;
     throw;
   }
+
+  std::cout << "owP2\n";
 }
 /** Reset simulation
  *
@@ -232,7 +238,7 @@ int update_worm_motion_log_file(
   float log_x[200], log_y[200], log_z[200], log_n[200];
   // float * ec_cpp = getElasticConnectionsData_cpp();
   // float * p_cpp = getPosition_cpp();
-  int L_index_i, i, ecc = 0; // elastic connections counter;
+  int L_index_i, i; // elastic connections counter;
 
   std::ofstream wormMotionLogFile;
   std::string wormMotionLogFileName =
@@ -261,7 +267,7 @@ int update_worm_motion_log_file(
                     << "\tX:\t";
   // wormMotionLogFile << (float)iterationCount*timeStep << "\tX:\t";
 
-  for (i = 0; i < config->numOfElasticP; i++) {
+  for (i = 0; (unsigned)i < config->numOfElasticP; i++) {
     if ((p_cpp[i * 4 + 3] > 2.05f) && (p_cpp[i * 4 + 3] < 2.25f)) {
       if ((p_cpp[i * 4 + 3] > 2.05f) && (p_cpp[i * 4 + 3] < 2.15f)) {
         L_index_i = (int)((p_cpp[i * 4 + 3] + 0.0000003f - 2.1000f) * 10000.f) +
@@ -448,7 +454,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   printf("------------------------------------\n");
   if (load_to) {
     if (iterationCount == 0) {
-      
+
       owHelper::loadConfigurationToFile(position_cpp, config,
                                         elasticConnectionsData_cpp,
                                         membraneData_cpp, true);
@@ -486,9 +492,9 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   muscle_activation_signal_cpp[i] = 0.f;
     }
 
-  /**/
 
-  /* //smooth start switched off
+
+   //smooth start switched off
         if(iterationCount<5000)
         {
                 for(int i=0;i<config->MUSCLE_COUNT;i++)
@@ -496,7 +502,7 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
                         muscle_activation_signal_cpp[i] *=
      (float)iterationCount/5000.f;
                 }
-        }/**/
+        }*/
 
   if (iterationCount % config->getLogStep() == 0) {
     update_muscle_activity_signals_log_file(

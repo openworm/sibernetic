@@ -67,7 +67,7 @@ public:
     PARTICLE_COUNT_RoundedUp =
         (((PARTICLE_COUNT - 1) / local_NDRange_size) + 1) * local_NDRange_size;
   }
-  float getConst(const std::string &name) throw(param_error) {
+  float getConst(const std::string &name) /* throw(param_error) */ {
     if (constMap.find(name) == constMap.end())
       throw param_error(std::string("No param with name...") + name);
     return constMap[name];
