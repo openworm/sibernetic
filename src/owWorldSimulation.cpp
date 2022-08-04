@@ -142,6 +142,7 @@ int read_muscles_activity_signals_from_log_file(
 /** Main displaying function
  */
 void display(void) {
+  std::cout << "owD1\n";
   // Update Scene if not paused
   int i, j, k;
   int err_coord_cnt = 0;
@@ -1111,6 +1112,7 @@ int run(int argc, char **argv, const bool with_graphics) {
   } else {
     while (1) {
       try {
+        std::cout << "S2rr\n";
         fluid_simulation->simulationStep(load_to);
       } catch (std::runtime_error &ex) {
         cleanupSimulation();
