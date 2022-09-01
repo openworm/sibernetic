@@ -9,7 +9,7 @@ import math
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
-script_version = '0.1.3' # This will change at different rate to C++ code...
+script_version = '0.1.4' # This will change at different rate to C++ code...
 
 DEFAULTS = {'duration': 2.0,
             'dt': 0.005,
@@ -358,14 +358,13 @@ def run(a=None,**kwargs):
     reportj['python_args'] = 'python ' + ' '.join(sys.argv)
     reportj['sibernetic_version'] = get_sibernetic_version()
     reportj['sibernetic_c302_version'] = script_version
+    import platform
+    reportj['python_version'] = platform.python_version()
 
     if not a.noc302:
         reportj['reference'] = a.reference
         reportj['c302params'] = a.c302params
         reportj['c302_version'] = c302.__version__
-
-        import platform
-        reportj['python_version'] = platform.python_version()
 
         for m in ['pyneuroml','neuroml','matplotlib','numpy']:
             if m=='neuroml':

@@ -31,6 +31,8 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
+#define CL_TARGET_OPENCL_VERSION 120
+
 #ifndef OW_OPENCL_SOLVER_H
 #define OW_OPENCL_SOLVER_H
 

@@ -31,11 +31,14 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
+#define CL_TARGET_OPENCL_VERSION 120
+
 #include "owPhysicTest.h"
 #include "owVtkExport.h"
 #include "owWorldSimulation.h"
 #include <iostream>
 #include <stdio.h>
+
 
 bool load_from_file = false;
 bool load_to = false;
