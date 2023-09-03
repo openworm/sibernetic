@@ -251,6 +251,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp,
   size_t pos;
   LOADMODE mode = NOMODE;
   int i = 0;
+  std::cout << "in load\n";
   if (configFile.is_open()) {
     configFile.seekg(read_position);
     while (configFile.good()) {
@@ -360,6 +361,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp,
     throw std::runtime_error("Could not open file configuration file");
   configFile.close();
   std::cout << "Configuration has been loaded" << std::endl;
+  std::cout << "in load end of load\n";
 }
 /** Load configuration from simulation to files
  *
