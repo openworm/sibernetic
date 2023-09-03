@@ -357,8 +357,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
                                       &cBuffer); // CL_INVALID_VALUE = -30;
   if (result == CL_SUCCESS) {
     std::cout << "CL_CONTEXT_PLATFORM [" << plList << "]: CL_DEVICE_NAME ["
-              << deviceNum << "]:\t" << cBuffer << "\n"
-              << std::endl;
+              << deviceNum << "]:\t" << cBuffer << std::endl;
   }
   if (strlen(cBuffer) < 1000) {
     config->setDeviceName(cBuffer);
