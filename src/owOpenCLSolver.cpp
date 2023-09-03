@@ -348,14 +348,20 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   std::cout << "owA2" << std::endl;
   cl_context_properties cprops[3] = {
       CL_CONTEXT_PLATFORM, (cl_context_properties)(platformList[plList])(), 0};
+  std::cout << "owA21" << std::endl;
   context = cl::Context(device_type[config->getDeviceType()], cprops, nullptr,
                         nullptr, &err);
+  std::cout << "owA22" << std::endl;
   devices = context.getInfo<CL_CONTEXT_DEVICES>();
+  std::cout << "owA23" << std::endl;
   if (devices.size() < 1) {
+    std::cout << "owA24" << std::endl;
     throw std::runtime_error("No OpenCL devices were found");
   }
+  std::cout << "owA25" << std::endl;
   // Print some information about chosen platform
   size_t compUnintsCount, memoryInfo, workGroupSize;
+  std::cout << "owA26" << std::endl;
   result = devices[deviceNum].getInfo(CL_DEVICE_NAME,
                                       &cBuffer); // CL_INVALID_VALUE = -30;
   std::cout << "owA3" << std::endl;
