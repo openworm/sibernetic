@@ -65,12 +65,12 @@ owOpenCLSolver::owOpenCLSolver(const float *position_cpp,
   try {
       std::cout << "owC1" << std::endl;
     initializeOpenCL(config);
-            std::cout << "owC10\n";
+            std::cout << "owC10" << std::endl;
     // Create OpenCL buffers
     initializeBuffers(position_cpp, velocity_cpp, config,
                       elasticConnectionsData_cpp, membraneData_cpp,
                       particleMembranesList_cpp);
-                          std::cout << "owC1a\n";
+                          std::cout << "owC1a" << std::endl;
     // Create OpenCL kernels
     create_ocl_kernel("clearBuffers", clearBuffers);
     create_ocl_kernel("findNeighbors", findNeighbors);
@@ -91,7 +91,7 @@ owOpenCLSolver::owOpenCLSolver(const float *position_cpp,
                       pcisph_computeElasticForces);
     // membrane handling kernels
 
-        std::cout << "owC1b\n";
+        std::cout << "owC1b" << std::endl;
     create_ocl_kernel("clearMembraneBuffers", clearMembraneBuffers);
     create_ocl_kernel("computeInteractionWithMembranes",
                       computeInteractionWithMembranes);
@@ -262,7 +262,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
     ciErrNum = clGetPlatformInfo(cl_pl_id[i], CL_PLATFORM_VERSION,
                                  sz = sizeof(cBuffer), cBuffer, nullptr);
     if (ciErrNum == CL_SUCCESS) {
-      printf(" CL_PLATFORM_VERSION [%d]: \t%s\n", i, cBuffer);
+      printf(" CL_PLATFORM_VERSION [%d]: \t%s", i, cBuffer);
     } else {
       printf(" Error %i in clGetPlatformInfo Call !!!\n\n", ciErrNum);
     }

@@ -115,7 +115,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
     throw;
   }
 
-  std::cout << "owP2\n";
+  std::cout << "owP2" << std::endl;
 }
 /** Reset simulation
  *
