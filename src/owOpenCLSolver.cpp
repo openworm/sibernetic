@@ -287,6 +287,8 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   cl_uint device_coumpute_unit_num;
   cl_uint device_coumpute_unit_num_current = 0;
   unsigned int deviceNum = 0;
+
+  std::cout << "owA1" << std::endl;
   // Selection of more appropriate device
   while (!findDevice) {
     for (int clSelectedPlatformID = 0; clSelectedPlatformID < (int)n_pl;
@@ -343,6 +345,7 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
                                  "configuration.");
     }
   }
+  std::cout << "owA2" << std::endl;
   cl_context_properties cprops[3] = {
       CL_CONTEXT_PLATFORM, (cl_context_properties)(platformList[plList])(), 0};
   context = cl::Context(device_type[config->getDeviceType()], cprops, nullptr,
@@ -355,10 +358,12 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   size_t compUnintsCount, memoryInfo, workGroupSize;
   result = devices[deviceNum].getInfo(CL_DEVICE_NAME,
                                       &cBuffer); // CL_INVALID_VALUE = -30;
+  std::cout << "owA3" << std::endl;
   if (result == CL_SUCCESS) {
     std::cout << "CL_CONTEXT_PLATFORM [" << plList << "]: CL_DEVICE_NAME ["
               << deviceNum << "]:\t" << cBuffer << std::endl;
   }
+  std::cout << "owA4" << std::endl;
   if (strlen(cBuffer) < 1000) {
     config->setDeviceName(cBuffer);
   }
