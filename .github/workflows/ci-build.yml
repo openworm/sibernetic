@@ -33,7 +33,11 @@ jobs:
       run: |
 
         # Based on: https://github.com/openworm/OpenWorm/blob/master/Dockerfile
-
+        lscpu
+        cat /proc/cpuinfo
+        arch
+        uname --processor
+        uname --machine
         mkdir intel-opencl-tmp
         cd intel-opencl-tmp
         mkdir intel-opencl
