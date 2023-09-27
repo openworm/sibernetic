@@ -52,7 +52,8 @@ jobs:
         sudo rm -r intel-opencl-tmp
 
         sudo cp -R /opt/intel/opencl/include/CL /usr/include/
-        sudo apt install -y ocl-icd-opencl-dev vim pocl-opencl-icd
+        sudo apt install -y ocl-icd-opencl-dev vim 
+        # sudo apt install -y pocl-opencl-icd
 
     - name: Build Sibernetic
       run: |

@@ -291,34 +291,41 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   std::cout << "owA1" << std::endl;
   // Selection of more appropriate device
   while (!findDevice) {
+    std::cout << "owFD1" << std::endl;
     for (int clSelectedPlatformID = 0; clSelectedPlatformID < (int)n_pl;
          clSelectedPlatformID++) {
       // if(findDevice)
       //	break;
+      std::cout << "owFD2" << std::endl;
       clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
                      device_type[config->getDeviceType()], 0, nullptr,
                      &ciDeviceCount);
       if ((devices_t = static_cast<cl_device_id *>(
                malloc(sizeof(cl_device_id) * ciDeviceCount))) == nullptr)
+        std::cout << "owFD3" << std::endl;
         bPassed = false;
       if (bPassed) {
         result = clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
                                 device_type[config->getDeviceType()],
                                 ciDeviceCount, devices_t, &ciDeviceCount);
+        std::cout << "owFD4" << std::endl;
         if (result == CL_SUCCESS) {
           for (cl_uint i = 0; i < ciDeviceCount; ++i) {
             clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type,
                             nullptr);
+            std::cout << "owFD5" << std::endl;
             if (type & device_type[config->getDeviceType()]) {
               clGetDeviceInfo(devices_t[i], CL_DEVICE_MAX_COMPUTE_UNITS,
                               sizeof(device_coumpute_unit_num),
                               &device_coumpute_unit_num, nullptr);
+              std::cout << "owFD6" << std::endl;
               if (device_coumpute_unit_num_current <=
                   device_coumpute_unit_num) {
                 plList = clSelectedPlatformID;
                 device_coumpute_unit_num_current = device_coumpute_unit_num;
                 findDevice = true;
                 deviceNum = i;
+                std::cout << "owFD7" << std::endl;
               }
               // break;
             }
@@ -337,9 +344,12 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
       std::cout << "Unfortunately OpenCL couldn't find device "
                 << deviceTypeName << std::endl;
       std::cout << "OpenCL try to init existing device " << std::endl;
+      std::cout << "owFD8" << std::endl;
       if (config->getDeviceType() != ALL)
+        std::cout << "owFD9" << std::endl;
         config->setDeviceType(ALL);
       else
+        std::cout << "owFD10" << std::endl;
         throw std::runtime_error("Sibernetic can't find any OpenCL devices. "
                                  "Please check you're environment "
                                  "configuration.");
