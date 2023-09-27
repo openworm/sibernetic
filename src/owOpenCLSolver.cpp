@@ -301,9 +301,10 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
                      device_type[config->getDeviceType()], 0, nullptr,
                      &ciDeviceCount);
       if ((devices_t = static_cast<cl_device_id *>(
-               malloc(sizeof(cl_device_id) * ciDeviceCount))) == nullptr)
+               malloc(sizeof(cl_device_id) * ciDeviceCount))) == nullptr) {
         std::cout << "owFD3" << std::endl;
         bPassed = false;
+      }
       if (bPassed) {
         result = clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
                                 device_type[config->getDeviceType()],
@@ -345,14 +346,15 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
                 << deviceTypeName << std::endl;
       std::cout << "OpenCL try to init existing device " << std::endl;
       std::cout << "owFD8" << std::endl;
-      if (config->getDeviceType() != ALL)
+      if (config->getDeviceType() != ALL) {
         std::cout << "owFD9" << std::endl;
         config->setDeviceType(ALL);
-      else
+      } else {
         std::cout << "owFD10" << std::endl;
         throw std::runtime_error("Sibernetic can't find any OpenCL devices. "
                                  "Please check you're environment "
                                  "configuration.");
+      }
     }
   }
   std::cout << "owA2" << std::endl;
