@@ -64,6 +64,9 @@ jobs:
         sudo apt-get install -y intel-basekit
         sudo apt-get install -y intel-oneapi-runtime-opencl
         # sudo apt install -y pocl-opencl-icd
+        ls /usr/include
+        dpkg -L intel-basekit
+        dpkg -L intel-oneapi-runtime-opencl
 
     - name: Build Sibernetic
       run: |
