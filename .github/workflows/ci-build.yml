@@ -61,6 +61,7 @@ jobs:
         # add signed entry to apt sources and configure the APT client to use Intel repository:
         echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo apt-get update
+        sudo apt-get install -y intel-basekit
         sudo apt-get install -y intel-oneapi-runtime-opencl
         # sudo apt install -y pocl-opencl-icd
 
