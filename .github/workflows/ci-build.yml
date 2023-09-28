@@ -38,21 +38,21 @@ jobs:
         arch
         uname --processor
         uname --machine
-        # mkdir intel-opencl-tmp
-        # cd intel-opencl-tmp
-        # mkdir intel-opencl
-        # wget https://github.com/openworm/OpenWorm/raw/dev_inte/SRB5.0_linux64.zip
-        # unzip SRB5.0_linux64.zip
-        # tar -C intel-opencl -Jxf intel-opencl-r5.0-63503.x86_64.tar.xz
-        # tar -C intel-opencl -Jxf intel-opencl-devel-r5.0-63503.x86_64.tar.xz
-        # tar -C intel-opencl -Jxf intel-opencl-cpu-r5.0-63503.x86_64.tar.xz
-        # sudo cp -R intel-opencl/* /
-        # sudo ldconfig
-        # cd ..
-        # sudo rm -r intel-opencl-tmp
+        mkdir intel-opencl-tmp
+        cd intel-opencl-tmp
+        mkdir intel-opencl
+        wget https://github.com/openworm/OpenWorm/raw/dev_inte/SRB5.0_linux64.zip
+        unzip SRB5.0_linux64.zip
+        tar -C intel-opencl -Jxf intel-opencl-r5.0-63503.x86_64.tar.xz
+        tar -C intel-opencl -Jxf intel-opencl-devel-r5.0-63503.x86_64.tar.xz
+        tar -C intel-opencl -Jxf intel-opencl-cpu-r5.0-63503.x86_64.tar.xz
+        sudo cp -R intel-opencl/* /
+        sudo ldconfig
+        cd ..
+        sudo rm -r intel-opencl-tmp
 
-        # sudo cp -R /opt/intel/opencl/include/CL /usr/include/
-        # sudo apt install -y ocl-icd-opencl-dev vim 
+        sudo cp -R /opt/intel/opencl/include/CL /usr/include/
+        sudo apt install -y ocl-icd-opencl-dev vim 
 
 
         # download the key to system keyring
