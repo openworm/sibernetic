@@ -73,12 +73,12 @@ jobs:
         # ls /usr/include
         # dpkg -L intel-basekit
         # dpkg -L intel-oneapi-runtime-opencl
-        echo "ls /opt/intel"
-        ls /opt/intel
-        echo "ls /opt/intel/opencl"
-        ls /opt/intel/opencl
-        echo "ls /opt/intel/oneapi"
-        ls /opt/intel/oneapi
+        # echo "ls /opt/intel"
+        # ls /opt/intel
+        # echo "ls /opt/intel/opencl"
+        # ls /opt/intel/opencl
+        # echo "ls /opt/intel/oneapi"
+        # ls /opt/intel/oneapi
 
     - name: Build Sibernetic
       run: |
