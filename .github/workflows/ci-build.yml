@@ -66,8 +66,8 @@ jobs:
 
         wget https://master.dl.sourceforge.net/project/nicehashsgminerv5viptools/APP%20SDK%20A%20Complete%20Development%20Platform/AMD%20APP%20SDK%203.0%20for%2064-bit%20Linux/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
         tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
-        # yes Y 2>/dev/null | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
-        sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
+        yes Y 2>/dev/null | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
+        # sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
         # sudo apt install -y pocl-opencl-icd
         # ls /usr/include
         # dpkg -L intel-basekit
