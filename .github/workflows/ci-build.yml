@@ -79,8 +79,8 @@ jobs:
         echo "ls /opt/AMDAPPSDK-3.0:"
         ls /opt/AMDAPPSDK-3.0
 
-        echo "ls /opt/AMDAPPSDK-3.0/lib:"
-        ls /opt/AMDAPPSDK-3.0/lib
+        echo "ls /opt/AMDAPPSDK-3.0/lib/x86_64:"
+        ls /opt/AMDAPPSDK-3.0/lib/x86_64
 
         echo "ls /opt/AMDAPPSDK-3.0/bin:"
         ls /opt/AMDAPPSDK-3.0/bin
