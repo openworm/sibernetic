@@ -69,10 +69,10 @@ jobs:
         # yes Y 2>/dev/null | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
         printf 'Y\n\n' | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
         
-        echo "ls /usr:"
-        ls /usr
-        echo "ls /opt:"
-        ls /opt
+        echo "ls /usr/lib:"
+        ls /usr/lib
+        echo "ls /opt/AMDAPPSDK-3.0:"
+        ls /opt/AMDAPPSDK-3.0
         echo "CLINFO:"
         clinfo
 
