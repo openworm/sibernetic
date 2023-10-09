@@ -68,6 +68,13 @@ jobs:
         tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
         # yes Y 2>/dev/null | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
         printf 'Y\n\n' | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
+        echo "CLINFO:"
+        clinfo
+        echo "ls /usr:"
+        ls /usr
+        echo "ls /opt:"
+        ls /opt
+
         # sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
         # sudo apt install -y pocl-opencl-icd
         # ls /usr/include
