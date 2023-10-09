@@ -71,8 +71,23 @@ jobs:
         
         echo "ls /usr/lib:"
         ls /usr/lib
+
+        echo "ls /usr/lib/x86_64-linux-gnu:"
+        ls /usr/lib/x86_64-linux-gnu
+
+
         echo "ls /opt/AMDAPPSDK-3.0:"
         ls /opt/AMDAPPSDK-3.0
+
+        echo "ls /opt/AMDAPPSDK-3.0/lib:"
+        ls /opt/AMDAPPSDK-3.0/lib
+
+        echo "ls /opt/AMDAPPSDK-3.0/bin:"
+        ls /opt/AMDAPPSDK-3.0/bin
+
+        echo "ls /opt/AMDAPPSDK-3.0/include:"
+        ls /opt/AMDAPPSDK-3.0/include
+
         echo "CLINFO:"
         clinfo
 
