@@ -91,8 +91,11 @@ jobs:
         # echo "ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
         # ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so
 
-        echo "sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
-        sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib
+        # echo "sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
+        # sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib
+
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/opt/AMDAPPSDK-3.0/lib/x86_64/"
+
 
         echo "CLINFO:"
         clinfo
