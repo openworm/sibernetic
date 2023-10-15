@@ -88,8 +88,11 @@ jobs:
         echo "ls /opt/AMDAPPSDK-3.0/include:"
         ls /opt/AMDAPPSDK-3.0/include
 
-        echo "ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
-        ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so
+        # echo "ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
+        # ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so
+
+        echo "cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
+        cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so
 
         echo "CLINFO:"
         clinfo
