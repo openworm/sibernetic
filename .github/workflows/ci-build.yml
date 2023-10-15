@@ -92,7 +92,7 @@ jobs:
         # ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so
 
         echo "sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
-        sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so
+        sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib
 
         echo "CLINFO:"
         clinfo
