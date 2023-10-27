@@ -32,12 +32,12 @@ jobs:
     - name: Install Intel OpenCL libraries needed for Sibernetic
       run: |
 
+        lscpu
+
+        echo "Installing OpenCL Drivers"
+
+        # Legacy install of Intel's OpenCL Drivers:
         # Based on: https://github.com/openworm/OpenWorm/blob/master/Dockerfile
-        # lscpu
-        # cat /proc/cpuinfo
-        # arch
-        # uname --processor
-        # uname --machine
         # mkdir intel-opencl-tmp
         # cd intel-opencl-tmp
         # mkdir intel-opencl
@@ -54,84 +54,20 @@ jobs:
         # sudo cp -R /opt/intel/opencl/include/CL /usr/include/
         # sudo apt install -y ocl-icd-opencl-dev vim 
 
-
-        # # download the key to system keyring
-        # wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
-
-        # # add signed entry to apt sources and configure the APT client to use Intel repository:
-        # echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-        # sudo apt-get update
-        # sudo apt-get install -y intel-basekit
-        # sudo apt-get install -y intel-oneapi-runtime-opencl
-
+        # Install AMD's OpenCL Drivers (AMD-APP-SDK 3.0):
         wget https://master.dl.sourceforge.net/project/nicehashsgminerv5viptools/APP%20SDK%20A%20Complete%20Development%20Platform/AMD%20APP%20SDK%203.0%20for%2064-bit%20Linux/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
         tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
-        # yes Y 2>/dev/null | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
         printf 'Y\n\n' | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
         
-        echo "ls /usr/lib:"
-        ls /usr/lib
-
-        echo "ls /usr/lib/x86_64-linux-gnu:"
-        ls /usr/lib/x86_64-linux-gnu
-
-
-        echo "ls /opt/AMDAPPSDK-3.0:"
-        ls /opt/AMDAPPSDK-3.0
-
-        echo "ls /opt/AMDAPPSDK-3.0/lib/x86_64:"
-        ls /opt/AMDAPPSDK-3.0/lib/x86_64
-
-        echo "ls /opt/AMDAPPSDK-3.0/bin:"
-        ls /opt/AMDAPPSDK-3.0/bin
-
-        echo "ls /opt/AMDAPPSDK-3.0/include:"
-        ls /opt/AMDAPPSDK-3.0/include
-
-        # echo "ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
-        # ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so
-
-        # echo "sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib/libOpenCL.so"
-        # sudo cp /opt/AMDAPPSDK-3.0/lib/x86_64/libOpenCL.so /usr/lib
-
-        # export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/opt/AMDAPPSDK-3.0/lib/x86_64/"
-
-
-
-
-
-
-
-
-        echo "sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libOpenCL.so.1 /usr/lib/libOpenCL.so.1"
         sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libOpenCL.so.1 /usr/lib/libOpenCL.so.1
-        echo "sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libamdocl64.so /usr/lib/libamdocl64.so"
         sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libamdocl64.so /usr/lib/libamdocl64.so
 
         sudo apt install -y ocl-icd-opencl-dev
 
-
-
-
-
-
-
-
+        echo "OpenCL Driver Installation Complete"
 
         echo "CLINFO:"
         clinfo
-
-        # sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
-        # sudo apt install -y pocl-opencl-icd
-        # ls /usr/include
-        # dpkg -L intel-basekit
-        # dpkg -L intel-oneapi-runtime-opencl
-        # echo "ls /opt/intel"
-        # ls /opt/intel
-        # echo "ls /opt/intel/opencl"
-        # ls /opt/intel/opencl
-        # echo "ls /opt/intel/oneapi"
-        # ls /opt/intel/oneapi
 
     - name: Build Sibernetic
       run: |

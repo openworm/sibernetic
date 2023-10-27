@@ -263,11 +263,12 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
                                  sz = sizeof(cBuffer), cBuffer, nullptr);
     if (ciErrNum == CL_SUCCESS) {
       printf(" CL_PLATFORM_VERSION [%d]: \t%s", i, cBuffer);
+      std::cout << std::endl;
     } else {
       printf(" Error %i in clGetPlatformInfo Call !!!\n\n", ciErrNum);
     }
   }
-    std::cout << "owCi2" << std::endl;
+    std::cout << "owCi2a" << std::endl;
   // 0-CPU, 1-GPU // depends on the time order of system OpenCL drivers
   // installation on your local machine
   // CL_DEVICE_TYPE
@@ -288,45 +289,45 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   cl_uint device_coumpute_unit_num_current = 0;
   unsigned int deviceNum = 0;
 
-  std::cout << "owA1" << std::endl;
+  std::cout << "owCi2b" << std::endl;
   // Selection of more appropriate device
   while (!findDevice) {
-    std::cout << "owFD1" << std::endl;
+    std::cout << "owCfda" << std::endl;
     for (int clSelectedPlatformID = 0; clSelectedPlatformID < (int)n_pl;
          clSelectedPlatformID++) {
       // if(findDevice)
       //	break;
-      std::cout << "owFD2" << std::endl;
+      std::cout << "owCfdb" << std::endl;
       clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
                      device_type[config->getDeviceType()], 0, nullptr,
                      &ciDeviceCount);
       if ((devices_t = static_cast<cl_device_id *>(
                malloc(sizeof(cl_device_id) * ciDeviceCount))) == nullptr) {
-        std::cout << "owFD3" << std::endl;
+        std::cout << "owCfdc" << std::endl;
         bPassed = false;
       }
       if (bPassed) {
         result = clGetDeviceIDs(cl_pl_id[clSelectedPlatformID],
                                 device_type[config->getDeviceType()],
                                 ciDeviceCount, devices_t, &ciDeviceCount);
-        std::cout << "owFD4" << std::endl;
+        std::cout << "owCfdd" << std::endl;
         if (result == CL_SUCCESS) {
           for (cl_uint i = 0; i < ciDeviceCount; ++i) {
             clGetDeviceInfo(devices_t[i], CL_DEVICE_TYPE, sizeof(type), &type,
                             nullptr);
-            std::cout << "owFD5" << std::endl;
+            std::cout << "owCfde" << std::endl;
             if (type & device_type[config->getDeviceType()]) {
               clGetDeviceInfo(devices_t[i], CL_DEVICE_MAX_COMPUTE_UNITS,
                               sizeof(device_coumpute_unit_num),
                               &device_coumpute_unit_num, nullptr);
-              std::cout << "owFD6" << std::endl;
+              std::cout << "owCfdf" << std::endl;
               if (device_coumpute_unit_num_current <=
                   device_coumpute_unit_num) {
                 plList = clSelectedPlatformID;
                 device_coumpute_unit_num_current = device_coumpute_unit_num;
                 findDevice = true;
                 deviceNum = i;
-                std::cout << "owFD7" << std::endl;
+                std::cout << "owCfdg" << std::endl;
               }
               // break;
             }
@@ -345,43 +346,43 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
       std::cout << "Unfortunately OpenCL couldn't find device "
                 << deviceTypeName << std::endl;
       std::cout << "OpenCL try to init existing device " << std::endl;
-      std::cout << "owFD8" << std::endl;
+      std::cout << "owCfdh" << std::endl;
       if (config->getDeviceType() != ALL) {
-        std::cout << "owFD9" << std::endl;
+        std::cout << "owCfdi" << std::endl;
         config->setDeviceType(ALL);
       } else {
-        std::cout << "owFD10" << std::endl;
+        std::cout << "owCfdj" << std::endl;
         throw std::runtime_error("Sibernetic can't find any OpenCL devices. "
                                  "Please check you're environment "
                                  "configuration.");
       }
     }
   }
-  std::cout << "owA2" << std::endl;
+  std::cout << "owCi2c" << std::endl;
   cl_context_properties cprops[3] = {
       CL_CONTEXT_PLATFORM, (cl_context_properties)(platformList[plList])(), 0};
-  std::cout << "owA21" << std::endl;
+  std::cout << "owCi2d" << std::endl;
   context = cl::Context(device_type[config->getDeviceType()], cprops, nullptr,
                         nullptr, &err);
-  std::cout << "owA22" << std::endl;
+  std::cout << "owCi2e" << std::endl;
   devices = context.getInfo<CL_CONTEXT_DEVICES>();
-  std::cout << "owA23" << std::endl;
+  std::cout << "owCi2f" << std::endl;
   if (devices.size() < 1) {
-    std::cout << "owA24" << std::endl;
+    std::cout << "owCi2g" << std::endl;
     throw std::runtime_error("No OpenCL devices were found");
   }
-  std::cout << "owA25" << std::endl;
+  std::cout << "owCi2h" << std::endl;
   // Print some information about chosen platform
   size_t compUnintsCount, memoryInfo, workGroupSize;
-  std::cout << "owA26" << std::endl;
+  std::cout << "owCi2i" << std::endl;
   result = devices[deviceNum].getInfo(CL_DEVICE_NAME,
                                       &cBuffer); // CL_INVALID_VALUE = -30;
-  std::cout << "owA3" << std::endl;
+  std::cout << "owCi2j" << std::endl;
   if (result == CL_SUCCESS) {
     std::cout << "CL_CONTEXT_PLATFORM [" << plList << "]: CL_DEVICE_NAME ["
-              << deviceNum << "]:\t" << cBuffer << std::endl;
+              << deviceNum << "]:\t" << cBuffer << std::endl << std::endl;
   }
-  std::cout << "owA4" << std::endl;
+  std::cout << "owCi2k" << std::endl;
   if (strlen(cBuffer) < 1000) {
     config->setDeviceName(cBuffer);
   }

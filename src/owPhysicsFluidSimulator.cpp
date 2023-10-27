@@ -83,13 +83,12 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
     density_cpp = new float[1 * config->getParticleCount()];
     particleIndex_cpp = new unsigned int[config->getParticleCount() * 2];
 
-    std::cout << "pre load\n";
     // LOAD FROM FILE
     owHelper::loadConfiguration(
         position_cpp, velocity_cpp, elasticConnectionsData_cpp,
         membraneData_cpp, particleMembranesList_cpp,
         config); // Load configuration from file to buffer
-    std::cout << "post load" << std::endl;
+
     std::cout << "owP1" << std::endl;
     this->helper = helper;
         std::cout << "owP1a" << std::endl;
