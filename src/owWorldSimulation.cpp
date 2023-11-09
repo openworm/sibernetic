@@ -1079,7 +1079,7 @@ int run(int argc, char **argv, const bool with_graphics) {
     std::cout << "ERROR: " << ex.what() << std::endl;
     return EXIT_FAILURE;
   }
-  std::cout << "S13\n";
+  std::cout << "S13" << std::endl;
   std::signal(SIGINT, sighandler);
   if (with_graphics) {
   std::cout << "S1g\n";
@@ -1112,7 +1112,7 @@ int run(int argc, char **argv, const bool with_graphics) {
   } else {
     while (1) {
       try {
-        std::cout << "S2rr\n";
+        std::cout << "S2rr" << std::endl;
         fluid_simulation->simulationStep(load_to);
       } catch (std::runtime_error &ex) {
         cleanupSimulation();
