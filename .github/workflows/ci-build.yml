@@ -1,4 +1,4 @@
-name: Build Sibernetic
+name: Build Sibernetic AMD drivers
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
       with:
         python-version:  ${{ matrix.python-version }}
 
-    - name: Install Intel OpenCL libraries needed for Sibernetic
+    - name: Install AMD OpenCL libraries needed for Sibernetic
       run: |
 
         lscpu
