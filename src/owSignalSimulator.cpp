@@ -119,7 +119,6 @@ std::vector<float> SignalSimulator::run() {
   // Call a method of the class
   // pValue = PyObject_CallMethod(pInstance, "rrun
   // un", nullptr);
-  std::cout << "S1s\n";
   pValue = PyObject_CallMethod(pInstance, const_cast<char *>("run"), nullptr);
   if (PyErr_Occurred()) {
       PyErr_Print();

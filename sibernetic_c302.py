@@ -9,7 +9,7 @@ import math
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
-script_version = '0.1.4' # This will change at different rate to C++ code...
+script_version = '0.1.5' # This will change at different rate to C++ code...
 
 DEFAULTS = {'duration': 2.0,
             'dt': 0.005,

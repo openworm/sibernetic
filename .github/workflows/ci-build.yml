@@ -1,4 +1,4 @@
-name: Build Sibernetic AMD drivers
+name: Build using AMD drivers
 
 on:
   push:

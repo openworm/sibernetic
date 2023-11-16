@@ -1,4 +1,4 @@
-name: Build Sibernetic Intel drivers
+name: Build using Intel drivers
 
 on:
   push:

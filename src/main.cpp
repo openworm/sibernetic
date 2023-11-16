@@ -45,7 +45,7 @@ bool load_to = false;
 bool skip_display_particles = false;
 bool skip_display_membranes = false;
 bool skip_display_connections = false;
-std::string version = "0.0.6";
+std::string version = "0.0.7";
 
 int usage() {
   std::cout
@@ -103,13 +103,11 @@ int usage() {
 }
 
 int main(int argc, char **argv) {
-  int exitStatus;
-  std::cout << "S1\n";
+  int exitStatus = -1;
   if (argc == 1) {
     std::cout << "Sibernetic: no arguments specified, run method executing\n";
     exitStatus = run(argc, argv);
   } else {
-  std::cout << "S1e\n";
     bool graph = true;
     bool run_tests = false;
 
@@ -135,7 +133,6 @@ int main(int argc, char **argv) {
           0) { // run load config from file mode
         graph = true;
         load_from_file = true;
-        std::cout << "S1f\n";
       }
       if (std::string("-skip_display_particles").compare(argv[i]) == 0) {
         skip_display_particles = true;
@@ -154,9 +151,7 @@ int main(int argc, char **argv) {
       test_energy_conservation(argc, argv);
     } else
 
-    std::cout << "S1r\n";
       exitStatus = run(argc, argv, graph);
   }
-  std::cout << "S1n\n";
   return exitStatus;
 }
