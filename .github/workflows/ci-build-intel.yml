@@ -56,8 +56,6 @@ jobs:
 
         echo "OpenCL Driver Installation Complete"
 
-        echo "CLINFO:"
-        clinfo
 
     - name: Build Sibernetic
       run: |
