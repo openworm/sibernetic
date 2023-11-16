@@ -89,11 +89,11 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
         membraneData_cpp, particleMembranesList_cpp,
         config); // Load configuration from file to buffer
 
-    std::cout << "owP1\n";
+    std::cout << "owP1" << std::endl;
     this->helper = helper;
-        std::cout << "owP1a\n";
+        std::cout << "owP1a" << std::endl;
     if (config->numOfElasticP != 0) {
-        std::cout << "owP1b\n";
+        std::cout << "owP1b" << std::endl;
       ocl_solver = new owOpenCLSolver(
           position_cpp, velocity_cpp, config, elasticConnectionsData_cpp,
           membraneData_cpp,
@@ -114,7 +114,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
     throw;
   }
 
-  std::cout << "owP2\n";
+  std::cout << "owP2" << std::endl;
 }
 /** Reset simulation
  *
