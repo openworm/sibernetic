@@ -142,7 +142,6 @@ void read_muscles_activity_signals_from_log_file(
 /** Main displaying function
  */
 void display(void) {
-  std::cout << "owD1\n";
   // Update Scene if not paused
   int i, j, k;
   //int err_coord_cnt = 0;
@@ -523,7 +522,6 @@ inline void drawScene() {
   // Display user interface if enabled
   bool displayInfos = true;
   if (displayInfos) {
-  std::cout << "S1d\n";
     glDisable(GL_DEPTH_TEST);
     glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO); // invert color
     glEnable(GL_BLEND);
@@ -664,7 +662,6 @@ inline void renderInfo(int x, int y) {
     glPrint(2, 12, label, m_font);
     glColor3f(1.0F, 1.0F, 1.0F);
 
-    std::cout << "S2\n";
     if (load_from_file)
       // sprintf(label, "Selected device: %s FPS = %.2f, time step: %d (%f s)",
       //        localConfig->getDeviceName(), fps, iteration,
@@ -1057,7 +1054,6 @@ void sighandler(int s) {
  */
 int run(int argc, char **argv, const bool with_graphics) {
 
-  std::cout << "S1w\n";
   helper = new owHelper();
   try {
     if (!load_from_file) {
@@ -1066,9 +1062,7 @@ int run(int argc, char **argv, const bool with_graphics) {
       muscle_activation_signal_cpp =
           fluid_simulation->getMuscleActivationSignal();
     } else {
-    std::cout << "S11\n";
       localConfig = new owConfigProperty(argc, argv);
-      std::cout << "S12\n";
       muscle_activation_signal_cpp = new float[localConfig->MUSCLE_COUNT];
       for (unsigned int i = 0; i < localConfig->MUSCLE_COUNT; ++i) {
         muscle_activation_signal_cpp[i] = 0.f;
@@ -1079,15 +1073,12 @@ int run(int argc, char **argv, const bool with_graphics) {
     std::cout << "ERROR: " << ex.what() << std::endl;
     return EXIT_FAILURE;
   }
-  std::cout << "S13\n";
   std::signal(SIGINT, sighandler);
   if (with_graphics) {
-  std::cout << "S1g\n";
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(1200, 800);
     glutInitWindowPosition(100, 100);
-    std::cout << "S1g2\n";
     glutCreateWindow("SIBERNETIC (2011-2017) by Andrey Palyanov and Sergey "
                      "Khayrulin. Build from 28/10/2017 sources (development "
                      "branch)");
@@ -1095,16 +1086,12 @@ int run(int argc, char **argv, const bool with_graphics) {
     init();
     glutDisplayFunc(display);
     glutReshapeFunc(resize);
-    std::cout << "S1g3\n";
     glutMouseFunc(respond_mouse);
     glutMotionFunc(
         mouse_motion); // process movement in case if the mouse is clicked,
     glutKeyboardFunc(respondKey);
-    std::cout << "S1g4\n";
     glutTimerFunc(TIMER_INTERVAL * 0, Timer, 0);
-    std::cout << "S1g4a\n";
     glutMainLoop();
-    std::cout << "S1g4e\n";
     if (!load_from_file) {
       cleanupSimulation();
       return EXIT_SUCCESS;
@@ -1112,7 +1099,6 @@ int run(int argc, char **argv, const bool with_graphics) {
   } else {
     while (1) {
       try {
-        std::cout << "S2rr\n";
         fluid_simulation->simulationStep(load_to);
       } catch (std::runtime_error &ex) {
         cleanupSimulation();
