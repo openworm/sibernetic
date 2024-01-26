@@ -13,8 +13,10 @@ BINARYDIR = $(BUILDDIR)/obj
 SOURCES = $(wildcard $(SRCDIR)/*.$(SRCEXT))
 BINARYTESTDIR = $(BINARYDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
-OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o 
-PYTHON_CONFIG ?= /usr/bin/python3.7-config
+OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
+PYTHON_VER_MAIN = $(shell python3 -c 'import sys; vv=sys.version_info[:];print(str(vv[0])+str(1.0)[1]+str(vv[1]))')
+#PYTHON_VER_MAIN = 3.8 # Hardcode if necessary
+PYTHON_CONFIG ?= /usr/bin/python$(PYTHON_VER_MAIN)-config
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
@@ -35,7 +37,7 @@ CXXFLAGS += $(shell $(PYTHON_CONFIG) --embed --cflags)
 endif
 
 CXXFLAGS += -fPIE
-EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/ 
+EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/
 
 all: CXXFLAGS += -O3
 all : $(TARGET)
@@ -45,12 +47,13 @@ debug: $(TARGET)
 
 $(TARGET):$(OBJECTS)
 	@echo 'Building target: $@'
-	@echo 'Invoking: GCC C++ Linker' 
+	@echo 'Invoking: GCC C++ Linker'
 	$(CC) $(CXXFLAGS)  $(EXTRA_LIBS) -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp 
+$(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
+	@echo 'Assuming Python: $(PYTHON_VER_MAIN)'
 	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
@@ -59,7 +62,8 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo 'Finished building: $<'
 	@echo ' '
 
-clean : 
+clean :
+	@echo 'Assuming Python: $(PYTHON_VER_MAIN)'
 	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
