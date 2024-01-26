@@ -63,6 +63,10 @@ jobs:
         make clean
         make
 
+    - name: Print Sibernetic help
+      run: |
+        ./Release/Sibernetic -h
+
     - name: Print info on executable
       run: |
         ldd ./Release/Sibernetic

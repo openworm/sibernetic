@@ -75,6 +75,10 @@ jobs:
         make clean
         make
 
+    - name: Print Sibernetic help
+      run: |
+        ./Release/Sibernetic -h
+
     - name: Run quick Sibernetic test
       run: |
         ldd ./Release/Sibernetic
@@ -83,6 +87,6 @@ jobs:
 
     - name: Final version info
       run: |
-
+        
         python -V
         pip list
