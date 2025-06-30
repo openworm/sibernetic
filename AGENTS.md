@@ -27,6 +27,13 @@ and executes the test suite:
 `test.sh` in turn calls `run_all_tests.sh` which performs multiple
 runs of `sibernetic_c302.py` and verifies the produced output files.
 
+The simulator can also run a simplified PyTorch solver.  Invoke the
+binary with `backend=torch` to enable it:
+
+```bash
+./Release/Sibernetic -no_g -f configuration/test/test_energy backend=torch
+```
+
 ## Contributing Notes
 - Keep C++ headers and sources under `inc/` and `src/` respectively.
 - OpenCL kernels reside in `src/*.cl`.

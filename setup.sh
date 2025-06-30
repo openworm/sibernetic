@@ -6,7 +6,7 @@ apt-get update
 apt-get install -y python3-dev ocl-icd-opencl-dev libglu1-mesa-dev freeglut3-dev libglew-dev clinfo pocl-opencl-icd
 
 # Install Python packages
-pip install torch ruff pyneuroml || echo "Warning: failed to install pyneuroml"
+pip install torch ruff pytest pyneuroml || echo "Warning: failed to install pyneuroml"
 
 # Verify pyneuroml installed correctly if available
 python3 - <<'EOF'
