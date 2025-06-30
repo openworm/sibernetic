@@ -145,18 +145,31 @@ Available options:
  -l_from               Load simulation results from disk.
      lpath=<value>     Indicates path to the directory (not the file) where result of simulation will be stored.  
                        This option work only for -l_to and -l_from options
- -test                 Run some physical tests.
- -f <filename>         Load configuration from file <filename>.
- device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu
+-test                 Run some physical tests.
+-f <filename>         Load configuration from file <filename>.
+device=<device_type>  Trying to init OpenCL on device <type> it could be cpu or gpu
                        default-ALL (it will try to init most powerful available device).
- timestep=<value>      Start simulation with time step = <value> in seconds.
- timelimit=<value>     Run simulation until <value> will be reached in seconds.
- leapfrog              Use for integration LeapFrog method
- oclsourcepath=<value> You can indicate path to you'r OpenCL program just using this option
+timestep=<value>      Start simulation with time step = <value> in seconds.
+backend=torch         Use the simplified PyTorch solver instead of OpenCL.
+timelimit=<value>     Run simulation until <value> will be reached in seconds.
+leapfrog              Use for integration LeapFrog method
+oclsourcepath=<value> You can indicate path to you'r OpenCL program just using this option
  -nrn <value>          Indicates that you plan run simulation with NEURON simulation = <value> value should be a file which
                        can be run by NEURON simulator and also you should have installed neuron and sibernetic_neuron bridge.
- -help                 Print this information on screen.
+-help                 Print this information on screen.
 ```
+
+PyTorch backend
+---------------
+Sibernetic can run a minimal solver implemented with PyTorch.  Pass
+`backend=torch` to switch to this mode.  For example:
+
+```bash
+./Release/Sibernetic -no_g -f configuration/test/test_energy \
+    -l_to lpath=./buffers/torch_example timelimit=0.001 logstep=25 backend=torch
+```
+
+This backend does not require OpenCL and is useful for quick tests.
 
 LeapFrog integration
 --------------
