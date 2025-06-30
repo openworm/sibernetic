@@ -504,6 +504,18 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
       }
     }
     Py_XDECREF(state);
+    if (load_to) {
+      if (iterationCount == 0) {
+        owHelper::loadConfigurationToFile(position_cpp, config,
+                                          elasticConnectionsData_cpp,
+                                          membraneData_cpp, true);
+        owHelper::loadVelocityToFile(velocity_cpp, iterationCount, config);
+      } else if (iterationCount % config->getLogStep() == 0) {
+        owHelper::loadConfigurationToFile(position_cpp, config, nullptr,
+                                          nullptr, false);
+        owHelper::loadVelocityToFile(velocity_cpp, iterationCount, config);
+      }
+    }
     iterationCount++;
     return helper->getElapsedTime();
   }

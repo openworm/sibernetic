@@ -89,10 +89,12 @@ jobs:
       run: |
         pip install c302
         pip install neuron
+        pip install pytest
+        pip install torch ruff pyneuroml
         pip list
         which nrniv
         export NEURON_HOME=/home/runner/.local
-        ./run_all_tests.sh 
+        ./run_all_tests.sh
 
     - name: Generated file info
       run: |

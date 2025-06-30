@@ -499,6 +499,32 @@ void owHelper::loadPressureToFile(float *pressure_buffer,
   }
   pressureFile.close();
 }
+
+void owHelper::loadVelocityToFile(float *velocity_buffer, int iteration,
+                                  owConfigProperty *config) {
+  std::ofstream velFile;
+  std::string velFileName =
+      config->getLoadPath() + std::string("/velocity_buffer.txt");
+  if (!iteration) {
+    velFile.open(velFileName.c_str(), std::ofstream::trunc);
+    if (!velFile)
+      throw std::runtime_error(
+          "There was a problem with creation of velocity file for logging."
+          " Check the path.");
+  } else {
+    velFile.open(velFileName.c_str(), std::ofstream::app);
+    if (!velFile)
+      throw std::runtime_error(
+          "There was a problem with creation of velocity file for logging."
+          " Check the path.");
+  }
+  for (int i = 0; i < config->getParticleCount(); ++i) {
+    velFile << velocity_buffer[i * 4 + 0] << "\t" << velocity_buffer[i * 4 + 1]
+            << "\t" << velocity_buffer[i * 4 + 2] << "\t"
+            << velocity_buffer[i * 4 + 3] << "\n";
+  }
+  velFile.close();
+}
 /** Load configuration from simulation to files
  *
  *  Make configuration file

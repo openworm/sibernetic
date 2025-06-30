@@ -32,4 +32,8 @@ else
     echo "Skipping c302 tests due to missing NEURON" >&2
 fi
 
+# Run unit tests.  Skip engine comparison unless requested
+RUN_ENGINE_TESTS=0 python3 -m pytest -q tests/test_pytorch_solver.py tests/test_energy.py
+RUN_ENGINE_TESTS=1 python3 -m pytest -q tests/test_torch_backend.py
+
 
