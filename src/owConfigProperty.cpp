@@ -35,7 +35,8 @@
 #include <stdio.h>
 
 owConfigProperty::owConfigProperty(int argc, char **argv)
-    : numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0),
+    : numOfElasticP(0), numOfLiquidP(0), numOfBoundaryP(0), numOfMembranes(0), 
+      simulation(nullptr),
       MUSCLE_COUNT(96), logStep(10), path("./configuration/"),
       loadPath("./buffers/"), sourceFileName(OPENCL_PROGRAM_PATH) {
   prefDeviceType = ALL;

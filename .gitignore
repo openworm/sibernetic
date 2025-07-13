@@ -70,3 +70,5 @@ simulations
 .vscode/*
 .settings/*
 .idea/*
+/.vs
+/vcpkg_installed

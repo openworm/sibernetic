@@ -1,0 +1,14 @@
+{
+  "name": "sibernetic",
+  "version": "0.0.1",
+  "description": "This is a C++/OpenCL implementation of the PCISPH algorithm supplemented with a set of biomechanics related features applied to C. elegans locomotion.",
+  "homepage": "https://github.com/openworm/sibernetic",
+  "license": "MIT",
+  "dependencies": [
+    "python3",
+    "opencl",
+    "glew",
+    "freeglut",
+    "opengl"
+  ]
+}
