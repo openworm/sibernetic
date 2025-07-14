@@ -134,7 +134,7 @@ class owPhysicsFluidSimulator
 	void makeSnapshot();
 
   private:
-    struct timeval simulation_start;
+	time_t simulation_start;
 	owOpenCLSolver *ocl_solver;
 	float *position_cpp;			   // everywhere in the code %variableName%_cpp means that we create
 	float *velocity_cpp;			   // and initialize in 'ordinary' memory some data, which will be

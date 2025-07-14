@@ -44,7 +44,7 @@
 #include "../inc/OpenCL/cl.hpp"
 //	#include <OpenCL/cl_d3d10.h>
 #else
-#include <CL/cl.hpp>
+#include "CL/opencl.hpp"
 #endif
 
 #include "owConfigProperty.h"

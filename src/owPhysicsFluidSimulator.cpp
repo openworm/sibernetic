@@ -47,13 +47,16 @@
  *  @param dev_type
  *  defines preferable device type for current configuration
  */
-owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
-                                                 char **argv) {
+owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper* helper, int argc,
+    char** argv)
+    : position_cpp(nullptr), velocity_cpp(nullptr), density_cpp(nullptr), particleIndex_cpp(nullptr),
+     elasticConnectionsData_cpp(nullptr), muscle_activation_signal_cpp(nullptr), membraneData_cpp(nullptr),
+     config(nullptr) {
   // int generateInitialConfiguration = 1;//1 to generate initial configuration,
   // 0 - load from file
 
   try {
-    gettimeofday(&simulation_start, NULL);
+    simulation_start = time(nullptr);
     iterationCount = 0;
     config = new owConfigProperty(argc, argv);
     // LOAD FROM FILE
@@ -365,9 +368,8 @@ double owPhysicsFluidSimulator::simulationStep(const bool load_to) {
   std::cout << ", t in sim: " << iterationCount * config->getTimeStep()
             << "s) dt: " << config->getTimeStep() << " (in s)";
 
-  struct timeval current_time;
-  gettimeofday(&current_time, NULL);
-  float elapsed_seconds = (float)(current_time.tv_sec - simulation_start.tv_sec);
+  time_t current_time = time(NULL);
+  float elapsed_seconds = (float)(current_time - simulation_start);
   float time_elapsed = elapsed_seconds / 60.0;
   std::string time_elapsed_unit = "(in min)";
   if (time_elapsed > 60.0) {
