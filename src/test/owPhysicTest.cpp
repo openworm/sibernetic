@@ -56,7 +56,7 @@ float gravity = 9.81f;
  * TOTAL ENERGY OF SYSTEM SHOULD BE CONSTANT ALL TIME
  * E = mv^2/2 + mgh
  * *****************************************************/
-void test_energy_conservation(int argc, char **argv) {
+void test_energy_conservation(int argc, char **argv, int iterations) {
   // owHelper::path = "./configuration/test/"; TODO FIX it
   owHelper *helper = new owHelper();
   owPhysicsFluidSimulator *fluid_simulation =
@@ -70,6 +70,7 @@ void test_energy_conservation(int argc, char **argv) {
   std::vector<float> energy_evolution_potential;
   std::vector<float> energy_evolution_kinetic;
   int counter = 0;
+  int max_iter = iterations > 0 ? iterations : 5000;
   std::cout << "==================="
             << "CONSERVATION ENERGY TEST START"
             << "========================" << std::endl;
@@ -85,7 +86,7 @@ void test_energy_conservation(int argc, char **argv) {
     energy_evolution_kinetic.push_back(kinetic_energy);
     energy_evolution_potential.push_back(potential_energy);
     fluid_simulation->simulationStep();
-    if (counter == 5000)
+    if (counter == max_iter)
       break;
     counter++;
   }

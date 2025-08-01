@@ -10,7 +10,9 @@
 
 #include "owPhysicsFluidSimulator.h"
 
-void test_energy_conservation(int argc, char **argv);
+// Run the energy conservation test for the specified number of iterations.
+// If iterations <= 0 the default value inside the implementation is used.
+void test_energy_conservation(int argc, char **argv, int iterations = 0);
 
 
 #endif /* OWPHYSICTEST_H_ */

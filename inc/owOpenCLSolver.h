@@ -32,6 +32,9 @@
  *******************************************************************************/
 
 #define CL_TARGET_OPENCL_VERSION 120
+#define CL_HPP_ENABLE_PROGRAM_CONSTRUCTION_FROM_ARRAY_COMPATIBILITY
+#define CL_HPP_TARGET_OPENCL_VERSION 120
+#define CL_HPP_MINIMUM_OPENCL_VERSION 120
 
 #ifndef OW_OPENCL_SOLVER_H
 #define OW_OPENCL_SOLVER_H
@@ -41,10 +44,16 @@
 #endif
 
 #if defined(__APPLE__) || defined(__MACOSX)
-#include "../inc/OpenCL/cl.hpp"
-//	#include <OpenCL/cl_d3d10.h>
+#include "OpenCL/cl.hpp"
+//#      include <OpenCL/cl_d3d10.h>
 #else
+#if __has_include(<CL/cl.hpp>)
 #include <CL/cl.hpp>
+#elif __has_include(<CL/opencl.hpp>)
+#include <CL/opencl.hpp>
+#else
+#include "OpenCL/cl.hpp"
+#endif
 #endif
 
 #include "owConfigProperty.h"
@@ -130,7 +139,9 @@ private:
                                const int size);
   void destroy() {
     delete[] gridNextNonEmptyCellBuffer;
+    gridNextNonEmptyCellBuffer = nullptr;
     delete[] _particleIndex;
+    _particleIndex = nullptr;
   }
   // Initialization of openCl data buffers
   void initializeBuffers(const float *, const float *, owConfigProperty *,
@@ -207,8 +218,8 @@ private:
   cl::Kernel computeInteractionWithMembranes_finalize;
 
   // Needed for sorting stuff
-  int *_particleIndex;
-  int *gridNextNonEmptyCellBuffer;
+  int *_particleIndex = nullptr;
+  int *gridNextNonEmptyCellBuffer = nullptr;
 };
 
 #endif // OW_OPENCL_SOLVER_H

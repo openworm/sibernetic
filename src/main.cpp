@@ -46,6 +46,7 @@ bool skip_display_particles = false;
 bool skip_display_membranes = false;
 bool skip_display_connections = false;
 std::string version = "0.0.8";
+int test_iterations = 5000;
 
 int usage() {
   std::cout
@@ -68,6 +69,7 @@ int usage() {
       << "                               this option also works for -l_to and "
          "-l_from options\n\n"
       << "    -test                      Run some physical tests\n\n"
+      << "    test_iter=<value>         Number of iterations for -test mode\n\n"
       << "    -f <filename>              Load configuration from file "
       << "./configuration/<filename>\n\n"
       << "    -f worm                    **Load Worm Body Simulation**\n\n"
@@ -146,9 +148,13 @@ int main(int argc, char **argv) {
       if (std::string("-test").compare(argv[i]) == 0) { // run tests
         run_tests = true;
       }
+      if (std::string(argv[i]).find("test_iter=") == 0) {
+        std::string val = std::string(argv[i]).substr(10);
+        test_iterations = std::stoi(val);
+      }
     }
     if (run_tests) {
-      test_energy_conservation(argc, argv);
+      test_energy_conservation(argc, argv, test_iterations);
     } else
 
       exitStatus = run(argc, argv, graph);

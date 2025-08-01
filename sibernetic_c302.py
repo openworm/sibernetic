@@ -1,4 +1,13 @@
-from pyneuroml import pynml
+"""
+Entry point for running the Sibernetic simulator alongside
+c302 neuronal models. Provides command line options for configuring
+duration, device selection and other parameters.
+"""
+
+try:
+    from pyneuroml import pynml
+except ImportError:  # pyneuroml may not be installed for simple tests
+    pynml = None
 import argparse
 import re
 import os
@@ -249,17 +258,18 @@ def dynamic_import(abs_module_path, class_name):
 
 
 def run(a=None, **kwargs):
-    try:
-        import neuroml  # noqa: F401
-        import pyneuroml  # noqa: F401
-        import xlrd  # noqa: F401
-    except Exception as e:
-        print_(
-            "Cannot import one of the required packages. Please install!\n"
-            "Exception: %s\n" % e
-        )
-
     a = build_namespace(a, **kwargs)
+
+    if not a.noc302:
+        try:
+            import neuroml  # noqa: F401
+            import pyneuroml  # noqa: F401
+            import xlrd  # noqa: F401
+        except Exception as e:
+            print_(
+                "Cannot import one of the required packages. Please install!\n"
+                "Exception: %s\n" % e
+            )
 
     if not a.noc302:
         try:
@@ -298,7 +308,7 @@ def run(a=None, **kwargs):
     # sim_dir = "simulations/%s" % (sim_ref)
     sim_dir = os.path.join(a.out_dir, sim_ref)
 
-    os.mkdir(sim_dir)
+    os.makedirs(sim_dir, exist_ok=True)
 
     run_dir = "."
     if "SIBERNETIC_HOME" in os.environ:
@@ -389,15 +399,14 @@ def run(a=None, **kwargs):
     )
 
     env = {
-        "DISPLAY": os.environ.get("DISPLAY")
-        if os.environ.get("DISPLAY") is not None
-        else "",
+        "DISPLAY": os.environ.get("DISPLAY") if os.environ.get("DISPLAY") else "",
         "XAUTHORITY": os.environ.get("XAUTHORITY")
-        if os.environ.get("XAUTHORITY") is not None
+        if os.environ.get("XAUTHORITY")
         else "",
         "PYTHONPATH": ".:%s:%s"
         % (os.environ.get("PYTHONPATH", "."), os.path.abspath(sim_dir)),
         "NEURON_MODULE_OPTIONS": "-nogui",
+        "PATH": os.environ.get("PATH", "/usr/bin"),
     }
 
     sim_start = time.time()

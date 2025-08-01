@@ -1,3 +1,9 @@
+"""
+Helper script to visualise particle positions and muscle
+activations logged by the simulator. Used by `sibernetic_c302.py`
+but can be invoked directly.
+"""
+
 import sys
 
 

@@ -37,6 +37,10 @@ CXXFLAGS += $(shell $(PYTHON_CONFIG) --embed --cflags)
 endif
 
 CXXFLAGS += -fPIE
+CXXFLAGS += -DCL_TARGET_OPENCL_VERSION=120 # Target OpenCL version is 1.2
+CXXFLAGS += -DCL_HPP_TARGET_OPENCL_VERSION=120 # C++ bindings target OpenCL version 1.2
+CXXFLAGS += -DCL_HPP_MINIMUM_OPENCL_VERSION=120 # Minimum OpenCL version supported is 1.2
+CXXFLAGS += -DCL_HPP_ENABLE_PROGRAM_CONSTRUCTION_FROM_ARRAY_COMPATIBILITY # Enable compatibility for program construction from arrays
 EXTRA_LIBS := -L/usr/lib64/OpenCL/vendors/amd/ -L/opt/AMDAPP/lib/x86_64/ -L/usr/lib/x86_64-linux-gnu/
 
 all: CXXFLAGS += -O3

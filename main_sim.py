@@ -1,3 +1,9 @@
+"""
+Utility module used by the C++ simulator to generate
+synthetic muscle activation patterns. Can also be run
+standalone to visualize these waves.
+"""
+
 import math
 import sys
 
