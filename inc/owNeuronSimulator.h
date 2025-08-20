@@ -42,11 +42,7 @@
 #ifndef INC_OWNEURONSIMULATOR_H_
 #define INC_OWNEURONSIMULATOR_H_
 
-#if defined(_WIN32) || defined (_WIN64)
-  #include "C:/Python27/include/Python.h" // TODO make it optional
-#else
-  #include <Python.h>
-#endif
+#include <Python.h>
 #include <vector>
 #include <iostream>
 #include "owINeuronSimulator.h"
