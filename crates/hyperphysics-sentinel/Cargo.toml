@@ -1,0 +1,26 @@
+[package]
+name = "hyperphysics-sentinel"
+description = "Self-evolving sentient agent framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json", "hyperphysics-embodiment/serde", "hyperphysics-stdp/serde", "hyperphysics-nas/serde"]
+
+[dependencies]
+hyperphysics-sph.workspace = true
+hyperphysics-connectome.workspace = true
+hyperphysics-embodiment.workspace = true
+hyperphysics-stdp.workspace = true
+hyperphysics-nas.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+rand.workspace = true
+rand_distr.workspace = true
+hashbrown.workspace = true

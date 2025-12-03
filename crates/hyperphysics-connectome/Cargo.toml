@@ -1,0 +1,25 @@
+[package]
+name = "hyperphysics-connectome"
+description = "C. elegans connectome and spiking neural network models, ported from OpenWorm c302"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json"]
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+hashbrown.workspace = true
+smallvec.workspace = true
+rand.workspace = true
+rand_distr.workspace = true
+
+[dev-dependencies]
+approx = "0.5"

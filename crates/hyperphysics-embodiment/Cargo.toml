@@ -1,0 +1,19 @@
+[package]
+name = "hyperphysics-embodiment"
+description = "Neural-body coupling for C. elegans embodied simulation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+serde = ["dep:serde", "hyperphysics-sph/serde", "hyperphysics-connectome/serde"]
+
+[dependencies]
+hyperphysics-sph.workspace = true
+hyperphysics-connectome.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde = { workspace = true, optional = true }

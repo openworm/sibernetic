@@ -1,0 +1,26 @@
+[package]
+name = "sibernetic-hyperphysics"
+description = "HyperPhysics backend adapter for Sibernetic C. elegans simulation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json", "hyperphysics-sph/serde", "hyperphysics-sentinel/serde"]
+python = ["dep:pyo3"]
+
+[dependencies]
+hyperphysics-sph.workspace = true
+hyperphysics-connectome.workspace = true
+hyperphysics-embodiment.workspace = true
+hyperphysics-stdp.workspace = true
+hyperphysics-nas.workspace = true
+hyperphysics-sentinel.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+pyo3 = { version = "0.21", optional = true }

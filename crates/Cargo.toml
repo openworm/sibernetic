@@ -1,0 +1,62 @@
+[workspace]
+resolver = "2"
+members = [
+    "hyperphysics-sph",
+    "hyperphysics-connectome",
+    "hyperphysics-embodiment",
+    "hyperphysics-stdp",
+    "hyperphysics-nas",
+    "hyperphysics-sentinel",
+    "sibernetic-hyperphysics",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/openworm/sibernetic"
+authors = ["OpenWorm Contributors", "HyperPhysics Contributors"]
+
+[workspace.dependencies]
+# Core
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Math & SIMD
+nalgebra = "0.32"
+glam = { version = "0.27", features = ["serde"] }
+wide = "0.7"
+num-traits = "0.2"
+
+# Parallelism
+rayon = "1.10"
+crossbeam = "0.8"
+
+# GPU Compute
+wgpu = "0.19"
+bytemuck = { version = "1.14", features = ["derive"] }
+
+# Async
+tokio = { version = "1.36", features = ["full"] }
+
+# Random
+rand = "0.8"
+rand_distr = "0.4"
+
+# Collections
+hashbrown = "0.14"
+smallvec = "1.13"
+arrayvec = "0.7"
+
+# Internal crates
+hyperphysics-sph = { path = "hyperphysics-sph" }
+hyperphysics-connectome = { path = "hyperphysics-connectome" }
+hyperphysics-embodiment = { path = "hyperphysics-embodiment" }
+hyperphysics-stdp = { path = "hyperphysics-stdp" }
+hyperphysics-nas = { path = "hyperphysics-nas" }
+hyperphysics-sentinel = { path = "hyperphysics-sentinel" }
+sibernetic-hyperphysics = { path = "sibernetic-hyperphysics" }

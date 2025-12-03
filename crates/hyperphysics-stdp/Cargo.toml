@@ -1,0 +1,20 @@
+[package]
+name = "hyperphysics-stdp"
+description = "Spike-Timing Dependent Plasticity for neural network learning"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dependencies]
+hyperphysics-connectome.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde = { workspace = true, optional = true }
+rand.workspace = true
+rand_distr.workspace = true
