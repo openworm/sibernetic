@@ -31,8 +31,6 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#define CL_TARGET_OPENCL_VERSION 120
-
 #include "owPhysicTest.h"
 #include "owVtkExport.h"
 #include "owWorldSimulation.h"
