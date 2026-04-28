@@ -214,7 +214,7 @@ class C302NRNSimulation:
         if self.verbose:
             print_("< Current NEURON time: %s ms" % self.h.t)
 
-        if hasattr(self.h, "a_MDR01"):
+        """if hasattr(self.h, "a_MDR01"):
             var_pre = "a_M"
             var_template = "a_M{0}{1}{2}{3}"
             var_name = "cai"
@@ -232,7 +232,7 @@ class C302NRNSimulation:
             var_template = "m_M{0}1_PopM{0}1"
             var_name = "state"
             scale_it = False
-            print_it = False
+            print_it = False"""
 
         values = []
         vars_read = []
