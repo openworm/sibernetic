@@ -2,7 +2,7 @@
 
 Sibernetic is physical simulator of biomechanical matter (membranes, elastic matter, contractile matter) and environments (liquids, solids and elastic matter with variable physical properties) developed for simulations of C. elegans physical body dynamics within the [OpenWorm project](http://www.openworm.org) by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python module for external muscle activating signals generation and input) as part of the [OpenWorm team](http://www.openworm.org/people.html). At its core, Sibernetic is built as an extension to Predictive-Corrective Incompressible Smoothed Particle Hydrodynamics (PCISPH). It is primarily written in  C++ and OpenCL, which makes possible to run simulations on CPUs or GPUs, and has 3D visualization support built on top of OpenGL.
 
-This repository also ships a simplified solver written in PyTorch (`pytorch_solver.py`) which is used in the unit tests.
+This repository also ships simplified solvers written in PyTorch (`pytorch_solver.py`) and Taichi (`taichi_solver.py`). The PyTorch solver is used in the unit tests; the Taichi solver provides GPU-accelerated simulation on Apple Silicon (Metal) and NVIDIA GPUs (CUDA).
 
 There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](http://www.geppetto.org/).
 
@@ -45,7 +45,15 @@ ldconfig -p | grep opencl
 
 Also you may need to give compiler path to OpenCL header files usually you can find them in `/usr/include/CL` if they there than you don't need do anything. In othe case you can edit makefile directly and add directory to OpenCL headers by adding options `-I/path/to/opencl_includes/` or you can copy folder with header into `/usr/include/` but you should have root permission for doing that.
 
-**Mac**: stay in the top-level folder. You need before run export several environment variables:
+**Mac**: stay in the top-level folder. The recommended path is just:
+
+```bash
+./setup.sh
+```
+
+This installs Homebrew dependencies, creates a project-local `.venv/` with `torch`, `taichi`, `numpy`, and `pyneuroml`, exports the build-time Python paths, and runs `make -f makefile.OSX` for you.
+
+If you prefer to drive `make` yourself, you'll need to export the build-time Python paths first:
 
 ```bash
 export PYTHONHEADERDIR=/opt/homebrew/Frameworks/Python.framework/Headers/
@@ -76,11 +84,7 @@ g++ -L/usr/lib -L/usr/lib/python2.7 -o "Sibernetic"  ./src/PyramidalSimulation.o
 Finished building target:Sibernetic
 ```
 
-Then navigate to the top-level folder in the hierarchy (e.g `Sibernetic`) and set your `PYTHONPATH`:
-
-```bash
-export PYTHONPATH=$PYTHONPATH:.
-```
+Then run from the top-level folder (e.g `Sibernetic`). The binary adds the repo root and `./.venv/lib/python*/site-packages` to `sys.path` automatically — you do not need to set `PYTHONPATH` for the PyTorch or Taichi backends. (The legacy NEURON/c302 bridge in `owSignalSimulator.cpp` and `owNeuronSimulator.cpp` still relies on `PYTHONPATH`; export it only if you're running neural-coupled simulations.)
 
 Finally, to run, run the command:
 
@@ -170,12 +174,14 @@ Sibernetic supports multiple compute backends:
 | Taichi CPU | `backend=taichi-cpu` | CPU fallback |
 | PyTorch | `backend=torch` | Quick tests, debugging |
 
-**Apple Silicon (M1/M2/M3)**: Use Taichi for best performance (~100x faster than CPU):
-```bash
-# Set Python paths (add to .zshrc for convenience)
-export PYTHONPATH=$(pwd):$(.venv/bin/python -c "import site; print(site.getsitepackages()[0])")
+### Installing the Python dependencies
 
-# Run with Metal GPU
+`./setup.sh` installs the Taichi and PyTorch runtime libraries into a project-local `.venv/` (on macOS — Linux uses system pip). The C++ binary automatically adds `.venv/lib/python*/site-packages` and the repo root to `sys.path` at startup, so **you do not need to export `PYTHONPATH`**. Just run the binary from the repo root.
+
+If you ever recreate the venv by hand, make sure it lives at `<repo-root>/.venv/` so the binary can find it.
+
+**Apple Silicon (M1/M2/M3)** — Taichi Metal is the fastest backend (~100x faster than CPU):
+```bash
 ./Release/Sibernetic -f worm backend=taichi
 ```
 
@@ -188,8 +194,6 @@ export PYTHONPATH=$(pwd):$(.venv/bin/python -c "import site; print(site.getsitep
 ```bash
 ./Release/Sibernetic -no_g -f demo1 backend=torch timelimit=0.01
 ```
-
-The Taichi and PyTorch backends require Python dependencies from `setup.sh`.
 
 Python Solver Development Status
 --------------------------------

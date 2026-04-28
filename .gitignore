@@ -69,3 +69,6 @@ simulations
 .vscode/*
 .settings/*
 .idea/*
+
+# Project-local Python venv created by setup.sh
+/.venv/
