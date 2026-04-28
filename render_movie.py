@@ -6,12 +6,17 @@ import sys
 import os
 import numpy as np
 
-def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30, frame_skip=10, max_frames=500):
+def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30,
+                    frame_skip=10, max_frames=500, include_boundary=False,
+                    camera="side"):
     """Load position buffer and render to MP4.
 
     Args:
         frame_skip: Only keep every Nth frame (default 10)
         max_frames: Maximum frames to render (default 500)
+        include_boundary: If True, render boundary (type 3) particles too
+        camera: "side" (default, original behaviour) or "iso" (3/4 view from
+            above-front-side so the floor plane is visible).
     """
 
     colours = {1.1: "blue", 2.1: "green", 2.2: "turquoise", 3: "#cccccc"}
@@ -30,8 +35,6 @@ def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30, fr
     time_step = None
     log_step = None
     frame_count = 0
-
-    include_boundary = False  # Skip boundary particles for speed
 
     print(f"Loading {position_file} (skip={frame_skip}, max={max_frames})...")
 
@@ -70,7 +73,6 @@ def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30, fr
                 points = []
                 types = []
                 pcount = 0
-                numOfBoundaryP = 0
                 frame_count += 1
 
                 # Early exit if we have enough frames
@@ -92,33 +94,75 @@ def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30, fr
     plotter = pv.Plotter(off_screen=True, window_size=[1920, 1080])
     plotter.set_background("white")
 
-    # Get bounds from first frame for camera setup
-    first_points = points_per_frame[0]
-    center = first_points.mean(axis=0)
-    extent = first_points.max(axis=0) - first_points.min(axis=0)
+    # Get bounds across the whole simulation so the camera frames the
+    # eventual position of the cube (including impact with the floor),
+    # not just its initial location.
+    all_points = np.concatenate(points_per_frame, axis=0)
+    mins = all_points.min(axis=0)
+    maxs = all_points.max(axis=0)
+    center = (mins + maxs) / 2.0
+    extent = maxs - mins
     max_extent = max(extent)
 
-    # Set up camera
-    plotter.camera_position = [
-        (center[0] + max_extent * 1.5, center[1] + max_extent * 0.5, center[2]),
-        center,
-        (0, 1, 0)
-    ]
+    if camera == "iso":
+        # 3/4 view: camera above and to one side, looking down so the floor
+        # plane (low Y) and the descending cube are both visible.
+        plotter.camera_position = [
+            (center[0] + max_extent * 1.4,
+             maxs[1] + max_extent * 0.6,
+             center[2] + max_extent * 1.4),
+            center,
+            (0, 1, 0),
+        ]
+    else:
+        # Original side view, framed on the simulation bounds.
+        plotter.camera_position = [
+            (center[0] + max_extent * 1.5,
+             center[1] + max_extent * 0.5,
+             center[2]),
+            center,
+            (0, 1, 0),
+        ]
 
     # Open movie file
     print(f"Rendering to {output_file}...")
     plotter.open_movie(output_file, framerate=fps, quality=8)
 
-    # Create initial mesh
-    mesh = pv.PolyData(points_per_frame[0])
-    mesh["types"] = types_per_frame[0]
+    # When boundary particles are included they outnumber the body 50:1
+    # (~17.5K vs ~340 for demo1), and rendering them as spheres tanks
+    # offscreen rendering on macOS. Render boundary as plain points, and
+    # keep only the lower portion (floor + bottom of walls) so the impact
+    # surface is visible without obscuring the camera path.
+    is_boundary_per_frame = [t >= 3 for t in types_per_frame]
+    keep_floor_per_frame = []
+    if include_boundary:
+        floor_cutoff = mins[1] + 0.15 * (maxs[1] - mins[1])
+        for pts, mask in zip(points_per_frame, is_boundary_per_frame):
+            keep_floor_per_frame.append(mask & (pts[:, 1] <= floor_cutoff))
+
+        boundary_mesh = pv.PolyData(points_per_frame[0][keep_floor_per_frame[0]])
+        plotter.add_mesh(
+            boundary_mesh,
+            render_points_as_spheres=False,  # spheres × 17K = hang
+            color="lightgray",
+            opacity=0.6,
+            point_size=2,
+            show_scalar_bar=False,
+        )
+    else:
+        boundary_mesh = None
+
+    body_pts0 = points_per_frame[0][~is_boundary_per_frame[0]] if include_boundary else points_per_frame[0]
+    body_types0 = types_per_frame[0][~is_boundary_per_frame[0]] if include_boundary else types_per_frame[0]
+    mesh = pv.PolyData(body_pts0)
+    mesh["types"] = body_types0
 
     actor = plotter.add_mesh(
         mesh,
         render_points_as_spheres=True,
         scalars="types",
         cmap=["blue", "green", "turquoise", "lightgray"],
-        point_size=5,
+        point_size=8,
         show_scalar_bar=False
     )
 
@@ -136,8 +180,14 @@ def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30, fr
             pct = 100 * i / num_frames
             print(f"  Frame {i}/{num_frames} ({pct:.1f}%)")
 
-        mesh.points = pts
-        mesh["types"] = tps
+        if include_boundary:
+            mask = is_boundary_per_frame[i]
+            boundary_mesh.points = pts[keep_floor_per_frame[i]]
+            mesh.points = pts[~mask]
+            mesh["types"] = tps[~mask]
+        else:
+            mesh.points = pts
+            mesh["types"] = tps
 
         # Update time text
         sim_time = i * log_step * time_step
