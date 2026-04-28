@@ -2,9 +2,9 @@ name: Build using AMD drivers
 
 on:
   push:
-    branches: [ master, dev*, ow* ]
+    branches: [ master, dev*, ow*, test* ]
   pull_request:
-    branches: [ master, dev, ow* ]
+    branches: [ master, dev*, ow*, test* ]
 
 jobs:
 
