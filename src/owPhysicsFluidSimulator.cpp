@@ -46,6 +46,22 @@
 #include "owSignalSimulator.h"
 #include "owVtkExport.h"
 
+// Make pytorch_solver.py / taichi_solver.py and packages installed in the
+// project-local .venv importable from the embedded interpreter without the
+// user having to export PYTHONPATH first. Assumes the binary is launched from
+// the repo root, which matches the existing OpenCL kernel-path convention.
+static void setupEmbeddedPythonPath() {
+  PyRun_SimpleString(
+      "import sys, os, glob\n"
+      "_cwd = os.getcwd()\n"
+      "if _cwd not in sys.path:\n"
+      "    sys.path.insert(0, _cwd)\n"
+      "for _p in glob.glob(os.path.join(_cwd, '.venv', 'lib', 'python*', 'site-packages')):\n"
+      "    if _p not in sys.path:\n"
+      "        sys.path.append(_p)\n"
+  );
+}
+
 // Phase 1.4: Helper to eliminate duplicate init code between constructor and reset()
 void owPhysicsFluidSimulator::initTorchSolver(bool isReset) {
   // Clean up existing solver if this is a reset
@@ -352,6 +368,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
 
     if (useTorchBackend) {
       Py_Initialize();
+      setupEmbeddedPythonPath();  // Add cwd + .venv site-packages to sys.path
       _import_array();  // Initialize NumPy C API for fast array access (no return)
       initTorchSolver(false);  // Phase 1.4: Use helper (not a reset)
 #ifndef OW_NO_OPENCL
@@ -359,6 +376,7 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
 #endif
     } else if (useTaichiBackend) {
       Py_Initialize();
+      setupEmbeddedPythonPath();  // Add cwd + .venv site-packages to sys.path
       _import_array();  // Initialize NumPy C API for fast array access (no return)
       initTaichiSolver(false);  // Initialize Taichi GPU solver
 #ifndef OW_NO_OPENCL
