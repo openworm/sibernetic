@@ -31,8 +31,6 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *******************************************************************************/
 
-#define CL_TARGET_OPENCL_VERSION 120
-
 #ifndef OW_OPENCL_SOLVER_H
 #define OW_OPENCL_SOLVER_H
 
@@ -44,7 +42,7 @@
 #include "../inc/OpenCL/cl.hpp"
 //	#include <OpenCL/cl_d3d10.h>
 #else
-#include <CL/cl.hpp>
+#include <CL/opencl.hpp>
 #endif
 
 #include "owConfigProperty.h"

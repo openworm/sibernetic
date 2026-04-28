@@ -409,8 +409,8 @@ void owOpenCLSolver::initializeOpenCL(owConfigProperty *config) {
   }
   std::string programSource(std::istreambuf_iterator<char>(file),
                             (std::istreambuf_iterator<char>()));
-  cl::Program::Sources source(
-      1, std::make_pair(programSource.c_str(), programSource.length() + 1));
+  cl::Program::Sources source;
+  source.push_back(programSource);
   program = cl::Program(context, source);
 #if defined(__APPLE__)
   err = program.build(devices, "-g -cl-opt-disable");

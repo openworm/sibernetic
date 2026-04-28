@@ -439,6 +439,9 @@ def run(a=None, **kwargs):
         "PYTHONPATH": ".:%s:%s"
         % (os.environ.get("PYTHONPATH", "."), os.path.abspath(sim_dir)),
         "NEURON_MODULE_OPTIONS": "-nogui",
+        "PATH": os.environ.get("PATH")
+        if os.environ.get("PATH") is not None
+        else "",
     }
 
     sim_start = time.time()
