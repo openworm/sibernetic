@@ -180,6 +180,23 @@ Sibernetic supports multiple compute backends:
 
 If you ever recreate the venv by hand, make sure it lives at `<repo-root>/.venv/` so the binary can find it.
 
+### Supported Python versions
+
+Sibernetic currently requires **Python 3.10–3.13**. Taichi 1.7.4 (the latest release, July 2024) ships pre-built wheels only for CPython 3.7–3.13; Python 3.14 has no wheel and a from-source build needs LLVM 15 plus a matching toolchain that's painful to set up automatically.
+
+`setup.sh` enforces this on macOS by installing `python@3.13` via Homebrew and building both the venv and the C++ binary against it, regardless of which `python3` happens to be first on your PATH. On Linux it warns if your system Python is outside the supported range.
+
+#### Python 3.14 and beyond
+
+If you must use Python 3.14+, the options today are:
+
+1. **Pin to 3.13 anyway.** Install `python@3.13` alongside your default Python and let `setup.sh` use it — the rest of your system can stay on 3.14. This is the recommended path.
+2. **Try `taichi-nightly`.** The nightly build sometimes ships wheels for newer Python versions before stable does: `pip install -i https://pypi.taichi.graphics/simple/ taichi-nightly`. Stability and parity with 1.7.4 are not guaranteed.
+3. **Build Taichi from source.** Requires LLVM 15, clang, CMake, and ~10 GB of build dependencies. See https://docs.taichi-lang.org/docs/dev_install. Not worth it unless you're contributing to Taichi itself.
+4. **Use the PyTorch backend instead.** `backend=torch` still works on any Python that has a `torch` wheel (3.9–3.13 currently), and is the reference implementation for the PCISPH solver. You lose GPU acceleration on Apple Silicon but tests and short simulations remain viable.
+
+Longer-term, OpenWorm should track the Taichi project's release cadence (it has slowed since 1.7.4) and either upgrade to a future Taichi release with broader Python coverage or maintain a pinned fork. See DD003 for the backend-stabilization roadmap.
+
 **Apple Silicon (M1/M2/M3)** — Taichi Metal is the fastest backend (~100x faster than CPU):
 ```bash
 ./Release/Sibernetic -f worm backend=taichi
