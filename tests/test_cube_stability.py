@@ -34,12 +34,16 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 from measure_cube_stability import measure  # noqa: E402
 
-# Sim parameters tuned so the cube actually contacts the floor (Y=0)
-# starting from initial Y range [39.4, 49.4]. Anything shorter and the
-# pancake-vs-intact distinction isn't tested — the cube hasn't landed.
-DEMO1_TIMELIMIT_SECONDS = 3.0
+# Sim parameters: demo1 starts the cube at Y=[39.4, 49.4] and the floor
+# is at Y=0. Falling under gravity, first impact happens around t~3-4s.
+# We need post-impact dynamics to distinguish "cube lands intact and
+# settles" from "cube collapses on contact" — running long enough that
+# the elastic extent has had time to either recover or stay flat. 5s
+# total sim matches the local validation buffer that surfaced the
+# pancake at 8% retention.
+DEMO1_TIMELIMIT_SECONDS = 5.0
 DEMO1_LOGSTEP = 100  # ~50 logged frames per run; enough for first/last
-DEMO1_RUN_TIMEOUT_SECONDS = 1500  # 25 min upper bound for slowest backend
+DEMO1_RUN_TIMEOUT_SECONDS = 1800  # 30 min upper bound for slowest backend
 EXTENT_RETENTION_THRESHOLD = 0.5  # 50% of initial elastic-Y extent
 
 
