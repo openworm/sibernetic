@@ -12,15 +12,25 @@ src/owNeuronSimulator.cpp \
 src/owConfigProperty.cpp
 
 ARCH := $(shell uname -m)
+
+# Python linker flags. Default to "-framework Python" (works when a
+# fully-formed Python.framework with the top-level Python symlink is
+# available, e.g. the runner's pre-installed Python). setup.sh overrides
+# this to `python3.13-config --embed --ldflags` so the build links against
+# the same Homebrew Python the venv was created with — Homebrew's
+# python@3.13 ships the framework headers but omits the top-level symlink
+# that `-framework Python` requires, so the framework form fails to link.
+PYTHON_LIB_FLAGS ?= -framework Python
+
 ifeq ($(ARCH),arm64)
 TORCH_FLAGS := -DOW_NO_OPENCL
 OPENCL_FLAG :=
-LIBS := -framework Python -framework OpenGL -framework GLUT
+LIBS := $(PYTHON_LIB_FLAGS) -framework OpenGL -framework GLUT
 else
 SOURCES += src/owOpenCLSolver.cpp
 TORCH_FLAGS :=
 OPENCL_FLAG := -framework OpenCL
-LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
+LIBS := $(PYTHON_LIB_FLAGS) -framework OpenGL -framework GLUT -framework OpenCL
 endif
 
 TEST_SOURCES = src/test/owPhysicTest.cpp

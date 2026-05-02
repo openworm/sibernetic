@@ -103,6 +103,19 @@ if [[ "$(uname)" == "Darwin" ]]; then
     # poisons the next argument and makes the build fail to find inc/*.h.
     export NUMPYHEADERDIR="$(.venv/bin/python -c 'import numpy; print(numpy.get_include())')"
 
+    # Use the build Python's own python-config to derive linker flags.
+    # Homebrew's python@3.13 ships the framework headers + dylib but
+    # omits the top-level Python.framework/Python symlink, so the
+    # makefile's default `-framework Python` fails with "framework not
+    # found" at link time. python3.13-config --embed --ldflags emits
+    # `-L<libdir> -lpython3.13 -ldl -framework CoreFoundation`, which
+    # links against the actual dylib by name and sidesteps the missing
+    # symlink entirely.
+    PYTHON_CONFIG="$(dirname "$BUILD_PY")/$(basename "$BUILD_PY")-config"
+    if [[ -x "$PYTHON_CONFIG" ]]; then
+        export PYTHON_LIB_FLAGS="$("$PYTHON_CONFIG" --embed --ldflags)"
+    fi
+
     make clean -f makefile.OSX
     make all -f makefile.OSX
 
