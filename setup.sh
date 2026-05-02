@@ -96,6 +96,13 @@ if [[ "$(uname)" == "Darwin" ]]; then
     export PYTHONLIBDIR="$("$BUILD_PY" -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
     export PYTHONFRAMEWORKDIR="$("$BUILD_PY" -c 'import sysconfig; print(sysconfig.get_config_var("PYTHONFRAMEWORKPREFIX"))')"
 
+    # Pull NumPy's include dir from the project venv, not from whatever
+    # `python3` happens to be on PATH. On a clean GitHub macOS runner the
+    # system python3 has no numpy installed; the makefile's fallback
+    # shellout silently returns empty, leaving a bare `-I` flag that
+    # poisons the next argument and makes the build fail to find inc/*.h.
+    export NUMPYHEADERDIR="$(.venv/bin/python -c 'import numpy; print(numpy.get_include())')"
+
     make clean -f makefile.OSX
     make all -f makefile.OSX
 
