@@ -24,6 +24,10 @@ PYTHON_VER_MAIN = $(shell python3 -c 'import sys; vv=sys.version_info[:];print(s
 #PYTHON_VER_MAIN = 3.8 # Hardcode if necessary
 PYTHON_CONFIG ?= /usr/bin/python$(PYTHON_VER_MAIN)-config
 
+# NumPy include directory for fast array access (auto-detect if not set;
+# can be overridden from the env to point at a venv install).
+NUMPYHEADERDIR ?= $(shell python3 -c "import numpy; print(numpy.get_include())" 2>/dev/null)
+
 CPP_DEPS = $(OBJECTS:.o=.d)
 
 LIBS := -lGL -lGLU -lrt -lglut
@@ -72,7 +76,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	$(CC) $(CXXFLAGS) -I/opt/AMDAPPSDK-3.0/include/ -I/opt/AMDAPP/include/ -I$(INCDIR) -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	$(CC) $(CXXFLAGS) -I/opt/AMDAPPSDK-3.0/include/ -I/opt/AMDAPP/include/ -I$(NUMPYHEADERDIR) -I$(INCDIR) -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
