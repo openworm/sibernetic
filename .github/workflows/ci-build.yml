@@ -5,6 +5,7 @@ on:
     branches: [ master, dev*, ow* ]
   pull_request:
     branches: [ master, dev, ow* ]
+  workflow_dispatch:
 
 jobs:
 
@@ -104,6 +105,39 @@ jobs:
 
     - name: Final version info
       run: |
-        
+
         python -V
         pip list
+
+
+  build-macos:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Environment info
+      run: |
+        sw_vers
+        uname -m
+        python3 -V
+        which python3.13 || true
+        brew --version
+
+    - name: Build Sibernetic on macOS via setup.sh
+      run: |
+        ./setup.sh
+
+    - name: Print Sibernetic help
+      run: ./Release/Sibernetic -h
+
+    - name: Print binary linkage
+      run: otool -L ./Release/Sibernetic
+
+    - name: Smoke test (Taichi CPU)
+      run: ./Release/Sibernetic -no_g -f demo1 backend=taichi-cpu timelimit=0.001
+
+    - name: Smoke test (Taichi Metal — probe, may fail in headless CI)
+      continue-on-error: true
+      run: ./Release/Sibernetic -no_g -f demo1 backend=taichi timelimit=0.001
