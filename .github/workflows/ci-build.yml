@@ -86,6 +86,14 @@ jobs:
 
         ./Release/Sibernetic -no_g timelimit=0.001
 
+    - name: Install Taichi for backend smoke test
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install taichi
+
+    - name: Smoke test (Taichi CPU)
+      run: ./Release/Sibernetic -no_g -f demo1 backend=taichi-cpu timelimit=0.001
+
     - name: Run tests
       run: |
         pip install c302
@@ -138,6 +146,5 @@ jobs:
     - name: Smoke test (Taichi CPU)
       run: ./Release/Sibernetic -no_g -f demo1 backend=taichi-cpu timelimit=0.001
 
-    - name: Smoke test (Taichi Metal — probe, may fail in headless CI)
-      continue-on-error: true
+    - name: Smoke test (Taichi Metal)
       run: ./Release/Sibernetic -no_g -f demo1 backend=taichi timelimit=0.001

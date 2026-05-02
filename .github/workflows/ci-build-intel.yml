@@ -1,10 +1,17 @@
 name: Build using Intel drivers
 
+# Manual-only. This workflow validates that Sibernetic still links against
+# the legacy 2018 Intel OpenCL CPU runtime (SRB5.0). It does not run the
+# binary or any tests — Intel's runtime can't expose itself as a usable
+# OpenCL device on the headless GitHub runner ("Seg faults" was the
+# original maintainer note). Kept around as a reference for anyone
+# resurrecting Intel-driver support; not run on every push/PR because it
+# adds CI minutes (sourceforge fetch of the SDK) for zero coverage beyond
+# what `Build using AMD drivers` already provides.
+#
+# Trigger via the Actions UI ("Run workflow") when explicitly needed.
 on:
-  push:
-    branches: [ master, dev*, ow* ]
-  pull_request:
-    branches: [ master, dev, ow* ]
+  workflow_dispatch:
 
 jobs:
 
@@ -14,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ ubuntu-22.04, ubuntu-24.04 ]
+        runs-on: [ ubuntu-22.04 ]
 
     steps:
     - name: Set git to use LF
