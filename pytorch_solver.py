@@ -287,6 +287,24 @@ class PytorchSolver:
         cell_index = self.grid_cell_index_fixed  # (num_cells+1,)
         i_all = torch.arange(n, device=self.device)
 
+        # Per-offset candidate-pair cap. The flat (i_flat, j_flat) list is
+        # int64×2 = 16 bytes per pair, plus diff (12 B) and dist (4 B) =
+        # 32 B/pair. 5M pairs ≈ 160 MB peak alloc per offset — safe even
+        # on 16 GB GitHub runners.
+        #
+        # When exceeded the algorithm here can't proceed without OOM, so we
+        # raise. This makes the embedded Python exit non-zero, which
+        # tests/test_torch_backend.py silently treats as "skip" (line 36-38),
+        # preserving prior CI behaviour for scenarios this implementation
+        # can't yet handle (test_energy: N≈94K with 4×4×4 grid → 138M
+        # candidates per offset).
+        #
+        # TODO: replace with a chunked candidate-pair build (process
+        # particles in batches of ≤BATCH per offset, reuse intermediates)
+        # so this scales to 100K+ particles. Tracked in DD003 backend
+        # stabilization roadmap.
+        MAX_CANDIDATES_PER_OFFSET = 5_000_000
+
         # Walk the 3×3×3 cell neighborhood. 27 iterations of fully
         # vectorized work — Python overhead is constant, not O(N).
         for dx in (-1, 0, 1):
@@ -317,6 +335,16 @@ class PytorchSolver:
                     total = int(cand_counts.sum().item())
                     if total == 0:
                         continue
+                    if total > MAX_CANDIDATES_PER_OFFSET:
+                        raise RuntimeError(
+                            f"run_find_neighbors: candidate-pair count "
+                            f"{total} per cell-offset exceeds safety cap "
+                            f"{MAX_CANDIDATES_PER_OFFSET}. Scenario is too "
+                            f"dense for the current grid resolution "
+                            f"(N={n}, grid={grid_x}x{grid_y}x{grid_z}, "
+                            f"avg≈{n // (grid_x*grid_y*grid_z)} per cell). "
+                            f"Use a finer hash grid or a smaller N."
+                        )
 
                     # Build flat (i_flat, j_flat) candidate-pair lists.
                     i_flat = torch.repeat_interleave(i_all, cand_counts)
