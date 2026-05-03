@@ -52,6 +52,7 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
   useTorch = false;
   useTaichi = false;
   taichiDevice = "metal";  // Default to Metal on Mac
+  torchDevice = "cpu";     // Default; override with backend=torch-{mps,cuda,cpu}
 #ifdef OW_NO_OPENCL
   useTaichi = true;  // Default to Taichi when OpenCL disabled
 #endif
@@ -71,9 +72,18 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
     if (strTemp.find("backend=") == 0) {
       std::string backend = strTemp.substr(strTemp.find('=') + 1);
       std::transform(backend.begin(), backend.end(), backend.begin(), ::tolower);
-      if (backend == "torch") {
+      if (backend == "torch" || backend == "torch-cpu") {
         useTorch = true;
         useTaichi = false;
+        torchDevice = "cpu";
+      } else if (backend == "torch-mps") {
+        useTorch = true;
+        useTaichi = false;
+        torchDevice = "mps";
+      } else if (backend == "torch-cuda") {
+        useTorch = true;
+        useTaichi = false;
+        torchDevice = "cuda";
       } else if (backend == "taichi" || backend == "taichi-metal") {
         useTaichi = true;
         useTorch = false;

@@ -153,7 +153,7 @@ void owPhysicsFluidSimulator::initTorchSolver(bool isReset) {
   PyDict_SetItemString(cfg, "mass_mult_divgradWviscosityCoefficient", val); Py_DECREF(val);
   val = PyLong_FromLong(3);  // PCISPH uses 3 iterations
   PyDict_SetItemString(cfg, "max_iteration", val); Py_DECREF(val);
-  val = PyUnicode_FromString("cpu");  // Default device
+  val = PyUnicode_FromString(config->getTorchDevice().c_str());
   PyDict_SetItemString(cfg, "device", val); Py_DECREF(val);
 
   // Create solver instance
