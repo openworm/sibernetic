@@ -14,11 +14,32 @@ import torch
 # small-op compile overhead can outweigh the savings on CPU.
 SIBERNETIC_TORCH_COMPILE = os.environ.get("SIBERNETIC_TORCH_COMPILE", "auto").lower()
 
+# TorchInductor's compile subprocess can crash on smaller compute
+# environments (Cloud Run sandbox, cold containers, etc.). Force
+# in-process compilation to avoid losing the whole sim to a subprocess
+# crash. Cost: slightly slower first-time compile; benefit: no flake.
+os.environ.setdefault("TORCHINDUCTOR_COMPILE_THREADS", "1")
+
+# Allow individual op-graph compile failures to fall back to eager
+# rather than killing the sim. SPH inner loops have plenty of patterns
+# Inductor's tracer doesn't model perfectly (dynamic neighbor counts,
+# scatter_add_ on int indices, etc.).
+try:
+    import torch._dynamo
+    torch._dynamo.config.suppress_errors = True
+except Exception:
+    pass
+
 
 def _maybe_compile(fn, device: str):
     """Decorator-style helper. Returns torch.compile(fn) when enabled,
-    otherwise the original fn. Mode 'reduce-overhead' uses CUDA graphs
-    when on CUDA — the most effective for our small-op workload."""
+    otherwise the original fn.
+
+    We use mode='default' (not 'reduce-overhead') because the latter
+    requires CUDA graphs which can't tolerate the dynamic neighbor-list
+    shapes we have. 'default' fuses ops via TorchInductor without
+    requiring graph capture — meaningful speedup, much more robust.
+    """
     enabled = (
         SIBERNETIC_TORCH_COMPILE == "true"
         or (SIBERNETIC_TORCH_COMPILE == "auto" and device != "cpu")
@@ -26,7 +47,7 @@ def _maybe_compile(fn, device: str):
     if not enabled:
         return fn
     try:
-        return torch.compile(fn, mode="reduce-overhead", dynamic=False)
+        return torch.compile(fn, mode="default", dynamic=True)
     except Exception:
         # Older torch versions, unsupported devices, etc. — fall through.
         return fn
