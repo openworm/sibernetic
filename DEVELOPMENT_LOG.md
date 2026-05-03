@@ -1724,3 +1724,89 @@ deferred to when training-on-Sibernetic-units is requested).
   Sibernetic-equivalent values (h=3.34, mass=2e-12, sim_scale=7.4e-6,
   rho_rest=4.05e-13, alpha_dist=3.3e-9). New `--sim-scale` flag.
 
+### Viscosity + surface tension pair forces (2026-05-04)
+
+OpenCL has both viscosity (`pcisph_computeForces…` in sphFluid.cl:519)
+and surface tension. Both are SPH pair forces over r < h neighbors,
+both contribute to the impact dynamics of the cube fall (the splat-
+stretch behavior we couldn't reproduce in the prior parameter-
+translation pass).
+
+**Forward kernel `pair_forces_grid`** — fused viscosity + surface
+tension over both active-active and static-via-grid neighbor lookups.
+Per active particle:
+- visc partial: `Σ_j coef_pair · (v_j - v_i) · (h_s - r_s) / 1000`
+  (boundary v_j ≡ 0 → drag-against-walls)
+- surf partial: `Σ_j (h_s² - r_s²)³ · (p_i - p_j)_units`
+- final: `ext_accel = (visc_amp/ρ) · visc_partial + surf_amp · surf_partial`
+
+Wiring: new `apply_ext_accel` step adds `dt·a_ext` to velocity before
+predict. xpbd_step now optionally invokes pair_forces_grid +
+apply_ext_accel before the existing predict→inner-iter→update_vel
+sequence.
+
+**Critical fp32 fix:** `h_s^9 ≈ 7.5e-42` is subnormal in fp32 →
+`1/h_s^9 = inf`. Compute amps in fp64 host-side, cast at kernel
+boundary. The amps themselves (~5e27) fit fp32 fine.
+
+**Density bridging:** Sibernetic divides viscosity by ρ-in-kg/m³,
+our ρ is in kg/unit³ (factor sim_scale³ smaller). Pre-multiply
+visc_amp by sim_scale³ so the in-kernel division by our-units ρ
+yields the right Sibernetic-equivalent acceleration.
+
+**Backward kernel `pair_forces_grid_backward`** — hand-derived
+gradients of (visc + surf) ext_accel w.r.t. positions and velocities.
+Symmetric backward trick: each thread reads BOTH its own ga_i and
+every neighbor's ga_j (active only — boundary frozen has no
+gradient), accumulating ONLY into dL/dp_i and dL/dv_i. The cross-
+particle gradients ∂L/∂p_j are picked up when thread j runs its own
+loop and sees i as a neighbor. **No atomics needed.**
+
+Per-pair contributions to dL/dp_i:
+- visc:  `K_v / r · <G_v_j − G_v_i, v_diff> · dir`
+- surf:  `−6·ss²·(h_s²−r_s²)² · dir · <dir, G_s_i − G_s_j>
+         + surf_kern · (G_s_i − G_s_j)`
+
+Per-pair contributions to dL/dv_i:
+- visc:  `K_v_v · (G_v_j − G_v_i)` (no surf v-dep)
+
+**Validation** — `test_pair_forces_bwd.py`: 2 active + 4 boundary
+toy, finite-diff with ε=1e-3, scalar loss `L = sum(ext_accel)`:
+- grad_pos rel err: **2.2e-4** ✓
+- grad_vel rel err: **3.0e-5** ✓
+
+**Trajectory effect** (1.0s sim, dt=2e-5, 50000 steps):
+- per-step cost: 0.96 → 1.20 ms/step (+25% for the new pair pass)
+- mid-fall extent: 0.97 → 1.07–1.09 (splat-stretch now visible at
+  step ~200 just like OpenCL)
+- final extent (settled on floor): 0.98 → 0.97 (~unchanged)
+
+The mid-fall splat-stretch behavior NOW matches OpenCL. The final-
+state extent retention difference (1.085 in OpenCL vs 0.97-0.98 in
+ours) remains and is a **bond/density compliance ratio gap**, not
+missing physics — see "Outstanding gap" in dev-log Future Work.
+
+**Notes on what's NOT yet wired:**
+- pair_forces are NOT included in `xpbd_full_fwd/bwd` (the trainable
+  production driver). Standalone forward + backward kernels validated;
+  wiring them into the multi-step trainable chain is the next step
+  when training-through-viscosity is requested.
+- Density ρ_i is treated as stop-gradient through the viscosity path
+  (full chain through density-compute → viscosity backward = deferred).
+
+**Files changed:**
+- `src/metal_diff/shaders.metal` — `pair_forces_grid`,
+  `apply_ext_accel`, `pair_forces_grid_backward`,
+  `apply_ext_accel_backward`.
+- `src/metal_diff/sib_metal.mm` — `xpbd_step` plumbs
+  `--visc-pair-coef`; new test ops `pair_forces_fwd/bwd`.
+- `src/metal_diff/run_demo1_via_metal.py` — `--visc-pair-coef`
+  defaults to 1e-4 (Sibernetic main path).
+- `src/metal_diff/test_pair_forces_bwd.py` — new finite-diff test.
+
+**Regression coverage:** 12 tests, all passing
+(test_xpbd, test_xpbd_full, test_dist, test_grad, test_dens_grad,
+test_constraint_grad_bwd, test_solve_dens_bwd, test_learn_bond,
+test_learn_floor, test_learn_floor_multi, test_learn_rho,
+test_pair_forces_bwd).
+
