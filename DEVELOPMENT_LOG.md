@@ -1433,8 +1433,74 @@ rule) but each kernel is involved.
 - M7.D ✓ Numerical gradient validation
 - M7.E ✓ SGD parameter learning demo
 - M7-multi ✓ 64-particle cube end-to-end gradient learning
-- M8 NEXT: distance constraint backward → bond stiffness learning
+- M8 ✓ Distance constraint backward → bond stiffness learning (commit 9a1a027)
 - M9 LATER: density chain backward → rho_rest / alpha_dens learning
+
+### M8 closed — distance backward + Sibernetic config loader (2026-05-03)
+
+**M8.A 2-particle bond:** gradient relative error vs finite-diff 1.8e-3.
+SGD reduced loss from 3.1e-3 to 3.3e-12 (9 orders of magnitude). Lands
+at a different α than truth because the loss landscape for an
+underdamped 1-iter bond has multiple local minima (oscillation phase
+aliasing) — the gradient is correct but the inverse problem is
+ill-posed without trajectory loss.
+
+**M8.B 64-particle cube + 144 bonds:** gradient relative error 4.2e-4.
+SGD recovered α = 9.7e-5 (true 1e-4, 2.5% relative error). Loss reduced
+180×. Multi-bond cube has a richer loss landscape than the 2-particle
+case — fewer phase-aliasing minima — so SGD converges close to truth.
+
+**Distance backward kernel** (`solve_distance_constraints_seq_backward`):
+sequential reverse-Gauss-Seidel that processes bonds in reverse order,
+applying the chain rule. Each bond's backward needs per-bond pre-state
+(pi, pj, λ before that bond's forward projection), saved by
+`solve_distance_constraints_seq_with_save` during forward.
+
+Per-bond Jacobians derived in code comments — 3×3 matrices for
+∂Δp_i/∂p_i, scalar ∂Δλ/∂α, etc. The math is involved but mechanical
+once you have the formulas. ~80 lines of shader code total.
+
+### Sibernetic config loader (2026-05-03)
+
+User asked: "are we not able to use the configuration files for making
+those demos the way we do with opencl?" Answer: yes, just needed to
+write the loader.
+
+`src/metal_diff/load_config.py` parses `configuration/<scenario>` files
+(same format OpenCL consumes) and writes binary buffers in our Metal
+CLI's format. Handles `[position]` (split by type 1.x/2.x/3.x →
+active/static), `[velocity]`, and `[connection]` (n_elastic × 32-slot
+table → deduplicated bonds with global-to-local index remapping).
+
+Result on demo1:
+```
+17,841 particles parsed → 343 active (218 elastic + 125 liquid),
+                          17,498 static (boundary)
+6,976 connection slots → 924 unique bonds (i < j, dedup)
+```
+
+`run_demo1_via_metal.py` drives `sib_metal xpbd_step` with the loaded
+buffers. Demo1 runs on the hand-written Metal substrate with the SAME
+scenario file OpenCL uses. 3-second sim:
+
+```
+Mean Y:  44.420 → 33.023  (Δ = -11.4, gravity-driven fall + impact)
+min Y:   39.410 → 30.000  (clamped at floor_y=30)
+Cube extent ratio: (0.99, 0.96, 0.98)   (3D cube intact, 96-99% retention)
+Per-step: 3.2 ms (vs OpenCL on L4: 1.61 ms — first-pass, no fusion)
+```
+
+Compare to imperative Taichi-Metal on the same demo1 scenario:
+0% extent retention (full pancake). The hand-written Metal substrate
+scales the M7.B "cube integrity" property to the real demo1 layout.
+
+Caveats / future work:
+  - rho_rest, h, alpha_density not yet auto-derived from config; CLI flags
+  - Density constraint disabled (alpha_dens=1e10) for the run above —
+    Sibernetic's dt=2e-5 doesn't suit our XPBD's inner-iter convergence,
+    needs tuning. The cube + bond + floor + gravity subset works.
+  - Membranes section ignored (demo1 has no membranes)
+  - Side-by-side trajectory comparison vs OpenCL deferred
 
 The imperative `taichi_solver.py` stays in the tree with the
 integration fix landed (gravity-correct, cohesion-broken). It remains
