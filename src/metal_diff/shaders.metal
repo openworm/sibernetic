@@ -222,6 +222,112 @@ kernel void density_grad_combined(
     }
 }
 
+// PERF MEGA-FUSED — distance + density + grad_C + denom_helper, all
+// inline. NO r² matrix materialization. Each inner XPBD iter reads
+// positions fresh and computes everything; for our demo1 scale this
+// drops memory bandwidth from 96 MB/step to ~750 KB/step, even though
+// per-pair compute grows ~30%.
+//
+// As a bonus: each inner iter uses CURRENT positions for distance
+// (fresh from constraint corrections), so this is strictly more
+// accurate than distance-reuse across iters.
+//
+// Tradeoff: r² is no longer available for backward kernels. Use
+// density_grad_mega_fused only in forward-only paths (xpbd_step).
+// xpbd_full_fwd (which saves state for backward) keeps using the
+// non-mega path so r² is recomputable in backward.
+kernel void density_grad_mega_fused(
+    device const packed_float3 *active        [[buffer(0)]],
+    device const packed_float3 *static_p      [[buffer(1)]],
+    device float                *density      [[buffer(2)]],
+    device packed_float3        *grad_C       [[buffer(3)]],
+    device float                *denom_helper [[buffer(4)]],
+    constant float             &h             [[buffer(5)]],
+    constant float             &h2            [[buffer(6)]],
+    constant float             &poly6_const   [[buffer(7)]],
+    constant float             &spiky_const   [[buffer(8)]],
+    constant float             &mass          [[buffer(9)]],
+    constant float             &rho_rest      [[buffer(10)]],
+    constant uint              &n_active      [[buffer(11)]],
+    constant uint              &n_static      [[buffer(12)]],
+    uint2 gid                                  [[thread_position_in_grid]],
+    uint2 lid                                  [[thread_position_in_threadgroup]],
+    uint2 tg_size                              [[threads_per_threadgroup]])
+{
+    uint i = gid.y;
+    if (i >= n_active) return;
+
+    uint t = lid.x;
+    uint T = tg_size.x;
+
+    float3 p_i = float3(active[i]);
+    float  partial_dens  = 0.0;
+    float3 partial_grad  = float3(0.0);
+    float  partial_denom = 0.0;
+    uint n_total = n_active + n_static;
+
+    for (uint k = t; k < n_total; k += T) {
+        float3 p_j;
+        bool is_active_neighbor = (k < n_active);
+        if (is_active_neighbor) {
+            p_j = float3(active[k]);
+        } else {
+            p_j = float3(static_p[k - n_active]);
+        }
+        // Inline distance.
+        float3 dir = p_i - p_j;
+        float r2 = dot(dir, dir);
+        if (r2 >= h2) continue;
+        // Wpoly6 → density (always, including self at r²=0).
+        float diff = h2 - r2;
+        partial_dens += poly6_const * diff * diff * diff;
+        // Skip self for grad/denom (avoid 0/0 in r̂).
+        if (is_active_neighbor && k == i) continue;
+        float r = sqrt(r2);
+        float h_minus_r = h - r;
+        float coef = spiky_const * h_minus_r * h_minus_r / (r + 1e-7);
+        float3 grad_W = coef * dir;
+        partial_grad  += mass * grad_W;
+        partial_denom += grad_W.x*grad_W.x + grad_W.y*grad_W.y + grad_W.z*grad_W.z;
+    }
+    // PERF — simdgroup-aware reduction. Apple Silicon GPU has 32-lane
+    // SIMD groups; simd_sum is a single hardware instruction. We reduce
+    // within each simdgroup (32 threads → 1 result) then combine the 8
+    // simdgroup results in a quick threadgroup pass. This replaces the
+    // 8-iteration tree reduction.
+    float  s_dens  = simd_sum(partial_dens);
+    float3 s_grad  = float3(simd_sum(partial_grad.x),
+                            simd_sum(partial_grad.y),
+                            simd_sum(partial_grad.z));
+    float  s_denom = simd_sum(partial_denom);
+
+    threadgroup float  simd_dens_arr[8];
+    threadgroup float3 simd_grad_arr[8];
+    threadgroup float  simd_denom_arr[8];
+    uint simd_id = t / 32;
+    uint lane = t % 32;
+    if (lane == 0) {
+        simd_dens_arr[simd_id]  = s_dens;
+        simd_grad_arr[simd_id]  = s_grad;
+        simd_denom_arr[simd_id] = s_denom;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    if (t == 0) {
+        float total_d = 0.0;
+        float3 total_g = float3(0.0);
+        float total_h = 0.0;
+        for (uint s = 0; s < 8; s++) {
+            total_d += simd_dens_arr[s];
+            total_g += simd_grad_arr[s];
+            total_h += simd_denom_arr[s];
+        }
+        density[i] = mass * total_d;
+        grad_C[i] = packed_float3(total_g / rho_rest);
+        denom_helper[i] = total_h;
+    }
+}
+
 // PERF M6.1+M6.2 fused — apply Wpoly6 to r² AND row-reduce in one pass.
 // Skips materializing the W matrix (saves ~24 MB of memory bandwidth at
 // demo1's 343×17498 = 6M-entry W matrix). Same threadgroup-reduction
