@@ -1,4 +1,35 @@
+import os
+
 import torch
+
+# torch.compile experiment: wrap the tensor-heavy substeps in
+# @torch.compile to fuse ops and reduce per-kernel-launch overhead. The
+# baseline is roughly 15 steps/sec on CUDA L4 vs 317 steps/sec for the
+# C++ OpenCL solver on the same GPU — almost all of that gap is Python
+# + per-kernel-launch overhead, which torch.compile's TorchInductor
+# backend is specifically designed to amortize.
+#
+# Toggleable so we can A/B benchmark without code changes per request.
+# Defaults ON for non-CPU devices (CUDA / MPS), OFF for CPU because
+# small-op compile overhead can outweigh the savings on CPU.
+SIBERNETIC_TORCH_COMPILE = os.environ.get("SIBERNETIC_TORCH_COMPILE", "auto").lower()
+
+
+def _maybe_compile(fn, device: str):
+    """Decorator-style helper. Returns torch.compile(fn) when enabled,
+    otherwise the original fn. Mode 'reduce-overhead' uses CUDA graphs
+    when on CUDA — the most effective for our small-op workload."""
+    enabled = (
+        SIBERNETIC_TORCH_COMPILE == "true"
+        or (SIBERNETIC_TORCH_COMPILE == "auto" and device != "cpu")
+    )
+    if not enabled:
+        return fn
+    try:
+        return torch.compile(fn, mode="reduce-overhead", dynamic=False)
+    except Exception:
+        # Older torch versions, unsupported devices, etc. — fall through.
+        return fn
 
 
 class PytorchSolver:
@@ -40,6 +71,28 @@ class PytorchSolver:
         self._timing_enabled = False
         self._timing_data = {}
         self._step_count = 0
+
+        # torch.compile experiment: wrap the per-step tensor-heavy
+        # methods. Each one is called multiple times per simulation step
+        # (compute_pressure_force_acceleration: 4× via PCISPH iterations),
+        # so amortizing the Python+launch overhead via TorchInductor's
+        # fused kernels can give multi-× speedups when running on CUDA.
+        # See _maybe_compile() at the top of this module for the toggle.
+        for _name in (
+            "run_compute_density",
+            "run_compute_pressure",
+            "run_compute_pressure_force_acceleration",
+            "run_compute_viscosity",
+            "run_compute_surface_tension",
+            "run_compute_elastic_force",
+            "run_pcisph_predict_positions",
+            "run_pcisph_predict_density",
+            "run_pcisph_correct_pressure",
+            "run_integrate",
+        ):
+            _m = getattr(self, _name, None)
+            if _m is not None:
+                setattr(self, _name, _maybe_compile(_m, str(self.device)))
 
     # ------------------------------------------------------------------
     # Phase 4.3: Logging Infrastructure
