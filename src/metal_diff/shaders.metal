@@ -361,6 +361,175 @@ kernel void density_grad_mega_grid(
     }
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// pair_forces_grid — viscosity + surface tension as a single fused
+// SPH pair-sum kernel. Mirrors Sibernetic's `pcisph_computeForces…`
+// (src/sphFluid.cl:519) but specialized to demo1's particle types
+// (cube = elastic 2.x, liquid = 1.x, walls = boundary 3.x).
+//
+// Two physics components per neighbor pair within r < h:
+//
+//   visc_force_i = (1.5 · m · ∇²W_visc / ρ_i)
+//                  · Σ_j coef_pair · (v_j - v_i) · (h_s - r_s) / 1000
+//   surf_force_i = (-1.7e-9 · surfTensCoeff / m)
+//                  · Σ_j (h_s² - r_s²)³ · (p_i - p_j)_units
+//
+// where subscript _s means scaled to meters (× sim_scale). The
+// constant 1000 is Sibernetic's literal — replicating their formula.
+// `coef_pair = 1e-4` for our cube case (elastic↔elastic,
+// elastic↔liquid, elastic↔boundary).
+//
+// Boundary particles have v_j = 0 (they don't move) — their visc
+// contribution is `coef_pair · (-v_i) · (h_s - r_s) / 1000`, which
+// is the drag-on-impact force that splat-stretches OpenCL's cube.
+//
+// Output is per-active-particle external acceleration in m/s² —
+// add it to gravity in the predict step.
+//
+// Differentiability note: this kernel reads (pos, vel) and writes
+// ext_accel. A matching backward kernel would chain ∂L/∂ext_accel
+// back to ∂L/∂pos and ∂L/∂vel; not needed for the trajectory-match
+// task but listed in M-plan for the trainable-with-viscosity path.
+// ──────────────────────────────────────────────────────────────────────
+kernel void pair_forces_grid(
+    device const packed_float3 *active_pos      [[buffer(0)]],
+    device const packed_float3 *active_vel      [[buffer(1)]],
+    device const packed_float3 *sorted_static   [[buffer(2)]],
+    device const int           *cell_start      [[buffer(3)]],
+    device const float         *density         [[buffer(4)]],
+    device packed_float3       *ext_accel       [[buffer(5)]],
+    constant float             &h               [[buffer(6)]],
+    constant float             &h2              [[buffer(7)]],
+    constant float             &mass            [[buffer(8)]],
+    constant float             &sim_scale       [[buffer(9)]],
+    constant float             &visc_pair_coef  [[buffer(10)]],
+    constant float             &visc_amp        [[buffer(11)]],
+    constant float             &surf_amp        [[buffer(12)]],
+    constant uint              &n_active        [[buffer(13)]],
+    constant int3              &grid_dim        [[buffer(14)]],
+    constant packed_float3     &grid_origin     [[buffer(15)]],
+    uint2 gid                                    [[thread_position_in_grid]],
+    uint2 lid                                    [[thread_position_in_threadgroup]],
+    uint2 tg_size                                [[threads_per_threadgroup]])
+{
+    uint i = gid.y;
+    if (i >= n_active) return;
+
+    uint t = lid.x;
+    uint T = tg_size.x;
+
+    float3 p_i = float3(active_pos[i]);
+    float3 v_i = float3(active_vel[i]);
+    float h_scaled  = h * sim_scale;
+    float h2_scaled = h_scaled * h_scaled;
+    float ss2       = sim_scale * sim_scale;
+
+    float3 visc_partial = float3(0.0);
+    float3 surf_partial = float3(0.0);
+
+    // ── active-active (dense) ──
+    for (uint k = t; k < n_active; k += T) {
+        if (k == i) continue;
+        float3 p_j = float3(active_pos[k]);
+        float3 v_j = float3(active_vel[k]);
+        float3 dir_unit = p_i - p_j;
+        float r2_unit = dot(dir_unit, dir_unit);
+        if (r2_unit >= h2) continue;
+        float r_unit = sqrt(r2_unit);
+        float r_scaled = r_unit * sim_scale;
+        float h_minus_r = h_scaled - r_scaled;
+        float r2_scaled = r2_unit * ss2;
+        float surf_kern = (h2_scaled - r2_scaled);
+        surf_kern = surf_kern * surf_kern * surf_kern;
+
+        visc_partial += visc_pair_coef * (v_j - v_i) * h_minus_r * (1.0/1000.0);
+        surf_partial += surf_kern * dir_unit;
+    }
+
+    // ── static (boundary) via 27-cell grid lookup. v_j ≡ 0. ──
+    int3 my_cell = int3(floor((p_i - float3(grid_origin)) / h));
+    int n_cells_xy = grid_dim.x * grid_dim.y;
+    for (int dz = -1; dz <= 1; dz++) {
+        int cz = my_cell.z + dz;
+        if (cz < 0 || cz >= grid_dim.z) continue;
+        for (int dy = -1; dy <= 1; dy++) {
+            int cy = my_cell.y + dy;
+            if (cy < 0 || cy >= grid_dim.y) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int cx = my_cell.x + dx;
+                if (cx < 0 || cx >= grid_dim.x) continue;
+                int c_id = cx + cy * grid_dim.x + cz * n_cells_xy;
+                int start = cell_start[c_id];
+                int end   = cell_start[c_id + 1];
+                for (int j = start + (int)t; j < end; j += (int)T) {
+                    float3 p_j = float3(sorted_static[j]);
+                    float3 dir_unit = p_i - p_j;
+                    float r2_unit = dot(dir_unit, dir_unit);
+                    if (r2_unit >= h2) continue;
+                    float r_unit = sqrt(r2_unit);
+                    float r_scaled = r_unit * sim_scale;
+                    float h_minus_r = h_scaled - r_scaled;
+                    float r2_scaled = r2_unit * ss2;
+                    float surf_kern = (h2_scaled - r2_scaled);
+                    surf_kern = surf_kern * surf_kern * surf_kern;
+
+                    // Boundary velocity is zero → (v_j - v_i) = -v_i.
+                    visc_partial += visc_pair_coef * (-v_i) * h_minus_r * (1.0/1000.0);
+                    surf_partial += surf_kern * dir_unit;
+                }
+            }
+        }
+    }
+
+    // simdgroup reduction over T threads (32, 64, 128, or 256).
+    float3 s_visc = float3(simd_sum(visc_partial.x),
+                           simd_sum(visc_partial.y),
+                           simd_sum(visc_partial.z));
+    float3 s_surf = float3(simd_sum(surf_partial.x),
+                           simd_sum(surf_partial.y),
+                           simd_sum(surf_partial.z));
+
+    threadgroup float3 simd_visc_arr[8];
+    threadgroup float3 simd_surf_arr[8];
+    uint n_simds = (T + 31) / 32;
+    uint simd_id = t / 32;
+    uint lane = t % 32;
+    if (lane == 0 && simd_id < 8) {
+        simd_visc_arr[simd_id] = s_visc;
+        simd_surf_arr[simd_id] = s_surf;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    if (t == 0) {
+        float3 v_total = float3(0.0);
+        float3 s_total = float3(0.0);
+        for (uint s = 0; s < n_simds; s++) {
+            v_total += simd_visc_arr[s];
+            s_total += simd_surf_arr[s];
+        }
+        // Final scaling. For density-zero rows (shouldn't happen at
+        // settled state but might at step 0), clamp to avoid 1/0.
+        float rho_i = max(density[i], 1e-30);
+        float3 a_visc = (visc_amp / rho_i) * v_total;
+        float3 a_surf = surf_amp * s_total;
+        ext_accel[i] = packed_float3(a_visc + a_surf);
+    }
+}
+
+// apply_ext_accel — adds external acceleration to velocity:
+//   v += dt · a_ext   (separate from gravity; gravity is in predict)
+// Used between pair_forces_grid (computes ext_accel) and predict_positions.
+kernel void apply_ext_accel(
+    device packed_float3       *vel        [[buffer(0)]],
+    device const packed_float3 *ext_accel  [[buffer(1)]],
+    constant float             &dt         [[buffer(2)]],
+    constant uint              &n          [[buffer(3)]],
+    uint gid                                [[thread_position_in_grid]])
+{
+    if (gid >= n) return;
+    vel[gid] = packed_float3(float3(vel[gid]) + float3(ext_accel[gid]) * dt);
+}
+
 // PERF MEGA-FUSED — distance + density + grad_C + denom_helper, all
 // inline. NO r² matrix materialization. Each inner XPBD iter reads
 // positions fresh and computes everything; for our demo1 scale this

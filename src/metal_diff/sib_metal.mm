@@ -737,7 +737,7 @@ static void build_static_grid(
 // ──────────────────────────────────────────────────────────────────────
 static int run_xpbd_step(int argc, char **argv) {
     // Required: op + 14 base + 3 bonds = 18 args minimum
-    // Optional: + bench_steps = 19, + sim_scale = 20
+    // Optional: + bench_steps = 19, + sim_scale = 20, + visc_pair_coef = 21
     // Pass n_bonds=0 to skip distance constraints; in that case
     // bonds.bin and alpha_dist are read but ignored.
     // sim_scale is the Sibernetic unit-system bridge: 1 particle unit
@@ -745,13 +745,17 @@ static int run_xpbd_step(int argc, char **argv) {
     // a unit system (toy-test convention). For Sibernetic configs use
     // sim_scale = 7.4e-6 (≈ Sibernetic's `simulationScale` for the
     // demo1 mass).
-    if (argc < 18 || argc > 20) {
+    // visc_pair_coef enables the Sibernetic-equivalent viscosity +
+    // surface tension pair-force pass. Default 0 disables it; 1e-4 is
+    // Sibernetic's main path coefficient (see sphFluid.cl:602-624).
+    if (argc < 18 || argc > 21) {
         fprintf(stderr,
             "usage: sib_metal xpbd_step "
             "<n_active> <n_static> <h> <mass> <rho_rest> <dt> <gravity_y> "
             "<floor_y> <alpha_density> <n_iters> "
             "<pos_active.bin> <vel_active.bin> <pos_static.bin> "
-            "<n_bonds> <bonds.bin> <alpha_dist> [bench_steps] [sim_scale]\n"
+            "<n_bonds> <bonds.bin> <alpha_dist> [bench_steps] [sim_scale] "
+            "[visc_pair_coef]\n"
             "       (outputs written to /tmp/xpbd_{pos,vel}_out.bin)\n"
             "       bonds.bin format: per bond, [int32 i, int32 j, "
             "float32 rest_len, float32 _pad] (16 bytes each)\n");
@@ -777,6 +781,30 @@ static int run_xpbd_step(int argc, char **argv) {
     if (bench_steps < 1) bench_steps = 1;
     float sim_scale = (argc >= 20) ? (float)atof(argv[19]) : 1.0f;
     float sim_scale_inv = 1.0f / sim_scale;
+    float visc_pair_coef = (argc >= 21) ? (float)atof(argv[20]) : 0.0f;
+    bool use_pair_forces = visc_pair_coef != 0.0f;
+    // Sibernetic-equivalent precomputed amps (see owPhysicsConstant.h).
+    // h_scaled = h * sim_scale; divgradWviscoCoeff = 45/(π·h_s^6);
+    // surfTensCoeff = mass·Wpoly6Coef·sim_scale; Wpoly6Coef = 315/(64π·h_s^9).
+    //
+    // Computed in fp64 because intermediates underflow fp32 — e.g.
+    // h_s^9 ≈ 7.5e-42 is subnormal in fp32, making 1/h_s^9 inf.
+    // The final surf_amp itself fits fp32 fine (~5e27).
+    double h_scaled  = (double)h * (double)sim_scale;
+    double h_s6      = pow(h_scaled, 6.0);
+    double h_s9      = pow(h_scaled, 9.0);
+    double divgradWvisco = 45.0 / (M_PI * h_s6);
+    // Sibernetic divides viscosity by density-in-kg/m³, but our density
+    // is in kg/unit³ — a factor of sim_scale^3 smaller. Compensate
+    // by pre-multiplying the amp so the in-kernel division by ρ
+    // (in our units) gives the right Sibernetic-equivalent acceleration.
+    double visc_amp_d = 1.5 * (double)mass * divgradWvisco
+                              * pow((double)sim_scale, 3.0);
+    double wpoly6_si  = 315.0 / (64.0 * M_PI * h_s9);
+    double surfTensCoef_si = (double)mass * wpoly6_si * (double)sim_scale;
+    double surf_amp_d = -1.7e-9 * surfTensCoef_si / (double)mass;
+    float visc_amp = (float)visc_amp_d;
+    float surf_amp = (float)surf_amp_d;
 
     const char *out_pos_path = "/tmp/xpbd_pos_out.bin";
     const char *out_vel_path = "/tmp/xpbd_vel_out.bin";
@@ -852,6 +880,10 @@ static int run_xpbd_step(int argc, char **argv) {
         id<MTLComputePipelineState> pso_updvel   = make_pso(ctx, "update_velocities");
         id<MTLComputePipelineState> pso_solve_b  = (n_bonds > 0)
             ? make_pso(ctx, "solve_distance_constraints_seq") : nil;
+        id<MTLComputePipelineState> pso_pair_forces = use_pair_forces
+            ? make_pso(ctx, "pair_forces_grid") : nil;
+        id<MTLComputePipelineState> pso_apply_ext   = use_pair_forces
+            ? make_pso(ctx, "apply_ext_accel") : nil;
 
         size_t pos_a_bytes = (size_t)n_active * 3 * sizeof(float);
         size_t pos_s_bytes = (size_t)n_static * 3 * sizeof(float);
@@ -901,6 +933,11 @@ static int run_xpbd_step(int argc, char **argv) {
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bufLambda   = [ctx.device newBufferWithLength:dens_bytes
             options:MTLResourceStorageModeShared];
+        // Per-particle external acceleration (m/s²) from viscosity +
+        // surface tension. Recomputed each step in pair_forces_grid.
+        id<MTLBuffer> bufExtAccel = use_pair_forces
+            ? [ctx.device newBufferWithLength:pos_a_bytes
+                  options:MTLResourceStorageModeShared] : nil;
 
         // Bond buffers: layout in memory is [int32 i, int32 j, float32 rest, float32 pad]
         // We split into bond_ij (int2 per bond) and rest_len (float per bond)
@@ -963,6 +1000,13 @@ static int run_xpbd_step(int argc, char **argv) {
             length:sizeof(float) options:MTLResourceStorageModeShared];
         id<MTLBuffer> bufSimScale    = [ctx.device newBufferWithBytes:&sim_scale
             length:sizeof(float) options:MTLResourceStorageModeShared];
+        // Pair-force scalars (only used when use_pair_forces is true).
+        id<MTLBuffer> bufViscPair    = [ctx.device newBufferWithBytes:&visc_pair_coef
+            length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufViscAmp     = [ctx.device newBufferWithBytes:&visc_amp
+            length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufSurfAmp     = [ctx.device newBufferWithBytes:&surf_amp
+            length:sizeof(float) options:MTLResourceStorageModeShared];
         // n_total for wpoly6_inplace (different per call).
         uint32_t n_aa_total = n_active * n_active;
         uint32_t n_as_total = n_active * n_static;
@@ -971,9 +1015,57 @@ static int run_xpbd_step(int argc, char **argv) {
         id<MTLBuffer> bufNasTot = [ctx.device newBufferWithBytes:&n_as_total length:sizeof(uint32_t)
             options:MTLResourceStorageModeShared];
 
+        // Pair-force step needs a density value at start of step. For
+        // step 0 we have nothing yet, so seed bufDens with rho_rest as
+        // a one-time approximation. Subsequent steps inherit density
+        // from the previous step's last inner-XPBD iteration.
+        if (use_pair_forces) {
+            float *dens0 = (float *)[bufDens contents];
+            for (uint32_t i = 0; i < n_active; i++) dens0[i] = rho_rest;
+        }
+
         CFAbsoluteTime t0 = CFAbsoluteTimeGetCurrent();
         for (int step = 0; step < bench_steps; step++) {
             id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
+
+            // ── 0. (optional) Sibernetic-equivalent viscosity +
+            //    surface tension pair forces, applied to velocity ──
+            if (use_pair_forces) {
+                {
+                    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                    [enc setComputePipelineState:pso_pair_forces];
+                    [enc setBuffer:bufPosOld       offset:0 atIndex:0];
+                    [enc setBuffer:bufVel          offset:0 atIndex:1];
+                    [enc setBuffer:bufSortedStatic offset:0 atIndex:2];
+                    [enc setBuffer:bufCellStart    offset:0 atIndex:3];
+                    [enc setBuffer:bufDens         offset:0 atIndex:4];
+                    [enc setBuffer:bufExtAccel     offset:0 atIndex:5];
+                    [enc setBuffer:bufH            offset:0 atIndex:6];
+                    [enc setBuffer:bufH2           offset:0 atIndex:7];
+                    [enc setBuffer:bufMass         offset:0 atIndex:8];
+                    [enc setBuffer:bufSimScale     offset:0 atIndex:9];
+                    [enc setBuffer:bufViscPair     offset:0 atIndex:10];
+                    [enc setBuffer:bufViscAmp      offset:0 atIndex:11];
+                    [enc setBuffer:bufSurfAmp      offset:0 atIndex:12];
+                    [enc setBuffer:bufNa           offset:0 atIndex:13];
+                    [enc setBuffer:bufGridDim      offset:0 atIndex:14];
+                    [enc setBuffer:bufGridOrigin   offset:0 atIndex:15];
+                    [enc dispatchThreads:MTLSizeMake(32, n_active, 1)
+                        threadsPerThreadgroup:MTLSizeMake(32, 1, 1)];
+                    [enc endEncoding];
+                }
+                {
+                    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                    [enc setComputePipelineState:pso_apply_ext];
+                    [enc setBuffer:bufVel       offset:0 atIndex:0];
+                    [enc setBuffer:bufExtAccel  offset:0 atIndex:1];
+                    [enc setBuffer:bufDt        offset:0 atIndex:2];
+                    [enc setBuffer:bufNa        offset:0 atIndex:3];
+                    [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [enc endEncoding];
+                }
+            }
 
             // ── 1. predict_positions ──
             {

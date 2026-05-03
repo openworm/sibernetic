@@ -62,6 +62,10 @@ def main():
     ap.add_argument('--alpha-dist', type=float, default=3.3e-9,
                     help="bond compliance (smaller = stiffer; "
                          "Sibernetic elasticityCoefficient = 1/3.3e-9)")
+    ap.add_argument('--visc-pair-coef', type=float, default=1e-4,
+                    help="Pair-force coefficient for viscosity + surface "
+                         "tension. 0 disables (toy convention); 1e-4 is "
+                         "Sibernetic's main path (sphFluid.cl:602-624).")
     ap.add_argument('--floor-y', type=float, default=0.0)
     args = ap.parse_args()
 
@@ -99,6 +103,7 @@ def main():
         str(args.alpha_dist),
         str(args.steps),
         str(args.sim_scale),
+        str(args.visc_pair_coef),
     ]
     print(f"Running xpbd_step for {args.steps} steps (dt={args.dt}, "
           f"sim_time={args.steps * args.dt:.4f}s)...")
