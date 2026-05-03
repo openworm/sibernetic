@@ -118,6 +118,163 @@ kernel void rowsum_density(
     }
 }
 
+// PERF M6.4-fused — density + grad_C + denom_helper in ONE kernel.
+// The standard XPBD pipeline computes density, grad_C, and denom_helper
+// from the SAME per-pair iterator over (active+static) neighbors. This
+// kernel does all three reductions in one threadgroup pass over r².
+//
+// Replaces (per inner XPBD iter):
+//   wpoly6_rowsum_density_fused × 2 (aa + as)
+//   density_constraint_grad
+// → single density_grad_combined kernel.
+//
+// Outputs:
+//   density[i]      = mass · Σ_j W_poly6(r_ij)
+//   grad_C[i]       = (mass/ρ_rest) · Σ_j ∇W_spiky(p_i - p_j)
+//   denom_helper[i] = Σ_j |∇W_spiky(p_i - p_j)|²
+//
+// Three threadgroup reduction buffers (float for density, float3 for
+// grad, float for denom). Apple Silicon has plenty of threadgroup mem.
+//
+// Dispatch: grid (256, n_active, 1), threadgroup (256, 1, 1).
+kernel void density_grad_combined(
+    device const packed_float3  *active        [[buffer(0)]],
+    device const packed_float3  *static_p      [[buffer(1)]],
+    device const float          *r2_aa         [[buffer(2)]],
+    device const float          *r2_as         [[buffer(3)]],
+    device float                *density       [[buffer(4)]],   // out
+    device packed_float3        *grad_C        [[buffer(5)]],   // out
+    device float                *denom_helper  [[buffer(6)]],   // out
+    constant float              &h             [[buffer(7)]],
+    constant float              &poly6_const   [[buffer(8)]],
+    constant float              &spiky_const   [[buffer(9)]],
+    constant float              &mass          [[buffer(10)]],
+    constant float              &rho_rest      [[buffer(11)]],
+    constant uint               &n_active      [[buffer(12)]],
+    constant uint               &n_static      [[buffer(13)]],
+    uint2 gid                                   [[thread_position_in_grid]],
+    uint2 lid                                   [[thread_position_in_threadgroup]],
+    uint2 tg_size                               [[threads_per_threadgroup]])
+{
+    uint i = gid.y;
+    if (i >= n_active) return;
+
+    threadgroup float  partials_dens[256];
+    threadgroup float3 partials_grad[256];
+    threadgroup float  partials_denom[256];
+    uint t = lid.x;
+    uint T = tg_size.x;
+
+    float h2 = h * h;
+    float3 p_i = float3(active[i]);
+    float  partial_dens  = 0.0;
+    float3 partial_grad  = float3(0.0);
+    float  partial_denom = 0.0;
+    uint n_total = n_active + n_static;
+
+    for (uint k = t; k < n_total; k += T) {
+        float r2;
+        float3 dir;
+        if (k < n_active) {
+            uint j = k;
+            // Self contribution to density (W(0)) IS included in the
+            // standard SPH formulation but NOT for grad/denom (avoid
+            // singularity at r=0).
+            r2 = r2_aa[i * n_active + j];
+            if (r2 >= h2) continue;
+            // Wpoly6 contribution to density (always, including self).
+            float diff = h2 - r2;
+            partial_dens += poly6_const * diff * diff * diff;
+            if (j == i) continue;  // skip self for grad/denom only
+            dir = p_i - float3(active[j]);
+        } else {
+            uint j = k - n_active;
+            r2 = r2_as[i * n_static + j];
+            if (r2 >= h2) continue;
+            float diff = h2 - r2;
+            partial_dens += poly6_const * diff * diff * diff;
+            dir = p_i - float3(static_p[j]);
+        }
+        float r = sqrt(r2);
+        float h_minus_r = h - r;
+        float coef = spiky_const * h_minus_r * h_minus_r / (r + 1e-7);
+        float3 grad_W = coef * dir;
+        partial_grad  += mass * grad_W;
+        partial_denom += grad_W.x*grad_W.x + grad_W.y*grad_W.y + grad_W.z*grad_W.z;
+    }
+    partials_dens[t]  = partial_dens;
+    partials_grad[t]  = partial_grad;
+    partials_denom[t] = partial_denom;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    for (uint stride = T / 2; stride > 0; stride >>= 1) {
+        if (t < stride) {
+            partials_dens[t]  += partials_dens[t + stride];
+            partials_grad[t]  += partials_grad[t + stride];
+            partials_denom[t] += partials_denom[t + stride];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if (t == 0) {
+        density[i] = mass * partials_dens[0];
+        grad_C[i] = packed_float3(partials_grad[0] / rho_rest);
+        denom_helper[i] = partials_denom[0];
+    }
+}
+
+// PERF M6.1+M6.2 fused — apply Wpoly6 to r² AND row-reduce in one pass.
+// Skips materializing the W matrix (saves ~24 MB of memory bandwidth at
+// demo1's 343×17498 = 6M-entry W matrix). Same threadgroup-reduction
+// pattern as rowsum_density, but the Wpoly6 evaluation happens inline
+// inside the per-thread accumulator loop.
+//
+// Forward chain replaced:
+//   wpoly6_inplace + rowsum_density   →   wpoly6_rowsum_density_fused
+// Back-compat: the un-fused kernels stay so backward (which separates
+// the two stages) still works unchanged.
+//
+// Dispatch: grid (256, n_rows, 1), threadgroup (256, 1, 1).
+kernel void wpoly6_rowsum_density_fused(
+    device const float *r2          [[buffer(0)]],   // input
+    device float       *density     [[buffer(1)]],   // output
+    constant float     &h2          [[buffer(2)]],
+    constant float     &poly6_const [[buffer(3)]],
+    constant float     &mass        [[buffer(4)]],
+    constant uint      &n_cols      [[buffer(5)]],
+    constant uint      &n_rows      [[buffer(6)]],
+    uint2 gid                        [[thread_position_in_grid]],
+    uint2 lid                        [[thread_position_in_threadgroup]],
+    uint2 tg_size                    [[threads_per_threadgroup]])
+{
+    uint i = gid.y;
+    if (i >= n_rows) return;
+
+    threadgroup float partials[256];
+    uint t = lid.x;
+    uint T = tg_size.x;
+
+    float partial = 0.0;
+    for (uint j = t; j < n_cols; j += T) {
+        float r2_val = r2[i * n_cols + j];
+        if (r2_val < h2) {
+            float diff = h2 - r2_val;
+            partial += poly6_const * diff * diff * diff;
+        }
+    }
+    partials[t] = partial;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    for (uint stride = T / 2; stride > 0; stride >>= 1) {
+        if (t < stride) {
+            partials[t] += partials[t + stride];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if (t == 0) {
+        density[i] = mass * partials[0];
+    }
+}
+
 // M6.4 — Density constraint gradient (fused).
 //
 // XPBD's density constraint is C_i = ρ_i / ρ_rest - 1. We need
