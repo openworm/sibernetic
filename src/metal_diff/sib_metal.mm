@@ -261,6 +261,107 @@ kernel void density_constraint_grad(
 }
 
 // ────────────────────────────────────────────────────────────────────
+// M9: density-chain backward kernels (gradient chain Option 3).
+//   M6.0_bwd dist_active_static_backward
+//   M6.1_bwd wpoly6_inplace_backward (in-place: ∂L/∂W → ∂L/∂r²)
+//   M6.2_bwd rowsum_density_backward (broadcast)
+//   M6.3_bwd dist_active_active_backward
+// Each pairs with its forward kernel above.
+// ────────────────────────────────────────────────────────────────────
+
+// M6.0_bwd — Backward of dist_active_static.
+// Forward: r²[i, j] = ||active[i] - static_p[j]||²
+// Static positions are FROZEN, so we don't write gradients for them.
+// Active gradient: ∂L/∂active[i] += Σ_j ∂L/∂r²[i,j] · 2·(active[i] - static_p[j]).
+//
+// One thread per active particle row — straightforward inner sum over
+// static neighbors.
+kernel void dist_active_static_backward(
+    device const packed_float3 *active     [[buffer(0)]],
+    device const packed_float3 *static_p   [[buffer(1)]],
+    device const float          *grad_r2   [[buffer(2)]],
+    device packed_float3        *grad_active [[buffer(3)]],   // accumulate
+    constant uint              &n_active   [[buffer(4)]],
+    constant uint              &n_static   [[buffer(5)]],
+    uint i                                  [[thread_position_in_grid]])
+{
+    if (i >= n_active) return;
+    float3 grad = float3(0.0);
+    float3 ai = float3(active[i]);
+    for (uint j = 0; j < n_static; j++) {
+        float3 diff = ai - float3(static_p[j]);
+        grad += 2.0 * grad_r2[i * n_static + j] * diff;
+    }
+    grad_active[i] = packed_float3(float3(grad_active[i]) + grad);
+}
+
+// M6.3_bwd — Backward of dist_active_active.
+// Both i and j are active, so both get gradient updates. Per particle i:
+//   ∂L/∂active[i] += Σ_j (grad_r2[i,j] + grad_r2[j,i]) · 2·(active[i] - active[j])
+// (because r²[j,i] also depends on active[i] via the symmetric formula).
+kernel void dist_active_active_backward(
+    device const packed_float3 *active     [[buffer(0)]],
+    device const float          *grad_r2   [[buffer(1)]],
+    device packed_float3        *grad_active [[buffer(2)]],
+    constant uint              &n_active   [[buffer(3)]],
+    uint i                                  [[thread_position_in_grid]])
+{
+    if (i >= n_active) return;
+    float3 grad = float3(0.0);
+    float3 ai = float3(active[i]);
+    for (uint j = 0; j < n_active; j++) {
+        if (j == i) continue;
+        float3 diff = ai - float3(active[j]);
+        grad += 2.0 * (grad_r2[i * n_active + j]
+                       + grad_r2[j * n_active + i]) * diff;
+    }
+    grad_active[i] = packed_float3(float3(grad_active[i]) + grad);
+}
+
+// M6.1_bwd — In-place backward of wpoly6_inplace.
+// Forward: W = poly6_const · (h² - r²)³  if r² < h² else 0
+//   dW/dr² = -3 · poly6_const · (h² - r²)²
+// In-place: input buffer holds ∂L/∂W; on return holds ∂L/∂r².
+// Requires saved r² from forward (passed as separate buffer).
+kernel void wpoly6_inplace_backward(
+    device const float *r2          [[buffer(0)]],   // saved r² from forward
+    device float       *grad_W_or_r2 [[buffer(1)]],  // in: ∂L/∂W; out: ∂L/∂r²
+    constant float     &h2           [[buffer(2)]],
+    constant float     &poly6_const  [[buffer(3)]],
+    constant uint      &n_total      [[buffer(4)]],
+    uint gid                          [[thread_position_in_grid]])
+{
+    if (gid >= n_total) return;
+    float r2_val = r2[gid];
+    if (r2_val >= h2) {
+        grad_W_or_r2[gid] = 0.0;
+        return;
+    }
+    float diff = h2 - r2_val;
+    float dW_dr2 = -3.0 * poly6_const * diff * diff;
+    grad_W_or_r2[gid] = grad_W_or_r2[gid] * dW_dr2;
+}
+
+// M6.2_bwd — Backward of rowsum_density.
+// Forward: density[i] = mass · Σ_j W[i,j]
+//   ∂L/∂W[i,j] = mass · ∂L/∂density[i]   (constant across j)
+// Trivial broadcast: dispatch (n_rows × n_cols), each thread writes one
+// element of grad_W. (We could instead pre-multiply ∂L/∂density by mass
+// host-side and skip the kernel entirely — but having an explicit
+// backward kernel keeps the chain symmetric with the forward.)
+kernel void rowsum_density_backward(
+    device const float *grad_density [[buffer(0)]],   // [n_rows]
+    device float       *grad_W       [[buffer(1)]],   // [n_rows × n_cols]
+    constant float     &mass         [[buffer(2)]],
+    constant uint      &n_cols       [[buffer(3)]],
+    uint2 gid                         [[thread_position_in_grid]])
+{
+    uint i = gid.y;  // row
+    uint j = gid.x;  // col
+    grad_W[i * n_cols + j] = mass * grad_density[i];
+}
+
+// ────────────────────────────────────────────────────────────────────
 // M7: XPBD orchestration kernels
 // ────────────────────────────────────────────────────────────────────
 
@@ -2528,6 +2629,246 @@ static int run_step_bond_bwd(int argc, char **argv) {
     return 0;
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// M9.A — density_as_fwd: compute density at each active particle from
+// active×static neighbor SPH kernel evaluation. No active-active term;
+// kept minimal to validate the density backward chain in isolation.
+//
+// Pipeline: dist_active_static → wpoly6_inplace → rowsum_density.
+// Saves r² (post-distance, pre-Wpoly6) for backward.
+// ──────────────────────────────────────────────────────────────────────
+static int run_density_as_fwd(int argc, char **argv) {
+    if (argc != 10) {
+        fprintf(stderr,
+            "usage: sib_metal density_as_fwd "
+            "<n_active> <n_static> <h> <mass> "
+            "<active.bin> <static.bin> <density_out.bin> <r2_saved_out.bin>\n");
+        return 1;
+    }
+    uint32_t n_active = (uint32_t)atoi(argv[2]);
+    uint32_t n_static = (uint32_t)atoi(argv[3]);
+    float h    = (float)atof(argv[4]);
+    float mass = (float)atof(argv[5]);
+
+    float h2 = h * h;
+    float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
+    uint32_t n_r2 = n_active * n_static;
+
+    auto read_floats = ^(const char *path, size_t n_floats) {
+        FILE *f = fopen(path, "rb");
+        if (!f) { fprintf(stderr, "cannot open %s\n", path); exit(1); }
+        float *buf = (float *)malloc(n_floats * sizeof(float));
+        if (fread(buf, sizeof(float), n_floats, f) != n_floats) {
+            fprintf(stderr, "short read on %s\n", path); exit(1);
+        }
+        fclose(f); return buf;
+    };
+    float *active   = read_floats(argv[6], (size_t)n_active * 3);
+    float *static_p = read_floats(argv[7], (size_t)n_static * 3);
+
+    @autoreleasepool {
+        MetalCtx ctx = make_ctx();
+        id<MTLComputePipelineState> pso_dist = make_pso(ctx, "dist_active_static");
+        id<MTLComputePipelineState> pso_wp   = make_pso(ctx, "wpoly6_inplace");
+        id<MTLComputePipelineState> pso_rs   = make_pso(ctx, "rowsum_density");
+
+        size_t r2_bytes = (size_t)n_r2 * sizeof(float);
+        size_t dens_bytes = (size_t)n_active * sizeof(float);
+
+        id<MTLBuffer> bA = [ctx.device newBufferWithBytes:active
+            length:(size_t)n_active * 3 * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bS = [ctx.device newBufferWithBytes:static_p
+            length:(size_t)n_static * 3 * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bR2 = [ctx.device newBufferWithLength:r2_bytes
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bW = [ctx.device newBufferWithLength:r2_bytes
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bD = [ctx.device newBufferWithLength:dens_bytes
+            options:MTLResourceStorageModeShared];
+
+        id<MTLBuffer> bH2 = [ctx.device newBufferWithBytes:&h2 length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bP6 = [ctx.device newBufferWithBytes:&poly6_const length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bM = [ctx.device newBufferWithBytes:&mass length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNa = [ctx.device newBufferWithBytes:&n_active length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNs = [ctx.device newBufferWithBytes:&n_static length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNr2 = [ctx.device newBufferWithBytes:&n_r2 length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+
+        id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
+        // distance
+        { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+          [e setComputePipelineState:pso_dist];
+          [e setBuffer:bA offset:0 atIndex:0]; [e setBuffer:bS offset:0 atIndex:1];
+          [e setBuffer:bR2 offset:0 atIndex:2];
+          [e setBuffer:bNa offset:0 atIndex:3]; [e setBuffer:bNs offset:0 atIndex:4];
+          [e dispatchThreads:MTLSizeMake(n_active, n_static, 1)
+              threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
+          [e endEncoding]; }
+        // GPU-side blit r2 → W (so we can later transform W in-place
+        // while keeping r2 saved for backward).
+        { id<MTLBlitCommandEncoder> blit = [cmd blitCommandEncoder];
+          [blit copyFromBuffer:bR2 sourceOffset:0
+                      toBuffer:bW destinationOffset:0
+                          size:r2_bytes];
+          [blit endEncoding]; }
+        // wpoly6 in-place on W
+        { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+          [e setComputePipelineState:pso_wp];
+          [e setBuffer:bW offset:0 atIndex:0]; [e setBuffer:bH2 offset:0 atIndex:1];
+          [e setBuffer:bP6 offset:0 atIndex:2]; [e setBuffer:bNr2 offset:0 atIndex:3];
+          [e dispatchThreads:MTLSizeMake(n_r2, 1, 1)
+              threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
+          [e endEncoding]; }
+        // rowsum density
+        { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+          [e setComputePipelineState:pso_rs];
+          [e setBuffer:bW offset:0 atIndex:0]; [e setBuffer:bD offset:0 atIndex:1];
+          [e setBuffer:bM offset:0 atIndex:2];
+          [e setBuffer:bNs offset:0 atIndex:3]; [e setBuffer:bNa offset:0 atIndex:4];
+          [e dispatchThreads:MTLSizeMake(256, n_active, 1)
+              threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
+          [e endEncoding]; }
+        [cmd commit]; [cmd waitUntilCompleted];
+
+        FILE *fd = fopen(argv[8], "wb");
+        fwrite([bD contents], 1, dens_bytes, fd); fclose(fd);
+        FILE *fr = fopen(argv[9], "wb");
+        fwrite([bR2 contents], 1, r2_bytes, fr); fclose(fr);
+    }
+    free(active); free(static_p);
+    return 0;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// M9.A — density_as_bwd: backward through density_as_fwd.
+//
+// Inputs: ∂L/∂density [n_active], saved r², positions
+// Outputs: ∂L/∂active [n_active × 3]  (static positions are frozen)
+//
+// Reverse pipeline:
+//   ∂L/∂W   = rowsum_density_backward(∂L/∂density)         (broadcast)
+//   ∂L/∂r²  = wpoly6_inplace_backward(∂L/∂W; saved r²)     (in-place)
+//   ∂L/∂act = dist_active_static_backward(∂L/∂r²)
+// ──────────────────────────────────────────────────────────────────────
+static int run_density_as_bwd(int argc, char **argv) {
+    if (argc != 11) {
+        fprintf(stderr,
+            "usage: sib_metal density_as_bwd "
+            "<n_active> <n_static> <h> <mass> "
+            "<active.bin> <static.bin> <r2_saved.bin> "
+            "<grad_density.bin> <grad_active_out.bin>\n");
+        return 1;
+    }
+    uint32_t n_active = (uint32_t)atoi(argv[2]);
+    uint32_t n_static = (uint32_t)atoi(argv[3]);
+    float h    = (float)atof(argv[4]);
+    float mass = (float)atof(argv[5]);
+
+    float h2 = h * h;
+    float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
+    uint32_t n_r2 = n_active * n_static;
+
+    auto read_floats = ^(const char *path, size_t n_floats) {
+        FILE *f = fopen(path, "rb");
+        if (!f) { fprintf(stderr, "cannot open %s\n", path); exit(1); }
+        float *buf = (float *)malloc(n_floats * sizeof(float));
+        fread(buf, sizeof(float), n_floats, f); fclose(f); return buf;
+    };
+    float *active   = read_floats(argv[6], (size_t)n_active * 3);
+    float *static_p = read_floats(argv[7], (size_t)n_static * 3);
+    float *r2_saved = read_floats(argv[8], (size_t)n_r2);
+    float *grad_d   = read_floats(argv[9], (size_t)n_active);
+
+    @autoreleasepool {
+        MetalCtx ctx = make_ctx();
+        id<MTLComputePipelineState> pso_rs_bw = make_pso(ctx, "rowsum_density_backward");
+        id<MTLComputePipelineState> pso_wp_bw = make_pso(ctx, "wpoly6_inplace_backward");
+        id<MTLComputePipelineState> pso_d_bw  = make_pso(ctx, "dist_active_static_backward");
+
+        size_t r2_bytes = (size_t)n_r2 * sizeof(float);
+        size_t a_bytes  = (size_t)n_active * 3 * sizeof(float);
+
+        id<MTLBuffer> bA = [ctx.device newBufferWithBytes:active length:a_bytes
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bS = [ctx.device newBufferWithBytes:static_p
+            length:(size_t)n_static * 3 * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bR2 = [ctx.device newBufferWithBytes:r2_saved length:r2_bytes
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGd = [ctx.device newBufferWithBytes:grad_d
+            length:(size_t)n_active * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGW_or_Gr2 = [ctx.device newBufferWithLength:r2_bytes
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGa = [ctx.device newBufferWithLength:a_bytes
+            options:MTLResourceStorageModeShared];
+        memset([bGa contents], 0, a_bytes);
+
+        id<MTLBuffer> bH2 = [ctx.device newBufferWithBytes:&h2 length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bP6 = [ctx.device newBufferWithBytes:&poly6_const length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bM = [ctx.device newBufferWithBytes:&mass length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNa = [ctx.device newBufferWithBytes:&n_active length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNs = [ctx.device newBufferWithBytes:&n_static length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNr2 = [ctx.device newBufferWithBytes:&n_r2 length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+
+        id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
+        // (1) rowsum_bwd: broadcast grad_density → grad_W (write)
+        { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+          [e setComputePipelineState:pso_rs_bw];
+          [e setBuffer:bGd offset:0 atIndex:0];
+          [e setBuffer:bGW_or_Gr2 offset:0 atIndex:1];
+          [e setBuffer:bM offset:0 atIndex:2];
+          [e setBuffer:bNs offset:0 atIndex:3];
+          [e dispatchThreads:MTLSizeMake(n_static, n_active, 1)
+              threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
+          [e endEncoding]; }
+        // (2) wpoly6_bwd in-place: grad_W → grad_r²
+        { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+          [e setComputePipelineState:pso_wp_bw];
+          [e setBuffer:bR2 offset:0 atIndex:0];
+          [e setBuffer:bGW_or_Gr2 offset:0 atIndex:1];
+          [e setBuffer:bH2 offset:0 atIndex:2];
+          [e setBuffer:bP6 offset:0 atIndex:3];
+          [e setBuffer:bNr2 offset:0 atIndex:4];
+          [e dispatchThreads:MTLSizeMake(n_r2, 1, 1)
+              threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
+          [e endEncoding]; }
+        // (3) dist_bwd: grad_r² → grad_active
+        { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+          [e setComputePipelineState:pso_d_bw];
+          [e setBuffer:bA offset:0 atIndex:0];
+          [e setBuffer:bS offset:0 atIndex:1];
+          [e setBuffer:bGW_or_Gr2 offset:0 atIndex:2];
+          [e setBuffer:bGa offset:0 atIndex:3];
+          [e setBuffer:bNa offset:0 atIndex:4];
+          [e setBuffer:bNs offset:0 atIndex:5];
+          [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+              threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+          [e endEncoding]; }
+        [cmd commit]; [cmd waitUntilCompleted];
+
+        FILE *fo = fopen("/tmp/density_as_grad_active.bin", "wb");
+        fwrite([bGa contents], 1, a_bytes, fo); fclose(fo);
+        // Allow caller to override output path via argv[9] if it's
+        // different — for simplicity fixed path.
+    }
+    free(active); free(static_p); free(r2_saved); free(grad_d);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: sib_metal <op> [args...]\n"
@@ -2536,7 +2877,8 @@ int main(int argc, char **argv) {
                         "density_constraint_grad, xpbd_step, "
                         "step_simple_fwd, step_simple_bwd, "
                         "step_floor_fwd, step_floor_bwd, "
-                        "step_bond_fwd, step_bond_bwd\n");
+                        "step_bond_fwd, step_bond_bwd, "
+                        "density_as_fwd, density_as_bwd\n");
         return 1;
     }
     if (strcmp(argv[1], "dist_active_static") == 0)
@@ -2563,6 +2905,10 @@ int main(int argc, char **argv) {
         return run_step_bond_fwd(argc, argv);
     if (strcmp(argv[1], "step_bond_bwd") == 0)
         return run_step_bond_bwd(argc, argv);
+    if (strcmp(argv[1], "density_as_fwd") == 0)
+        return run_density_as_fwd(argc, argv);
+    if (strcmp(argv[1], "density_as_bwd") == 0)
+        return run_density_as_bwd(argc, argv);
     fprintf(stderr, "unknown op: %s\n", argv[1]);
     return 1;
 }
