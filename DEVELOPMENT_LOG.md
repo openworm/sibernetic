@@ -1502,6 +1502,88 @@ Caveats / future work:
   - Membranes section ignored (demo1 has no membranes)
   - Side-by-side trajectory comparison vs OpenCL deferred
 
+### M9.A: density value backward chain (2026-05-03)
+
+User asked to keep going on M9 and to plan for membranes + bringing
+back the density constraint. This turn delivers M9.A (foundation) and
+documents the path to full density constraint learning + membrane
+support.
+
+Added 4 backward kernels to sib_metal.mm:
+- `dist_active_static_backward` — chain rule through r²[i,j] = ||a[i]-s[j]||².
+  Static positions are frozen, only active gradients written.
+- `dist_active_active_backward` — symmetric variant; both particles
+  contribute. ∂L/∂a[i] += Σ_j (grad_r2[i,j] + grad_r2[j,i]) · 2(a[i]-a[j]).
+- `wpoly6_inplace_backward` — in-place: input buffer holds ∂L/∂W on
+  entry, ∂L/∂r² on exit. Saved r² from forward read separately.
+- `rowsum_density_backward` — trivial broadcast: ∂L/∂W[i,j] = mass · ∂L/∂density[i].
+
+Plus `density_as_fwd` / `density_as_bwd` driver ops. Forward chains
+dist_active_static → wpoly6 → rowsum and saves r² for backward;
+backward chains the three backward kernels in reverse.
+
+Validation (`test_dens_grad.py`, 6 active + 30 static, random weights):
+```
+Max abs error:           4.1e-05
+Mean |∇| (numerical):    4.5e-01
+Max-error / mean-grad:   9.1e-05
+[PASS] M9.A: density backward agrees with finite-diff
+```
+
+All 18 sampled gradient components match the analytical chain rule to
+4-5 sig figs. The chain is correct.
+
+### M9 roadmap (what's left)
+
+- M9.A ✓ density value backward (this turn)
+- M9.B — wire `dist_active_active_backward` into the density chain so
+  active-active SPH neighbors contribute. Kernel exists; just needs
+  a driver wrapping (predict isn't relevant — this is just the density
+  evaluation). Validation: scene with no static particles, several
+  active particles overlapping kernel support, ∂density/∂active grad
+  check.
+- M9.C — `density_constraint_grad_backward`. The forward kernel
+  (M6.4) computes both `grad_C[i]` (3-vec via ∇W_spiky) and
+  `denom_helper[i]` (Σ|∇W_spiky|²) in one pass with threadgroup
+  reduction. Backward needs to invert that:
+    ∂L/∂pos contributions from BOTH outputs flowing through ∇W_spiky.
+    ∇W_spiky has its own per-pair Jacobian (3×3 matrix). This is the
+    deepest backward in the system — ~150 lines of careful Metal.
+- M9.D — `solve_density_constraint_backward`. XPBD constraint projection
+  backward, similar structure to M8 distance backward but with the
+  one-sided projection (skip if C ≤ 0) and the more involved
+  ∂Δλ/∂(rho_rest, α_dens) parameter gradients.
+- M9.E — capstone: end-to-end XPBD-with-density backward. Demo:
+  start with miscalibrated rho_rest on the cube scenario, observe it
+  pancake or explode, SGD-recover the rho_rest value that produces
+  observed-correct cube behavior. This closes the loop on the
+  original "fix cube-pancake by gradient descent" use case.
+
+### Membrane support roadmap (M10)
+
+Format from `configuration/worm`:
+- `[membranes]`: each row is 3 ints, particle indices forming a triangle
+- `[particleMemIndex]`: per-particle reverse index into membrane list
+  (-1 = not on a membrane)
+
+For XPBD, a triangle membrane translates to either:
+  (a) Three distance constraints between the triangle vertices
+      (simple: reuses M7.B distance constraint forward + M8 backward)
+  (b) An area-preservation constraint
+      (more accurate: maintains triangle area against deformation;
+       used in cloth/membrane physics)
+  (c) Both — distance constraints define the rest geometry,
+      area constraint adds resistance to volumetric deformation
+
+Path of least resistance: option (a). The worm cuticle's behavior
+under crawling forces should be approximated by the distance-constraint
+network alone for first-pass validation. Add area constraints as M10.B
+if biomechanics validation needs more shape preservation.
+
+Loader extension needed: `load_config.py` already ignores membranes;
+add a `--include-membranes` flag that emits an additional bonds list
+for the triangle edges.
+
 The imperative `taichi_solver.py` stays in the tree with the
 integration fix landed (gravity-correct, cohesion-broken). It remains
 useful as a non-differentiable Taichi reference for any future rebuild,
