@@ -737,16 +737,21 @@ static void build_static_grid(
 // ──────────────────────────────────────────────────────────────────────
 static int run_xpbd_step(int argc, char **argv) {
     // Required: op + 14 base + 3 bonds = 18 args minimum
-    // Optional: + bench_steps = 19
+    // Optional: + bench_steps = 19, + sim_scale = 20
     // Pass n_bonds=0 to skip distance constraints; in that case
     // bonds.bin and alpha_dist are read but ignored.
-    if (argc != 18 && argc != 19) {
+    // sim_scale is the Sibernetic unit-system bridge: 1 particle unit
+    // = sim_scale meters. Default 1.0 means positions and velocity share
+    // a unit system (toy-test convention). For Sibernetic configs use
+    // sim_scale = 7.4e-6 (≈ Sibernetic's `simulationScale` for the
+    // demo1 mass).
+    if (argc < 18 || argc > 20) {
         fprintf(stderr,
             "usage: sib_metal xpbd_step "
             "<n_active> <n_static> <h> <mass> <rho_rest> <dt> <gravity_y> "
             "<floor_y> <alpha_density> <n_iters> "
             "<pos_active.bin> <vel_active.bin> <pos_static.bin> "
-            "<n_bonds> <bonds.bin> <alpha_dist> [bench_steps]\n"
+            "<n_bonds> <bonds.bin> <alpha_dist> [bench_steps] [sim_scale]\n"
             "       (outputs written to /tmp/xpbd_{pos,vel}_out.bin)\n"
             "       bonds.bin format: per bond, [int32 i, int32 j, "
             "float32 rest_len, float32 _pad] (16 bytes each)\n");
@@ -768,8 +773,10 @@ static int run_xpbd_step(int argc, char **argv) {
     uint32_t n_bonds   = (uint32_t)atoi(argv[15]);
     const char *path_bonds       = argv[16];
     float alpha_dist  = (float)atof(argv[17]);
-    int bench_steps = (argc == 19) ? atoi(argv[18]) : 1;
+    int bench_steps = (argc >= 19) ? atoi(argv[18]) : 1;
     if (bench_steps < 1) bench_steps = 1;
+    float sim_scale = (argc >= 20) ? (float)atof(argv[19]) : 1.0f;
+    float sim_scale_inv = 1.0f / sim_scale;
 
     const char *out_pos_path = "/tmp/xpbd_pos_out.bin";
     const char *out_vel_path = "/tmp/xpbd_vel_out.bin";
@@ -952,6 +959,10 @@ static int run_xpbd_step(int argc, char **argv) {
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bufAdt2  = [ctx.device newBufferWithBytes:&alpha_inv_dt2 length:sizeof(float)
             options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufSimScaleInv = [ctx.device newBufferWithBytes:&sim_scale_inv
+            length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufSimScale    = [ctx.device newBufferWithBytes:&sim_scale
+            length:sizeof(float) options:MTLResourceStorageModeShared];
         // n_total for wpoly6_inplace (different per call).
         uint32_t n_aa_total = n_active * n_active;
         uint32_t n_as_total = n_active * n_static;
@@ -968,12 +979,13 @@ static int run_xpbd_step(int argc, char **argv) {
             {
                 id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
                 [enc setComputePipelineState:pso_predict];
-                [enc setBuffer:bufPosOld  offset:0 atIndex:0];
-                [enc setBuffer:bufVel     offset:0 atIndex:1];
-                [enc setBuffer:bufPosPred offset:0 atIndex:2];
-                [enc setBuffer:bufDt      offset:0 atIndex:3];
-                [enc setBuffer:bufG       offset:0 atIndex:4];
-                [enc setBuffer:bufNa      offset:0 atIndex:5];
+                [enc setBuffer:bufPosOld       offset:0 atIndex:0];
+                [enc setBuffer:bufVel          offset:0 atIndex:1];
+                [enc setBuffer:bufPosPred      offset:0 atIndex:2];
+                [enc setBuffer:bufDt           offset:0 atIndex:3];
+                [enc setBuffer:bufG            offset:0 atIndex:4];
+                [enc setBuffer:bufNa           offset:0 atIndex:5];
+                [enc setBuffer:bufSimScaleInv  offset:0 atIndex:6];
                 [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
                     threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
                 [enc endEncoding];
@@ -1075,11 +1087,12 @@ static int run_xpbd_step(int argc, char **argv) {
             {
                 id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
                 [enc setComputePipelineState:pso_updvel];
-                [enc setBuffer:bufVel     offset:0 atIndex:0];
-                [enc setBuffer:bufPosOld  offset:0 atIndex:1];
-                [enc setBuffer:bufPosPred offset:0 atIndex:2];
-                [enc setBuffer:bufDt      offset:0 atIndex:3];
-                [enc setBuffer:bufNa      offset:0 atIndex:4];
+                [enc setBuffer:bufVel        offset:0 atIndex:0];
+                [enc setBuffer:bufPosOld     offset:0 atIndex:1];
+                [enc setBuffer:bufPosPred    offset:0 atIndex:2];
+                [enc setBuffer:bufDt         offset:0 atIndex:3];
+                [enc setBuffer:bufNa         offset:0 atIndex:4];
+                [enc setBuffer:bufSimScale   offset:0 atIndex:5];
                 [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
                     threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
                 [enc endEncoding];
@@ -1178,17 +1191,23 @@ static int run_step_simple_fwd(int argc, char **argv) {
         id<MTLBuffer> bN   = [ctx.device newBufferWithBytes:&n length:sizeof(uint32_t)
             options:MTLResourceStorageModeShared];
 
+        // Identity unit-scale (toy convention: pos & vel share unit system).
+        float one = 1.0f;
+        id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+
         id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
         // predict
         {
             id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
             [e setComputePipelineState:pso_predict];
-            [e setBuffer:bX  offset:0 atIndex:0];
-            [e setBuffer:bV  offset:0 atIndex:1];
-            [e setBuffer:bXp offset:0 atIndex:2];
-            [e setBuffer:bDt offset:0 atIndex:3];
-            [e setBuffer:bG  offset:0 atIndex:4];
-            [e setBuffer:bN  offset:0 atIndex:5];
+            [e setBuffer:bX   offset:0 atIndex:0];
+            [e setBuffer:bV   offset:0 atIndex:1];
+            [e setBuffer:bXp  offset:0 atIndex:2];
+            [e setBuffer:bDt  offset:0 atIndex:3];
+            [e setBuffer:bG   offset:0 atIndex:4];
+            [e setBuffer:bN   offset:0 atIndex:5];
+            [e setBuffer:bOne offset:0 atIndex:6];
             [e dispatchThreads:MTLSizeMake(n, 1, 1)
                 threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
             [e endEncoding];
@@ -1197,11 +1216,12 @@ static int run_step_simple_fwd(int argc, char **argv) {
         {
             id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
             [e setComputePipelineState:pso_updvel];
-            [e setBuffer:bVn offset:0 atIndex:0];
-            [e setBuffer:bX  offset:0 atIndex:1];
-            [e setBuffer:bXp offset:0 atIndex:2];
-            [e setBuffer:bDt offset:0 atIndex:3];
-            [e setBuffer:bN  offset:0 atIndex:4];
+            [e setBuffer:bVn  offset:0 atIndex:0];
+            [e setBuffer:bX   offset:0 atIndex:1];
+            [e setBuffer:bXp  offset:0 atIndex:2];
+            [e setBuffer:bDt  offset:0 atIndex:3];
+            [e setBuffer:bN   offset:0 atIndex:4];
+            [e setBuffer:bOne offset:0 atIndex:5];
             [e dispatchThreads:MTLSizeMake(n, 1, 1)
                 threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
             [e endEncoding];
@@ -1383,6 +1403,10 @@ static int run_step_floor_fwd(int argc, char **argv) {
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bN  = [ctx.device newBufferWithBytes:&n length:sizeof(uint32_t)
             options:MTLResourceStorageModeShared];
+        // Identity unit-scale (toy convention: pos & vel share unit system).
+        float one = 1.0f;
+        id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float)
+            options:MTLResourceStorageModeShared];
 
         for (uint32_t k = 0; k < K; k++) {
             id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
@@ -1392,6 +1416,7 @@ static int run_step_floor_fwd(int argc, char **argv) {
               [e setBuffer:bX offset:0 atIndex:0]; [e setBuffer:bV offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bGy offset:0 atIndex:4]; [e setBuffer:bN offset:0 atIndex:5];
+              [e setBuffer:bOne offset:0 atIndex:6];
               [e dispatchThreads:MTLSizeMake(n,1,1)
                   threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
@@ -1409,6 +1434,7 @@ static int run_step_floor_fwd(int argc, char **argv) {
               [e setBuffer:bV offset:0 atIndex:0]; [e setBuffer:bX offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bN offset:0 atIndex:4];
+              [e setBuffer:bOne offset:0 atIndex:5];
               [e dispatchThreads:MTLSizeMake(n,1,1)
                   threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
@@ -1726,6 +1752,10 @@ static int run_step_bond_fwd(int argc, char **argv) {
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bNb = [ctx.device newBufferWithBytes:&n_bonds length:sizeof(uint32_t)
             options:MTLResourceStorageModeShared];
+        // Identity unit-scale (toy convention: pos & vel share unit system).
+        float one = 1.0f;
+        id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float)
+            options:MTLResourceStorageModeShared];
 
         for (uint32_t k = 0; k < K; k++) {
             // Reset lambdas to zero at start of each step.
@@ -1738,6 +1768,7 @@ static int run_step_bond_fwd(int argc, char **argv) {
               [e setBuffer:bX  offset:0 atIndex:0]; [e setBuffer:bV  offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bGy offset:0 atIndex:4]; [e setBuffer:bN  offset:0 atIndex:5];
+              [e setBuffer:bOne offset:0 atIndex:6];
               [e dispatchThreads:MTLSizeMake(n,1,1)
                   threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
@@ -1757,6 +1788,7 @@ static int run_step_bond_fwd(int argc, char **argv) {
               [e setBuffer:bV offset:0 atIndex:0]; [e setBuffer:bX offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bN offset:0 atIndex:4];
+              [e setBuffer:bOne offset:0 atIndex:5];
               [e dispatchThreads:MTLSizeMake(n,1,1)
                   threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
@@ -2816,6 +2848,9 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
         uint32_t n_as_total = n_active * n_static;
         id<MTLBuffer> bNaaTot = [ctx.device newBufferWithBytes:&n_aa_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
         id<MTLBuffer> bNasTot = [ctx.device newBufferWithBytes:&n_as_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        // Identity unit-scale (toy convention: pos & vel share unit system).
+        float one = 1.0f;
+        id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float) options:MTLResourceStorageModeShared];
 
         for (uint32_t k = 0; k < K; k++) {
             // SAVE x_old, v_old (current state at start of step)
@@ -2832,6 +2867,7 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
               [e setBuffer:bX offset:0 atIndex:0]; [e setBuffer:bV offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bGy offset:0 atIndex:4]; [e setBuffer:bNa offset:0 atIndex:5];
+              [e setBuffer:bOne offset:0 atIndex:6];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
             // (2) dist_aa
@@ -2935,6 +2971,7 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
               [e setBuffer:bV offset:0 atIndex:0]; [e setBuffer:bX offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bNa offset:0 atIndex:4];
+              [e setBuffer:bOne offset:0 atIndex:5];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
             [cmd commit]; [cmd waitUntilCompleted];
@@ -3095,6 +3132,9 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         uint32_t n_as_total = n_active * n_static;
         id<MTLBuffer> bNaaTot = [ctx.device newBufferWithBytes:&n_aa_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
         id<MTLBuffer> bNasTot = [ctx.device newBufferWithBytes:&n_as_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        // Identity unit-scale (toy convention: pos & vel share unit system).
+        float one = 1.0f;
+        id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float) options:MTLResourceStorageModeShared];
 
         // Total ρ gradient accumulator (host-side scalar).
         float total_grad_rho = 0.0f;
@@ -3116,6 +3156,7 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
               [e setBuffer:bX offset:0 atIndex:0]; [e setBuffer:bV offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bGy offset:0 atIndex:4]; [e setBuffer:bNa offset:0 atIndex:5];
+              [e setBuffer:bOne offset:0 atIndex:6];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
             // Recompute r2_aa, r2_as for the density chain backward.

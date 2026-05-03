@@ -40,20 +40,34 @@ def main():
     ap.add_argument('--gravity-y', type=float, default=-9.8)
     ap.add_argument('--n-iters', type=int, default=3,
                     help="XPBD inner iteration count")
-    ap.add_argument('--h', type=float, default=1.67,
-                    help="SPH smoothing radius (sim units)")
-    ap.add_argument('--mass', type=float, default=1.0)
-    ap.add_argument('--rho-rest', type=float, default=1.0,
-                    help="density constraint target (calibrate per scenario)")
+    # Defaults below reflect Sibernetic's `owPhysicsConstant.h`:
+    #   h = 3.34 (smoothing radius in particle units)
+    #   mass = 20.00e-13 kg (per-particle mass)
+    #   sim_scale = 7.4e-6 (m / particle-unit; depends on mass)
+    #   rho0 = 1000 kg/m^3   →   rho_rest_units = rho0 * sim_scale^3 = 4.05e-13
+    # The user can override any of these to reproduce a different
+    # Sibernetic configuration.
+    ap.add_argument('--h', type=float, default=3.34,
+                    help="SPH smoothing radius (Sibernetic h, particle units)")
+    ap.add_argument('--mass', type=float, default=2.0e-12,
+                    help="per-particle mass in kg (Sibernetic 20.00e-13)")
+    ap.add_argument('--sim-scale', type=float, default=7.4e-6,
+                    help="m / particle-unit. Sibernetic ≈ 7.4e-6 for "
+                         "20.00e-13 kg particle mass")
+    ap.add_argument('--rho-rest', type=float, default=4.05e-13,
+                    help="rest density (mass/unit^3). For Sibernetic-style "
+                         "units this is rho0_kg_per_m3 * sim_scale^3.")
     ap.add_argument('--alpha-dens', type=float, default=1e-3,
                     help="density compliance (smaller = stiffer)")
-    ap.add_argument('--alpha-dist', type=float, default=1e-9,
-                    help="bond compliance (smaller = stiffer; OpenCL uses 3e8 = 1/3.3e-9)")
+    ap.add_argument('--alpha-dist', type=float, default=3.3e-9,
+                    help="bond compliance (smaller = stiffer; "
+                         "Sibernetic elasticityCoefficient = 1/3.3e-9)")
     ap.add_argument('--floor-y', type=float, default=0.0)
     args = ap.parse_args()
 
     # Step 1: parse config + write binary buffers
-    info = load_to_metal_buffers(args.scenario, out_dir="/tmp/demo1_metal")
+    info = load_to_metal_buffers(args.scenario, out_dir="/tmp/demo1_metal",
+                                  h=args.h)
     print(f"Loaded configuration/{args.scenario}:")
     print(f"  active = {info['n_active']} (elastic={info['n_elastic']}, "
           f"liquid={info['n_liquid']})")
@@ -84,6 +98,7 @@ def main():
         str(info['n_bonds']), info['paths']['bonds'],
         str(args.alpha_dist),
         str(args.steps),
+        str(args.sim_scale),
     ]
     print(f"Running xpbd_step for {args.steps} steps (dt={args.dt}, "
           f"sim_time={args.steps * args.dt:.4f}s)...")

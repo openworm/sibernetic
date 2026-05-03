@@ -838,24 +838,31 @@ kernel void density_constraint_grad_backward(
 // ────────────────────────────────────────────────────────────────────
 
 // M7.0 — Predict positions under external forces (gravity).
-// Semi-implicit Euler:  v_pred = v + dt·g;  x_pred = x + dt·v_pred
+// Semi-implicit Euler:  v_pred = v + dt·g;  x_pred = x + dt·v_pred·s
+//
+// `s` is `sim_scale_inv` — the unit-system bridge that lets velocity
+// stay in physical SI (m/s) while positions stay in Sibernetic's
+// "particle units" (where 1 unit = simulationScale meters ≈ 7.4e-6 m).
+// For toy tests where positions and velocity share a unit system,
+// pass s=1.0 and behavior is unchanged from the original Euler step.
 //
 // pos_old and vel are read; pos_pred is written (separate buffer so
 // pos_old is preserved for the velocity-recovery step at end of step).
 kernel void predict_positions(
-    device const packed_float3 *pos_old   [[buffer(0)]],
-    device const packed_float3 *vel       [[buffer(1)]],
-    device packed_float3       *pos_pred  [[buffer(2)]],
-    constant float             &dt        [[buffer(3)]],
-    constant float             &gravity_y [[buffer(4)]],
-    constant uint              &n         [[buffer(5)]],
-    uint gid                              [[thread_position_in_grid]])
+    device const packed_float3 *pos_old        [[buffer(0)]],
+    device const packed_float3 *vel            [[buffer(1)]],
+    device packed_float3       *pos_pred       [[buffer(2)]],
+    constant float             &dt             [[buffer(3)]],
+    constant float             &gravity_y      [[buffer(4)]],
+    constant uint              &n              [[buffer(5)]],
+    constant float             &sim_scale_inv  [[buffer(6)]],
+    uint gid                                    [[thread_position_in_grid]])
 {
     if (gid >= n) return;
     float3 x = float3(pos_old[gid]);
     float3 v = float3(vel[gid]);
     float3 v_pred = v + float3(0.0, gravity_y * dt, 0.0);
-    pos_pred[gid] = packed_float3(x + v_pred * dt);
+    pos_pred[gid] = packed_float3(x + v_pred * dt * sim_scale_inv);
 }
 
 // M7.1 — Density constraint projection (per active particle).
@@ -1184,16 +1191,20 @@ kernel void solve_floor_constraint(
 // XPBD/PBD pattern that makes constraints "physical" — particles
 // gain velocity proportional to how far they were projected.
 kernel void update_velocities(
-    device packed_float3       *vel       [[buffer(0)]],
-    device const packed_float3 *pos_old   [[buffer(1)]],
-    device const packed_float3 *pos_pred  [[buffer(2)]],
-    constant float             &dt        [[buffer(3)]],
-    constant uint              &n         [[buffer(4)]],
-    uint gid                              [[thread_position_in_grid]])
+    device packed_float3       *vel           [[buffer(0)]],
+    device const packed_float3 *pos_old       [[buffer(1)]],
+    device const packed_float3 *pos_pred      [[buffer(2)]],
+    constant float             &dt            [[buffer(3)]],
+    constant uint              &n             [[buffer(4)]],
+    constant float             &sim_scale     [[buffer(5)]],
+    uint gid                                   [[thread_position_in_grid]])
 {
     if (gid >= n) return;
+    // Inverse of predict's `pos += dt·v·sim_scale_inv`. dx is in particle
+    // units; multiply by sim_scale to recover meters, divide by dt to
+    // recover m/s. With sim_scale=1.0 this is the original v = dx/dt.
     float3 dx = float3(pos_pred[gid]) - float3(pos_old[gid]);
-    vel[gid] = packed_float3(dx / dt);
+    vel[gid] = packed_float3(dx * sim_scale / dt);
 }
 
 // Utility — Element-wise add: dst += src.
