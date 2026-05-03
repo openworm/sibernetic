@@ -530,6 +530,183 @@ kernel void apply_ext_accel(
     vel[gid] = packed_float3(float3(vel[gid]) + float3(ext_accel[gid]) * dt);
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// pair_forces_grid_backward — gradients of (visc + surf) ext_accel
+// w.r.t. positions and velocities.
+//
+// Setup: forward computes ext_accel_i = visc_amp/ρ_i · visc_partial_i
+//                                    + surf_amp · surf_partial_i
+// where the partials are pair sums over r < h neighbors.
+//
+// Symmetric backward trick: each thread (for particle i) reads both
+//   - its OWN upstream ga_i = ∂L/∂(ext_accel_i), and
+//   - the upstream of every neighbor ga_j (active only; boundary frozen)
+// then accumulates contributions to ONLY ∂L/∂p_i and ∂L/∂v_i. The
+// cross-particle gradients ∂L/∂p_j are picked up when thread j runs
+// its own loop and sees i as a neighbor. No atomics needed.
+//
+// Per-pair (i, j) gradient contributions to ∂L/∂p_i:
+//   visc:  K_v / r · <G_v_j − G_v_i, v_diff> · dir
+//   surf:  −6·ss²·(h_s²−r_s²)² · dir · <dir, G_s_i − G_s_j>
+//        + surf_kern · (G_s_i − G_s_j)
+// where dir = p_i − p_j, v_diff = v_j − v_i,
+//   K_v = visc_pair_coef · sim_scale / 1000,
+//   G_v_a = (visc_amp / ρ_a) · ga_a,
+//   G_s_a = surf_amp · ga_a.
+// For boundary j: G_v_j = 0, G_s_j = 0, v_j = 0 (so v_diff = −v_i).
+// Sign flips fall out cleanly.
+//
+// Per-pair contributions to ∂L/∂v_i:
+//   visc:  K_v_v · (G_v_j − G_v_i)
+// where K_v_v = visc_pair_coef · (h_s − r_s) / 1000. (No surf v-dep.)
+//
+// Note: density ρ_i is treated as a stop-gradient (we don't backprop
+// through density-compute via this path). For tasks where you train
+// fluid params through trajectory loss, this is sufficient.
+// ──────────────────────────────────────────────────────────────────────
+kernel void pair_forces_grid_backward(
+    device const packed_float3 *active_pos       [[buffer(0)]],
+    device const packed_float3 *active_vel       [[buffer(1)]],
+    device const packed_float3 *sorted_static    [[buffer(2)]],
+    device const int           *cell_start       [[buffer(3)]],
+    device const float         *density          [[buffer(4)]],
+    device const packed_float3 *grad_ext_accel   [[buffer(5)]],
+    device packed_float3       *grad_pos         [[buffer(6)]],
+    device packed_float3       *grad_vel         [[buffer(7)]],
+    constant float             &h                [[buffer(8)]],
+    constant float             &h2               [[buffer(9)]],
+    constant float             &mass             [[buffer(10)]],
+    constant float             &sim_scale        [[buffer(11)]],
+    constant float             &visc_pair_coef   [[buffer(12)]],
+    constant float             &visc_amp         [[buffer(13)]],
+    constant float             &surf_amp         [[buffer(14)]],
+    constant uint              &n_active         [[buffer(15)]],
+    constant int3              &grid_dim         [[buffer(16)]],
+    constant packed_float3     &grid_origin      [[buffer(17)]],
+    uint gid                                      [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    uint i = gid;
+
+    float3 p_i = float3(active_pos[i]);
+    float3 v_i = float3(active_vel[i]);
+    float3 ga_i = float3(grad_ext_accel[i]);
+    float rho_i = max(density[i], 1e-30);
+
+    float h_scaled  = h * sim_scale;
+    float h2_scaled = h_scaled * h_scaled;
+    float ss2       = sim_scale * sim_scale;
+
+    float3 G_v_i = (visc_amp / rho_i) * ga_i;
+    float3 G_s_i = surf_amp * ga_i;
+
+    float3 dp_i = float3(0.0);
+    float3 dv_i = float3(0.0);
+
+    // ── active-active loop ──
+    for (uint k = 0; k < n_active; k++) {
+        if (k == i) continue;
+        float3 p_j = float3(active_pos[k]);
+        float3 v_j = float3(active_vel[k]);
+        float3 dir = p_i - p_j;
+        float r2_unit = dot(dir, dir);
+        if (r2_unit >= h2) continue;
+        float r_unit = sqrt(r2_unit);
+        if (r_unit < 1e-7) continue;
+
+        float r_scaled = r_unit * sim_scale;
+        float h_minus_r = h_scaled - r_scaled;
+        float r2_scaled = r2_unit * ss2;
+        float h2r2 = h2_scaled - r2_scaled;
+        float surf_kern = h2r2 * h2r2 * h2r2;
+        float surf_kern_deriv = h2r2 * h2r2;
+        float3 v_diff = v_j - v_i;
+
+        float rho_j = max(density[k], 1e-30);
+        float3 ga_j = float3(grad_ext_accel[k]);
+        float3 G_v_j = (visc_amp / rho_j) * ga_j;
+        float3 G_s_j = surf_amp * ga_j;
+
+        float3 G_v_diff = G_v_j - G_v_i;
+        float3 G_s_diff = G_s_i - G_s_j;
+
+        // viscosity ∂L/∂p_i
+        dp_i += (visc_pair_coef * sim_scale / (1000.0 * r_unit))
+              * dot(G_v_diff, v_diff) * dir;
+        // surface tension ∂L/∂p_i
+        dp_i += -6.0 * ss2 * surf_kern_deriv * dir * dot(dir, G_s_diff)
+              +  surf_kern * G_s_diff;
+        // viscosity ∂L/∂v_i
+        dv_i += (visc_pair_coef * h_minus_r / 1000.0) * G_v_diff;
+    }
+
+    // ── active-static loop (boundary j, v_j = 0, ga_j = 0) ──
+    int3 my_cell = int3(floor((p_i - float3(grid_origin)) / h));
+    int n_cells_xy = grid_dim.x * grid_dim.y;
+    for (int dz = -1; dz <= 1; dz++) {
+        int cz = my_cell.z + dz;
+        if (cz < 0 || cz >= grid_dim.z) continue;
+        for (int dy = -1; dy <= 1; dy++) {
+            int cy = my_cell.y + dy;
+            if (cy < 0 || cy >= grid_dim.y) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int cx = my_cell.x + dx;
+                if (cx < 0 || cx >= grid_dim.x) continue;
+                int c_id = cx + cy * grid_dim.x + cz * n_cells_xy;
+                int start = cell_start[c_id];
+                int end   = cell_start[c_id + 1];
+                for (int j = start; j < end; j++) {
+                    float3 p_j = float3(sorted_static[j]);
+                    float3 dir = p_i - p_j;
+                    float r2_unit = dot(dir, dir);
+                    if (r2_unit >= h2) continue;
+                    float r_unit = sqrt(r2_unit);
+                    if (r_unit < 1e-7) continue;
+
+                    float r_scaled = r_unit * sim_scale;
+                    float h_minus_r = h_scaled - r_scaled;
+                    float r2_scaled = r2_unit * ss2;
+                    float h2r2 = h2_scaled - r2_scaled;
+                    float surf_kern = h2r2 * h2r2 * h2r2;
+                    float surf_kern_deriv = h2r2 * h2r2;
+                    float3 v_diff = -v_i;  // v_j = 0
+
+                    // Boundary: G_v_j = 0, G_s_j = 0
+                    float3 G_v_diff = -G_v_i;
+                    float3 G_s_diff = G_s_i;
+
+                    dp_i += (visc_pair_coef * sim_scale / (1000.0 * r_unit))
+                          * dot(G_v_diff, v_diff) * dir;
+                    dp_i += -6.0 * ss2 * surf_kern_deriv * dir * dot(dir, G_s_diff)
+                          +  surf_kern * G_s_diff;
+                    dv_i += (visc_pair_coef * h_minus_r / 1000.0) * G_v_diff;
+                }
+            }
+        }
+    }
+
+    grad_pos[i] = packed_float3(float3(grad_pos[i]) + dp_i);
+    grad_vel[i] = packed_float3(float3(grad_vel[i]) + dv_i);
+}
+
+// apply_ext_accel_backward — straight-through for v, scale by dt for ext_accel.
+// Forward: v_new = v_old + dt · ext_accel
+//   dL/d(v_old)     += dL/d(v_new)
+//   dL/d(ext_accel) += dt · dL/d(v_new)
+kernel void apply_ext_accel_backward(
+    device const packed_float3 *grad_v_new        [[buffer(0)]],
+    device packed_float3       *grad_v_old        [[buffer(1)]],
+    device packed_float3       *grad_ext_accel    [[buffer(2)]],
+    constant float             &dt                [[buffer(3)]],
+    constant uint              &n                 [[buffer(4)]],
+    uint gid                                       [[thread_position_in_grid]])
+{
+    if (gid >= n) return;
+    float3 g_new = float3(grad_v_new[gid]);
+    grad_v_old[gid]     = packed_float3(float3(grad_v_old[gid]) + g_new);
+    grad_ext_accel[gid] = packed_float3(float3(grad_ext_accel[gid]) + dt * g_new);
+}
+
 // PERF MEGA-FUSED — distance + density + grad_C + denom_helper, all
 // inline. NO r² matrix materialization. Each inner XPBD iter reads
 // positions fresh and computes everything; for our demo1 scale this
