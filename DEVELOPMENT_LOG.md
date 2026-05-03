@@ -500,7 +500,8 @@ This trades "one beautiful cross-platform substrate" for "two vendor-backed impl
 ### Concrete next steps
 
 - [ ] Land PR #222 (after the `dd003`/parity-test work the original PR review requested)
-- [ ] Write the matching native CUDA backend, modeling on PR #222's structure (`src/cuda/sphFluid.cu` + `src/backend/CudaBackend.cpp`)
+- [x] ~~Write the matching native CUDA backend, modeling on PR #222's structure~~ — SCAFFOLDED in commit 9f92972 (`src/cuda/README.md` + `src/cuda/sphFluid.cu` + `inc/owCudaSolver.h`); kernel implementation deferred until PR #222 lands so we can build on its `owSolver` abstract base + `src/kernels/` descriptor pattern. ~2 weeks of focused work for a competent CUDA dev once unblocked.
+- [x] ~~Cross-backend cube-stability regression~~ — DONE in commit 92183bd (`scripts/cross_backend_regression.py`); first run caught Taichi-CUDA's pancake bug as designed
 - [x] ~~Run `dt` audit experiments on PR #222's Metal backend~~ — DONE; result below
 - [ ] Add cross-backend cube-stability regression: PR #222 Metal vs OpenCL vs Taichi-CUDA on the same demo1 scenario, diff at known timesteps (the test-harness work from earlier this session)
 - [x] ~~Re-verify Taichi-CUDA at 1-sec sim time~~ — DONE; result below
