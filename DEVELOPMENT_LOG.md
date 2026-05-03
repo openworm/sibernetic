@@ -501,7 +501,55 @@ This trades "one beautiful cross-platform substrate" for "two vendor-backed impl
 
 - [ ] Land PR #222 (after the `dd003`/parity-test work the original PR review requested)
 - [ ] Write the matching native CUDA backend, modeling on PR #222's structure (`src/cuda/sphFluid.cu` + `src/backend/CudaBackend.cpp`)
-- [ ] Run `dt` audit experiments on PR #222's Metal backend — push from 2e-5 toward 1e-4 / 2e-4 with PCISPH stability checks
+- [x] ~~Run `dt` audit experiments on PR #222's Metal backend~~ — DONE; result below
 - [ ] Add cross-backend cube-stability regression: PR #222 Metal vs OpenCL vs Taichi-CUDA on the same demo1 scenario, diff at known timesteps (the test-harness work from earlier this session)
-- [ ] Re-verify Taichi-CUDA at 1-sec sim time to see if the cube-pancake bug surfaces (we only saw it at 5s on Apple Silicon Taichi-Metal — algorithmic vs Apple-Silicon-specific is still open)
+- [x] ~~Re-verify Taichi-CUDA at 1-sec sim time~~ — DONE; result below
+
+### dt audit on PR #222 (2026-05-03)
+
+Swept `timestep=` values on the PR #222 native Metal binary against demo1, 1-sec sim. Used a 120-sec watchdog to detect divergence quickly (vs the original baseline that took 75 sec to complete).
+
+| dt | Stability | Notes |
+|---|---|---|
+| 2e-5 (baseline) | ✅ converges, 75 sec wall, retention 118% | this is what demo1 runs at by default |
+| 3e-5 (1.5×) | ❌ hangs at step ~7 | PCISPH didn't converge in 3 iterations |
+| 4e-5 (2×) | ❌ hangs | same |
+| 5e-5 (2.5×) | ❌ hangs | same |
+
+**Conclusion:** with `max_iteration=3` (the current PCISPH default), dt=2e-5 IS the maximum stable timestep for demo1's 17K particles. The dt lever is essentially closed without solver-level changes.
+
+To open it, options ranked by effort:
+
+1. **Bump PCISPH max_iteration to 6-10** and re-test dt=1e-4. If 6 iterations × 5× fewer steps net ≈ 2.5× wall clock speedup, that's the cheapest path. Requires modifying owConfigProperty.cpp / sphFluid.cl / sphFluid.metal default (or exposing a CLI flag).
+2. **Switch to a different pressure solver** (IISPH, DFSPH, WCSPH). Substantial code change; better stability properties at large dt; better long-term but weeks of work.
+3. **Use a smaller test scenario** (the minicube proposal) for fast iteration; demo1 stays as the gold-standard end-to-end target.
+
+This means the 5-sec/<3-min wall-clock target on PR #222 native Metal can't be reached with `dt` alone. Realistic path: PCISPH iteration tuning + per-step kernel optimization + dt push together.
+
+### Taichi-CUDA pancake check (2026-05-03)
+
+Submitted a 1-sec demo1 sim with `backend=taichi-cuda` against the Cloud Run runner.
+
+```
+wall_clock:   73.6s (680 steps/sec)
+mean Y:       44.42 → 44.42   (cube didn't move)
+min Y:        39.41 → 39.41   (no fall)
+extent ret:   100% (artifact: no deformation because no motion)
+```
+
+For comparison at the same 1-sec sim time:
+- OpenCL on L4: mean_y 44 → 10.4, min_y 39 → 4.17 (cube fell, intact)
+- PR #222 Metal: mean_y 44 → 9.8, min_y 39 → 3.9 (cube fell, intact)
+- Taichi-CUDA on L4: mean_y unchanged (cube frozen)
+
+**Conclusion:** the Taichi pancake bug is **algorithmic** (in `taichi_solver.py`), not Apple-Silicon-Metal-specific. Both Metal and CUDA exhibit the same root-cause "forces too weak" behavior, just at different magnitudes:
+
+- Taichi-Metal at 5s: cube fell, then pancaked (forces eventually broke through)
+- Taichi-CUDA at 1s: cube didn't fall at all (forces couldn't even initiate motion)
+
+Implications:
+- Fixing `taichi_solver.py` is a single change that benefits both Metal and CUDA simultaneously.
+- The README's documented 3-step coordinate-scale fix (remove `/sim_scale` in elastic force, add `simulationScaleInv` in integration, use `h_scaled` for kernel coefficients) is the starting hypothesis.
+- Until that fix lands, Taichi is unusable as a Sibernetic GPU substrate on either platform.
+- Doesn't change the strategic direction (native Metal + native CUDA primary, Taichi fallback), but does mean the "Taichi as quick-prototyping fallback" benefit is gated on someone fixing the bug first.
 
