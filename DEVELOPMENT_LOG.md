@@ -1535,29 +1535,13 @@ All 18 sampled gradient components match the analytical chain rule to
 
 ### M9 roadmap (what's left)
 
-- M9.A ✓ density value backward (this turn)
-- M9.B — wire `dist_active_active_backward` into the density chain so
-  active-active SPH neighbors contribute. Kernel exists; just needs
-  a driver wrapping (predict isn't relevant — this is just the density
-  evaluation). Validation: scene with no static particles, several
-  active particles overlapping kernel support, ∂density/∂active grad
-  check.
-- M9.C — `density_constraint_grad_backward`. The forward kernel
-  (M6.4) computes both `grad_C[i]` (3-vec via ∇W_spiky) and
-  `denom_helper[i]` (Σ|∇W_spiky|²) in one pass with threadgroup
-  reduction. Backward needs to invert that:
-    ∂L/∂pos contributions from BOTH outputs flowing through ∇W_spiky.
-    ∇W_spiky has its own per-pair Jacobian (3×3 matrix). This is the
-    deepest backward in the system — ~150 lines of careful Metal.
-- M9.D — `solve_density_constraint_backward`. XPBD constraint projection
-  backward, similar structure to M8 distance backward but with the
-  one-sided projection (skip if C ≤ 0) and the more involved
-  ∂Δλ/∂(rho_rest, α_dens) parameter gradients.
-- M9.E — capstone: end-to-end XPBD-with-density backward. Demo:
-  start with miscalibrated rho_rest on the cube scenario, observe it
-  pancake or explode, SGD-recover the rho_rest value that produces
-  observed-correct cube behavior. This closes the loop on the
-  original "fix cube-pancake by gradient descent" use case.
+- M9.A ✓ density value backward (earlier turn)
+- M9.B ✓ active-active density backward (this turn) — rel err 3.9e-4
+- M9.C ✓ density_constraint_grad backward (this turn) — rel err 9.6e-5
+- M9.D ✓ solve_density_constraint backward (this turn) — rel err 1.6e-3,
+  both firing and non-firing branches validated
+- M9.E ✓ end-to-end SGD on rho_rest (this turn) — recovered ρ to 1.0%,
+  loss reduced 970×
 
 ### Membrane support roadmap (M10)
 
