@@ -2168,6 +2168,366 @@ static int run_step_floor_bwd(int argc, char **argv) {
     return 0;
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// M8 — step_bond_fwd: K-step forward of (predict + bonds_with_save +
+// update_velocities). NO floor for simplicity — focus on isolating the
+// bond physics so backward correctness is unambiguous. n_iters fixed at 1.
+//
+// Saves:
+//   traj_pos.bin    — [K+1, n, 3] fp32 positions at start of each step
+//   traj_state.bin  — [K, n_bonds*7] fp32 per-bond pre-state per step
+//   traj_lambda.bin — [K, n_bonds] fp32 lambda before each step's projection
+// ──────────────────────────────────────────────────────────────────────
+static int run_step_bond_fwd(int argc, char **argv) {
+    if (argc != 14) {
+        fprintf(stderr,
+            "usage: sib_metal step_bond_fwd "
+            "<n> <K> <n_bonds> <dt> <gravity_y> <mass> <alpha_dist> "
+            "<pos0.bin> <vel0.bin> <bonds.bin> "
+            "<traj_pos.bin> <traj_state.bin> <vel_final.bin>\n");
+        return 1;
+    }
+    uint32_t n        = (uint32_t)atoi(argv[2]);
+    uint32_t K        = (uint32_t)atoi(argv[3]);
+    uint32_t n_bonds  = (uint32_t)atoi(argv[4]);
+    float dt          = (float)atof(argv[5]);
+    float g_y         = (float)atof(argv[6]);
+    float mass        = (float)atof(argv[7]);
+    float alpha_dist  = (float)atof(argv[8]);
+    const char *p_x0    = argv[9];
+    const char *p_v0    = argv[10];
+    const char *p_bonds = argv[11];
+    const char *p_tpos  = argv[12];
+    const char *p_tstate = argv[13];
+    const char *p_vfin  = "/tmp/sibm_step_bond_vfinal.bin";  // fixed for now
+
+    float alpha_inv_dt2 = alpha_dist / (dt * dt);
+    float mass_inv = 1.0f / mass;
+
+    size_t nb = (size_t)n * 3 * sizeof(float);
+    size_t state_bytes_per_step = (size_t)n_bonds * 7 * sizeof(float);
+
+    auto read_floats = ^(const char *path, size_t n_floats) {
+        FILE *f = fopen(path, "rb");
+        if (!f) { fprintf(stderr, "cannot open %s\n", path); exit(1); }
+        float *buf = (float *)malloc(n_floats * sizeof(float));
+        if (fread(buf, sizeof(float), n_floats, f) != n_floats) {
+            fprintf(stderr, "short read on %s\n", path); exit(1);
+        }
+        fclose(f); return buf;
+    };
+    float *x0 = read_floats(p_x0, (size_t)n * 3);
+    float *v0 = read_floats(p_v0, (size_t)n * 3);
+
+    // Read bonds and unpack to (i,j) and rest_len arrays.
+    FILE *fb = fopen(p_bonds, "rb");
+    if (!fb) { fprintf(stderr, "cannot open %s\n", p_bonds); return 1; }
+    void *bonds_raw = malloc((size_t)n_bonds * 16);
+    fread(bonds_raw, 16, n_bonds, fb); fclose(fb);
+    int32_t *bond_ij = (int32_t *)malloc((size_t)n_bonds * 2 * sizeof(int32_t));
+    float *bond_rest = (float *)malloc((size_t)n_bonds * sizeof(float));
+    for (uint32_t b = 0; b < n_bonds; b++) {
+        memcpy(&bond_ij[b * 2], (uint8_t *)bonds_raw + b * 16, 8);
+        memcpy(&bond_rest[b],   (uint8_t *)bonds_raw + b * 16 + 8, 4);
+    }
+    free(bonds_raw);
+
+    float *traj_pos = (float *)malloc((size_t)(K + 1) * nb);
+    float *traj_state = (float *)malloc((size_t)K * state_bytes_per_step);
+    memcpy(traj_pos, x0, nb);  // frame 0
+
+    @autoreleasepool {
+        MetalCtx ctx = make_ctx();
+        id<MTLComputePipelineState> pso_pred = make_pso(ctx, "predict_positions");
+        id<MTLComputePipelineState> pso_bond = make_pso(ctx, "solve_distance_constraints_seq_with_save");
+        id<MTLComputePipelineState> pso_uv   = make_pso(ctx, "update_velocities");
+
+        id<MTLBuffer> bX = [ctx.device newBufferWithBytes:x0 length:nb
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bV = [ctx.device newBufferWithBytes:v0 length:nb
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bXp = [ctx.device newBufferWithLength:nb
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bBondIJ = [ctx.device newBufferWithBytes:bond_ij
+            length:(size_t)n_bonds * 2 * sizeof(int32_t)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bBondRest = [ctx.device newBufferWithBytes:bond_rest
+            length:(size_t)n_bonds * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bLambda = [ctx.device newBufferWithLength:(size_t)n_bonds * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bState = [ctx.device newBufferWithLength:state_bytes_per_step
+            options:MTLResourceStorageModeShared];
+
+        id<MTLBuffer> bDt = [ctx.device newBufferWithBytes:&dt length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGy = [ctx.device newBufferWithBytes:&g_y length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bAdt2 = [ctx.device newBufferWithBytes:&alpha_inv_dt2 length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bMinv = [ctx.device newBufferWithBytes:&mass_inv length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bN = [ctx.device newBufferWithBytes:&n length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNb = [ctx.device newBufferWithBytes:&n_bonds length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+
+        for (uint32_t k = 0; k < K; k++) {
+            // Reset lambdas to zero at start of each step.
+            memset([bLambda contents], 0, (size_t)n_bonds * sizeof(float));
+
+            id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
+            // predict
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_pred];
+              [e setBuffer:bX  offset:0 atIndex:0]; [e setBuffer:bV  offset:0 atIndex:1];
+              [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
+              [e setBuffer:bGy offset:0 atIndex:4]; [e setBuffer:bN  offset:0 atIndex:5];
+              [e dispatchThreads:MTLSizeMake(n,1,1)
+                  threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            // bonds (n_iters=1)
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_bond];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bLambda offset:0 atIndex:1];
+              [e setBuffer:bBondIJ offset:0 atIndex:2]; [e setBuffer:bBondRest offset:0 atIndex:3];
+              [e setBuffer:bState offset:0 atIndex:4]; [e setBuffer:bAdt2 offset:0 atIndex:5];
+              [e setBuffer:bMinv offset:0 atIndex:6]; [e setBuffer:bNb offset:0 atIndex:7];
+              [e dispatchThreads:MTLSizeMake(1,1,1)
+                  threadsPerThreadgroup:MTLSizeMake(1,1,1)];
+              [e endEncoding]; }
+            // update_vel
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_uv];
+              [e setBuffer:bV offset:0 atIndex:0]; [e setBuffer:bX offset:0 atIndex:1];
+              [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
+              [e setBuffer:bN offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(n,1,1)
+                  threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            [cmd commit]; [cmd waitUntilCompleted];
+
+            // Save state for this step, advance positions.
+            memcpy((char *)traj_state + (size_t)k * state_bytes_per_step,
+                   [bState contents], state_bytes_per_step);
+            memcpy((char *)traj_pos + (size_t)(k + 1) * nb,
+                   [bXp contents], nb);
+            memcpy([bX contents], [bXp contents], nb);
+        }
+
+        FILE *fvf = fopen(p_vfin, "wb");
+        fwrite([bV contents], 1, nb, fvf); fclose(fvf);
+    }
+    FILE *ftp = fopen(p_tpos, "wb");
+    fwrite(traj_pos, 1, (size_t)(K + 1) * nb, ftp); fclose(ftp);
+    FILE *fts = fopen(p_tstate, "wb");
+    fwrite(traj_state, 1, (size_t)K * state_bytes_per_step, fts); fclose(fts);
+
+    free(x0); free(v0); free(bond_ij); free(bond_rest);
+    free(traj_pos); free(traj_state);
+    return 0;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// M8 — step_bond_bwd: backward through K-step bond simulation. Walks
+// trajectory in REVERSE, calling per-step backward kernels in order:
+// update_vel_backward → bond_backward → predict_backward.
+//
+// Inputs:
+//   grad_x_final.bin — [n, 3] fp32 ∂L/∂(positions at end)
+//   plus traj_pos, traj_state, bonds from forward
+//
+// Outputs:
+//   grad_x_init, grad_v_init, grad_alpha (single-element fp32)
+// ──────────────────────────────────────────────────────────────────────
+static int run_step_bond_bwd(int argc, char **argv) {
+    if (argc != 16) {
+        fprintf(stderr,
+            "usage: sib_metal step_bond_bwd "
+            "<n> <K> <n_bonds> <dt> <mass> <alpha_dist> "
+            "<bonds.bin> <traj_pos.bin> <traj_state.bin> <grad_x_final.bin> "
+            "<grad_x_init.bin> <grad_v_init.bin> <grad_alpha.bin>\n");
+        return 1;
+    }
+    uint32_t n       = (uint32_t)atoi(argv[2]);
+    uint32_t K       = (uint32_t)atoi(argv[3]);
+    uint32_t n_bonds = (uint32_t)atoi(argv[4]);
+    float dt         = (float)atof(argv[5]);
+    float mass       = (float)atof(argv[6]);
+    float alpha_dist = (float)atof(argv[7]);
+    const char *p_bonds  = argv[8];
+    const char *p_tpos   = argv[9];
+    const char *p_tstate = argv[10];
+    const char *p_gxf    = argv[11];
+    const char *p_gxi    = argv[12];
+    const char *p_gvi    = argv[13];
+    const char *p_galpha = argv[14];
+    // argv[15] currently unused — placeholder for grad_L_rest if added.
+
+    float alpha_inv_dt2 = alpha_dist / (dt * dt);
+    float dt2 = dt * dt;
+    float mass_inv = 1.0f / mass;
+
+    size_t nb = (size_t)n * 3 * sizeof(float);
+    size_t state_bytes_per_step = (size_t)n_bonds * 7 * sizeof(float);
+
+    // Read bonds → (ij, rest)
+    FILE *fb = fopen(p_bonds, "rb");
+    void *bonds_raw = malloc((size_t)n_bonds * 16);
+    fread(bonds_raw, 16, n_bonds, fb); fclose(fb);
+    int32_t *bond_ij = (int32_t *)malloc((size_t)n_bonds * 2 * sizeof(int32_t));
+    float *bond_rest = (float *)malloc((size_t)n_bonds * sizeof(float));
+    for (uint32_t b = 0; b < n_bonds; b++) {
+        memcpy(&bond_ij[b * 2], (uint8_t *)bonds_raw + b * 16, 8);
+        memcpy(&bond_rest[b],   (uint8_t *)bonds_raw + b * 16 + 8, 4);
+    }
+    free(bonds_raw);
+
+    float *traj_state = (float *)malloc((size_t)K * state_bytes_per_step);
+    float *grad_x_fin = (float *)malloc(nb);
+    FILE *fts = fopen(p_tstate, "rb");
+    FILE *fgx = fopen(p_gxf, "rb");
+    fread(traj_state, 1, (size_t)K * state_bytes_per_step, fts);
+    fread(grad_x_fin, 1, nb, fgx);
+    fclose(fts); fclose(fgx);
+
+    @autoreleasepool {
+        MetalCtx ctx = make_ctx();
+        id<MTLComputePipelineState> pso_pbw  = make_pso(ctx, "predict_positions_backward");
+        id<MTLComputePipelineState> pso_uvbw = make_pso(ctx, "update_velocities_backward");
+        id<MTLComputePipelineState> pso_bbw  = make_pso(ctx, "solve_distance_constraints_seq_backward");
+
+        id<MTLBuffer> bGx_old = [ctx.device newBufferWithLength:nb
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGv_old = [ctx.device newBufferWithLength:nb
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGx_pred = [ctx.device newBufferWithLength:nb
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGlam = [ctx.device newBufferWithLength:(size_t)n_bonds * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGalpha = [ctx.device newBufferWithLength:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGgy_per = [ctx.device newBufferWithLength:(size_t)n * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bState = [ctx.device newBufferWithLength:state_bytes_per_step
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bBondIJ = [ctx.device newBufferWithBytes:bond_ij
+            length:(size_t)n_bonds * 2 * sizeof(int32_t)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bBondRest = [ctx.device newBufferWithBytes:bond_rest
+            length:(size_t)n_bonds * sizeof(float)
+            options:MTLResourceStorageModeShared];
+
+        id<MTLBuffer> bDt = [ctx.device newBufferWithBytes:&dt length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bDt2 = [ctx.device newBufferWithBytes:&dt2 length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bAdt2 = [ctx.device newBufferWithBytes:&alpha_inv_dt2 length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bAlpha = [ctx.device newBufferWithBytes:&alpha_dist length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bMinv = [ctx.device newBufferWithBytes:&mass_inv length:sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bN = [ctx.device newBufferWithBytes:&n length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNb = [ctx.device newBufferWithBytes:&n_bonds length:sizeof(uint32_t)
+            options:MTLResourceStorageModeShared];
+
+        // Initial: ∂L/∂x_final → ∂L/∂x_old (running across reverse steps).
+        memcpy([bGx_old contents], grad_x_fin, nb);
+        memset([bGv_old contents], 0, nb);
+        memset([bGalpha contents], 0, sizeof(float));
+
+        // Walk backward through K steps.
+        for (int32_t k = (int32_t)K - 1; k >= 0; k--) {
+            // Per-step lambda gradient resets at start (forward resets λ to 0).
+            memset([bGlam contents], 0, (size_t)n_bonds * sizeof(float));
+            // Per-step working buffers.
+            memset([bGx_pred contents], 0, nb);
+
+            // Load this step's saved bond state.
+            memcpy([bState contents],
+                   (char *)traj_state + (size_t)k * state_bytes_per_step,
+                   state_bytes_per_step);
+
+            // bGx_old_new accumulates ∂L/∂x_old for THIS step (separate
+            // buffer so we don't mix with the running bGx_old that holds
+            // the post-step gradient).
+            id<MTLBuffer> bGx_old_new = [ctx.device newBufferWithLength:nb
+                options:MTLResourceStorageModeShared];
+            id<MTLBuffer> bGv_old_new = [ctx.device newBufferWithLength:nb
+                options:MTLResourceStorageModeShared];
+            memset([bGx_old_new contents], 0, nb);
+            memset([bGv_old_new contents], 0, nb);
+
+            id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
+            // (1) update_vel backward: ∂L/∂v_new (=bGv_old running) flows into
+            //     ∂L/∂x_post_bonds (accumulate into bGx_old) and ∂L/∂x_old
+            //     (accumulate into bGx_old_new).
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_uvbw];
+              [e setBuffer:bGv_old offset:0 atIndex:0];
+              [e setBuffer:bGx_old offset:0 atIndex:1];
+              [e setBuffer:bGx_old_new offset:0 atIndex:2];
+              [e setBuffer:bDt offset:0 atIndex:3]; [e setBuffer:bN offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(n,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            [cmd commit]; [cmd waitUntilCompleted];
+
+            // bGx_old now = ∂L/∂x_post_bonds for this step. The bond_backward
+            // overwrites it in place (read pos_grad[i,j], write pos_grad[i,j]).
+            cmd = [ctx.queue commandBuffer];
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_bbw];
+              [e setBuffer:bGx_old offset:0 atIndex:0];   // pos_grad in/out
+              [e setBuffer:bGlam offset:0 atIndex:1];     // lambda_grad in/out
+              [e setBuffer:bGalpha offset:0 atIndex:2];   // alpha grad accum
+              [e setBuffer:bBondIJ offset:0 atIndex:3];
+              [e setBuffer:bBondRest offset:0 atIndex:4];
+              [e setBuffer:bState offset:0 atIndex:5];
+              [e setBuffer:bAdt2 offset:0 atIndex:6];
+              [e setBuffer:bAlpha offset:0 atIndex:7];
+              [e setBuffer:bDt2 offset:0 atIndex:8];
+              [e setBuffer:bMinv offset:0 atIndex:9];
+              [e setBuffer:bNb offset:0 atIndex:10];
+              [e dispatchThreads:MTLSizeMake(1,1,1) threadsPerThreadgroup:MTLSizeMake(1,1,1)];
+              [e endEncoding]; }
+            // bGx_old now = ∂L/∂x_pre_bonds = ∂L/∂x_pred (post-predict).
+            // Move into bGx_pred for predict_backward.
+            // (We could just pass bGx_old to predict_backward directly,
+            // but keep separate for clarity.)
+            { id<MTLBlitCommandEncoder> blit = [cmd blitCommandEncoder];
+              [blit copyFromBuffer:bGx_old sourceOffset:0
+                          toBuffer:bGx_pred destinationOffset:0
+                              size:nb];
+              [blit endEncoding]; }
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_pbw];
+              [e setBuffer:bGx_pred offset:0 atIndex:0];
+              [e setBuffer:bGx_old_new offset:0 atIndex:1];   // accumulate
+              [e setBuffer:bGv_old_new offset:0 atIndex:2];   // accumulate
+              [e setBuffer:bGgy_per offset:0 atIndex:3];
+              [e setBuffer:bDt offset:0 atIndex:4]; [e setBuffer:bN offset:0 atIndex:5];
+              [e dispatchThreads:MTLSizeMake(n,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            [cmd commit]; [cmd waitUntilCompleted];
+
+            // Promote per-step gradients to running gradients for previous step.
+            memcpy([bGx_old contents], [bGx_old_new contents], nb);
+            memcpy([bGv_old contents], [bGv_old_new contents], nb);
+        }
+
+        FILE *o1 = fopen(p_gxi, "wb");
+        fwrite([bGx_old contents], 1, nb, o1); fclose(o1);
+        FILE *o2 = fopen(p_gvi, "wb");
+        fwrite([bGv_old contents], 1, nb, o2); fclose(o2);
+        FILE *o3 = fopen(p_galpha, "wb");
+        fwrite([bGalpha contents], 1, sizeof(float), o3); fclose(o3);
+    }
+    free(bond_ij); free(bond_rest); free(traj_state); free(grad_x_fin);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: sib_metal <op> [args...]\n"
@@ -2175,7 +2535,8 @@ int main(int argc, char **argv) {
                         "wpoly6_inplace, rowsum_density, "
                         "density_constraint_grad, xpbd_step, "
                         "step_simple_fwd, step_simple_bwd, "
-                        "step_floor_fwd, step_floor_bwd\n");
+                        "step_floor_fwd, step_floor_bwd, "
+                        "step_bond_fwd, step_bond_bwd\n");
         return 1;
     }
     if (strcmp(argv[1], "dist_active_static") == 0)
@@ -2198,6 +2559,10 @@ int main(int argc, char **argv) {
         return run_step_floor_fwd(argc, argv);
     if (strcmp(argv[1], "step_floor_bwd") == 0)
         return run_step_floor_bwd(argc, argv);
+    if (strcmp(argv[1], "step_bond_fwd") == 0)
+        return run_step_bond_fwd(argc, argv);
+    if (strcmp(argv[1], "step_bond_bwd") == 0)
+        return run_step_bond_bwd(argc, argv);
     fprintf(stderr, "unknown op: %s\n", argv[1]);
     return 1;
 }
