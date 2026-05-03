@@ -621,6 +621,93 @@ static int run_density_constraint_grad(int argc, char **argv) {
     return 0;
 }
 
+// PERF — build a uniform spatial hash grid over static particle positions
+// (one-time per process invocation). Uses counting sort: O(n_static)
+// passes, no comparison-based sort needed.
+//
+// Outputs:
+//   sorted_static[]: permuted positions (cell-grouped contiguous)
+//   cell_start[]:    [n_cells + 1] indices; range [cell_start[c],
+//                    cell_start[c+1]) is cell c's particles
+//   grid_dim, grid_origin, n_cells: returned via out-params
+//
+// Cell size is the SPH smoothing radius h, so each particle's neighbors
+// are guaranteed within the 3×3×3 surrounding cell neighborhood.
+typedef struct {
+    int x, y, z;
+} GridDim3;
+
+typedef struct {
+    float x, y, z;
+} GridOrigin3;
+
+static void build_static_grid(
+    const float *pos_static_in, uint32_t n_static, float h,
+    float **sorted_static_out, int **cell_start_out,
+    GridDim3 *grid_dim_out, GridOrigin3 *grid_origin_out,
+    int *n_cells_out)
+{
+    if (n_static == 0) {
+        *sorted_static_out = NULL;
+        *cell_start_out = (int *)calloc(2, sizeof(int));
+        grid_dim_out->x = grid_dim_out->y = grid_dim_out->z = 1;
+        grid_origin_out->x = grid_origin_out->y = grid_origin_out->z = 0.0f;
+        *n_cells_out = 1;
+        return;
+    }
+    // Compute bounding box.
+    float bx0 = pos_static_in[0], bx1 = bx0;
+    float by0 = pos_static_in[1], by1 = by0;
+    float bz0 = pos_static_in[2], bz1 = bz0;
+    for (uint32_t i = 1; i < n_static; i++) {
+        float x = pos_static_in[i*3+0];
+        float y = pos_static_in[i*3+1];
+        float z = pos_static_in[i*3+2];
+        if (x < bx0) bx0 = x; if (x > bx1) bx1 = x;
+        if (y < by0) by0 = y; if (y > by1) by1 = y;
+        if (z < bz0) bz0 = z; if (z > bz1) bz1 = z;
+    }
+    bx0 -= 0.1f; by0 -= 0.1f; bz0 -= 0.1f;
+    bx1 += 0.1f; by1 += 0.1f; bz1 += 0.1f;
+    int gx = (int)ceilf((bx1 - bx0) / h);
+    int gy = (int)ceilf((by1 - by0) / h);
+    int gz = (int)ceilf((bz1 - bz0) / h);
+    if (gx < 1) gx = 1; if (gy < 1) gy = 1; if (gz < 1) gz = 1;
+    int n_cells = gx * gy * gz;
+    grid_dim_out->x = gx; grid_dim_out->y = gy; grid_dim_out->z = gz;
+    grid_origin_out->x = bx0; grid_origin_out->y = by0; grid_origin_out->z = bz0;
+    *n_cells_out = n_cells;
+
+    // Compute cell ID per particle.
+    int *cell_ids = (int *)malloc((size_t)n_static * sizeof(int));
+    for (uint32_t i = 0; i < n_static; i++) {
+        int cx = (int)floorf((pos_static_in[i*3+0] - bx0) / h);
+        int cy = (int)floorf((pos_static_in[i*3+1] - by0) / h);
+        int cz = (int)floorf((pos_static_in[i*3+2] - bz0) / h);
+        if (cx < 0) cx = 0; if (cx >= gx) cx = gx - 1;
+        if (cy < 0) cy = 0; if (cy >= gy) cy = gy - 1;
+        if (cz < 0) cz = 0; if (cz >= gz) cz = gz - 1;
+        cell_ids[i] = cx + cy * gx + cz * gx * gy;
+    }
+    // Counting sort: cell_start[c] = number of particles with id < c.
+    int *cell_start = (int *)calloc((size_t)(n_cells + 1), sizeof(int));
+    for (uint32_t i = 0; i < n_static; i++) cell_start[cell_ids[i] + 1]++;
+    for (int c = 1; c <= n_cells; c++) cell_start[c] += cell_start[c - 1];
+    // Scatter into sorted output.
+    float *sorted_static = (float *)malloc((size_t)n_static * 3 * sizeof(float));
+    int *write_pos = (int *)calloc((size_t)n_cells, sizeof(int));
+    for (uint32_t i = 0; i < n_static; i++) {
+        int c = cell_ids[i];
+        int dst = cell_start[c] + write_pos[c]++;
+        sorted_static[dst*3+0] = pos_static_in[i*3+0];
+        sorted_static[dst*3+1] = pos_static_in[i*3+1];
+        sorted_static[dst*3+2] = pos_static_in[i*3+2];
+    }
+    free(cell_ids); free(write_pos);
+    *sorted_static_out = sorted_static;
+    *cell_start_out = cell_start;
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // M7 — xpbd_step: one full XPBD timestep.
 //
@@ -709,6 +796,16 @@ static int run_xpbd_step(int argc, char **argv) {
     float *vel_active_init = read_floats(path_vel_active, (size_t)n_active * 3);
     float *pos_static      = read_floats(path_pos_static, (size_t)n_static * 3);
 
+    // Build static spatial grid (one-time per process invocation).
+    float *sorted_static = NULL;
+    int *cell_start = NULL;
+    GridDim3 grid_dim_struct;
+    GridOrigin3 grid_origin_struct;
+    int n_cells = 0;
+    build_static_grid(pos_static, n_static, h,
+                      &sorted_static, &cell_start,
+                      &grid_dim_struct, &grid_origin_struct, &n_cells);
+
     // Load bonds. Format per bond: [i:int32, j:int32, rest_len:float32, pad:float32]
     // Total 16 bytes per bond. Read raw and unpack.
     void *bonds_raw = NULL;
@@ -734,9 +831,12 @@ static int run_xpbd_step(int argc, char **argv) {
         id<MTLComputePipelineState> pso_wp_rs_fused = make_pso(ctx, "wpoly6_rowsum_density_fused");
         id<MTLComputePipelineState> pso_d_grad_combined = make_pso(ctx, "density_grad_combined");
         id<MTLComputePipelineState> pso_d_grad_mega = make_pso(ctx, "density_grad_mega_fused");
+        id<MTLComputePipelineState> pso_d_grad_grid = make_pso(ctx, "density_grad_mega_grid");
         (void)pso_wpoly6; (void)pso_density; (void)pso_wp_rs_fused;
         (void)pso_d_grad_combined; (void)pso_dist_aa; (void)pso_dist_as;
-        // pso_d_grad_mega is THE inner-loop kernel: dist+density+grad_C+denom_h fused.
+        (void)pso_d_grad_mega;
+        // pso_d_grad_grid is THE inner-loop kernel: spatial-grid neighbor
+        // search for static, plus dense for active-active.
         id<MTLComputePipelineState> pso_addin    = make_pso(ctx, "add_inplace");
         id<MTLComputePipelineState> pso_grad_C   = make_pso(ctx, "density_constraint_grad");
         id<MTLComputePipelineState> pso_predict  = make_pso(ctx, "predict_positions");
@@ -761,6 +861,21 @@ static int run_xpbd_step(int argc, char **argv) {
             length:pos_a_bytes options:MTLResourceStorageModeShared];
         id<MTLBuffer> bufPosStat  = [ctx.device newBufferWithBytes:pos_static
             length:pos_s_bytes options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufSortedStatic = (n_static > 0)
+            ? [ctx.device newBufferWithBytes:sorted_static
+                length:pos_s_bytes options:MTLResourceStorageModeShared]
+            : [ctx.device newBufferWithLength:16 options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufCellStart = [ctx.device newBufferWithBytes:cell_start
+            length:(size_t)(n_cells + 1) * sizeof(int)
+            options:MTLResourceStorageModeShared];
+        // Pack grid_dim as int3 (4 ints in metal alignment) and grid_origin as packed_float3.
+        int grid_dim_packed[4] = {grid_dim_struct.x, grid_dim_struct.y, grid_dim_struct.z, 0};
+        float grid_origin_packed[3] = {grid_origin_struct.x, grid_origin_struct.y, grid_origin_struct.z};
+        id<MTLBuffer> bufGridDim = [ctx.device newBufferWithBytes:grid_dim_packed
+            length:sizeof(int) * 4 options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufGridOrigin = [ctx.device newBufferWithBytes:grid_origin_packed
+            length:sizeof(float) * 3 options:MTLResourceStorageModeShared];
+        (void)bufPosStat; // kept for backward compat with other kernels
         id<MTLBuffer> bufR2aa     = [ctx.device newBufferWithLength:r2_aa_bytes
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bufR2as     = [ctx.device newBufferWithLength:r2_as_bytes
@@ -882,25 +997,33 @@ static int run_xpbd_step(int argc, char **argv) {
 
             // ── 2. inner XPBD iterations ──
             for (uint32_t it = 0; it < n_iters; it++) {
-                // PERF MEGA-FUSED kernel
+                // PERF MEGA-GRID kernel: spatial grid lookup for static
+                // neighbors (skip 99% non-neighbor pairs at demo1 scale)
+                // + dense N² for active-active.
                 {
                     id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
-                    [enc setComputePipelineState:pso_d_grad_mega];
-                    [enc setBuffer:bufPosPred offset:0 atIndex:0];
-                    [enc setBuffer:bufPosStat offset:0 atIndex:1];
-                    [enc setBuffer:bufDens    offset:0 atIndex:2];
-                    [enc setBuffer:bufGradC   offset:0 atIndex:3];
-                    [enc setBuffer:bufDenomH  offset:0 atIndex:4];
-                    [enc setBuffer:bufH       offset:0 atIndex:5];
-                    [enc setBuffer:bufH2      offset:0 atIndex:6];
-                    [enc setBuffer:bufPoly6   offset:0 atIndex:7];
-                    [enc setBuffer:bufSpiky   offset:0 atIndex:8];
-                    [enc setBuffer:bufMass    offset:0 atIndex:9];
-                    [enc setBuffer:bufRho     offset:0 atIndex:10];
-                    [enc setBuffer:bufNa      offset:0 atIndex:11];
-                    [enc setBuffer:bufNs      offset:0 atIndex:12];
-                    [enc dispatchThreads:MTLSizeMake(256, n_active, 1)
-                        threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
+                    [enc setComputePipelineState:pso_d_grad_grid];
+                    [enc setBuffer:bufPosPred     offset:0 atIndex:0];
+                    [enc setBuffer:bufSortedStatic offset:0 atIndex:1];
+                    [enc setBuffer:bufCellStart   offset:0 atIndex:2];
+                    [enc setBuffer:bufDens        offset:0 atIndex:3];
+                    [enc setBuffer:bufGradC       offset:0 atIndex:4];
+                    [enc setBuffer:bufDenomH      offset:0 atIndex:5];
+                    [enc setBuffer:bufH           offset:0 atIndex:6];
+                    [enc setBuffer:bufH2          offset:0 atIndex:7];
+                    [enc setBuffer:bufPoly6       offset:0 atIndex:8];
+                    [enc setBuffer:bufSpiky       offset:0 atIndex:9];
+                    [enc setBuffer:bufMass        offset:0 atIndex:10];
+                    [enc setBuffer:bufRho         offset:0 atIndex:11];
+                    [enc setBuffer:bufNa          offset:0 atIndex:12];
+                    [enc setBuffer:bufGridDim     offset:0 atIndex:13];
+                    [enc setBuffer:bufGridOrigin  offset:0 atIndex:14];
+                    // PERF: with grid lookup each row has only ~30
+                    // neighbors of work — 32 threads (1 simdgroup) per
+                    // row is enough; smaller TG = more rows in flight
+                    // simultaneously, better GPU saturation.
+                    [enc dispatchThreads:MTLSizeMake(32, n_active, 1)
+                        threadsPerThreadgroup:MTLSizeMake(32, 1, 1)];
                     [enc endEncoding];
                 }
                 // i. solve_density_constraint (uses denom_helper)
@@ -985,6 +1108,7 @@ static int run_xpbd_step(int argc, char **argv) {
         fclose(fv);
     }
     free(pos_active_init); free(vel_active_init); free(pos_static);
+    free(sorted_static); free(cell_start);
     if (bonds_raw) free(bonds_raw);
     return 0;
 }

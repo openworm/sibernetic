@@ -222,6 +222,145 @@ kernel void density_grad_combined(
     }
 }
 
+// PERF MEGA-GRID — same as mega_fused but uses a precomputed spatial
+// hash grid for static neighbors. Each active particle looks up its
+// 3×3×3 cell neighborhood (27 cells) instead of iterating all 17498
+// static particles. At demo1's particle density, ~99.8% of pair
+// checks are wasted; grid lookup recovers that work.
+//
+// Grid buffers (built host-side, one-time, written by load_config.py):
+//   sorted_static[i_sorted]       — static particle positions, reordered
+//                                    so particles in the same cell are
+//                                    contiguous in memory
+//   cell_start[c]                  — first index into sorted_static for
+//                                    cell c. Range [cell_start[c],
+//                                    cell_start[c+1]) is the cell's
+//                                    particles. Length = n_cells + 1.
+// Grid params (constants): grid_dim (int3), grid_origin (float3), h.
+//
+// Active-active still uses dense iteration (n_active = 343 — N² is
+// ~117K pair checks, fine without a grid).
+kernel void density_grad_mega_grid(
+    device const packed_float3 *active        [[buffer(0)]],
+    device const packed_float3 *sorted_static [[buffer(1)]],
+    device const int           *cell_start    [[buffer(2)]],
+    device float                *density      [[buffer(3)]],
+    device packed_float3        *grad_C       [[buffer(4)]],
+    device float                *denom_helper [[buffer(5)]],
+    constant float             &h             [[buffer(6)]],
+    constant float             &h2            [[buffer(7)]],
+    constant float             &poly6_const   [[buffer(8)]],
+    constant float             &spiky_const   [[buffer(9)]],
+    constant float             &mass          [[buffer(10)]],
+    constant float             &rho_rest      [[buffer(11)]],
+    constant uint              &n_active      [[buffer(12)]],
+    constant int3              &grid_dim      [[buffer(13)]],
+    constant packed_float3     &grid_origin   [[buffer(14)]],
+    uint2 gid                                  [[thread_position_in_grid]],
+    uint2 lid                                  [[thread_position_in_threadgroup]],
+    uint2 tg_size                              [[threads_per_threadgroup]])
+{
+    uint i = gid.y;
+    if (i >= n_active) return;
+
+    uint t = lid.x;
+    uint T = tg_size.x;
+
+    float3 p_i = float3(active[i]);
+    float  partial_dens  = 0.0;
+    float3 partial_grad  = float3(0.0);
+    float  partial_denom = 0.0;
+
+    // ── active-active (dense) ──
+    for (uint k = t; k < n_active; k += T) {
+        float3 p_j = float3(active[k]);
+        float3 dir = p_i - p_j;
+        float r2 = dot(dir, dir);
+        if (r2 >= h2) continue;
+        float diff = h2 - r2;
+        partial_dens += poly6_const * diff * diff * diff;
+        if (k == i) continue;
+        float r = sqrt(r2);
+        float h_minus_r = h - r;
+        float coef = spiky_const * h_minus_r * h_minus_r / (r + 1e-7);
+        float3 grad_W = coef * dir;
+        partial_grad  += mass * grad_W;
+        partial_denom += grad_W.x*grad_W.x + grad_W.y*grad_W.y + grad_W.z*grad_W.z;
+    }
+
+    // ── static via 27-cell grid lookup ──
+    int3 my_cell = int3(floor((p_i - float3(grid_origin)) / h));
+    int n_cells_xy = grid_dim.x * grid_dim.y;
+    for (int dz = -1; dz <= 1; dz++) {
+        int cz = my_cell.z + dz;
+        if (cz < 0 || cz >= grid_dim.z) continue;
+        for (int dy = -1; dy <= 1; dy++) {
+            int cy = my_cell.y + dy;
+            if (cy < 0 || cy >= grid_dim.y) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int cx = my_cell.x + dx;
+                if (cx < 0 || cx >= grid_dim.x) continue;
+                int c_id = cx + cy * grid_dim.x + cz * n_cells_xy;
+                int start = cell_start[c_id];
+                int end   = cell_start[c_id + 1];
+                // 256 threads cooperatively iterate over [start, end).
+                for (int j = start + (int)t; j < end; j += (int)T) {
+                    float3 p_j = float3(sorted_static[j]);
+                    float3 dir = p_i - p_j;
+                    float r2 = dot(dir, dir);
+                    if (r2 >= h2) continue;
+                    float diff = h2 - r2;
+                    partial_dens += poly6_const * diff * diff * diff;
+                    float r = sqrt(r2);
+                    float h_minus_r = h - r;
+                    float coef = spiky_const * h_minus_r * h_minus_r / (r + 1e-7);
+                    float3 grad_W = coef * dir;
+                    partial_grad  += mass * grad_W;
+                    partial_denom += grad_W.x*grad_W.x
+                                   + grad_W.y*grad_W.y
+                                   + grad_W.z*grad_W.z;
+                }
+            }
+        }
+    }
+
+    // simdgroup reduction. Number of simdgroups = T/32. We size the
+    // arrays for max 8 (i.e. 256-thread TG) and only iterate the
+    // populated entries — keeps the kernel threadgroup-size-agnostic.
+    float  s_dens  = simd_sum(partial_dens);
+    float3 s_grad  = float3(simd_sum(partial_grad.x),
+                            simd_sum(partial_grad.y),
+                            simd_sum(partial_grad.z));
+    float  s_denom = simd_sum(partial_denom);
+
+    threadgroup float  simd_dens_arr[8];
+    threadgroup float3 simd_grad_arr[8];
+    threadgroup float  simd_denom_arr[8];
+    uint n_simds = (T + 31) / 32;
+    uint simd_id = t / 32;
+    uint lane = t % 32;
+    if (lane == 0 && simd_id < 8) {
+        simd_dens_arr[simd_id]  = s_dens;
+        simd_grad_arr[simd_id]  = s_grad;
+        simd_denom_arr[simd_id] = s_denom;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    if (t == 0) {
+        float total_d = 0.0;
+        float3 total_g = float3(0.0);
+        float total_h = 0.0;
+        for (uint s = 0; s < n_simds; s++) {
+            total_d += simd_dens_arr[s];
+            total_g += simd_grad_arr[s];
+            total_h += simd_denom_arr[s];
+        }
+        density[i] = mass * total_d;
+        grad_C[i] = packed_float3(total_g / rho_rest);
+        denom_helper[i] = total_h;
+    }
+}
+
 // PERF MEGA-FUSED — distance + density + grad_C + denom_helper, all
 // inline. NO r² matrix materialization. Each inner XPBD iter reads
 // positions fresh and computes everything; for our demo1 scale this

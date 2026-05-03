@@ -163,11 +163,49 @@ def decode_bonds(connections: np.ndarray, n_elastic: int,
     return bonds
 
 
-def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp"):
+def build_static_grid(positions: np.ndarray, h: float):
+    """Build a uniform spatial hash grid over the (frozen) static particles.
+
+    Boundary positions don't change so we build the grid once per scenario.
+
+    Returns:
+        sorted_pos:  [n, 3] fp32 — positions reordered so particles in the
+                     same cell are contiguous in memory
+        cell_start:  [n_cells + 1] int32 — particles in cell c are at
+                     sorted_pos[cell_start[c] : cell_start[c+1]]
+        grid_dim:    [3] int32 — cells per axis
+        grid_origin: [3] fp32 — world position of cell (0,0,0)
+    """
+    box_min = positions.min(axis=0) - 0.1
+    box_max = positions.max(axis=0) + 0.1
+    grid_dim = np.ceil((box_max - box_min) / h).astype(np.int32)
+    n_cells = int(grid_dim.prod())
+
+    cells = np.floor((positions - box_min) / h).astype(np.int32)
+    cell_ids = (cells[:, 0]
+                + cells[:, 1] * grid_dim[0]
+                + cells[:, 2] * grid_dim[0] * grid_dim[1])
+
+    perm = np.argsort(cell_ids, kind='stable')
+    sorted_pos = positions[perm].astype(np.float32)
+    sorted_ids = cell_ids[perm]
+
+    # cell_start[c] = number of particles with cell_id < c
+    counts = np.bincount(sorted_ids, minlength=n_cells)
+    cell_start = np.zeros(n_cells + 1, dtype=np.int32)
+    cell_start[1:] = np.cumsum(counts)
+    return sorted_pos, cell_start, grid_dim, box_min.astype(np.float32)
+
+
+def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
+                            h: float = 1.67):
     """End-to-end: parse config + write binary buffers Metal CLI consumes.
 
+    `h` is the SPH smoothing radius — needed for the spatial grid build.
+
     Returns a dict with the parameters needed for the CLI (n_active,
-    n_static, n_bonds, paths) so callers can spawn sib_metal directly.
+    n_static, n_bonds, paths, grid info) so callers can spawn sib_metal
+    directly.
     """
     config_path = os.path.join("configuration", scenario)
     if not os.path.exists(config_path):
@@ -187,17 +225,26 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp"):
 
     bonds = decode_bonds(cfg['connections'], n_elastic, active_idx)
 
+    # Build static-particle spatial grid (one-time per scenario).
+    sorted_static, cell_start, grid_dim, grid_origin = build_static_grid(
+        pos_static, h)
+    n_cells = int(grid_dim.prod())
+
     os.makedirs(out_dir, exist_ok=True)
     paths = {
-        'pos_active': os.path.join(out_dir, f"{scenario}_pos_active.bin"),
-        'vel_active': os.path.join(out_dir, f"{scenario}_vel_active.bin"),
-        'pos_static': os.path.join(out_dir, f"{scenario}_pos_static.bin"),
-        'bonds':      os.path.join(out_dir, f"{scenario}_bonds.bin"),
+        'pos_active':    os.path.join(out_dir, f"{scenario}_pos_active.bin"),
+        'vel_active':    os.path.join(out_dir, f"{scenario}_vel_active.bin"),
+        'pos_static':    os.path.join(out_dir, f"{scenario}_pos_static.bin"),
+        'bonds':         os.path.join(out_dir, f"{scenario}_bonds.bin"),
+        'sorted_static': os.path.join(out_dir, f"{scenario}_sorted_static.bin"),
+        'cell_start':    os.path.join(out_dir, f"{scenario}_cell_start.bin"),
     }
     pos_active.tofile(paths['pos_active'])
     vel_active.tofile(paths['vel_active'])
     pos_static.tofile(paths['pos_static'])
     bonds.tofile(paths['bonds'])
+    sorted_static.tofile(paths['sorted_static'])
+    cell_start.tofile(paths['cell_start'])
 
     return {
         'scenario': scenario,
@@ -207,6 +254,10 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp"):
         'n_elastic': n_elastic,
         'n_liquid': n_active - n_elastic,
         'n_bonds': len(bonds),
+        'n_cells': n_cells,
+        'grid_dim': grid_dim.tolist(),
+        'grid_origin': grid_origin.tolist(),
+        'h': h,
         'box': cfg['box'],
         'paths': paths,
     }
