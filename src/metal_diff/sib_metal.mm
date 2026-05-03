@@ -3541,6 +3541,589 @@ static int run_solve_density_constraint_bwd(int argc, char **argv) {
     return 0;
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// Multi-step XPBD forward+backward (xpbd_full_fwd / _bwd).
+//
+// Pipeline per step k (n_iters=1 for now to keep state simple):
+//   predict_positions
+//   density chain: dist_aa + dist_as + wpoly6×2 + rowsum×2 + add
+//   density_constraint_grad → grad_C, denom_helper
+//   solve_density_constraint
+//   update_velocities
+//
+// Saved state per step (all on host, per-step indexing):
+//   x_old[k], v_old[k]          ← 6 floats per particle per step
+//   density[k]                   ← 1 float per particle per step
+//   grad_C[k]                    ← 3 floats per particle per step
+//   denom_helper[k]              ← 1 float per particle per step
+//
+// r²_aa, r²_as are RECOMPUTED in backward (cheap distance ops) to
+// avoid memory blowup at demo1 scale (r²_as = 24 MB per step).
+//
+// No bonds, no floor in this version — to be added as separate
+// extensions once base multi-step backward validates.
+// ──────────────────────────────────────────────────────────────────────
+static int run_xpbd_full_fwd(int argc, char **argv) {
+    if (argc != 15) {
+        fprintf(stderr,
+            "usage: sib_metal xpbd_full_fwd "
+            "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
+            "<gravity_y> <alpha_density> "
+            "<pos0.bin> <vel0.bin> <pos_static.bin> <state_out.bin>\n"
+            "  state_out.bin contains the per-step trajectory: \n"
+            "    K × [x_old(n*3) + v_old(n*3) + density(n) + grad_C(n*3) + denom_h(n)]\n"
+            "    Plus K+1 frames of x_post for the trajectory.\n");
+        return 1;
+    }
+    uint32_t n_active = (uint32_t)atoi(argv[2]);
+    uint32_t n_static = (uint32_t)atoi(argv[3]);
+    uint32_t K        = (uint32_t)atoi(argv[4]);
+    float h           = (float)atof(argv[5]);
+    float mass        = (float)atof(argv[6]);
+    float rho_rest    = (float)atof(argv[7]);
+    float dt          = (float)atof(argv[8]);
+    float g_y         = (float)atof(argv[9]);
+    float alpha_dens  = (float)atof(argv[10]);
+
+    float h2 = h * h;
+    float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
+    float spiky_const = -45.0f / ((float)M_PI * powf(h, 6.0f));
+    float alpha_inv_dt2 = alpha_dens / (dt * dt);
+
+    auto rd = ^(const char *p, size_t n_floats) {
+        FILE *f = fopen(p, "rb");
+        if (!f) { fprintf(stderr, "open %s\n", p); exit(1); }
+        float *b = (float *)malloc(n_floats * sizeof(float));
+        fread(b, sizeof(float), n_floats, f); fclose(f); return b;
+    };
+    float *pos0 = rd(argv[11], (size_t)n_active * 3);
+    float *vel0 = rd(argv[12], (size_t)n_active * 3);
+    float *pos_static = rd(argv[13], (size_t)n_static * 3);
+
+    size_t pos_b = (size_t)n_active * 3 * sizeof(float);
+    size_t s_b = (size_t)n_active * sizeof(float);
+
+    // Per-step state arrays (host).
+    // Layout per step: [x_old(3n) + v_old(3n) + density(n) + grad_C(3n) + denom_h(n)]
+    size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1);
+    float *state = (float *)calloc((size_t)K * per_step_floats, sizeof(float));
+    // Plus K+1 frames of x_post for the trajectory.
+    float *traj = (float *)calloc((size_t)(K + 1) * (size_t)n_active * 3, sizeof(float));
+    memcpy(traj, pos0, pos_b);
+
+    @autoreleasepool {
+        MetalCtx ctx = make_ctx();
+        id<MTLComputePipelineState> pso_pred  = make_pso(ctx, "predict_positions");
+        id<MTLComputePipelineState> pso_d_aa  = make_pso(ctx, "dist_active_active");
+        id<MTLComputePipelineState> pso_d_as  = make_pso(ctx, "dist_active_static");
+        id<MTLComputePipelineState> pso_wp    = make_pso(ctx, "wpoly6_inplace");
+        id<MTLComputePipelineState> pso_rs    = make_pso(ctx, "rowsum_density");
+        id<MTLComputePipelineState> pso_addin = make_pso(ctx, "add_inplace");
+        id<MTLComputePipelineState> pso_dgrad = make_pso(ctx, "density_constraint_grad");
+        id<MTLComputePipelineState> pso_solv  = make_pso(ctx, "solve_density_constraint");
+        id<MTLComputePipelineState> pso_uv    = make_pso(ctx, "update_velocities");
+
+        size_t r2aa_b = (size_t)n_active * n_active * sizeof(float);
+        size_t r2as_b = (size_t)n_active * n_static * sizeof(float);
+
+        id<MTLBuffer> bX  = [ctx.device newBufferWithBytes:pos0 length:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bV  = [ctx.device newBufferWithBytes:vel0 length:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bXp = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bSp = [ctx.device newBufferWithBytes:pos_static
+            length:(size_t)n_static * 3 * sizeof(float)
+            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bR2aa = [ctx.device newBufferWithLength:r2aa_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bR2as = [ctx.device newBufferWithLength:r2as_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bWaa  = [ctx.device newBufferWithLength:r2aa_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bWas  = [ctx.device newBufferWithLength:r2as_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bD_aa = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bD    = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGc   = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bDh   = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bLam  = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+
+        id<MTLBuffer> bDt = [ctx.device newBufferWithBytes:&dt length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGy = [ctx.device newBufferWithBytes:&g_y length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bH  = [ctx.device newBufferWithBytes:&h length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bH2 = [ctx.device newBufferWithBytes:&h2 length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bP6 = [ctx.device newBufferWithBytes:&poly6_const length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bSk = [ctx.device newBufferWithBytes:&spiky_const length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bM  = [ctx.device newBufferWithBytes:&mass length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bR  = [ctx.device newBufferWithBytes:&rho_rest length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bA  = [ctx.device newBufferWithBytes:&alpha_inv_dt2 length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNa = [ctx.device newBufferWithBytes:&n_active length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNs = [ctx.device newBufferWithBytes:&n_static length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        uint32_t n_aa_total = n_active * n_active;
+        uint32_t n_as_total = n_active * n_static;
+        id<MTLBuffer> bNaaTot = [ctx.device newBufferWithBytes:&n_aa_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNasTot = [ctx.device newBufferWithBytes:&n_as_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+
+        for (uint32_t k = 0; k < K; k++) {
+            // SAVE x_old, v_old (current state at start of step)
+            float *step_state = state + (size_t)k * per_step_floats;
+            memcpy(step_state, [bX contents], pos_b);
+            memcpy(step_state + 3 * n_active, [bV contents], pos_b);
+
+            memset([bLam contents], 0, s_b);
+
+            id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
+            // (1) predict
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_pred];
+              [e setBuffer:bX offset:0 atIndex:0]; [e setBuffer:bV offset:0 atIndex:1];
+              [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
+              [e setBuffer:bGy offset:0 atIndex:4]; [e setBuffer:bNa offset:0 atIndex:5];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            // (2) dist_aa
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_d_aa];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bR2aa offset:0 atIndex:1];
+              [e setBuffer:bNa offset:0 atIndex:2];
+              [e dispatchThreads:MTLSizeMake(n_active, n_active, 1)
+                  threadsPerThreadgroup:MTLSizeMake(16,16,1)];
+              [e endEncoding]; }
+            // (3) dist_as
+            if (n_static > 0) {
+              id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_d_as];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bSp offset:0 atIndex:1];
+              [e setBuffer:bR2as offset:0 atIndex:2]; [e setBuffer:bNa offset:0 atIndex:3];
+              [e setBuffer:bNs offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(n_active, n_static, 1)
+                  threadsPerThreadgroup:MTLSizeMake(16,16,1)];
+              [e endEncoding];
+            }
+            // (4) Wpoly6 on aa
+            { id<MTLBlitCommandEncoder> b = [cmd blitCommandEncoder];
+              [b copyFromBuffer:bR2aa sourceOffset:0 toBuffer:bWaa destinationOffset:0 size:r2aa_b];
+              [b endEncoding]; }
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_wp];
+              [e setBuffer:bWaa offset:0 atIndex:0]; [e setBuffer:bH2 offset:0 atIndex:1];
+              [e setBuffer:bP6 offset:0 atIndex:2]; [e setBuffer:bNaaTot offset:0 atIndex:3];
+              [e dispatchThreads:MTLSizeMake(n_aa_total,1,1) threadsPerThreadgroup:MTLSizeMake(256,1,1)];
+              [e endEncoding]; }
+            // (5) Wpoly6 on as
+            if (n_static > 0) {
+              { id<MTLBlitCommandEncoder> b = [cmd blitCommandEncoder];
+                [b copyFromBuffer:bR2as sourceOffset:0 toBuffer:bWas destinationOffset:0 size:r2as_b];
+                [b endEncoding]; }
+              { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_wp];
+                [e setBuffer:bWas offset:0 atIndex:0]; [e setBuffer:bH2 offset:0 atIndex:1];
+                [e setBuffer:bP6 offset:0 atIndex:2]; [e setBuffer:bNasTot offset:0 atIndex:3];
+                [e dispatchThreads:MTLSizeMake(n_as_total,1,1) threadsPerThreadgroup:MTLSizeMake(256,1,1)];
+                [e endEncoding]; }
+            }
+            // (6) rowsum aa → density_aa
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_rs];
+              [e setBuffer:bWaa offset:0 atIndex:0]; [e setBuffer:bD_aa offset:0 atIndex:1];
+              [e setBuffer:bM offset:0 atIndex:2];
+              [e setBuffer:bNa offset:0 atIndex:3]; [e setBuffer:bNa offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(256, n_active, 1)
+                  threadsPerThreadgroup:MTLSizeMake(256,1,1)];
+              [e endEncoding]; }
+            // (7) rowsum as → density (will accumulate via add)
+            if (n_static > 0) {
+              id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_rs];
+              [e setBuffer:bWas offset:0 atIndex:0]; [e setBuffer:bD offset:0 atIndex:1];
+              [e setBuffer:bM offset:0 atIndex:2];
+              [e setBuffer:bNs offset:0 atIndex:3]; [e setBuffer:bNa offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(256, n_active, 1)
+                  threadsPerThreadgroup:MTLSizeMake(256,1,1)];
+              [e endEncoding];
+              // density += density_aa
+              { id<MTLComputeCommandEncoder> e2 = [cmd computeCommandEncoder];
+                [e2 setComputePipelineState:pso_addin];
+                [e2 setBuffer:bD offset:0 atIndex:0]; [e2 setBuffer:bD_aa offset:0 atIndex:1];
+                [e2 setBuffer:bNa offset:0 atIndex:2];
+                [e2 dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+                [e2 endEncoding]; }
+            } else {
+              // density = density_aa
+              id<MTLBlitCommandEncoder> b = [cmd blitCommandEncoder];
+              [b copyFromBuffer:bD_aa sourceOffset:0 toBuffer:bD destinationOffset:0 size:s_b];
+              [b endEncoding];
+            }
+            // (8) density_constraint_grad
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_dgrad];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bSp offset:0 atIndex:1];
+              [e setBuffer:bR2aa offset:0 atIndex:2]; [e setBuffer:bR2as offset:0 atIndex:3];
+              [e setBuffer:bGc offset:0 atIndex:4]; [e setBuffer:bDh offset:0 atIndex:5];
+              [e setBuffer:bH offset:0 atIndex:6]; [e setBuffer:bSk offset:0 atIndex:7];
+              [e setBuffer:bM offset:0 atIndex:8]; [e setBuffer:bR offset:0 atIndex:9];
+              [e setBuffer:bNa offset:0 atIndex:10]; [e setBuffer:bNs offset:0 atIndex:11];
+              [e dispatchThreads:MTLSizeMake(256, n_active, 1)
+                  threadsPerThreadgroup:MTLSizeMake(256,1,1)];
+              [e endEncoding]; }
+            // (9) solve_density_constraint
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_solv];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bLam offset:0 atIndex:1];
+              [e setBuffer:bD offset:0 atIndex:2]; [e setBuffer:bGc offset:0 atIndex:3];
+              [e setBuffer:bDh offset:0 atIndex:4]; [e setBuffer:bR offset:0 atIndex:5];
+              [e setBuffer:bM offset:0 atIndex:6]; [e setBuffer:bA offset:0 atIndex:7];
+              [e setBuffer:bNa offset:0 atIndex:8];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            // (10) update_vel: v_new = (xp - x_old)/dt
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_uv];
+              [e setBuffer:bV offset:0 atIndex:0]; [e setBuffer:bX offset:0 atIndex:1];
+              [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
+              [e setBuffer:bNa offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            [cmd commit]; [cmd waitUntilCompleted];
+
+            // SAVE density, grad_C, denom_helper for backward
+            float *p = step_state + 6 * n_active;
+            memcpy(p, [bD contents], s_b);                            // density
+            memcpy(p + n_active, [bGc contents], pos_b);              // grad_C
+            memcpy(p + n_active + 3 * n_active, [bDh contents], s_b); // denom_h
+            // Save x_post in trajectory
+            memcpy(traj + (size_t)(k + 1) * n_active * 3,
+                   [bXp contents], pos_b);
+            // Advance: x_old ← x_post
+            memcpy([bX contents], [bXp contents], pos_b);
+        }
+
+        // Write outputs: state buffer, trajectory, final velocity
+        FILE *fs = fopen(argv[14], "wb");
+        fwrite(state, sizeof(float), (size_t)K * per_step_floats, fs);
+        fwrite(traj, sizeof(float), (size_t)(K + 1) * n_active * 3, fs);
+        fwrite([bV contents], 1, pos_b, fs);
+        fclose(fs);
+    }
+    free(pos0); free(vel0); free(pos_static); free(state); free(traj);
+    return 0;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Multi-step backward driver. Walks K steps in reverse, calling all
+// the M9 backward kernels per step, accumulating ∂L/∂(rho_rest, x_init,
+// v_init).
+//
+// Inputs:
+//   state file (from xpbd_full_fwd)
+//   ∂L/∂x_final (input gradient seed)
+// Outputs:
+//   ∂L/∂x_init, ∂L/∂v_init, ∂L/∂rho_rest (scalar)
+// ──────────────────────────────────────────────────────────────────────
+static int run_xpbd_full_bwd(int argc, char **argv) {
+    if (argc != 17) {
+        fprintf(stderr,
+            "usage: sib_metal xpbd_full_bwd "
+            "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
+            "<gravity_y> <alpha_density> "
+            "<state_in.bin> <pos_static.bin> <grad_x_final.bin> "
+            "<grad_x_init_out.bin> <grad_v_init_out.bin> <grad_rho_out.bin>\n");
+        return 1;
+    }
+    uint32_t n_active = (uint32_t)atoi(argv[2]);
+    uint32_t n_static = (uint32_t)atoi(argv[3]);
+    uint32_t K        = (uint32_t)atoi(argv[4]);
+    float h           = (float)atof(argv[5]);
+    float mass        = (float)atof(argv[6]);
+    float rho_rest    = (float)atof(argv[7]);
+    float dt          = (float)atof(argv[8]);
+    float g_y         = (float)atof(argv[9]);
+    float alpha_dens  = (float)atof(argv[10]);
+
+    float h2 = h * h;
+    float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
+    float spiky_const = -45.0f / ((float)M_PI * powf(h, 6.0f));
+    float alpha_inv_dt2 = alpha_dens / (dt * dt);
+
+    auto rd = ^(const char *p, size_t n_floats) {
+        FILE *f = fopen(p, "rb");
+        if (!f) { fprintf(stderr, "open %s\n", p); exit(1); }
+        float *b = (float *)malloc(n_floats * sizeof(float));
+        fread(b, sizeof(float), n_floats, f); fclose(f); return b;
+    };
+    // State file layout (from xpbd_full_fwd):
+    //   [K × per_step_floats] state
+    //   [(K+1) × n*3] traj
+    //   [n*3] vel_final
+    size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1);
+    size_t state_size = (size_t)K * per_step_floats
+                      + (size_t)(K + 1) * n_active * 3
+                      + (size_t)n_active * 3;
+    float *all = rd(argv[11], state_size);
+    float *state = all;
+    float *traj = all + (size_t)K * per_step_floats;
+    // (vel_final at all + ... + (K+1)*n*3 — not used here)
+
+    float *pos_static = rd(argv[12], (size_t)n_static * 3);
+    float *grad_x_fin = rd(argv[13], (size_t)n_active * 3);
+
+    size_t pos_b = (size_t)n_active * 3 * sizeof(float);
+    size_t s_b = (size_t)n_active * sizeof(float);
+
+    @autoreleasepool {
+        MetalCtx ctx = make_ctx();
+        // Forward kernels (recompute distances and predict x_pre):
+        id<MTLComputePipelineState> pso_pred  = make_pso(ctx, "predict_positions");
+        id<MTLComputePipelineState> pso_d_aa  = make_pso(ctx, "dist_active_active");
+        id<MTLComputePipelineState> pso_d_as  = make_pso(ctx, "dist_active_static");
+        // Backward kernels:
+        id<MTLComputePipelineState> pso_uvbw  = make_pso(ctx, "update_velocities_backward");
+        id<MTLComputePipelineState> pso_solv_bw = make_pso(ctx, "solve_density_constraint_backward");
+        id<MTLComputePipelineState> pso_dgrad_bw = make_pso(ctx, "density_constraint_grad_backward");
+        id<MTLComputePipelineState> pso_rs_bw = make_pso(ctx, "rowsum_density_backward");
+        id<MTLComputePipelineState> pso_wp_bw = make_pso(ctx, "wpoly6_inplace_backward");
+        id<MTLComputePipelineState> pso_d_aa_bw = make_pso(ctx, "dist_active_active_backward");
+        id<MTLComputePipelineState> pso_d_as_bw = make_pso(ctx, "dist_active_static_backward");
+        id<MTLComputePipelineState> pso_pred_bw = make_pso(ctx, "predict_positions_backward");
+
+        // Persistent buffers.
+        id<MTLBuffer> bX  = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bV  = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bXp = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bSp = [ctx.device newBufferWithBytes:pos_static
+            length:(size_t)n_static * 3 * sizeof(float) options:MTLResourceStorageModeShared];
+        size_t r2aa_b = (size_t)n_active * n_active * sizeof(float);
+        size_t r2as_b = (size_t)n_active * n_static * sizeof(float);
+        id<MTLBuffer> bR2aa = [ctx.device newBufferWithLength:r2aa_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bR2as = [ctx.device newBufferWithLength:r2as_b options:MTLResourceStorageModeShared];
+
+        // Per-step inputs from state:
+        id<MTLBuffer> bD  = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGc = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bDh = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bLam = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        memset([bLam contents], 0, s_b);  // λ_pre always 0
+
+        // Running gradients:
+        id<MTLBuffer> bGx_running = [ctx.device newBufferWithBytes:grad_x_fin length:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGv_running = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        memset([bGv_running contents], 0, pos_b);
+
+        // Per-step working gradients:
+        id<MTLBuffer> bGv_in = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGx_pred = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGx_old_new = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGv_old_new = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        // Outputs of solve_density_constraint_backward:
+        id<MTLBuffer> bGlam_pre = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGdens = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGgC = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGdh = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGrho_per = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        // Density chain backward intermediates:
+        id<MTLBuffer> bGW_or_Gr2_aa = [ctx.device newBufferWithLength:r2aa_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGW_or_Gr2_as = [ctx.device newBufferWithLength:r2as_b options:MTLResourceStorageModeShared];
+        // For predict_backward:
+        id<MTLBuffer> bGgy_per = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+
+        // Constants.
+        id<MTLBuffer> bDt = [ctx.device newBufferWithBytes:&dt length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGy = [ctx.device newBufferWithBytes:&g_y length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bH  = [ctx.device newBufferWithBytes:&h length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bH2 = [ctx.device newBufferWithBytes:&h2 length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bP6 = [ctx.device newBufferWithBytes:&poly6_const length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bSk = [ctx.device newBufferWithBytes:&spiky_const length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bM  = [ctx.device newBufferWithBytes:&mass length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bR  = [ctx.device newBufferWithBytes:&rho_rest length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bA  = [ctx.device newBufferWithBytes:&alpha_inv_dt2 length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNa = [ctx.device newBufferWithBytes:&n_active length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNs = [ctx.device newBufferWithBytes:&n_static length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        uint32_t n_aa_total = n_active * n_active;
+        uint32_t n_as_total = n_active * n_static;
+        id<MTLBuffer> bNaaTot = [ctx.device newBufferWithBytes:&n_aa_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bNasTot = [ctx.device newBufferWithBytes:&n_as_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+
+        // Total ρ gradient accumulator (host-side scalar).
+        float total_grad_rho = 0.0f;
+
+        // Walk K steps backward.
+        for (int32_t k = (int32_t)K - 1; k >= 0; k--) {
+            float *step_state = state + (size_t)k * per_step_floats;
+            // Load saved state.
+            memcpy([bX contents], step_state, pos_b);                  // x_old
+            memcpy([bV contents], step_state + 3 * n_active, pos_b);   // v_old
+            memcpy([bD contents], step_state + 6 * n_active, s_b);     // density
+            memcpy([bGc contents], step_state + 7 * n_active, pos_b);  // grad_C
+            memcpy([bDh contents], step_state + 10 * n_active, s_b);   // denom_h
+
+            // Recompute x_pre = x_old + dt²·g + dt·v_old (same as predict).
+            id<MTLCommandBuffer> cmd1 = [ctx.queue commandBuffer];
+            { id<MTLComputeCommandEncoder> e = [cmd1 computeCommandEncoder];
+              [e setComputePipelineState:pso_pred];
+              [e setBuffer:bX offset:0 atIndex:0]; [e setBuffer:bV offset:0 atIndex:1];
+              [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
+              [e setBuffer:bGy offset:0 atIndex:4]; [e setBuffer:bNa offset:0 atIndex:5];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            // Recompute r2_aa, r2_as for the density chain backward.
+            { id<MTLComputeCommandEncoder> e = [cmd1 computeCommandEncoder];
+              [e setComputePipelineState:pso_d_aa];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bR2aa offset:0 atIndex:1];
+              [e setBuffer:bNa offset:0 atIndex:2];
+              [e dispatchThreads:MTLSizeMake(n_active, n_active, 1)
+                  threadsPerThreadgroup:MTLSizeMake(16,16,1)];
+              [e endEncoding]; }
+            if (n_static > 0) {
+              id<MTLComputeCommandEncoder> e = [cmd1 computeCommandEncoder];
+              [e setComputePipelineState:pso_d_as];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bSp offset:0 atIndex:1];
+              [e setBuffer:bR2as offset:0 atIndex:2]; [e setBuffer:bNa offset:0 atIndex:3];
+              [e setBuffer:bNs offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(n_active, n_static, 1)
+                  threadsPerThreadgroup:MTLSizeMake(16,16,1)];
+              [e endEncoding];
+            }
+            [cmd1 commit]; [cmd1 waitUntilCompleted];
+
+            memset([bGx_old_new contents], 0, pos_b);
+            memset([bGv_old_new contents], 0, pos_b);
+            memset([bGx_pred contents], 0, pos_b);
+            // Move running v gradient into bGv_in for update_vel_bwd.
+            memcpy([bGv_in contents], [bGv_running contents], pos_b);
+
+            id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
+            // (a) update_vel backward: ∂L/∂v_new (=bGv_in) → +bGx_running (∂L/∂x_post), +bGx_old_new (∂L/∂x_old)
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_uvbw];
+              [e setBuffer:bGv_in offset:0 atIndex:0];
+              [e setBuffer:bGx_running offset:0 atIndex:1];
+              [e setBuffer:bGx_old_new offset:0 atIndex:2];
+              [e setBuffer:bDt offset:0 atIndex:3]; [e setBuffer:bNa offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            // (b) solve_density_constraint backward
+            // ∂L/∂λ_post = 0 (single-iter, no propagation)
+            // We use bGdens as a SCRATCH for the zeros.
+            // Actually solve bw expects buf at index 5 to be ∂L/∂λ_post — pass bDh re-purposed? No, need a zero buffer.
+            // Re-use bGdh for this purpose (we'll overwrite it with output ∂L/∂dh anyway).
+            // But we need a SEPARATE zero buffer. Use a small temp.
+            // Quick fix: just zero bGdh first and pass it. But bGdh gets overwritten by the kernel.
+            // Cleaner: allocate a separate zero buffer for ∂L/∂λ_post.
+            // Hack: bLam itself is zeros (we set above) — reuse it.
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_solv_bw];
+              [e setBuffer:bD offset:0 atIndex:0];     [e setBuffer:bGc offset:0 atIndex:1];
+              [e setBuffer:bDh offset:0 atIndex:2];    [e setBuffer:bLam offset:0 atIndex:3];
+              [e setBuffer:bGx_running offset:0 atIndex:4];  // ∂L/∂x_post (input)
+              [e setBuffer:bLam offset:0 atIndex:5];   // ∂L/∂λ_post = 0 (reuse bLam as zeros)
+              [e setBuffer:bGx_pred offset:0 atIndex:6];  // ∂L/∂x_pre (accum)
+              [e setBuffer:bGlam_pre offset:0 atIndex:7];
+              [e setBuffer:bGdens offset:0 atIndex:8]; [e setBuffer:bGgC offset:0 atIndex:9];
+              [e setBuffer:bGdh offset:0 atIndex:10];  [e setBuffer:bGrho_per offset:0 atIndex:11];
+              [e setBuffer:bR offset:0 atIndex:12];    [e setBuffer:bM offset:0 atIndex:13];
+              [e setBuffer:bA offset:0 atIndex:14];    [e setBuffer:bNa offset:0 atIndex:15];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            // (c) density_constraint_grad backward: contributes ∂L/∂x via grad_C and denom_helper
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_dgrad_bw];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bSp offset:0 atIndex:1];
+              [e setBuffer:bR2aa offset:0 atIndex:2]; [e setBuffer:bR2as offset:0 atIndex:3];
+              [e setBuffer:bGgC offset:0 atIndex:4]; [e setBuffer:bGdh offset:0 atIndex:5];
+              [e setBuffer:bGx_pred offset:0 atIndex:6];   // accumulate
+              [e setBuffer:bH offset:0 atIndex:7]; [e setBuffer:bSk offset:0 atIndex:8];
+              [e setBuffer:bM offset:0 atIndex:9]; [e setBuffer:bR offset:0 atIndex:10];
+              [e setBuffer:bNa offset:0 atIndex:11]; [e setBuffer:bNs offset:0 atIndex:12];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            // (d) density chain backward: ∂L/∂density → ∂L/∂x_pre (additional contribution)
+            //     Pipeline: rowsum_bwd → wpoly6_bwd → dist_aa_bwd
+            //               rowsum_bwd → wpoly6_bwd → dist_as_bwd
+            //     Both contribute to bGx_pred (same buffer, multiple paths add up via dist_*_backward kernels).
+            // density_aa branch:
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_rs_bw];
+              [e setBuffer:bGdens offset:0 atIndex:0];
+              [e setBuffer:bGW_or_Gr2_aa offset:0 atIndex:1];
+              [e setBuffer:bM offset:0 atIndex:2]; [e setBuffer:bNa offset:0 atIndex:3];
+              [e dispatchThreads:MTLSizeMake(n_active, n_active, 1)
+                  threadsPerThreadgroup:MTLSizeMake(16,16,1)];
+              [e endEncoding]; }
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_wp_bw];
+              [e setBuffer:bR2aa offset:0 atIndex:0]; [e setBuffer:bGW_or_Gr2_aa offset:0 atIndex:1];
+              [e setBuffer:bH2 offset:0 atIndex:2]; [e setBuffer:bP6 offset:0 atIndex:3];
+              [e setBuffer:bNaaTot offset:0 atIndex:4];
+              [e dispatchThreads:MTLSizeMake(n_aa_total,1,1) threadsPerThreadgroup:MTLSizeMake(256,1,1)];
+              [e endEncoding]; }
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_d_aa_bw];
+              [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bGW_or_Gr2_aa offset:0 atIndex:1];
+              [e setBuffer:bGx_pred offset:0 atIndex:2]; [e setBuffer:bNa offset:0 atIndex:3];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            // density_as branch:
+            if (n_static > 0) {
+              { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_rs_bw];
+                [e setBuffer:bGdens offset:0 atIndex:0];
+                [e setBuffer:bGW_or_Gr2_as offset:0 atIndex:1];
+                [e setBuffer:bM offset:0 atIndex:2]; [e setBuffer:bNs offset:0 atIndex:3];
+                [e dispatchThreads:MTLSizeMake(n_static, n_active, 1)
+                    threadsPerThreadgroup:MTLSizeMake(16,16,1)];
+                [e endEncoding]; }
+              { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_wp_bw];
+                [e setBuffer:bR2as offset:0 atIndex:0]; [e setBuffer:bGW_or_Gr2_as offset:0 atIndex:1];
+                [e setBuffer:bH2 offset:0 atIndex:2]; [e setBuffer:bP6 offset:0 atIndex:3];
+                [e setBuffer:bNasTot offset:0 atIndex:4];
+                [e dispatchThreads:MTLSizeMake(n_as_total,1,1) threadsPerThreadgroup:MTLSizeMake(256,1,1)];
+                [e endEncoding]; }
+              { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_d_as_bw];
+                [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bSp offset:0 atIndex:1];
+                [e setBuffer:bGW_or_Gr2_as offset:0 atIndex:2];
+                [e setBuffer:bGx_pred offset:0 atIndex:3];
+                [e setBuffer:bNa offset:0 atIndex:4]; [e setBuffer:bNs offset:0 atIndex:5];
+                [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+                [e endEncoding]; }
+            }
+            // (e) predict_positions backward: ∂L/∂x_pred → +bGx_old_new, +bGv_old_new, ∂L/∂g_y per particle
+            { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+              [e setComputePipelineState:pso_pred_bw];
+              [e setBuffer:bGx_pred offset:0 atIndex:0];
+              [e setBuffer:bGx_old_new offset:0 atIndex:1];
+              [e setBuffer:bGv_old_new offset:0 atIndex:2];
+              [e setBuffer:bGgy_per offset:0 atIndex:3];
+              [e setBuffer:bDt offset:0 atIndex:4]; [e setBuffer:bNa offset:0 atIndex:5];
+              [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+              [e endEncoding]; }
+            [cmd commit]; [cmd waitUntilCompleted];
+
+            // Sum ρ gradient (kernel partial + implicit via grad_C).
+            //   implicit = -(grad_grad_C · grad_C) / ρ_rest
+            //   Note: bGgC currently holds ∂L/∂grad_C from solve_dens_bwd; bGc holds grad_C (forward saved).
+            float kernel_rho = 0.0f;
+            float *gr = (float *)[bGrho_per contents];
+            for (uint32_t i = 0; i < n_active; i++) kernel_rho += gr[i];
+            float implicit_rho = 0.0f;
+            float *ggC = (float *)[bGgC contents];
+            float *gC_fwd = (float *)[bGc contents];
+            for (uint32_t i = 0; i < n_active; i++) {
+                float dot = 0.0f;
+                for (int ax = 0; ax < 3; ax++)
+                    dot += ggC[i * 3 + ax] * gC_fwd[i * 3 + ax];
+                implicit_rho -= dot / rho_rest;
+            }
+            total_grad_rho += kernel_rho + implicit_rho;
+
+            // Promote per-step grads to running for previous step.
+            memcpy([bGx_running contents], [bGx_old_new contents], pos_b);
+            memcpy([bGv_running contents], [bGv_old_new contents], pos_b);
+        }
+
+        FILE *o1 = fopen(argv[14], "wb"); fwrite([bGx_running contents], 1, pos_b, o1); fclose(o1);
+        FILE *o2 = fopen(argv[15], "wb"); fwrite([bGv_running contents], 1, pos_b, o2); fclose(o2);
+        FILE *o3 = fopen(argv[16], "wb"); fwrite(&total_grad_rho, 1, sizeof(float), o3); fclose(o3);
+    }
+    free(all); free(pos_static); free(grad_x_fin);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: sib_metal <op> [args...]\n"
@@ -3548,7 +4131,7 @@ int main(int argc, char **argv) {
                         "wpoly6_inplace, rowsum_density, "
                         "density_constraint_grad, density_constraint_grad_bwd, "
                         "solve_density_constraint_fwd, solve_density_constraint_bwd, "
-                        "xpbd_step, "
+                        "xpbd_step, xpbd_full_fwd, xpbd_full_bwd, "
                         "step_simple_fwd, step_simple_bwd, "
                         "step_floor_fwd, step_floor_bwd, "
                         "step_bond_fwd, step_bond_bwd, "
@@ -3594,6 +4177,10 @@ int main(int argc, char **argv) {
         return run_solve_density_constraint_fwd(argc, argv);
     if (strcmp(argv[1], "solve_density_constraint_bwd") == 0)
         return run_solve_density_constraint_bwd(argc, argv);
+    if (strcmp(argv[1], "xpbd_full_fwd") == 0)
+        return run_xpbd_full_fwd(argc, argv);
+    if (strcmp(argv[1], "xpbd_full_bwd") == 0)
+        return run_xpbd_full_bwd(argc, argv);
     fprintf(stderr, "unknown op: %s\n", argv[1]);
     return 1;
 }
