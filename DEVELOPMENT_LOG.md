@@ -527,6 +527,74 @@ To open it, options ranked by effort:
 
 This means the 5-sec/<3-min wall-clock target on PR #222 native Metal can't be reached with `dt` alone. Realistic path: PCISPH iteration tuning + per-step kernel optimization + dt push together.
 
+### Taichi solver fix attempt (2026-05-03, did not land)
+
+Tried to apply the README's documented 3-step coordinate-scale fix to
+`taichi_solver.py`. Found:
+
+1. **Fix #1 (elastic force):** Replaced the hardcoded `elastic_boost = 2000.0`
+   on line 1271 with `sim_scale_inv` (~135,000 for demo1). Reasoning: that
+   matches the same conversion factor OpenCL applies via `simulationScaleInv`
+   in its integration step (`sphFluid.cl` line ~1455).
+
+2. **Fix #2 (integration step):** The README says "Add `simulationScaleInv` to
+   the integration step." But Taichi's existing code keeps SPH and gravity
+   in world coordinates and converts inside SPH kernels (e.g.
+   `grad_world = grad_scaled * sim_scale`). Adding `sim_scale_inv` to the
+   leapfrog position update would multiply non-elastic accelerations by
+   another ~135k and explode the simulation. **Skipped.**
+
+3. **Fix #3 (kernel coefficients):** The class-level `self.poly6_coeff` etc.
+   on lines 65-67 use unscaled `h`, but they're never read — the actual SPH
+   kernels at lines 256-258 already compute their own local versions using
+   `h_scaled`. **Already in place; no change needed.**
+
+Empirical sweep on Apple Silicon Metal at 1-sec sim time, varying
+`elastic_boost` from 2000 → 5000 → 10000 → 30000 → 50000 → 100000 → 135000:
+
+```
+ALL values: extent retention 100%, mean_y unchanged 44.42 → 44.42
+            (cube didn't move at all)
+```
+
+Even with `dt=1e-4` (5× the default) the cube doesn't move at 1s.
+
+**The cube DID move at 5s on Apple Silicon Metal pre-fix** (pancake to
+mean_y=0.33 documented in the README). So motion DOES happen on Taichi —
+just dramatically slower than OpenCL/PR222 produce on the same scenario.
+
+### What this means
+
+The Taichi pancake/freeze behavior is NOT just the README's documented
+3-step coordinate-scale fix. There's a structural slowdown in how Taichi's
+force pipeline accumulates motion that's separate from elastic-force
+magnitude. The fall rate appears to be ~5× slower than OpenCL's:
+
+| Backend | mean_y at 1s | mean_y at 5s |
+|---|---|---|
+| OpenCL on L4 | 10.4 | (not measured at 5s but likely floor) |
+| PR #222 native Metal | 9.8 | (not measured) |
+| Taichi-Metal | 44.4 (no motion) | 0.33 (pancake) |
+| Taichi-CUDA | 44.4 (no motion) | (not measured) |
+
+This is bigger than I can debug by remote experimentation in one session.
+The proper fix needs someone to instrument `taichi_solver.py` with per-step
+acceleration and velocity printouts, compare against OpenCL's per-step
+state on the same scenario, and find where the magnitudes diverge.
+Candidate culprits to investigate:
+
+1. The `compute_forces` kernel's units handling — gravity stays at -9.8
+   m/s² (world), but SPH grad is converted from scaled → world via
+   `* sim_scale`. Are the magnitudes actually matched?
+2. The `_compute_density` kernel might be producing density/pressure
+   values different enough from OpenCL that the resulting pressure force
+   dominates gravity, freezing the cube.
+3. The boundary repulsion (line 799: `repulsion = 2000.0 * w * n_b`) is a
+   hardcoded magnitude. Could be too strong for the scaled scene.
+
+Reverted my speculative change; tree is clean. The "fix taichi_solver.py"
+checkbox in the next-steps list stays UNCHECKED.
+
 ### Taichi-CUDA pancake check (2026-05-03)
 
 Submitted a 1-sec demo1 sim with `backend=taichi-cuda` against the Cloud Run runner.
