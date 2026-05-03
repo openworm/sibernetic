@@ -921,17 +921,24 @@ class TaichiSolver:
         def integrate_position():
             """Leapfrog position update (mode 0).
 
-            Matches OpenCL integrate1: applies simulationScaleInv to position delta.
+            Matches OpenCL sphFluid.cl line ~1455:
+                pos += (vel*dt + acc*dt²/2) * simulationScaleInv
+            The * simulationScaleInv converts the integrator's m/s² and
+            m/s units into the sim-unit space the position field actually
+            uses (1 sim_unit ≈ sim_scale meters). Without this multiplier
+            the cube barely moves — confirmed via per-step debug dump
+            on demo1 (pos stayed at 39.41 across 4 steps with gravity
+            successfully accumulating velocity to -6.86e-4 m/s).
             """
             for i in pos:
                 particle_type = int(pos[i][3])
                 if particle_type == 3:  # BOUNDARY - frozen
                     continue
 
-                # Standard leapfrog position update (world coordinates)
-                delta_x = vel[i][0] * dt + 0.5 * acc_old[i][0] * dt * dt
-                delta_y = vel[i][1] * dt + 0.5 * acc_old[i][1] * dt * dt
-                delta_z = vel[i][2] * dt + 0.5 * acc_old[i][2] * dt * dt
+                # Position delta in world meters; convert to sim units.
+                delta_x = (vel[i][0] * dt + 0.5 * acc_old[i][0] * dt * dt) * sim_scale_inv
+                delta_y = (vel[i][1] * dt + 0.5 * acc_old[i][1] * dt * dt) * sim_scale_inv
+                delta_z = (vel[i][2] * dt + 0.5 * acc_old[i][2] * dt * dt) * sim_scale_inv
                 pos[i][0] += delta_x
                 pos[i][1] += delta_y
                 pos[i][2] += delta_z
@@ -967,10 +974,10 @@ class TaichiSolver:
                 vel[i][1] += acc[i][1] * dt
                 vel[i][2] += acc[i][2] * dt
 
-                # x(t+dt) = x(t) + v(t+dt)*dt
-                pos[i][0] += vel[i][0] * dt
-                pos[i][1] += vel[i][1] * dt
-                pos[i][2] += vel[i][2] * dt
+                # x(t+dt) = x(t) + v(t+dt)*dt * sim_scale_inv (world m → sim units)
+                pos[i][0] += vel[i][0] * dt * sim_scale_inv
+                pos[i][1] += vel[i][1] * dt * sim_scale_inv
+                pos[i][2] += vel[i][2] * dt * sim_scale_inv
 
         @ti.kernel
         def apply_floor_constraint():
@@ -1266,10 +1273,14 @@ class TaichiSolver:
                         muscle_accel = ti.min(activation * max_muscle_force, max_muscle_force)
                         accel_magnitude += muscle_accel
 
-                    # Elastic force computed in scaled coordinates, convert to world
-                    # Use full sim_scale_inv (~288) since SPH is now in world coords
-                    elastic_boost = 2000.0  # Balanced stiffness
-                    accel = accel_magnitude * direction * elastic_boost
+                    # With the integration step now applying sim_scale_inv to the
+                    # position delta (matching OpenCL's sphFluid.cl line ~1455),
+                    # elastic acceleration in scaled coordinates flows through the
+                    # integrator with the right effective magnitude. The previous
+                    # `elastic_boost = 2000.0` was a fudge for the missing
+                    # sim_scale_inv at integration time; with that fix in place
+                    # boost should be 1.0 for parity with OpenCL.
+                    accel = accel_magnitude * direction
                     acc[i][0] += accel[0]
                     acc[i][1] += accel[1]
                     acc[i][2] += accel[2]
@@ -1444,6 +1455,25 @@ class TaichiSolver:
         # Mark GPU state as dirty (invalidate cache)
         self._gpu_dirty = True
 
+        # Optional per-step state dump for solver debugging. Set
+        # SIBERNETIC_DEBUG_DUMP=1 to emit pos/vel/acc for the first elastic
+        # particle at the first 4 simulation steps — useful when tracing
+        # through magnitude / units bugs as we found in the integration step
+        # fix on 2026-05-03.
+        import os as _os, sys as _sys
+        _debug = _os.environ.get("SIBERNETIC_DEBUG_DUMP") == "1"
+        if _debug and not hasattr(self, "_dbg_step"):
+            self._dbg_step = 0
+        if _debug and self._dbg_step <= 3:
+            ti.sync()
+            pos_np = self.pos.to_numpy()
+            vel_np = self.vel.to_numpy()
+            acc_np = self.acc.to_numpy()
+            print(f"[DBG step={self._dbg_step} BEGIN] "
+                  f"pos[0]={pos_np[0][:3]}  vel[0]={vel_np[0][:3]}  "
+                  f"acc[0]={acc_np[0][:3]}  acc_old[0]={self.acc_old.to_numpy()[0][:3]}",
+                  file=_sys.stderr, flush=True)
+
         start_time = time.perf_counter() if self._timing_enabled else 0
 
         # Grid-based spatial hashing (always needed)
@@ -1498,9 +1528,23 @@ class TaichiSolver:
             # Use cached neighbors (from fused or list mode)
             self._compute_forces()
 
+        # Snapshot acc BEFORE elastic to measure elastic-only contribution.
+        if _debug and self._dbg_step <= 3 and self.has_elastic:
+            ti.sync()
+            acc_pre = self.acc.to_numpy()[0][:3].copy()
+
         # Elastic/muscle forces
         if self.has_elastic:
             self._compute_elastic_forces()
+
+        # Snapshot acc AFTER elastic.
+        if _debug and self._dbg_step <= 3 and self.has_elastic:
+            ti.sync()
+            acc_post = self.acc.to_numpy()[0][:3]
+            elastic_contrib = acc_post - acc_pre
+            print(f"[DBG step={self._dbg_step} ELASTIC] "
+                  f"pre={acc_pre}  post={acc_post}  delta={elastic_contrib}",
+                  file=_sys.stderr, flush=True)
 
         # Membrane collision forces
         if self.has_membranes:
@@ -1511,6 +1555,14 @@ class TaichiSolver:
             self._record_timing("forces", start_time)
             start_time = time.perf_counter()
 
+        # ── DEBUG: snapshot AFTER force computation, BEFORE integration ──
+        if _debug and self._dbg_step <= 3:
+            ti.sync()
+            acc_np = self.acc.to_numpy()
+            print(f"[DBG step={self._dbg_step} POST-FORCES] "
+                  f"acc[0]={acc_np[0][:3]}",
+                  file=_sys.stderr, flush=True)
+
         # Integration (leapfrog)
         self._integrate_position()
         self._integrate_velocity()
@@ -1518,6 +1570,16 @@ class TaichiSolver:
 
         # Floor constraint
         self._apply_floor_constraint()
+
+        # ── DEBUG: snapshot AFTER integration ──
+        if _debug and self._dbg_step <= 3:
+            ti.sync()
+            pos_np = self.pos.to_numpy()
+            vel_np = self.vel.to_numpy()
+            print(f"[DBG step={self._dbg_step} POST-INTEG] "
+                  f"pos[0]={pos_np[0][:3]}  vel[0]={vel_np[0][:3]}",
+                  file=_sys.stderr, flush=True)
+            self._dbg_step += 1
 
         if self._timing_enabled:
             ti.sync()

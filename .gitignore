@@ -2,6 +2,8 @@
 /src/main_sim2.py
 /src/main_sim.py~
 /Release/Sibernetic
+/src/metal_diff/sib_metal
+__pycache__/
 *~
 # Compiled Object files
 *.slo
