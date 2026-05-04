@@ -3339,14 +3339,15 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
 //   ∂L/∂x_init, ∂L/∂v_init, ∂L/∂rho_rest (scalar)
 // ──────────────────────────────────────────────────────────────────────
 static int run_xpbd_full_bwd(int argc, char **argv) {
-    if (argc < 17 || argc > 21) {
+    if (argc < 17 || argc > 23) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_bwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
             "<gravity_y> <alpha_density> "
             "<state_in.bin> <pos_static.bin> <grad_x_final.bin> "
             "<grad_x_init_out.bin> <grad_v_init_out.bin> <grad_rho_out.bin> "
-            "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin]\n"
+            "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin] "
+            "[grad_spring_K_out.bin] [grad_visc_K_out.bin]\n"
             "       (must match the xpbd_full_fwd args used to produce the "
             "state file)\n");
         return 1;
@@ -3461,6 +3462,11 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         // Spring-force backward (only if use_springs).
         id<MTLComputePipelineState> pso_spring_bw = use_springs
             ? make_pso(ctx, "spring_bonds_force_backward") : nil;
+        // Param-gradient kernels for SGD on spring_K and visc_pair_coef.
+        id<MTLComputePipelineState> pso_spring_K_part = use_springs
+            ? make_pso(ctx, "spring_K_partial") : nil;
+        id<MTLComputePipelineState> pso_visc_K_part   = use_pair
+            ? make_pso(ctx, "visc_K_partial") : nil;
 
         // Build static spatial grid for pair_forces backward (matches forward).
         GridDim3 grid_dim_struct = {0, 0, 0};
@@ -3554,6 +3560,13 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         id<MTLBuffer> bNbonds_sp = use_springs
             ? [ctx.device newBufferWithBytes:&n_bonds length:sizeof(uint32_t)
                   options:MTLResourceStorageModeShared] : nil;
+        // Per-particle scratch for analytic param gradients (SGD on
+        // spring_K / visc_pair_coef). Host sums per-particle partials
+        // each step into total_grad_spring_K / total_grad_visc_K.
+        id<MTLBuffer> bSpringPart = use_springs
+            ? [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bViscPart = use_pair
+            ? [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
             ? [ctx.device newBufferWithBytes:sorted_static_buf
                   length:(size_t)n_static * 3 * sizeof(float)
@@ -3580,8 +3593,10 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
             ? [ctx.device newBufferWithBytes:&surf_amp length:sizeof(float)
                   options:MTLResourceStorageModeShared] : nil;
 
-        // Total ρ gradient accumulator (host-side scalar).
+        // Total parameter-gradient accumulators (host-side scalars).
         float total_grad_rho = 0.0f;
+        float total_grad_spring_K = 0.0f;  // Σ_steps Σ_i <∂a_i/∂K, ga_i>
+        float total_grad_visc_K = 0.0f;    // Σ_steps Σ_i <∂a_i/∂visc_K, ga_i>
 
         // Walk K steps backward.
         for (int32_t k = (int32_t)K - 1; k >= 0; k--) {
@@ -3800,6 +3815,62 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
                 }
 
                 [cmd2 commit]; [cmd2 waitUntilCompleted];
+
+                // (g) Param gradients — analytic ∂L/∂(spring_K) and
+                //     ∂L/∂(visc_pair_coef) from this step's contribution.
+                //     Both kernels read bGext (= dt · ∂L/∂v_after_apply)
+                //     and produce per-particle scalar partials; host sums.
+                id<MTLCommandBuffer> cmd3 = [ctx.queue commandBuffer];
+                if (use_springs) {
+                    id<MTLComputeCommandEncoder> e = [cmd3 computeCommandEncoder];
+                    [e setComputePipelineState:pso_spring_K_part];
+                    [e setBuffer:bX             offset:0 atIndex:0];
+                    [e setBuffer:bBondIJ_sp     offset:0 atIndex:1];
+                    [e setBuffer:bBondRest_sp   offset:0 atIndex:2];
+                    [e setBuffer:bGext          offset:0 atIndex:3];
+                    [e setBuffer:bSpringPart    offset:0 atIndex:4];
+                    [e setBuffer:bNbonds_sp     offset:0 atIndex:5];
+                    [e setBuffer:bNa            offset:0 atIndex:6];
+                    [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [e endEncoding];
+                }
+                if (use_pair) {
+                    id<MTLComputeCommandEncoder> e = [cmd3 computeCommandEncoder];
+                    [e setComputePipelineState:pso_visc_K_part];
+                    [e setBuffer:bX             offset:0 atIndex:0];
+                    [e setBuffer:bV             offset:0 atIndex:1];
+                    [e setBuffer:bSortedS       offset:0 atIndex:2];
+                    [e setBuffer:bCellStart     offset:0 atIndex:3];
+                    [e setBuffer:bD             offset:0 atIndex:4];  // pair_density (already restored)
+                    [e setBuffer:bGext          offset:0 atIndex:5];
+                    [e setBuffer:bViscPart      offset:0 atIndex:6];
+                    [e setBuffer:bH             offset:0 atIndex:7];
+                    [e setBuffer:bH2            offset:0 atIndex:8];
+                    [e setBuffer:bSS            offset:0 atIndex:9];
+                    [e setBuffer:bViscAmp       offset:0 atIndex:10];
+                    [e setBuffer:bNa            offset:0 atIndex:11];
+                    [e setBuffer:bGridDim       offset:0 atIndex:12];
+                    [e setBuffer:bGridOrigin    offset:0 atIndex:13];
+                    [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [e endEncoding];
+                }
+                [cmd3 commit]; [cmd3 waitUntilCompleted];
+
+                // Host-side sum of per-particle partials.
+                if (use_springs) {
+                    float *sp = (float *)[bSpringPart contents];
+                    float s = 0.0f;
+                    for (uint32_t i = 0; i < n_active; i++) s += sp[i];
+                    total_grad_spring_K += s;
+                }
+                if (use_pair) {
+                    float *vp = (float *)[bViscPart contents];
+                    float s = 0.0f;
+                    for (uint32_t i = 0; i < n_active; i++) s += vp[i];
+                    total_grad_visc_K += s;
+                }
             }
 
             // Sum ρ gradient (kernel partial + implicit via grad_C).
@@ -3827,6 +3898,15 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         FILE *o1 = fopen(argv[14], "wb"); fwrite([bGx_running contents], 1, pos_b, o1); fclose(o1);
         FILE *o2 = fopen(argv[15], "wb"); fwrite([bGv_running contents], 1, pos_b, o2); fclose(o2);
         FILE *o3 = fopen(argv[16], "wb"); fwrite(&total_grad_rho, 1, sizeof(float), o3); fclose(o3);
+        // Optional param-grad outputs (positions 22, 23 in argv).
+        if (argc >= 22) {
+            FILE *o4 = fopen(argv[21], "wb");
+            fwrite(&total_grad_spring_K, 1, sizeof(float), o4); fclose(o4);
+        }
+        if (argc >= 23) {
+            FILE *o5 = fopen(argv[22], "wb");
+            fwrite(&total_grad_visc_K, 1, sizeof(float), o5); fclose(o5);
+        }
     }
     free(all); free(pos_static); free(grad_x_fin);
     if (sorted_static_buf) free(sorted_static_buf);

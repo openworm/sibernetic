@@ -803,6 +803,127 @@ kernel void pair_forces_grid_backward(
     grad_vel[i] = packed_float3(float3(grad_vel[i]) + dv_i);
 }
 
+// spring_K_partial — per-particle dot of (∂(spring_accel_i)/∂spring_K)
+// with grad_ext_accel[i]. Host sums to get scalar ∂L/∂(spring_K).
+//
+// ∂(spring_accel_i)/∂spring_K = Σ_bonds_at_i [-(r-L) * dir / r]
+// (just the per-bond term without the K multiplier).
+//
+// Output per_particle_partial[i] = <∂(spring_accel_i)/∂K, ga_i>  (scalar).
+kernel void spring_K_partial(
+    device const packed_float3 *active_pos       [[buffer(0)]],
+    device const int2          *bond_ij          [[buffer(1)]],
+    device const float         *bond_rest        [[buffer(2)]],
+    device const packed_float3 *grad_ext_accel   [[buffer(3)]],
+    device float               *per_particle     [[buffer(4)]],
+    constant uint              &n_bonds          [[buffer(5)]],
+    constant uint              &n_active         [[buffer(6)]],
+    uint gid                                      [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    uint i = gid;
+    float3 p_i = float3(active_pos[i]);
+    float3 ga_i = float3(grad_ext_accel[i]);
+    float partial = 0.0;
+
+    for (uint b = 0; b < n_bonds; b++) {
+        int i_b = bond_ij[b].x;
+        int j_b = bond_ij[b].y;
+        int other;
+        if (i_b == (int)i) other = j_b;
+        else if (j_b == (int)i) other = i_b;
+        else continue;
+
+        float L = bond_rest[b];
+        float3 p_o = float3(active_pos[other]);
+        float3 dir = p_i - p_o;
+        float r = length(dir);
+        if (r < 1e-7) continue;
+        float delta = r - L;
+        // Per-bond ∂(spring_accel_i)/∂K contribution:
+        float3 daK = -delta * dir / r;
+        partial += dot(daK, ga_i);
+    }
+    per_particle[i] = partial;
+}
+
+// visc_K_partial — per-particle dot of (∂(visc_accel_i)/∂visc_pair_coef)
+// with grad_ext_accel[i]. Host sums to get scalar ∂L/∂(visc_pair_coef).
+//
+// ∂(visc_accel_i)/∂visc_pair_coef = (visc_amp / ρ_i) · Σ_neighbors
+//   (v_j − v_i) · (h_s − r_s) / 1000
+// (sum without the visc_pair_coef multiplier — boundary treated v_j=0).
+//
+// Surface tension doesn't depend on visc_pair_coef so no contribution there.
+kernel void visc_K_partial(
+    device const packed_float3 *active_pos       [[buffer(0)]],
+    device const packed_float3 *active_vel       [[buffer(1)]],
+    device const packed_float3 *sorted_static    [[buffer(2)]],
+    device const int           *cell_start       [[buffer(3)]],
+    device const float         *density          [[buffer(4)]],
+    device const packed_float3 *grad_ext_accel   [[buffer(5)]],
+    device float               *per_particle     [[buffer(6)]],
+    constant float             &h                [[buffer(7)]],
+    constant float             &h2               [[buffer(8)]],
+    constant float             &sim_scale        [[buffer(9)]],
+    constant float             &visc_amp         [[buffer(10)]],
+    constant uint              &n_active         [[buffer(11)]],
+    constant int3              &grid_dim         [[buffer(12)]],
+    constant packed_float3     &grid_origin      [[buffer(13)]],
+    uint gid                                      [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    uint i = gid;
+    float3 p_i = float3(active_pos[i]);
+    float3 v_i = float3(active_vel[i]);
+    float3 ga_i = float3(grad_ext_accel[i]);
+    float h_scaled = h * sim_scale;
+    float rho_i = max(density[i], 1e-30);
+    float3 partial_vec = float3(0.0);
+
+    // active-active
+    for (uint k = 0; k < n_active; k++) {
+        if (k == i) continue;
+        float3 p_j = float3(active_pos[k]);
+        float3 v_j = float3(active_vel[k]);
+        float3 dir = p_i - p_j;
+        float r2 = dot(dir, dir);
+        if (r2 >= h2) continue;
+        float r = sqrt(r2);
+        float h_minus_r = h_scaled - r * sim_scale;
+        partial_vec += (v_j - v_i) * h_minus_r * (1.0/1000.0);
+    }
+    // active-static (boundary, v_j=0)
+    int3 my_cell = int3(floor((p_i - float3(grid_origin)) / h));
+    int n_cells_xy = grid_dim.x * grid_dim.y;
+    for (int dz = -1; dz <= 1; dz++) {
+        int cz = my_cell.z + dz;
+        if (cz < 0 || cz >= grid_dim.z) continue;
+        for (int dy = -1; dy <= 1; dy++) {
+            int cy = my_cell.y + dy;
+            if (cy < 0 || cy >= grid_dim.y) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int cx = my_cell.x + dx;
+                if (cx < 0 || cx >= grid_dim.x) continue;
+                int c_id = cx + cy * grid_dim.x + cz * n_cells_xy;
+                int start = cell_start[c_id];
+                int end = cell_start[c_id + 1];
+                for (int j = start; j < end; j++) {
+                    float3 p_j = float3(sorted_static[j]);
+                    float3 dir = p_i - p_j;
+                    float r2 = dot(dir, dir);
+                    if (r2 >= h2) continue;
+                    float r = sqrt(r2);
+                    float h_minus_r = h_scaled - r * sim_scale;
+                    partial_vec += (-v_i) * h_minus_r * (1.0/1000.0);
+                }
+            }
+        }
+    }
+    float3 daK = (visc_amp / rho_i) * partial_vec;
+    per_particle[i] = dot(daK, ga_i);
+}
+
 // apply_ext_accel_backward — straight-through for v, scale by dt for ext_accel.
 // Forward: v_new = v_old + dt · ext_accel
 //   dL/d(v_old)     += dL/d(v_new)
