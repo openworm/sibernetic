@@ -2890,18 +2890,20 @@ static int run_solve_density_constraint_bwd(int argc, char **argv) {
 static int run_xpbd_full_fwd(int argc, char **argv) {
     // Optional 15th arg: sim_scale (default 1.0 — toy convention)
     // Optional 16th arg: visc_pair_coef (default 0 — pair forces off)
-    if (argc < 15 || argc > 17) {
+    if (argc < 15 || argc > 19) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_fwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
             "<gravity_y> <alpha_density> "
             "<pos0.bin> <vel0.bin> <pos_static.bin> <state_out.bin> "
-            "[sim_scale] [visc_pair_coef]\n"
+            "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin]\n"
             "  state_out.bin contains the per-step trajectory: \n"
             "    K × [x_old(n*3) + v_old(n*3) + density(n) + grad_C(n*3) + denom_h(n)"
             "    [+ pair_density(n) if visc_pair_coef>0]]\n"
             "    Plus K+1 frames of x_post for the trajectory.\n"
-            "    Plus final v(n*3).\n");
+            "    Plus final v(n*3).\n"
+            "  When spring_K > 0, bonds.bin must be provided (16 bytes per\n"
+            "  bond: int32 i, int32 j, float32 rest_len, float32 _pad).\n");
         return 1;
     }
     uint32_t n_active = (uint32_t)atoi(argv[2]);
@@ -2917,6 +2919,36 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
     float sim_scale_inv = 1.0f / sim_scale;
     float visc_pair_coef = (argc >= 17) ? (float)atof(argv[16]) : 0.0f;
     bool use_pair = visc_pair_coef != 0.0f;
+    float spring_K = (argc >= 18) ? (float)atof(argv[17]) : 0.0f;
+    const char *bonds_path = (argc >= 19) ? argv[18] : NULL;
+    bool use_springs = spring_K != 0.0f;
+    bool need_ext_accel = use_pair || use_springs;
+    if (use_springs && !bonds_path) {
+        fprintf(stderr, "spring_K > 0 requires bonds.bin path as 19th arg\n");
+        return 1;
+    }
+    // Load bonds if springs enabled.
+    uint32_t n_bonds = 0;
+    int32_t *bond_ij_data = NULL;
+    float *bond_rest_data = NULL;
+    if (use_springs) {
+        FILE *fb = fopen(bonds_path, "rb");
+        if (!fb) { fprintf(stderr, "open %s\n", bonds_path); return 1; }
+        fseek(fb, 0, SEEK_END);
+        long sz = ftell(fb);
+        fseek(fb, 0, SEEK_SET);
+        n_bonds = (uint32_t)(sz / 16);
+        uint8_t *raw = (uint8_t *)malloc((size_t)n_bonds * 16);
+        fread(raw, 1, (size_t)n_bonds * 16, fb);
+        fclose(fb);
+        bond_ij_data = (int32_t *)malloc((size_t)n_bonds * 2 * sizeof(int32_t));
+        bond_rest_data = (float *)malloc((size_t)n_bonds * sizeof(float));
+        for (uint32_t b = 0; b < n_bonds; b++) {
+            memcpy(&bond_ij_data[b * 2], raw + b * 16, 8);
+            memcpy(&bond_rest_data[b], raw + b * 16 + 8, 4);
+        }
+        free(raw);
+    }
 
     float h2 = h * h;
     float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
@@ -2974,8 +3006,10 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
         id<MTLComputePipelineState> pso_uv    = make_pso(ctx, "update_velocities");
         id<MTLComputePipelineState> pso_pair  = use_pair
             ? make_pso(ctx, "pair_forces_grid") : nil;
-        id<MTLComputePipelineState> pso_appext = use_pair
+        id<MTLComputePipelineState> pso_appext = need_ext_accel
             ? make_pso(ctx, "apply_ext_accel") : nil;
+        id<MTLComputePipelineState> pso_spring = use_springs
+            ? make_pso(ctx, "spring_bonds_force") : nil;
 
         size_t r2aa_b = (size_t)n_active * n_active * sizeof(float);
         size_t r2as_b = (size_t)n_active * n_static * sizeof(float);
@@ -3030,9 +3064,24 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
         // Identity unit-scale (used by update_velocities; same as bSS when use_pair)
         float one = 1.0f;
         id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float) options:MTLResourceStorageModeShared];
-        // Pair-force buffers (only if use_pair).
-        id<MTLBuffer> bExtA = use_pair
+        // External-accel scratch buffer (springs and/or pair_forces).
+        id<MTLBuffer> bExtA = need_ext_accel
             ? [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared] : nil;
+        // Spring bond buffers (when springs on).
+        id<MTLBuffer> bBondIJ_sp = use_springs
+            ? [ctx.device newBufferWithBytes:bond_ij_data
+                  length:(size_t)n_bonds * 2 * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bBondRest_sp = use_springs
+            ? [ctx.device newBufferWithBytes:bond_rest_data
+                  length:(size_t)n_bonds * sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bSpringK = use_springs
+            ? [ctx.device newBufferWithBytes:&spring_K length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bNbonds_sp = use_springs
+            ? [ctx.device newBufferWithBytes:&n_bonds length:sizeof(uint32_t)
+                  options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
             ? [ctx.device newBufferWithBytes:sorted_static_buf
                   length:(size_t)n_static * 3 * sizeof(float)
@@ -3082,43 +3131,58 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
 
             id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
 
-            // (0) Optional pair_forces + apply_ext_accel (Sibernetic-style
-            //     viscosity + surface tension), applied to v_old before predict.
+            // (0) External forces (visc + surf + springs) accumulate
+            //     into ext_accel, then apply to velocity before predict.
+            if (need_ext_accel) {
+                memset([bExtA contents], 0, pos_b);  // zero accumulator
+            }
             if (use_pair) {
-                {
-                    id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
-                    [e setComputePipelineState:pso_pair];
-                    [e setBuffer:bX           offset:0 atIndex:0];
-                    [e setBuffer:bV           offset:0 atIndex:1];
-                    [e setBuffer:bSortedS     offset:0 atIndex:2];
-                    [e setBuffer:bCellStart   offset:0 atIndex:3];
-                    [e setBuffer:bD           offset:0 atIndex:4];
-                    [e setBuffer:bExtA        offset:0 atIndex:5];
-                    [e setBuffer:bH           offset:0 atIndex:6];
-                    [e setBuffer:bH2          offset:0 atIndex:7];
-                    [e setBuffer:bM           offset:0 atIndex:8];
-                    [e setBuffer:bSS          offset:0 atIndex:9];
-                    [e setBuffer:bViscPair    offset:0 atIndex:10];
-                    [e setBuffer:bViscAmp     offset:0 atIndex:11];
-                    [e setBuffer:bSurfAmp     offset:0 atIndex:12];
-                    [e setBuffer:bNa          offset:0 atIndex:13];
-                    [e setBuffer:bGridDim     offset:0 atIndex:14];
-                    [e setBuffer:bGridOrigin  offset:0 atIndex:15];
-                    [e dispatchThreads:MTLSizeMake(32, n_active, 1)
-                        threadsPerThreadgroup:MTLSizeMake(32, 1, 1)];
-                    [e endEncoding];
-                }
-                {
-                    id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
-                    [e setComputePipelineState:pso_appext];
-                    [e setBuffer:bV    offset:0 atIndex:0];
-                    [e setBuffer:bExtA offset:0 atIndex:1];
-                    [e setBuffer:bDt   offset:0 atIndex:2];
-                    [e setBuffer:bNa   offset:0 atIndex:3];
-                    [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
-                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
-                    [e endEncoding];
-                }
+                id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_pair];
+                [e setBuffer:bX           offset:0 atIndex:0];
+                [e setBuffer:bV           offset:0 atIndex:1];
+                [e setBuffer:bSortedS     offset:0 atIndex:2];
+                [e setBuffer:bCellStart   offset:0 atIndex:3];
+                [e setBuffer:bD           offset:0 atIndex:4];
+                [e setBuffer:bExtA        offset:0 atIndex:5];
+                [e setBuffer:bH           offset:0 atIndex:6];
+                [e setBuffer:bH2          offset:0 atIndex:7];
+                [e setBuffer:bM           offset:0 atIndex:8];
+                [e setBuffer:bSS          offset:0 atIndex:9];
+                [e setBuffer:bViscPair    offset:0 atIndex:10];
+                [e setBuffer:bViscAmp     offset:0 atIndex:11];
+                [e setBuffer:bSurfAmp     offset:0 atIndex:12];
+                [e setBuffer:bNa          offset:0 atIndex:13];
+                [e setBuffer:bGridDim     offset:0 atIndex:14];
+                [e setBuffer:bGridOrigin  offset:0 atIndex:15];
+                [e dispatchThreads:MTLSizeMake(32, n_active, 1)
+                    threadsPerThreadgroup:MTLSizeMake(32, 1, 1)];
+                [e endEncoding];
+            }
+            if (use_springs) {
+                id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_spring];
+                [e setBuffer:bX            offset:0 atIndex:0];
+                [e setBuffer:bBondIJ_sp    offset:0 atIndex:1];
+                [e setBuffer:bBondRest_sp  offset:0 atIndex:2];
+                [e setBuffer:bExtA         offset:0 atIndex:3];
+                [e setBuffer:bSpringK      offset:0 atIndex:4];
+                [e setBuffer:bNbonds_sp    offset:0 atIndex:5];
+                [e setBuffer:bNa           offset:0 atIndex:6];
+                [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                [e endEncoding];
+            }
+            if (need_ext_accel) {
+                id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_appext];
+                [e setBuffer:bV    offset:0 atIndex:0];
+                [e setBuffer:bExtA offset:0 atIndex:1];
+                [e setBuffer:bDt   offset:0 atIndex:2];
+                [e setBuffer:bNa   offset:0 atIndex:3];
+                [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                [e endEncoding];
             }
 
             // (1) predict
@@ -3258,6 +3322,8 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
     free(pos0); free(vel0); free(pos_static); free(state); free(traj);
     if (sorted_static_buf) free(sorted_static_buf);
     if (cell_start_buf)    free(cell_start_buf);
+    if (bond_ij_data) free(bond_ij_data);
+    if (bond_rest_data) free(bond_rest_data);
     return 0;
 }
 
@@ -3273,14 +3339,14 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
 //   ∂L/∂x_init, ∂L/∂v_init, ∂L/∂rho_rest (scalar)
 // ──────────────────────────────────────────────────────────────────────
 static int run_xpbd_full_bwd(int argc, char **argv) {
-    if (argc < 17 || argc > 19) {
+    if (argc < 17 || argc > 21) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_bwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
             "<gravity_y> <alpha_density> "
             "<state_in.bin> <pos_static.bin> <grad_x_final.bin> "
             "<grad_x_init_out.bin> <grad_v_init_out.bin> <grad_rho_out.bin> "
-            "[sim_scale] [visc_pair_coef]\n"
+            "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin]\n"
             "       (must match the xpbd_full_fwd args used to produce the "
             "state file)\n");
         return 1;
@@ -3299,6 +3365,35 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
     float sim_scale_inv = 1.0f / sim_scale;
     float visc_pair_coef = (argc >= 19) ? (float)atof(argv[18]) : 0.0f;
     bool use_pair = visc_pair_coef != 0.0f;
+    float spring_K = (argc >= 20) ? (float)atof(argv[19]) : 0.0f;
+    const char *bonds_path = (argc >= 21) ? argv[20] : NULL;
+    bool use_springs = spring_K != 0.0f;
+    if (use_springs && !bonds_path) {
+        fprintf(stderr, "spring_K > 0 requires bonds.bin path as 21st arg\n");
+        return 1;
+    }
+    // Load bonds for springs (mirrors xpbd_full_fwd loader).
+    uint32_t n_bonds = 0;
+    int32_t *bond_ij_data = NULL;
+    float *bond_rest_data = NULL;
+    if (use_springs) {
+        FILE *fb = fopen(bonds_path, "rb");
+        if (!fb) { fprintf(stderr, "open %s\n", bonds_path); return 1; }
+        fseek(fb, 0, SEEK_END);
+        long sz = ftell(fb);
+        fseek(fb, 0, SEEK_SET);
+        n_bonds = (uint32_t)(sz / 16);
+        uint8_t *raw = (uint8_t *)malloc((size_t)n_bonds * 16);
+        fread(raw, 1, (size_t)n_bonds * 16, fb);
+        fclose(fb);
+        bond_ij_data = (int32_t *)malloc((size_t)n_bonds * 2 * sizeof(int32_t));
+        bond_rest_data = (float *)malloc((size_t)n_bonds * sizeof(float));
+        for (uint32_t b = 0; b < n_bonds; b++) {
+            memcpy(&bond_ij_data[b * 2], raw + b * 16, 8);
+            memcpy(&bond_rest_data[b], raw + b * 16 + 8, 4);
+        }
+        free(raw);
+    }
 
     float h2 = h * h;
     float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
@@ -3363,6 +3458,9 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         // Pair-force backward (only if use_pair).
         id<MTLComputePipelineState> pso_pair_bw = use_pair
             ? make_pso(ctx, "pair_forces_grid_backward") : nil;
+        // Spring-force backward (only if use_springs).
+        id<MTLComputePipelineState> pso_spring_bw = use_springs
+            ? make_pso(ctx, "spring_bonds_force_backward") : nil;
 
         // Build static spatial grid for pair_forces backward (matches forward).
         GridDim3 grid_dim_struct = {0, 0, 0};
@@ -3438,9 +3536,24 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         // Identity unit-scale (toy convention: pos & vel share unit system).
         float one = 1.0f;
         id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float) options:MTLResourceStorageModeShared];
-        // Pair-force buffers + amps (only if use_pair).
-        id<MTLBuffer> bGext = use_pair
+        // External-accel gradient scratch (springs and/or pair_forces).
+        id<MTLBuffer> bGext = (use_pair || use_springs)
             ? [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared] : nil;
+        // Spring bond buffers (when springs on).
+        id<MTLBuffer> bBondIJ_sp = use_springs
+            ? [ctx.device newBufferWithBytes:bond_ij_data
+                  length:(size_t)n_bonds * 2 * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bBondRest_sp = use_springs
+            ? [ctx.device newBufferWithBytes:bond_rest_data
+                  length:(size_t)n_bonds * sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bSpringK = use_springs
+            ? [ctx.device newBufferWithBytes:&spring_K length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bNbonds_sp = use_springs
+            ? [ctx.device newBufferWithBytes:&n_bonds length:sizeof(uint32_t)
+                  options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
             ? [ctx.device newBufferWithBytes:sorted_static_buf
                   length:(size_t)n_static * 3 * sizeof(float)
@@ -3625,53 +3738,67 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
               [e endEncoding]; }
             [cmd commit]; [cmd waitUntilCompleted];
 
-            // (f) Optional pair_forces backward — flows ∂L/∂(v_after_apply)
-            //     (currently in bGv_old_new) back through the pair-force chain
-            //     into ∂L/∂(x_old) and ∂L/∂(v_old_saved). The "v_old_saved"
-            //     gradient is just a passthrough — bGv_old_new already
-            //     represents it (same numeric value). The new contributions
-            //     are the dependence of ext_accel on x_old and v_old.
+            // (f) Optional ext_accel backward — pair_forces and/or springs.
+            //     Both feed ∂L/∂(ext_accel) = dt · ∂L/∂(v_after_apply).
             //
-            //     CRITICAL: this MUST run after the previous cmd buffer
+            //     CRITICAL: must run after the previous cmd buffer
             //     completes — the host-side multiply below reads
             //     bGv_old_new which is written by predict_bw above.
-            //     That's why the [cmd commit/waitUntilCompleted] above
-            //     was moved up. The pair_forces_bw dispatch then runs in
-            //     a fresh command buffer.
-            if (use_pair) {
+            if (use_pair || use_springs) {
                 // host: bGext = dt · bGv_old_new (= ∂L/∂ext_accel)
                 float *gnew = (float *)[bGv_old_new contents];
                 float *gext = (float *)[bGext contents];
                 for (uint32_t i = 0; i < 3 * n_active; i++) {
                     gext[i] = dt * gnew[i];
                 }
-                // restore pair_density used by THIS step's forward pair_forces
-                memcpy([bD contents], step_state + 11 * n_active, s_b);
 
                 id<MTLCommandBuffer> cmd2 = [ctx.queue commandBuffer];
-                id<MTLComputeCommandEncoder> e = [cmd2 computeCommandEncoder];
-                [e setComputePipelineState:pso_pair_bw];
-                [e setBuffer:bX           offset:0 atIndex:0];   // saved x_old
-                [e setBuffer:bV           offset:0 atIndex:1];   // saved v_old
-                [e setBuffer:bSortedS     offset:0 atIndex:2];
-                [e setBuffer:bCellStart   offset:0 atIndex:3];
-                [e setBuffer:bD           offset:0 atIndex:4];   // pair_density
-                [e setBuffer:bGext        offset:0 atIndex:5];   // dL/d(ext_accel)
-                [e setBuffer:bGx_old_new  offset:0 atIndex:6];   // accum dL/dpos
-                [e setBuffer:bGv_old_new  offset:0 atIndex:7];   // accum dL/dvel
-                [e setBuffer:bH           offset:0 atIndex:8];
-                [e setBuffer:bH2          offset:0 atIndex:9];
-                [e setBuffer:bM           offset:0 atIndex:10];
-                [e setBuffer:bSS          offset:0 atIndex:11];
-                [e setBuffer:bViscPair    offset:0 atIndex:12];
-                [e setBuffer:bViscAmp     offset:0 atIndex:13];
-                [e setBuffer:bSurfAmp     offset:0 atIndex:14];
-                [e setBuffer:bNa          offset:0 atIndex:15];
-                [e setBuffer:bGridDim     offset:0 atIndex:16];
-                [e setBuffer:bGridOrigin  offset:0 atIndex:17];
-                [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
-                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
-                [e endEncoding];
+
+                if (use_pair) {
+                    // restore pair_density used by THIS step's forward pair_forces
+                    memcpy([bD contents], step_state + 11 * n_active, s_b);
+
+                    id<MTLComputeCommandEncoder> e = [cmd2 computeCommandEncoder];
+                    [e setComputePipelineState:pso_pair_bw];
+                    [e setBuffer:bX           offset:0 atIndex:0];
+                    [e setBuffer:bV           offset:0 atIndex:1];
+                    [e setBuffer:bSortedS     offset:0 atIndex:2];
+                    [e setBuffer:bCellStart   offset:0 atIndex:3];
+                    [e setBuffer:bD           offset:0 atIndex:4];
+                    [e setBuffer:bGext        offset:0 atIndex:5];
+                    [e setBuffer:bGx_old_new  offset:0 atIndex:6];
+                    [e setBuffer:bGv_old_new  offset:0 atIndex:7];
+                    [e setBuffer:bH           offset:0 atIndex:8];
+                    [e setBuffer:bH2          offset:0 atIndex:9];
+                    [e setBuffer:bM           offset:0 atIndex:10];
+                    [e setBuffer:bSS          offset:0 atIndex:11];
+                    [e setBuffer:bViscPair    offset:0 atIndex:12];
+                    [e setBuffer:bViscAmp     offset:0 atIndex:13];
+                    [e setBuffer:bSurfAmp     offset:0 atIndex:14];
+                    [e setBuffer:bNa          offset:0 atIndex:15];
+                    [e setBuffer:bGridDim     offset:0 atIndex:16];
+                    [e setBuffer:bGridOrigin  offset:0 atIndex:17];
+                    [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [e endEncoding];
+                }
+
+                if (use_springs) {
+                    id<MTLComputeCommandEncoder> e = [cmd2 computeCommandEncoder];
+                    [e setComputePipelineState:pso_spring_bw];
+                    [e setBuffer:bX            offset:0 atIndex:0];
+                    [e setBuffer:bBondIJ_sp    offset:0 atIndex:1];
+                    [e setBuffer:bBondRest_sp  offset:0 atIndex:2];
+                    [e setBuffer:bGext         offset:0 atIndex:3];
+                    [e setBuffer:bGx_old_new   offset:0 atIndex:4];
+                    [e setBuffer:bSpringK      offset:0 atIndex:5];
+                    [e setBuffer:bNbonds_sp    offset:0 atIndex:6];
+                    [e setBuffer:bNa           offset:0 atIndex:7];
+                    [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [e endEncoding];
+                }
+
                 [cmd2 commit]; [cmd2 waitUntilCompleted];
             }
 
@@ -3704,6 +3831,8 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
     free(all); free(pos_static); free(grad_x_fin);
     if (sorted_static_buf) free(sorted_static_buf);
     if (cell_start_buf)    free(cell_start_buf);
+    if (bond_ij_data) free(bond_ij_data);
+    if (bond_rest_data) free(bond_rest_data);
     return 0;
 }
 
