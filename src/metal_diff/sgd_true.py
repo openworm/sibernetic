@@ -162,7 +162,12 @@ def main():
     ap.add_argument('--rho-init', type=float, default=2.5e-13)
     ap.add_argument('--K-init', type=float, default=1000.0)
     ap.add_argument('--v-init', type=float, default=5e-5)
+    ap.add_argument('--tbptt', type=int, default=50,
+                    help="truncated BPTT window — chain back only N steps")
+    ap.add_argument('--clip-norm', type=float, default=10.0,
+                    help="clip log-space gradient L2 norm to this")
     args = ap.parse_args()
+    os.environ['BWD_TBPTT'] = str(args.tbptt)
 
     info = load_demo1_inputs()
     n_elastic = info['n_elastic']
@@ -210,10 +215,21 @@ def main():
         g_rho, g_K, g_v = run_bwd(info, rho, K, v, args.n_sim_steps, grad_x)
         elapsed_bwd = time.perf_counter() - t0
 
-        # Convert to log-space gradients via chain rule:
-        # ∂L/∂(log p) = p · ∂L/∂p
+        # Convert to log-space gradients via chain rule: ∂L/∂(log p) = p · ∂L/∂p
         g = np.array([g_rho * rho, g_K * K, g_v * v])
-        print(f"   grad: rho_log={g[0]:+.3e} K_log={g[1]:+.3e} v_log={g[2]:+.3e}  bwd={elapsed_bwd:.1f}s")
+        # Filter NaN/Inf — replace with 0 so update doesn't blow up.
+        n_bad = int(np.sum(~np.isfinite(g)))
+        if n_bad > 0:
+            print(f"   WARN: {n_bad} non-finite grad components — zeroing")
+            g = np.where(np.isfinite(g), g, 0.0)
+        # Clip global norm.
+        g_norm = float(np.linalg.norm(g))
+        if g_norm > args.clip_norm:
+            g = g * (args.clip_norm / g_norm)
+            clip_marker = f" (clipped {g_norm:.2e}→{args.clip_norm})"
+        else:
+            clip_marker = ""
+        print(f"   grad: rho_log={g[0]:+.3e} K_log={g[1]:+.3e} v_log={g[2]:+.3e}  bwd={elapsed_bwd:.1f}s{clip_marker}")
 
         m = beta1 * m + (1 - beta1) * g
         var = beta2 * var + (1 - beta2) * (g * g)
