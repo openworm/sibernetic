@@ -1926,3 +1926,106 @@ substrates.
   `--rho-rest 2.5e-13` on `run_demo1_via_metal.py` reproduces the
   result.
 
+### Hooke spring bonds — Sibernetic-equivalent visco-elasticity (2026-05-04)
+
+The previous extent-retention gap (8% off OpenCL) was identified as
+**structural** — XPBD's rigid distance-constraint clamp can't store
+elastic potential the way Sibernetic's Hooke springs do. This entry
+adds the spring-bond force model so the substrate can express
+visco-elastic behavior.
+
+**Background — what Sibernetic actually does** (sphFluid.cl:674):
+```
+acceleration[i] += -(vect_r_ij/r_ij) * delta_r_ij * elasticityCoefficient
+```
+where `vect_r_ij = (pos_i - pos_j) * sim_scale` (in meters), `delta =
+r - L` (signed strain), `elasticityCoefficient = 4·1.5e-4/mass ≈ 3e8`
+(units 1/(s²·m)). Rest length `L` is loaded into the OpenCL elastic
+table in METERS (`rij0 * sim_scale`, owHelper.cpp:329).
+
+**My units convention**: positions stored in particle units, rest
+lengths stored in particle units (our load_config doesn't multiply by
+sim_scale). Spring kernel absorbs the unit conversion into
+`spring_K = elasticityCoef · sim_scale` and computes `a = -spring_K
+· delta_units · dir / r_unit`. Algebraically equivalent.
+
+**Forward kernel** `spring_bonds_force` (per-particle thread, walks
+all bonds, processes only those touching its particle): ~50 lines.
+
+**Backward kernel** `spring_bonds_force_backward` (symmetric trick —
+each thread reads ga for itself + neighbors, accumulates only into
+its own grad_pos):
+```
+per-bond contribution to ∂L/∂p_i:
+  K · [(1 − L/r) · G_diff + (L/r³) · dir · <dir, G_diff>]
+where G_diff = ga_other − ga_i.
+```
+Hand-derived. Validated against finite-diff in
+`test_spring_bonds_bwd.py` — rel err **5e-5**.
+
+**Wiring** — both `xpbd_step` (production) and `xpbd_full_fwd/bwd`
+(trainable):
+- New CLI arg `[spring_K]` (default 0 = disabled).
+- When > 0: spring forces accumulate into `ext_accel` alongside
+  pair_forces (visc + surf). Replaces the rigid XPBD distance
+  constraint solver (Sibernetic mode).
+- Backward: spring chain feeds dL/dpos via shared `bGext = dt ·
+  dL/d(v_after_apply)`. No velocity dependence.
+
+**Differentiability validation**: `test_xpbd_full_spring.py` —
+multi-step xpbd with springs + viscosity active, rel err **1.5e-4**
+on ∂L/∂ρ_rest via finite-diff.
+
+**Empirical tuning** (1.0s sim, dt=2e-5):
+
+| spring_K | visc_pair | rho_rest | Δmean_y | extent_y | Notes |
+|----------|-----------|----------|---------|----------|-------|
+| 0 (off)  | 1e-4      | 2.5e-13  | -37.12  | 1.17     | best XPBD-bond run |
+| 50       | 1e-4      | 4.05e-13 | -42.03  | 0.75     | over-damped collapse |
+| 500      | 1e-4      | 4.05e-13 | -41.15  | 0.92     | mild compress |
+| 500      | 0         | 4.05e-13 | -32.44  | 1.51     | under-damped, suspended |
+| **1000** | **1e-5**  | 4.05e-13 | -40.11  | **1.05** | **3% off OpenCL extent_y!** |
+| 1000     | 5e-5      | 4.05e-13 | -40.93  | 0.87     | over-damped |
+| 1500     | 1e-5      | 4.05e-13 | -40.24  | 1.22     | chaotic |
+| 2000     | 1e-5      | 4.05e-13 | -39.48  | 1.24     | chaotic |
+| OpenCL   | -         | -        | -36.75  | 1.085    | **target** |
+
+**`spring_K=1000, visc=1e-5` closes the extent gap to 3%** (vs OpenCL's
+1.085, our 1.05). Δmean_y is ~9% off in this configuration — there
+is a Pareto frontier between bulk fall and stretch retention.
+
+**The chaos caveat**: with springs active, the cube landing state is
+sensitive to parameter neighborhood. Small K changes can swap which
+axis stretches. This isn't a bug — it's the under-damped visco-
+elastic regime. To get pixel-exact OpenCL match would require
+matching damping ratio precisely, which is a heavier tuning exercise.
+
+**Per-step cost** with springs + pair_forces enabled: 0.52 ms/step
+on demo1 (218 elastic + 125 liquid + 17498 boundary, K=1000 springs,
+~924 bonds). Springs add ~10% overhead vs pair_forces alone.
+Compared to OpenCL's 1.79 ms/step: **Metal substrate is 3.4× faster
+even with full visco-elastic physics enabled.**
+
+**What this enables for Sibernetic's framework**: C. elegans body is
+a network of elastic agar particles connected by Hooke springs +
+muscle springs (contractile). Now the substrate has the right primitive
+to express that biology. Next architectural step (deferred): add
+muscle activation — `acceleration[i] += -(unit_vec) ·
+muscle_activation_signal · max_muscle_force` (sphFluid.cl:738) — that
+would let us train neural muscle controllers via gradient descent on
+worm trajectory loss.
+
+**Files:**
+- `src/metal_diff/shaders.metal` — `spring_bonds_force`,
+  `spring_bonds_force_backward` kernels.
+- `src/metal_diff/sib_metal.mm` — `xpbd_step` plumbs `[spring_K]`;
+  `xpbd_full_fwd/bwd` plumb `[spring_K] [bonds.bin]`. New test ops
+  `spring_bonds_fwd/bwd`.
+- `src/metal_diff/run_demo1_via_metal.py` — `--spring-k` flag.
+- `src/metal_diff/test_spring_bonds_bwd.py` — kernel validation
+  (rel err 5e-5).
+- `src/metal_diff/test_xpbd_full_spring.py` — multi-step trainable
+  chain validation (rel err 1.5e-4).
+
+**Regression coverage:** 15 tests, all passing.
+
