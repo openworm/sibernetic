@@ -2847,15 +2847,20 @@ static int run_solve_density_constraint_bwd(int argc, char **argv) {
 // extensions once base multi-step backward validates.
 // ──────────────────────────────────────────────────────────────────────
 static int run_xpbd_full_fwd(int argc, char **argv) {
-    if (argc != 15) {
+    // Optional 15th arg: sim_scale (default 1.0 — toy convention)
+    // Optional 16th arg: visc_pair_coef (default 0 — pair forces off)
+    if (argc < 15 || argc > 17) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_fwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
             "<gravity_y> <alpha_density> "
-            "<pos0.bin> <vel0.bin> <pos_static.bin> <state_out.bin>\n"
+            "<pos0.bin> <vel0.bin> <pos_static.bin> <state_out.bin> "
+            "[sim_scale] [visc_pair_coef]\n"
             "  state_out.bin contains the per-step trajectory: \n"
-            "    K × [x_old(n*3) + v_old(n*3) + density(n) + grad_C(n*3) + denom_h(n)]\n"
-            "    Plus K+1 frames of x_post for the trajectory.\n");
+            "    K × [x_old(n*3) + v_old(n*3) + density(n) + grad_C(n*3) + denom_h(n)"
+            "    [+ pair_density(n) if visc_pair_coef>0]]\n"
+            "    Plus K+1 frames of x_post for the trajectory.\n"
+            "    Plus final v(n*3).\n");
         return 1;
     }
     uint32_t n_active = (uint32_t)atoi(argv[2]);
@@ -2867,11 +2872,26 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
     float dt          = (float)atof(argv[8]);
     float g_y         = (float)atof(argv[9]);
     float alpha_dens  = (float)atof(argv[10]);
+    float sim_scale   = (argc >= 16) ? (float)atof(argv[15]) : 1.0f;
+    float sim_scale_inv = 1.0f / sim_scale;
+    float visc_pair_coef = (argc >= 17) ? (float)atof(argv[16]) : 0.0f;
+    bool use_pair = visc_pair_coef != 0.0f;
 
     float h2 = h * h;
     float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
     float spiky_const = -45.0f / ((float)M_PI * powf(h, 6.0f));
     float alpha_inv_dt2 = alpha_dens / (dt * dt);
+    // Precomputed pair-force amps (in fp64 to dodge fp32 underflow when
+    // sim_scale is tiny; cast to fp32 at kernel boundary).
+    double h_scaled  = (double)h * (double)sim_scale;
+    double h_s6      = pow(h_scaled, 6.0);
+    double h_s9      = pow(h_scaled, 9.0);
+    double divgradWvisco = 45.0 / (M_PI * h_s6);
+    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco
+                              * pow((double)sim_scale, 3.0));
+    double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
+    float surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si
+                              * (double)sim_scale / (double)mass);
 
     auto rd = ^(const char *p, size_t n_floats) {
         FILE *f = fopen(p, "rb");
@@ -2887,9 +2907,15 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
     size_t s_b = (size_t)n_active * sizeof(float);
 
     // Per-step state arrays (host).
-    // Layout per step: [x_old(3n) + v_old(3n) + density(n) + grad_C(3n) + denom_h(n)]
-    size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1);
+    // Layout per step: [x_old(3n) + v_old(3n) + density(n) + grad_C(3n) + denom_h(n)
+    //                   + pair_density(n) if use_pair]
+    int extra_per_step = use_pair ? 1 : 0;
+    size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1 + extra_per_step);
     float *state = (float *)calloc((size_t)K * per_step_floats, sizeof(float));
+    // Static spatial grid buffers — declared in outer scope so the
+    // free() at function end can see them.
+    float *sorted_static_buf = NULL;
+    int *cell_start_buf = NULL;
     // Plus K+1 frames of x_post for the trajectory.
     float *traj = (float *)calloc((size_t)(K + 1) * (size_t)n_active * 3, sizeof(float));
     memcpy(traj, pos0, pos_b);
@@ -2905,9 +2931,24 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
         id<MTLComputePipelineState> pso_dgrad = make_pso(ctx, "density_constraint_grad");
         id<MTLComputePipelineState> pso_solv  = make_pso(ctx, "solve_density_constraint");
         id<MTLComputePipelineState> pso_uv    = make_pso(ctx, "update_velocities");
+        id<MTLComputePipelineState> pso_pair  = use_pair
+            ? make_pso(ctx, "pair_forces_grid") : nil;
+        id<MTLComputePipelineState> pso_appext = use_pair
+            ? make_pso(ctx, "apply_ext_accel") : nil;
 
         size_t r2aa_b = (size_t)n_active * n_active * sizeof(float);
         size_t r2as_b = (size_t)n_active * n_static * sizeof(float);
+
+        // Build static spatial grid if pair_forces is on (one-time cost
+        // per process). Identical to xpbd_step's grid setup.
+        GridDim3 grid_dim_struct = {0, 0, 0};
+        GridOrigin3 grid_origin_struct = {0, 0, 0};
+        int n_cells = 0;
+        if (use_pair && n_static > 0) {
+            build_static_grid(pos_static, n_static, h,
+                              &sorted_static_buf, &cell_start_buf,
+                              &grid_dim_struct, &grid_origin_struct, &n_cells);
+        }
 
         id<MTLBuffer> bX  = [ctx.device newBufferWithBytes:pos0 length:pos_b options:MTLResourceStorageModeShared];
         id<MTLBuffer> bV  = [ctx.device newBufferWithBytes:vel0 length:pos_b options:MTLResourceStorageModeShared];
@@ -2940,9 +2981,48 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
         uint32_t n_as_total = n_active * n_static;
         id<MTLBuffer> bNaaTot = [ctx.device newBufferWithBytes:&n_aa_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
         id<MTLBuffer> bNasTot = [ctx.device newBufferWithBytes:&n_as_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
-        // Identity unit-scale (toy convention: pos & vel share unit system).
+        // sim_scale_inv buffer for predict_positions (default toy = 1.0)
+        id<MTLBuffer> bSSI = [ctx.device newBufferWithBytes:&sim_scale_inv
+            length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bSS  = [ctx.device newBufferWithBytes:&sim_scale
+            length:sizeof(float) options:MTLResourceStorageModeShared];
+        // Identity unit-scale (used by update_velocities; same as bSS when use_pair)
         float one = 1.0f;
         id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float) options:MTLResourceStorageModeShared];
+        // Pair-force buffers (only if use_pair).
+        id<MTLBuffer> bExtA = use_pair
+            ? [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
+            ? [ctx.device newBufferWithBytes:sorted_static_buf
+                  length:(size_t)n_static * 3 * sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bCellStart = (use_pair && n_static > 0)
+            ? [ctx.device newBufferWithBytes:cell_start_buf
+                  length:(size_t)(n_cells + 1) * sizeof(int)
+                  options:MTLResourceStorageModeShared] : nil;
+        int grid_dim_packed[3] = {grid_dim_struct.x, grid_dim_struct.y, grid_dim_struct.z};
+        float grid_origin_packed[3] = {grid_origin_struct.x, grid_origin_struct.y, grid_origin_struct.z};
+        id<MTLBuffer> bGridDim = use_pair
+            ? [ctx.device newBufferWithBytes:grid_dim_packed length:3*sizeof(int)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bGridOrigin = use_pair
+            ? [ctx.device newBufferWithBytes:grid_origin_packed length:3*sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bViscPair = use_pair
+            ? [ctx.device newBufferWithBytes:&visc_pair_coef length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bViscAmp  = use_pair
+            ? [ctx.device newBufferWithBytes:&visc_amp length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bSurfAmp  = use_pair
+            ? [ctx.device newBufferWithBytes:&surf_amp length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        // Seed bD with rho_rest so the first step's pair_forces has a
+        // sensible 1/ρ factor (same convention as xpbd_step).
+        if (use_pair) {
+            float *dens0 = (float *)[bD contents];
+            for (uint32_t i = 0; i < n_active; i++) dens0[i] = rho_rest;
+        }
 
         for (uint32_t k = 0; k < K; k++) {
             // SAVE x_old, v_old (current state at start of step)
@@ -2952,14 +3032,61 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
 
             memset([bLam contents], 0, s_b);
 
+            // SAVE pair_density (the density used by THIS step's
+            // pair_forces). For step 0 this is the rho_rest seed; for
+            // step k>0 it's the density at the end of step k-1.
+            if (use_pair) {
+                memcpy(step_state + 11 * n_active, [bD contents], s_b);
+            }
+
             id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
+
+            // (0) Optional pair_forces + apply_ext_accel (Sibernetic-style
+            //     viscosity + surface tension), applied to v_old before predict.
+            if (use_pair) {
+                {
+                    id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                    [e setComputePipelineState:pso_pair];
+                    [e setBuffer:bX           offset:0 atIndex:0];
+                    [e setBuffer:bV           offset:0 atIndex:1];
+                    [e setBuffer:bSortedS     offset:0 atIndex:2];
+                    [e setBuffer:bCellStart   offset:0 atIndex:3];
+                    [e setBuffer:bD           offset:0 atIndex:4];
+                    [e setBuffer:bExtA        offset:0 atIndex:5];
+                    [e setBuffer:bH           offset:0 atIndex:6];
+                    [e setBuffer:bH2          offset:0 atIndex:7];
+                    [e setBuffer:bM           offset:0 atIndex:8];
+                    [e setBuffer:bSS          offset:0 atIndex:9];
+                    [e setBuffer:bViscPair    offset:0 atIndex:10];
+                    [e setBuffer:bViscAmp     offset:0 atIndex:11];
+                    [e setBuffer:bSurfAmp     offset:0 atIndex:12];
+                    [e setBuffer:bNa          offset:0 atIndex:13];
+                    [e setBuffer:bGridDim     offset:0 atIndex:14];
+                    [e setBuffer:bGridOrigin  offset:0 atIndex:15];
+                    [e dispatchThreads:MTLSizeMake(32, n_active, 1)
+                        threadsPerThreadgroup:MTLSizeMake(32, 1, 1)];
+                    [e endEncoding];
+                }
+                {
+                    id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                    [e setComputePipelineState:pso_appext];
+                    [e setBuffer:bV    offset:0 atIndex:0];
+                    [e setBuffer:bExtA offset:0 atIndex:1];
+                    [e setBuffer:bDt   offset:0 atIndex:2];
+                    [e setBuffer:bNa   offset:0 atIndex:3];
+                    [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [e endEncoding];
+                }
+            }
+
             // (1) predict
             { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
               [e setComputePipelineState:pso_pred];
               [e setBuffer:bX offset:0 atIndex:0]; [e setBuffer:bV offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bGy offset:0 atIndex:4]; [e setBuffer:bNa offset:0 atIndex:5];
-              [e setBuffer:bOne offset:0 atIndex:6];
+              [e setBuffer:bSSI offset:0 atIndex:6];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
             // (2) dist_aa
@@ -3057,13 +3184,13 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
               [e setBuffer:bNa offset:0 atIndex:8];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
-            // (10) update_vel: v_new = (xp - x_old)/dt
+            // (10) update_vel: v_new = (xp - x_old) · sim_scale / dt
             { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
               [e setComputePipelineState:pso_uv];
               [e setBuffer:bV offset:0 atIndex:0]; [e setBuffer:bX offset:0 atIndex:1];
               [e setBuffer:bXp offset:0 atIndex:2]; [e setBuffer:bDt offset:0 atIndex:3];
               [e setBuffer:bNa offset:0 atIndex:4];
-              [e setBuffer:bOne offset:0 atIndex:5];
+              [e setBuffer:bSS offset:0 atIndex:5];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
             [cmd commit]; [cmd waitUntilCompleted];
@@ -3088,6 +3215,8 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
         fclose(fs);
     }
     free(pos0); free(vel0); free(pos_static); free(state); free(traj);
+    if (sorted_static_buf) free(sorted_static_buf);
+    if (cell_start_buf)    free(cell_start_buf);
     return 0;
 }
 
@@ -3103,13 +3232,16 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
 //   ∂L/∂x_init, ∂L/∂v_init, ∂L/∂rho_rest (scalar)
 // ──────────────────────────────────────────────────────────────────────
 static int run_xpbd_full_bwd(int argc, char **argv) {
-    if (argc != 17) {
+    if (argc < 17 || argc > 19) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_bwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
             "<gravity_y> <alpha_density> "
             "<state_in.bin> <pos_static.bin> <grad_x_final.bin> "
-            "<grad_x_init_out.bin> <grad_v_init_out.bin> <grad_rho_out.bin>\n");
+            "<grad_x_init_out.bin> <grad_v_init_out.bin> <grad_rho_out.bin> "
+            "[sim_scale] [visc_pair_coef]\n"
+            "       (must match the xpbd_full_fwd args used to produce the "
+            "state file)\n");
         return 1;
     }
     uint32_t n_active = (uint32_t)atoi(argv[2]);
@@ -3121,11 +3253,26 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
     float dt          = (float)atof(argv[8]);
     float g_y         = (float)atof(argv[9]);
     float alpha_dens  = (float)atof(argv[10]);
+    // Optional 17th arg: sim_scale; 18th: visc_pair_coef. Match xpbd_full_fwd.
+    float sim_scale   = (argc >= 18) ? (float)atof(argv[17]) : 1.0f;
+    float sim_scale_inv = 1.0f / sim_scale;
+    float visc_pair_coef = (argc >= 19) ? (float)atof(argv[18]) : 0.0f;
+    bool use_pair = visc_pair_coef != 0.0f;
 
     float h2 = h * h;
     float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
     float spiky_const = -45.0f / ((float)M_PI * powf(h, 6.0f));
     float alpha_inv_dt2 = alpha_dens / (dt * dt);
+    // Pair-force amps (fp64 for fp32-underflow safety).
+    double h_scaled = (double)h * (double)sim_scale;
+    double h_s6 = pow(h_scaled, 6.0);
+    double h_s9 = pow(h_scaled, 9.0);
+    double divgradWvisco = 45.0 / (M_PI * h_s6);
+    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco
+                              * pow((double)sim_scale, 3.0));
+    double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
+    float surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si
+                              * (double)sim_scale / (double)mass);
 
     auto rd = ^(const char *p, size_t n_floats) {
         FILE *f = fopen(p, "rb");
@@ -3137,7 +3284,8 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
     //   [K × per_step_floats] state
     //   [(K+1) × n*3] traj
     //   [n*3] vel_final
-    size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1);
+    int extra_per_step = use_pair ? 1 : 0;
+    size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1 + extra_per_step);
     size_t state_size = (size_t)K * per_step_floats
                       + (size_t)(K + 1) * n_active * 3
                       + (size_t)n_active * 3;
@@ -3151,6 +3299,10 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
 
     size_t pos_b = (size_t)n_active * 3 * sizeof(float);
     size_t s_b = (size_t)n_active * sizeof(float);
+
+    // Static spatial grid buffers — outer scope for cleanup.
+    float *sorted_static_buf = NULL;
+    int *cell_start_buf = NULL;
 
     @autoreleasepool {
         MetalCtx ctx = make_ctx();
@@ -3167,6 +3319,19 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         id<MTLComputePipelineState> pso_d_aa_bw = make_pso(ctx, "dist_active_active_backward");
         id<MTLComputePipelineState> pso_d_as_bw = make_pso(ctx, "dist_active_static_backward");
         id<MTLComputePipelineState> pso_pred_bw = make_pso(ctx, "predict_positions_backward");
+        // Pair-force backward (only if use_pair).
+        id<MTLComputePipelineState> pso_pair_bw = use_pair
+            ? make_pso(ctx, "pair_forces_grid_backward") : nil;
+
+        // Build static spatial grid for pair_forces backward (matches forward).
+        GridDim3 grid_dim_struct = {0, 0, 0};
+        GridOrigin3 grid_origin_struct = {0, 0, 0};
+        int n_cells = 0;
+        if (use_pair && n_static > 0) {
+            build_static_grid(pos_static, n_static, h,
+                              &sorted_static_buf, &cell_start_buf,
+                              &grid_dim_struct, &grid_origin_struct, &n_cells);
+        }
 
         // Persistent buffers.
         id<MTLBuffer> bX  = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
@@ -3224,9 +3389,42 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         uint32_t n_as_total = n_active * n_static;
         id<MTLBuffer> bNaaTot = [ctx.device newBufferWithBytes:&n_aa_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
         id<MTLBuffer> bNasTot = [ctx.device newBufferWithBytes:&n_as_total length:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+        // sim_scale_inv buffer for predict_positions (default toy = 1.0)
+        id<MTLBuffer> bSSI = [ctx.device newBufferWithBytes:&sim_scale_inv
+            length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bSS  = [ctx.device newBufferWithBytes:&sim_scale
+            length:sizeof(float) options:MTLResourceStorageModeShared];
         // Identity unit-scale (toy convention: pos & vel share unit system).
         float one = 1.0f;
         id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float) options:MTLResourceStorageModeShared];
+        // Pair-force buffers + amps (only if use_pair).
+        id<MTLBuffer> bGext = use_pair
+            ? [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
+            ? [ctx.device newBufferWithBytes:sorted_static_buf
+                  length:(size_t)n_static * 3 * sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bCellStart = (use_pair && n_static > 0)
+            ? [ctx.device newBufferWithBytes:cell_start_buf
+                  length:(size_t)(n_cells + 1) * sizeof(int)
+                  options:MTLResourceStorageModeShared] : nil;
+        int grid_dim_packed[3] = {grid_dim_struct.x, grid_dim_struct.y, grid_dim_struct.z};
+        float grid_origin_packed[3] = {grid_origin_struct.x, grid_origin_struct.y, grid_origin_struct.z};
+        id<MTLBuffer> bGridDim = use_pair
+            ? [ctx.device newBufferWithBytes:grid_dim_packed length:3*sizeof(int)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bGridOrigin = use_pair
+            ? [ctx.device newBufferWithBytes:grid_origin_packed length:3*sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bViscPair = use_pair
+            ? [ctx.device newBufferWithBytes:&visc_pair_coef length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bViscAmp = use_pair
+            ? [ctx.device newBufferWithBytes:&visc_amp length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bSurfAmp = use_pair
+            ? [ctx.device newBufferWithBytes:&surf_amp length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
 
         // Total ρ gradient accumulator (host-side scalar).
         float total_grad_rho = 0.0f;
@@ -3386,6 +3584,56 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
               [e endEncoding]; }
             [cmd commit]; [cmd waitUntilCompleted];
 
+            // (f) Optional pair_forces backward — flows ∂L/∂(v_after_apply)
+            //     (currently in bGv_old_new) back through the pair-force chain
+            //     into ∂L/∂(x_old) and ∂L/∂(v_old_saved). The "v_old_saved"
+            //     gradient is just a passthrough — bGv_old_new already
+            //     represents it (same numeric value). The new contributions
+            //     are the dependence of ext_accel on x_old and v_old.
+            //
+            //     CRITICAL: this MUST run after the previous cmd buffer
+            //     completes — the host-side multiply below reads
+            //     bGv_old_new which is written by predict_bw above.
+            //     That's why the [cmd commit/waitUntilCompleted] above
+            //     was moved up. The pair_forces_bw dispatch then runs in
+            //     a fresh command buffer.
+            if (use_pair) {
+                // host: bGext = dt · bGv_old_new (= ∂L/∂ext_accel)
+                float *gnew = (float *)[bGv_old_new contents];
+                float *gext = (float *)[bGext contents];
+                for (uint32_t i = 0; i < 3 * n_active; i++) {
+                    gext[i] = dt * gnew[i];
+                }
+                // restore pair_density used by THIS step's forward pair_forces
+                memcpy([bD contents], step_state + 11 * n_active, s_b);
+
+                id<MTLCommandBuffer> cmd2 = [ctx.queue commandBuffer];
+                id<MTLComputeCommandEncoder> e = [cmd2 computeCommandEncoder];
+                [e setComputePipelineState:pso_pair_bw];
+                [e setBuffer:bX           offset:0 atIndex:0];   // saved x_old
+                [e setBuffer:bV           offset:0 atIndex:1];   // saved v_old
+                [e setBuffer:bSortedS     offset:0 atIndex:2];
+                [e setBuffer:bCellStart   offset:0 atIndex:3];
+                [e setBuffer:bD           offset:0 atIndex:4];   // pair_density
+                [e setBuffer:bGext        offset:0 atIndex:5];   // dL/d(ext_accel)
+                [e setBuffer:bGx_old_new  offset:0 atIndex:6];   // accum dL/dpos
+                [e setBuffer:bGv_old_new  offset:0 atIndex:7];   // accum dL/dvel
+                [e setBuffer:bH           offset:0 atIndex:8];
+                [e setBuffer:bH2          offset:0 atIndex:9];
+                [e setBuffer:bM           offset:0 atIndex:10];
+                [e setBuffer:bSS          offset:0 atIndex:11];
+                [e setBuffer:bViscPair    offset:0 atIndex:12];
+                [e setBuffer:bViscAmp     offset:0 atIndex:13];
+                [e setBuffer:bSurfAmp     offset:0 atIndex:14];
+                [e setBuffer:bNa          offset:0 atIndex:15];
+                [e setBuffer:bGridDim     offset:0 atIndex:16];
+                [e setBuffer:bGridOrigin  offset:0 atIndex:17];
+                [e dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                [e endEncoding];
+                [cmd2 commit]; [cmd2 waitUntilCompleted];
+            }
+
             // Sum ρ gradient (kernel partial + implicit via grad_C).
             //   implicit = -(grad_grad_C · grad_C) / ρ_rest
             //   Note: bGgC currently holds ∂L/∂grad_C from solve_dens_bwd; bGc holds grad_C (forward saved).
@@ -3413,6 +3661,8 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         FILE *o3 = fopen(argv[16], "wb"); fwrite(&total_grad_rho, 1, sizeof(float), o3); fclose(o3);
     }
     free(all); free(pos_static); free(grad_x_fin);
+    if (sorted_static_buf) free(sorted_static_buf);
+    if (cell_start_buf)    free(cell_start_buf);
     return 0;
 }
 
