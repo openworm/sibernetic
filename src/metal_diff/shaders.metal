@@ -516,6 +516,120 @@ kernel void pair_forces_grid(
     }
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// spring_bonds_force — Hooke-style elastic bond forces for the
+// Sibernetic body model. Per active particle i, walks all bonds and
+// accumulates per-bond acceleration into ext_accel.
+//
+// For bond (i, j) with rest length L (particle units):
+//     a_i += -K · (r_unit - L) · (p_i - p_j) / r_unit
+// where K = elasticityCoefficient · sim_scale, r_unit = ||p_i - p_j||
+// (particle units). The sim_scale factor bridges Sibernetic's
+// convention: rest length stored in particle units, but spring force
+// is `-elasticityCoefficient · (r_meters - L_meters) · unit_vec`.
+// We absorb the unit conversion into the K constant.
+//
+// Per Sibernetic's `pcisph_computeElasticForces` (sphFluid.cl:674):
+//   elasticityCoefficient = 4 · 1.5e-4 / mass ≈ 3e8 (1/(s²·m))
+// Output is acceleration in m/s² — added to ext_accel which already
+// holds viscosity + surface tension contributions.
+//
+// Bond format: `bond_ij[b]` is int2 (particle_i, particle_j);
+// `bond_rest[b]` is rest length in particle units.
+//
+// Per-thread loop is O(n_bonds): each thread walks the entire bond
+// list and processes only bonds touching its particle. For n_bonds
+// up to ~1K this is fine; if bond counts grow large, build a
+// per-particle bond index instead.
+// ──────────────────────────────────────────────────────────────────────
+kernel void spring_bonds_force(
+    device const packed_float3 *active_pos      [[buffer(0)]],
+    device const int2          *bond_ij         [[buffer(1)]],
+    device const float         *bond_rest       [[buffer(2)]],
+    device packed_float3       *ext_accel       [[buffer(3)]],   // accumulate
+    constant float             &spring_K        [[buffer(4)]],   // = elasticityCoef · sim_scale
+    constant uint              &n_bonds         [[buffer(5)]],
+    constant uint              &n_active        [[buffer(6)]],
+    uint gid                                     [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    uint i = gid;
+    float3 p_i = float3(active_pos[i]);
+    float3 a_i = float3(0.0);
+
+    for (uint b = 0; b < n_bonds; b++) {
+        int i_b = bond_ij[b].x;
+        int j_b = bond_ij[b].y;
+        int other;
+        if (i_b == (int)i) other = j_b;
+        else if (j_b == (int)i) other = i_b;
+        else continue;
+
+        float L = bond_rest[b];
+        float3 p_o = float3(active_pos[other]);
+        float3 dir = p_i - p_o;
+        float r = length(dir);
+        if (r < 1e-7) continue;
+        float delta = r - L;
+        a_i += -spring_K * delta * dir / r;
+    }
+
+    ext_accel[i] = packed_float3(float3(ext_accel[i]) + a_i);
+}
+
+// spring_bonds_force_backward — gradient of ext_accel w.r.t. positions
+// from the spring contribution. Symmetric backward trick: each thread
+// for particle i reads its own ga_i and every neighbor's ga_other,
+// accumulating ONLY into ∂L/∂p_i. The cross-particle ∂L/∂p_other is
+// picked up when thread `other` runs and sees `i` in its bond list.
+//
+// Per bond contribution to ∂L/∂p_i:
+//   spring_K · [(1 − L/r) · G_diff + (L/r³) · dir · <dir, G_diff>]
+// where G_diff = ga_other − ga_i.
+//
+// (No velocity dependence — springs are position-only.)
+kernel void spring_bonds_force_backward(
+    device const packed_float3 *active_pos      [[buffer(0)]],
+    device const int2          *bond_ij         [[buffer(1)]],
+    device const float         *bond_rest       [[buffer(2)]],
+    device const packed_float3 *grad_ext_accel  [[buffer(3)]],
+    device packed_float3       *grad_pos        [[buffer(4)]],   // accumulate
+    constant float             &spring_K        [[buffer(5)]],
+    constant uint              &n_bonds         [[buffer(6)]],
+    constant uint              &n_active        [[buffer(7)]],
+    uint gid                                     [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    uint i = gid;
+    float3 p_i = float3(active_pos[i]);
+    float3 ga_i = float3(grad_ext_accel[i]);
+    float3 dp_i = float3(0.0);
+
+    for (uint b = 0; b < n_bonds; b++) {
+        int i_b = bond_ij[b].x;
+        int j_b = bond_ij[b].y;
+        int other;
+        if (i_b == (int)i) other = j_b;
+        else if (j_b == (int)i) other = i_b;
+        else continue;
+
+        float L = bond_rest[b];
+        float3 p_o = float3(active_pos[other]);
+        float3 dir = p_i - p_o;
+        float r = length(dir);
+        if (r < 1e-7) continue;
+        float r3 = r * r * r;
+        float3 ga_o = float3(grad_ext_accel[other]);
+        float3 G_diff = ga_o - ga_i;
+        float coef_iso  = (1.0 - L / r);              // identity-projection coef
+        float coef_proj = L / r3;                     // outer-product coef
+        dp_i += spring_K * (coef_iso * G_diff
+                          + coef_proj * dir * dot(dir, G_diff));
+    }
+
+    grad_pos[i] = packed_float3(float3(grad_pos[i]) + dp_i);
+}
+
 // apply_ext_accel — adds external acceleration to velocity:
 //   v += dt · a_ext   (separate from gravity; gravity is in predict)
 // Used between pair_forces_grid (computes ext_accel) and predict_positions.

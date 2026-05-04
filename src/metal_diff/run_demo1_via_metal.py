@@ -66,6 +66,12 @@ def main():
                     help="Pair-force coefficient for viscosity + surface "
                          "tension. 0 disables (toy convention); 1e-4 is "
                          "Sibernetic's main path (sphFluid.cl:602-624).")
+    ap.add_argument('--spring-k', type=float, default=0.0,
+                    help="Hooke spring constant for elastic bonds (replaces "
+                         "rigid XPBD distance constraint when > 0). "
+                         "Sibernetic-equivalent: elasticityCoef · sim_scale "
+                         "= 3e8 · 7.4e-6 = 2220 (the body-body branch); "
+                         "for agar-agar bonds use 0.25·this = 555.")
     ap.add_argument('--floor-y', type=float, default=0.0)
     args = ap.parse_args()
 
@@ -104,6 +110,7 @@ def main():
         str(args.steps),
         str(args.sim_scale),
         str(args.visc_pair_coef),
+        str(args.spring_k),
     ]
     print(f"Running xpbd_step for {args.steps} steps (dt={args.dt}, "
           f"sim_time={args.steps * args.dt:.4f}s)...")
