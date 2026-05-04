@@ -1827,13 +1827,20 @@ kernel void predict_positions_backward(
     device float               *grad_g_y     [[buffer(3)]],   // per-particle dL/dg.y (output)
     constant float             &dt           [[buffer(4)]],
     constant uint              &n            [[buffer(5)]],
+    constant float             &sim_scale_inv[[buffer(6)]],   // unit bridge (default 1.0)
     uint gid                                  [[thread_position_in_grid]])
 {
     if (gid >= n) return;
+    // Forward: pos_pred = x_old + v_pred · dt · sim_scale_inv
+    //          v_pred   = v + (0, gravity_y · dt, 0)
+    // Chain:   ∂pos_pred/∂x_old = I
+    //          ∂pos_pred/∂v     = dt · sim_scale_inv · I
+    //          ∂pos_pred/∂g_y   = dt² · sim_scale_inv (y-component)
     float3 g_xp = float3(grad_x_pred[gid]);
+    float dt_s = dt * sim_scale_inv;
     grad_x_old[gid] = packed_float3(float3(grad_x_old[gid]) + g_xp);
-    grad_vel[gid]   = packed_float3(float3(grad_vel[gid])   + g_xp * dt);
-    grad_g_y[gid]   = g_xp.y * dt * dt;
+    grad_vel[gid]   = packed_float3(float3(grad_vel[gid])   + g_xp * dt_s);
+    grad_g_y[gid]   = g_xp.y * dt * dt_s;
 }
 
 // M7.C-floor-fwd-mask — Forward floor constraint with mask emission.

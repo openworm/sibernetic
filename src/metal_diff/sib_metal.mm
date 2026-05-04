@@ -1426,6 +1426,10 @@ static int run_step_simple_bwd(int argc, char **argv) {
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bN  = [ctx.device newBufferWithBytes:&n length:sizeof(uint32_t)
             options:MTLResourceStorageModeShared];
+        // Identity unit-scale (toy convention).
+        float one_pbw = 1.0f;
+        id<MTLBuffer> bOne_pbw = [ctx.device newBufferWithBytes:&one_pbw length:sizeof(float)
+            options:MTLResourceStorageModeShared];
 
         id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
         // Reverse order: backward through update_velocities first, then predict.
@@ -1450,6 +1454,7 @@ static int run_step_simple_bwd(int argc, char **argv) {
             [e setBuffer:bGgy offset:0 atIndex:3];
             [e setBuffer:bDt  offset:0 atIndex:4];
             [e setBuffer:bN   offset:0 atIndex:5];
+            [e setBuffer:bOne_pbw offset:0 atIndex:6];
             [e dispatchThreads:MTLSizeMake(n, 1, 1)
                 threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
             [e endEncoding];
@@ -1753,6 +1758,10 @@ static int run_step_floor_bwd(int argc, char **argv) {
               [e setBuffer:bGv_old_new offset:0 atIndex:2];   // accumulate
               [e setBuffer:bGgy_per offset:0 atIndex:3];
               [e setBuffer:bDt offset:0 atIndex:4]; [e setBuffer:bN offset:0 atIndex:5];
+              float one_pf = 1.0f;
+              id<MTLBuffer> bOne_pf = [ctx.device newBufferWithBytes:&one_pf
+                  length:sizeof(float) options:MTLResourceStorageModeShared];
+              [e setBuffer:bOne_pf offset:0 atIndex:6];
               [e dispatchThreads:MTLSizeMake(n,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
 
@@ -2128,6 +2137,10 @@ static int run_step_bond_bwd(int argc, char **argv) {
               [e setBuffer:bGv_old_new offset:0 atIndex:2];   // accumulate
               [e setBuffer:bGgy_per offset:0 atIndex:3];
               [e setBuffer:bDt offset:0 atIndex:4]; [e setBuffer:bN offset:0 atIndex:5];
+              float one_pb = 1.0f;
+              id<MTLBuffer> bOne_pb = [ctx.device newBufferWithBytes:&one_pb
+                  length:sizeof(float) options:MTLResourceStorageModeShared];
+              [e setBuffer:bOne_pb offset:0 atIndex:6];
               [e dispatchThreads:MTLSizeMake(n,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
             [cmd commit]; [cmd waitUntilCompleted];
@@ -2890,20 +2903,23 @@ static int run_solve_density_constraint_bwd(int argc, char **argv) {
 static int run_xpbd_full_fwd(int argc, char **argv) {
     // Optional 15th arg: sim_scale (default 1.0 — toy convention)
     // Optional 16th arg: visc_pair_coef (default 0 — pair forces off)
-    if (argc < 15 || argc > 19) {
+    if (argc < 15 || argc > 20) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_fwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
             "<gravity_y> <alpha_density> "
             "<pos0.bin> <vel0.bin> <pos_static.bin> <state_out.bin> "
-            "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin]\n"
+            "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin] [floor_y]\n"
             "  state_out.bin contains the per-step trajectory: \n"
             "    K × [x_old(n*3) + v_old(n*3) + density(n) + grad_C(n*3) + denom_h(n)"
-            "    [+ pair_density(n) if visc_pair_coef>0]]\n"
+            "    [+ pair_density(n) if visc_pair_coef>0]"
+            "    [+ floor_clamped_mask(n) as int32 if floor_y is set]]\n"
             "    Plus K+1 frames of x_post for the trajectory.\n"
             "    Plus final v(n*3).\n"
             "  When spring_K > 0, bonds.bin must be provided (16 bytes per\n"
-            "  bond: int32 i, int32 j, float32 rest_len, float32 _pad).\n");
+            "  bond: int32 i, int32 j, float32 rest_len, float32 _pad).\n"
+            "  When floor_y is set, soft clamp at y=floor_y is applied\n"
+            "  after density solve (matches xpbd_step's floor handling).\n");
         return 1;
     }
     uint32_t n_active = (uint32_t)atoi(argv[2]);
@@ -2927,6 +2943,9 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
         fprintf(stderr, "spring_K > 0 requires bonds.bin path as 19th arg\n");
         return 1;
     }
+    // Optional 20th arg: floor_y. Default = NaN means "no floor" (legacy).
+    bool use_floor = (argc >= 20);
+    float floor_y = use_floor ? (float)atof(argv[19]) : 0.0f;
     // Load bonds if springs enabled.
     uint32_t n_bonds = 0;
     int32_t *bond_ij_data = NULL;
@@ -2981,8 +3000,9 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
 
     // Per-step state arrays (host).
     // Layout per step: [x_old(3n) + v_old(3n) + density(n) + grad_C(3n) + denom_h(n)
-    //                   + pair_density(n) if use_pair]
-    int extra_per_step = use_pair ? 1 : 0;
+    //                   + pair_density(n) if use_pair
+    //                   + floor_clamped_mask(n as int32) if use_floor]
+    int extra_per_step = (use_pair ? 1 : 0) + (use_floor ? 1 : 0);
     size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1 + extra_per_step);
     float *state = (float *)calloc((size_t)K * per_step_floats, sizeof(float));
     // Static spatial grid buffers — declared in outer scope so the
@@ -3010,6 +3030,8 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
             ? make_pso(ctx, "apply_ext_accel") : nil;
         id<MTLComputePipelineState> pso_spring = use_springs
             ? make_pso(ctx, "spring_bonds_force") : nil;
+        id<MTLComputePipelineState> pso_floor = use_floor
+            ? make_pso(ctx, "solve_floor_constraint_with_mask") : nil;
 
         size_t r2aa_b = (size_t)n_active * n_active * sizeof(float);
         size_t r2as_b = (size_t)n_active * n_static * sizeof(float);
@@ -3081,6 +3103,13 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
                   options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bNbonds_sp = use_springs
             ? [ctx.device newBufferWithBytes:&n_bonds length:sizeof(uint32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        // Floor constraint buffers (only when use_floor).
+        id<MTLBuffer> bFloorY = use_floor
+            ? [ctx.device newBufferWithBytes:&floor_y length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bClamped = use_floor
+            ? [ctx.device newBufferWithLength:(size_t)n_active * sizeof(int32_t)
                   options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
             ? [ctx.device newBufferWithBytes:sorted_static_buf
@@ -3289,6 +3318,18 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
               [e setBuffer:bNa offset:0 atIndex:8];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
+            // (9b) Optional floor constraint with mask (matches xpbd_step).
+            if (use_floor) {
+                id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_floor];
+                [e setBuffer:bXp      offset:0 atIndex:0];
+                [e setBuffer:bClamped offset:0 atIndex:1];
+                [e setBuffer:bFloorY  offset:0 atIndex:2];
+                [e setBuffer:bNa      offset:0 atIndex:3];
+                [e dispatchThreads:MTLSizeMake(n_active,1,1)
+                    threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+                [e endEncoding];
+            }
             // (10) update_vel: v_new = (xp - x_old) · sim_scale / dt
             { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
               [e setComputePipelineState:pso_uv];
@@ -3305,6 +3346,12 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
             memcpy(p, [bD contents], s_b);                            // density
             memcpy(p + n_active, [bGc contents], pos_b);              // grad_C
             memcpy(p + n_active + 3 * n_active, [bDh contents], s_b); // denom_h
+            // Save floor mask (after pair_density slot if use_pair).
+            if (use_floor) {
+                size_t floor_off = (size_t)(11 + (use_pair ? 1 : 0)) * n_active;
+                memcpy(step_state + floor_off, [bClamped contents],
+                       (size_t)n_active * sizeof(int32_t));
+            }
             // Save x_post in trajectory
             memcpy(traj + (size_t)(k + 1) * n_active * 3,
                    [bXp contents], pos_b);
@@ -3339,7 +3386,7 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
 //   ∂L/∂x_init, ∂L/∂v_init, ∂L/∂rho_rest (scalar)
 // ──────────────────────────────────────────────────────────────────────
 static int run_xpbd_full_bwd(int argc, char **argv) {
-    if (argc < 17 || argc > 23) {
+    if (argc < 17 || argc > 24) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_bwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
@@ -3347,7 +3394,7 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
             "<state_in.bin> <pos_static.bin> <grad_x_final.bin> "
             "<grad_x_init_out.bin> <grad_v_init_out.bin> <grad_rho_out.bin> "
             "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin] "
-            "[grad_spring_K_out.bin] [grad_visc_K_out.bin]\n"
+            "[grad_spring_K_out.bin] [grad_visc_K_out.bin] [floor_y]\n"
             "       (must match the xpbd_full_fwd args used to produce the "
             "state file)\n");
         return 1;
@@ -3373,6 +3420,9 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         fprintf(stderr, "spring_K > 0 requires bonds.bin path as 21st arg\n");
         return 1;
     }
+    // Optional floor_y at argv[23] (positions 21, 22 reserved for K/visc grad outs).
+    bool use_floor = (argc >= 24);
+    float floor_y = use_floor ? (float)atof(argv[23]) : 0.0f;
     // Load bonds for springs (mirrors xpbd_full_fwd loader).
     uint32_t n_bonds = 0;
     int32_t *bond_ij_data = NULL;
@@ -3421,7 +3471,7 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
     //   [K × per_step_floats] state
     //   [(K+1) × n*3] traj
     //   [n*3] vel_final
-    int extra_per_step = use_pair ? 1 : 0;
+    int extra_per_step = (use_pair ? 1 : 0) + (use_floor ? 1 : 0);
     size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1 + extra_per_step);
     size_t state_size = (size_t)K * per_step_floats
                       + (size_t)(K + 1) * n_active * 3
@@ -3467,6 +3517,9 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
             ? make_pso(ctx, "spring_K_partial") : nil;
         id<MTLComputePipelineState> pso_visc_K_part   = use_pair
             ? make_pso(ctx, "visc_K_partial") : nil;
+        // Floor backward (matches forward solve_floor_constraint_with_mask).
+        id<MTLComputePipelineState> pso_floor_bw = use_floor
+            ? make_pso(ctx, "solve_floor_constraint_backward") : nil;
 
         // Build static spatial grid for pair_forces backward (matches forward).
         GridDim3 grid_dim_struct = {0, 0, 0};
@@ -3567,6 +3620,14 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
             ? [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bViscPart = use_pair
             ? [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared] : nil;
+        // Floor mask + scratch grad buffer (only when use_floor).
+        id<MTLBuffer> bClamped_bw = use_floor
+            ? [ctx.device newBufferWithLength:(size_t)n_active * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        // packed_float3 buffer for grad_pos_pre (ZERO'd then accumulated);
+        // sized as n_active * 3 floats (pos_b), NOT s_b which is just n.
+        id<MTLBuffer> bGfloorScr = use_floor
+            ? [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
             ? [ctx.device newBufferWithBytes:sorted_static_buf
                   length:(size_t)n_static * 3 * sizeof(float)
@@ -3598,8 +3659,22 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         float total_grad_spring_K = 0.0f;  // Σ_steps Σ_i <∂a_i/∂K, ga_i>
         float total_grad_visc_K = 0.0f;    // Σ_steps Σ_i <∂a_i/∂visc_K, ga_i>
 
-        // Walk K steps backward.
-        for (int32_t k = (int32_t)K - 1; k >= 0; k--) {
+        // Truncated BPTT: gradients through chaotic dynamics explode
+        // exponentially per step (~3× for our cube-spring system).
+        // Chain back only the last `max_bw_steps` steps if BWD_TBPTT is
+        // set; default = K (no truncation, may overflow at large K).
+        int32_t max_bw_steps = K;
+        const char *tbptt_env = getenv("BWD_TBPTT");
+        if (tbptt_env) {
+            max_bw_steps = atoi(tbptt_env);
+            if (max_bw_steps <= 0 || max_bw_steps > (int32_t)K) max_bw_steps = K;
+            fprintf(stderr, "[xpbd_full_bwd] truncated BPTT: %d / %u steps\n",
+                    max_bw_steps, K);
+        }
+        int32_t k_stop = (int32_t)K - max_bw_steps;  // walk K-1 down to k_stop
+
+        // Walk K steps backward (or fewer if truncated BPTT).
+        for (int32_t k = (int32_t)K - 1; k >= k_stop; k--) {
             float *step_state = state + (size_t)k * per_step_floats;
             // Load saved state.
             memcpy([bX contents], step_state, pos_b);                  // x_old
@@ -3643,6 +3718,42 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
             memset([bGx_pred contents], 0, pos_b);
             // Move running v gradient into bGv_in for update_vel_bwd.
             memcpy([bGv_in contents], [bGv_running contents], pos_b);
+
+            // (a-pre) Floor backward — undo forward's last kernel
+            //         (solve_floor_constraint_with_mask) before update_v_bw.
+            //         Clamping kills y-component of gradient on clamped particles.
+            if (use_floor) {
+                size_t floor_off = (size_t)(11 + (use_pair ? 1 : 0)) * n_active;
+                memcpy([bClamped_bw contents],
+                       step_state + floor_off,
+                       (size_t)n_active * sizeof(int32_t));
+                id<MTLCommandBuffer> cmdF = [ctx.queue commandBuffer];
+                id<MTLComputeCommandEncoder> e = [cmdF computeCommandEncoder];
+                [e setComputePipelineState:pso_floor_bw];
+                // input grad_pos_post = bGx_running; output overwrites it
+                // by writing into a temp and copying back. Since the kernel
+                // ACCUMULATES into grad_pos_pre, we zero a scratch buffer
+                // (bGfloorScr is reused as temp), then copy back.
+                memset([bGfloorScr contents], 0, pos_b);
+                [e setBuffer:bGx_running   offset:0 atIndex:0];  // grad_pos_post (input)
+                // Note: backward kernel signature is grad_pos_post + grad_pos_pre
+                // + grad_floor + clamped + n. We need grad_pos_pre as separate
+                // accumulator buffer so we use bGx_pred (will be reset later
+                // before density-bwd anyway). Actually safer: use a dedicated
+                // scratch — overwrite bGx_running with the corrected gradient.
+                [e setBuffer:bGfloorScr    offset:0 atIndex:1];  // grad_pos_pre (accum, zero'd)
+                [e setBuffer:bGx_pred      offset:0 atIndex:2];  // grad_floor per-particle (we discard)
+                [e setBuffer:bClamped_bw   offset:0 atIndex:3];
+                [e setBuffer:bNa           offset:0 atIndex:4];
+                [e dispatchThreads:MTLSizeMake(n_active,1,1)
+                    threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+                [e endEncoding];
+                [cmdF commit]; [cmdF waitUntilCompleted];
+                // Replace bGx_running ← bGfloorScr (the floor-aware gradient).
+                memcpy([bGx_running contents], [bGfloorScr contents], pos_b);
+                // Reset bGx_pred (we used it as scratch for grad_floor).
+                memset([bGx_pred contents], 0, pos_b);
+            }
 
             id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
             // (a) update_vel backward: ∂L/∂v_new (=bGv_in) → +bGx_running (∂L/∂x_post), +bGx_old_new (∂L/∂x_old)
@@ -3749,6 +3860,7 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
               [e setBuffer:bGv_old_new offset:0 atIndex:2];
               [e setBuffer:bGgy_per offset:0 atIndex:3];
               [e setBuffer:bDt offset:0 atIndex:4]; [e setBuffer:bNa offset:0 atIndex:5];
+              [e setBuffer:bSSI offset:0 atIndex:6];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
             [cmd commit]; [cmd waitUntilCompleted];
