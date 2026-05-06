@@ -76,7 +76,8 @@ def main():
     ap.add_argument('--h', type=float, default=3.34)
     ap.add_argument('--mass', type=float, default=2e-12)
     ap.add_argument('--sim-scale', type=float, default=7.4e-6)
-    ap.add_argument('--rho-rest', type=float, default=2.5e-13)
+    ap.add_argument('--rho-rest', type=float, default=1000.0,
+                    help="rest density (kg/m³); Sibernetic uses 1000 (water).")
     ap.add_argument('--alpha-dens', type=float, default=1e-3)
     ap.add_argument('--alpha-dist', type=float, default=3.3e-9)
     ap.add_argument('--visc-pair-coef', type=float, default=5e-5)
