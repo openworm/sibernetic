@@ -1,103 +1,140 @@
 # Sibernetic CUDA backend (skeleton)
 
-> **Status: scaffolding only.** Files in this directory and `inc/owCudaSolver.h` lay out the structure for a native CUDA backend that mirrors PR #222's native Metal port. The actual CUDA kernel ports (translating `src/sphFluid.cl` to `src/cuda/sphFluid.cu`) are deferred — they are weeks of focused work and depend on PR #222's `owSolver` abstract base landing first.
+> **Status: scaffolding only.** The single `sphFluid.cu` placeholder in
+> this directory plus this README sketch the structure for a native
+> CUDA differentiable substrate that mirrors `src/metal_diff/` rather
+> than the legacy OpenCL `owSolver` abstract base. The actual port is
+> deferred — it is ~2 weeks of focused CUDA work.
 
 ## Why this exists
 
-The `ow-native-gpu-0.1.0` line is built on the strategic decision (see `DEVELOPMENT_LOG.md`) to use **two vendor-backed GPU backends** instead of relying on cross-platform Python compilers like Taichi (whose maintenance has slowed) or PyTorch (whose per-kernel-launch overhead makes it 21× slower than OpenCL on the same hardware):
+The repo already has two GPU paths — OpenCL (gold-standard PCISPH on
+Linux/older Macs) and native Metal (`src/metal_diff/sib_metal`, our
+differentiable XPBD substrate on Apple Silicon). NVIDIA hardware is
+covered by OpenCL today, but Apple killed OpenCL on Apple Silicon, so
+long-term we want each platform's *vendor-backed* API:
 
 | Platform | Backend | Status |
 |---|---|---|
-| Apple Silicon | native Metal (`src/metal_diff/sib_metal`) | working, differentiable XPBD substrate |
-| NVIDIA | **native CUDA (this directory)** | **scaffolded; not implemented** |
-| Linux server | OpenCL via NVIDIA runtime (existing) | parity baseline; do not invest |
+| Apple Silicon | native Metal (`src/metal_diff/sib_metal`) | ✅ working differentiable XPBD substrate |
+| NVIDIA | **native CUDA (this directory)** | 🔧 **scaffolded; not implemented** |
+| Linux server | OpenCL via NVIDIA runtime | parity baseline; do not invest |
 
-## Structure (mirrors PR #222 / Metal)
+## Target architecture: mirror `src/metal_diff/`
+
+The current strategic direction (2026-05) is that the CUDA substrate
+should mirror the metal_diff differentiable substrate file-for-file,
+NOT the abstract `owSolver` virtual interface from earlier plans.
+Reasons:
+
+- The metal_diff substrate has worked out the differentiable contract:
+  every forward kernel pairs with a backward kernel, shared types live
+  in a single header (`metal_common.h`), the run-op dispatcher is a
+  thin extern table, and the build is a single shell script.
+- A CUDA port that follows that pattern gets analytic gradients on
+  NVIDIA hardware essentially for free.
+- OpenCL's `owOpenCLSolver` predates the differentiable design and is
+  forward-only. Mirroring it would re-create that limitation.
+
+### Suggested layout
 
 ```
-src/cuda/
-├── README.md          ← you are here
-├── sphFluid.cu        ← all CUDA __global__ kernels (port of src/sphFluid.cl)
-├── CudaContext.cpp/h  ← CUDA device init, stream, memory pools (TODO)
-└── kernels/           ← one .cuh per kernel descriptor (mirrors PR #222's src/kernels/) (TODO)
-
-inc/
-└── owCudaSolver.h     ← public C++ interface, mirrors owOpenCLSolver
-
-src/
-├── owCudaSolver.cpp   ← bridge from owSolver virtual interface to .cu kernels (TODO)
-└── backend/
-    └── CudaBackend.cpp/h  ← (TODO) CUDA runtime API wrapper, equivalent to PR #222's MetalBackend
+src/cuda_diff/
+├── build.sh                    # nvcc compile + link
+├── cuda_common.{h,cu}          # CudaCtx, allocate_pool, build_static_grid
+│                                 (port of metal_common.h / .mm)
+├── ops_kernels_m6.cu           # M6 kernels: dist_*, wpoly6, rowsum, density_grad
+├── ops_xpbd_step.cu            # M7 imperative pipeline
+├── ops_xpbd_full.cu            # differentiable forward + backward
+├── ops_pair_spring.cu          # pair forces + spring bonds
+├── shaders.cu                  # all __global__ kernel definitions
+│                                 (port of shaders.metal — single file)
+├── sib_cuda.cu                 # main + op dispatcher
+├── load_config.py              # shared with metal_diff (no changes)
+├── dump_cuda_trajectory.py     # port of dump_metal_trajectory.py
+├── sgd_true.py                 # shared with metal_diff (just change BIN path)
+└── test_*.py                   # FD-validated per-kernel tests, mirroring
+                                  metal_diff/test_*.py
 ```
 
-## Implementation plan
+The math doesn't change. XPBD's constraint formulation, the kernel
+signatures, the tested backward derivations all carry over directly.
 
-Sequenced so each step produces a working artifact:
+## Per-kernel translation rules (mostly mechanical)
 
-### Phase 0: Wait for PR #222 to land
-Reason: PR #222 introduces `inc/owSolver.h` (the abstract base both backends implement) and the `src/kernels/` descriptor pattern. Building the CUDA backend on the pre-PR-#222 OpenCL-only structure means refactoring once #222 lands. Wait until #222 merges.
-
-### Phase 1: Port `sphFluid.cl` → `sphFluid.cu` (literal translation)
-Translate every OpenCL kernel in `src/sphFluid.cl` (1515 lines) to CUDA. Mostly mechanical:
-- `__kernel void` → `__global__ void`
-- `__global float4 *buf` → `float4 *buf` with explicit pointer args
-- `get_global_id(0)` → `blockIdx.x * blockDim.x + threadIdx.x`
-- `barrier(CLK_LOCAL_MEM_FENCE)` → `__syncthreads()`
-- `__local` → `__shared__`
-- OpenCL math intrinsics → CUDA intrinsics (`fabs` → `fabsf`, etc.)
-
-Estimated: 2-3 days for a careful translation, with a parity test against the OpenCL output at each kernel.
-
-### Phase 2: Implement `CudaBackend.cpp` (host-side dispatch)
-Wraps cuBLAS-style CUDA runtime calls:
-- `cudaMalloc` / `cudaFree` for buffers
-- `cudaMemcpy` for host-device transfers
-- `<<<grid, block>>>` kernel launches
-- `cudaStreamSynchronize` for ordering
-
-Estimated: 2-3 days.
-
-### Phase 3: Implement `owCudaSolver.cpp`
-Bridge between `owSolver` virtual interface (PR #222's abstraction) and `CudaBackend.cpp`'s kernel launches. Mirrors `owMetalSolver.cpp` from PR #222 line-by-line.
-
-Estimated: 1-2 days.
-
-### Phase 4: Wire into the build
-- Add `nvcc` to the Linux makefile path
-- Add CUDA backend selection to `owConfigProperty.cpp` (`backend=cuda`)
-- Update `Dockerfile` for sibernetic-runner to install CUDA toolkit (already has CUDA runtime via nvidia/cuda image)
-- Add `backend=cuda` to the cross-backend regression script
-
-Estimated: 1 day.
-
-### Phase 5: Cross-backend parity validation
-Run `scripts/cross_backend_regression.py --backend cuda --backend opencl --local-binary <PR222-Metal>`. All three should produce demo1 cube-stability metrics within the existing tolerance bands (extent retention ≥ 80%, mean_y fell ≥ 50%).
-
-Estimated: 1 day of measurement + tuning.
-
-### Total estimated effort: ~2 weeks of focused work for a competent CUDA developer.
-
-## Reference files in PR #222 to model from
-
-When PR #222 lands, the matching CUDA files would mirror these structurally:
-
-| Metal file | CUDA equivalent |
+| MSL (Metal Shading Language) | CUDA C++ |
 |---|---|
-| `inc/owMetalSolver.h` | `inc/owCudaSolver.h` |
-| `src/owMetalSolver.cpp` | `src/owCudaSolver.cpp` |
-| `src/owMetalPrivateImpl.cpp` | `src/owCudaPrivateImpl.cpp` (if needed) |
-| `src/backend/MetalBackend.{cpp,h}` | `src/backend/CudaBackend.{cpp,h}` |
-| `src/metal/sphFluid.metal` | `src/cuda/sphFluid.cu` |
-| `src/kernels/*.h` | `src/kernels/*.h` (already shared with Metal — same descriptors) |
+| `kernel void foo(...)` | `__global__ void foo(...)` |
+| `device float *buf [[buffer(0)]]` | `float *buf` (positional arg) |
+| `[[thread_position_in_grid]]` | `blockIdx.x * blockDim.x + threadIdx.x` |
+| `threadgroup float partials[256]` | `__shared__ float partials[256]` |
+| `threadgroup_barrier(mem_flags::mem_threadgroup)` | `__syncthreads()` |
+| `dispatchThreads:MTLSizeMake(N,1,1) threadsPerThreadgroup:MTLSizeMake(256,1,1)` | `kernel<<<(N+255)/256, 256>>>(...)` |
+| `MTLBuffer` | `cudaMalloc` + raw pointer |
+| `[buffer contents]` (host pointer) | `cudaMemcpyDeviceToHost` into staging buffer |
 
-The Metal/CUDA divergence is **only** in the kernel language (MSL vs CUDA C++) and the host-side runtime API (Metal C++ vs CUDA Runtime). The algorithm specification, kernel descriptors, and abstract solver interface are shared.
+OpenCL math intrinsics map similarly: `fabs` → `fabsf`, `sqrt` →
+`sqrtf`, `pow` → `powf`, `dot()` → manual `(a.x*b.x + a.y*b.y + a.z*b.z)`
+since CUDA `float3` doesn't have built-in `dot`.
+
+## Phased implementation plan
+
+Sequenced so each phase produces a working artifact:
+
+### Phase 1: single-kernel parity (1 day)
+Pick `wpoly6_inplace` (simplest M6 kernel), port to CUDA, run against
+an FD reference, verify bit-equality with the Metal output. Get the
+build (plain nvcc or CMake) working before any further kernels.
+
+### Phase 2: M6 atomic ops (~3 days)
+Port the rest of M6 (`dist_active_static`, `dist_active_active`,
+`rowsum_density`, `density_constraint_grad`). Each gets an FD test
+mirroring `test_dist.py` / `test_dens_grad.py` / `test_grad.py`.
+
+### Phase 3: imperative `xpbd_step` (~2 days)
+Port the M7 imperative pipeline (predict → density solve → distance
+constraint → pair forces → floor → update_velocity). Cube-drop smoke
+test (`test_xpbd.py` analog) should produce the same output as the
+Metal version within float32 noise.
+
+### Phase 4: differentiable pipeline (~3 days)
+Port `xpbd_full_fwd` / `xpbd_full_bwd`, add the per-step gradient-clip
+env var (`BWD_CLIP_NORM`), rerun `sgd_true.py` on demo1 (should
+converge to the same optima as on Metal).
+
+### Phase 5: parity sweep + cross-backend regression (~1 day)
+Add the CUDA backend to `scripts/cross_backend_regression.py` and run
+all three substrates (OpenCL, Metal, CUDA) against demo1. Gradients
+should agree between Metal and CUDA to within 1 % (the OpenCL path
+stays forward-only).
+
+### Total: ~2 weeks of focused work for a competent CUDA developer.
 
 ## Why not just use OpenCL on NVIDIA?
 
-It actually works fine — Cloud Run + L4 + NVIDIA's OpenCL runtime measures at 86 sec for a 1-sec demo1 sim, with cube physics intact. However:
-- Apple killed OpenCL on Apple Silicon, so it's not a path forward for cross-platform dev
-- The 2015 AMD APP SDK we historically link against is abandoned
-- NVIDIA's OpenCL is still maintained but not actively invested in
-- For long-term maintainability we want vendor-backed APIs (CUDA on NVIDIA, Metal on Apple)
+It actually works fine — Cloud Run + L4 + NVIDIA's OpenCL runtime
+measures at 86 sec for a 1-sec demo1 sim with cube physics intact.
+However:
 
-OpenCL on NVIDIA stays as the **parity baseline** in the cross-backend regression: when we add the native CUDA backend, its outputs must match OpenCL within tolerance.
+- Apple killed OpenCL on Apple Silicon, so it is not a *single-vendor*
+  cross-platform path forward.
+- The 2015 AMD APP SDK Sibernetic historically links against is
+  abandoned upstream.
+- NVIDIA's OpenCL is maintained but receives little ongoing investment;
+  CUDA gets all the new features (graph capture, cooperative groups,
+  FP16/BF16 compute, sparse warp-level primitives).
+- For *differentiable* physics on NVIDIA hardware specifically, CUDA
+  graph capture and cooperative-group reductions speed up the per-step
+  backward by 2–3× over OpenCL on the same hardware.
+
+OpenCL on NVIDIA stays as the **parity baseline** in
+`scripts/cross_backend_regression.py`: when the native CUDA backend
+lands, its outputs must match OpenCL within tolerance, just as the
+Metal substrate's outputs do today.
+
+## Stub file in this directory
+
+`sphFluid.cu` here is a placeholder from an earlier plan that mirrored
+the OpenCL kernels in a single .cu file. It is *not* the right starting
+point under the current strategy — start fresh from `src/metal_diff/`
+following the layout above. The file is kept for reference only.

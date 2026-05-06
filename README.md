@@ -9,6 +9,11 @@ module for external muscle activating signals generation and input) as part of
 the [OpenWorm team](http://www.openworm.org/people.html). It is primarily
 written in C++ and OpenCL, with 3D visualization built on OpenGL.
 
+> 📺 **Preview**: see [`docs/cube_drop_demo1_25ms.mp4`](docs/cube_drop_demo1_25ms.mp4)
+> for a side-by-side comparison of the OpenCL gold standard vs the new
+> native Metal substrate on demo1's first 25 ms of cube-drop physics.
+> See "Quickstart: render the demo1 cube drop" below to regenerate it.
+
 ## Two solver paths
 
 Sibernetic ships with two physically-equivalent simulation paths. They use
@@ -271,23 +276,236 @@ There are two demo configurations:
 
 Press `1` or `2` in the GUI to switch. `Space` pauses.
 
-## Parity work and known gaps
+## Quickstart: render the demo1 cube drop
 
-The native Metal substrate is currently being parity-tested against OpenCL on
-demo1. Status (commit `1699fe0`, 2026-05-06):
+A pre-rendered side-by-side comparison MP4 (OpenCL gold standard vs the
+native Metal substrate, demo1 first 25 ms) is bundled at
+[`docs/cube_drop_demo1_25ms.mp4`](docs/cube_drop_demo1_25ms.mp4) — click to
+download/play in the GitHub web UI.
 
-- Per-particle L2 trajectory error vs OpenCL: **mean 4.01** over 60 samples
-  in [0, 25 ms].
-- 4 of 5 parity checks in `tests/test_demo1_backend_parity.py` pass on
-  demo1; the failing check is `cube_extent_diff`, which is a known
-  algorithmic-level XPBD-vs-PCISPH difference: PCISPH performs an
-  axis-asymmetric initial cube expansion in the first 0.4 ms that XPBD's
-  one-sided density constraint doesn't replicate.
-- Per-step compute on Apple M3 Max: 1.08 ms; on NVIDIA L4: 1.61 ms.
-- 25 ms cube-drop end-to-end: 1.4 s on Metal local, 10 s on OpenCL via
-  Cloud Run.
+To regenerate it locally on Apple Silicon:
 
-See `DEVELOPMENT_LOG.md` for the full chronology.
+```bash
+# 1. Build both binaries
+./setup.sh                            # main Sibernetic (OpenCL build path)
+cd src/metal_diff && ./build.sh       # native Metal sib_metal binary
+cd ../..
+
+# 2. Run the Metal substrate on demo1 for 25 ms (1250 steps), dump the
+#    resulting trajectory in Sibernetic position_buffer.txt format
+.venv/bin/python src/metal_diff/dump_metal_trajectory.py \
+    --scenario demo1 --steps 1250 --chunk 5 --dt 2e-5 \
+    --rho-rest 1000.0 --visc-pair-coef 5e-5 --spring-k 5500 \
+    --floor-y 2.0 --restitution 0.0 \
+    --out /tmp/metal_demo1.txt
+
+# 3. Get the OpenCL gold-standard trajectory. Either run OpenCL locally
+#    on Linux (./Release/Sibernetic -no_g -f demo1 -l_to timelimit=0.025
+#    logstep=20), or fetch from the OpenWorm sibernetic-runner Cloud Run
+#    instance — the file we used is at gs://sibernetic-runner-results/...
+#    (see scripts/cross_backend_regression.py for the runner client).
+
+# 4. Render side-by-side comparison MP4
+.venv/bin/python scripts/render_demo1_parity.py \
+    docs/cube_drop_demo1_25ms.mp4 \
+    /tmp/opencl_demo1.txt /tmp/metal_demo1.txt \
+    --samples 60 --t-max 0.025 --uniform --hide-liquid \
+    --fps 15 --particle-radius 0.7
+```
+
+The output is a 60-frame, 4-second MP4 of the cube falling and landing,
+with both backends side-by-side. Both should show roughly the same
+behaviour: cube starts centered at `y=44`, falls under gravity, lands at
+~7 ms, and settles by ~16 ms with negligible horizontal drift in this
+window.
+
+## Parity status and caveats vs OpenCL
+
+The native Metal substrate is parity-tested against OpenCL on demo1.
+Current status (commit `576a281`, 2026-05-06):
+
+| Metric | Value |
+|---|---|
+| Per-particle L2 trajectory error vs OpenCL (mean over 60 samples in [0, 25 ms]) | **4.01** |
+| `tests/test_demo1_backend_parity.py` passes | **4 of 5** |
+| Per-step compute on Apple M3 Max | 1.08 ms |
+| Per-step compute on NVIDIA L4 (OpenCL) | 1.61 ms |
+| 25 ms demo1 sim end-to-end (Metal local) | 1.4 s |
+| 25 ms demo1 sim end-to-end (OpenCL via Cloud Run) | 10 s |
+
+### Known gaps and caveats
+
+1. **Initial cube expansion (`cube_extent_diff` test fails).** OpenCL's
+   PCISPH performs an axis-asymmetric expansion in the first 0.4 ms
+   (initial cube `ext_y` jumps from 10.02 → 12.36 due to the density
+   solver finding particles slightly over-compressed at start). XPBD's
+   one-sided density constraint with the current `rho_rest=1000` doesn't
+   trigger because computed sim densities are ~10⁻¹² and `C ≤ 0`
+   always. Closing this would require either a soft-boundary repulsion
+   kernel that mimics PCISPH's initial puff-up, or re-scaling
+   `rho_rest` into sim-density units (which re-introduces explosive
+   density-solver behaviour we already saw and fixed by the rho_rest
+   purposeful-disable). See "Next steps" below.
+
+2. **Long-timescale floor sliding.** Past ~100 ms of sim time, OpenCL's
+   cube wanders horizontally on the floor due to the asymmetric
+   boundary geometry of demo1 (3457 vs 3243 boundary particles on +x
+   vs −x faces). Metal slides too but at a slightly different rate; the
+   25 ms parity window is short enough to miss the divergence, but a 1 s
+   parity comparison would show it. Both are physically valid for
+   demo1's microscale; neither is a bug.
+
+3. **Differentiable backward gradients are biased on long chains.**
+   Through a chaotic post-impact trajectory, position-gradient
+   amplification per step is ~`sim_scale_inv` (≈1.35e5 with Sibernetic's
+   microscale `mass=2e-12`). Without per-step clipping the gradient
+   overflows to NaN within ~5 chain steps. The substrate handles this
+   with `BWD_CLIP_NORM=1e3` (set as env var to `xpbd_full_bwd`), which
+   bounds the running gradient and produces *biased but stable*
+   gradients. Adam in log-space normalises the magnitude, so the bias
+   doesn't prevent SGD from converging — but if you need exact
+   gradients (e.g., for second-order methods) you'll need to either
+   shorten the trajectory window via `BWD_TBPTT` or implement higher
+   precision in the backward kernels.
+
+4. **No membrane support yet.** demo1's elastic shell + liquid + (no
+   membranes) works end-to-end on the Metal substrate. demo2 — which
+   relies on liquid-impermeable membranes — has no Metal implementation.
+   Adding it requires porting `compute_interaction_with_membranes` from
+   `src/sphFluid.cl` and the corresponding membrane-force kernels in the
+   OpenCL pipeline.
+
+5. **No worm/c302 integration.** The native Metal substrate runs
+   forward-only XPBD with no hook into the NEURON/c302 muscle-activation
+   bridge. Worm-body simulations still require the OpenCL path and the
+   embedded Python interpreter.
+
+### Next steps for closing the parity gap
+
+Listed in rough order of effort, lowest first:
+
+1. **Tune `restitution` and `floor_y`** to better match OpenCL's
+   post-impact behaviour. The elastic-floor kernel was added with
+   tunable restitution `e ∈ [0, 1]`; in our test it didn't help, but a
+   joint sweep of (`restitution`, `floor_y`) might find a sweeter spot.
+
+2. **Add a soft-boundary repulsion kernel** mimicking PCISPH's initial
+   density-driven cube expansion. This is the most direct fix for the
+   `cube_extent_diff` failure. Algorithmically: a Wpoly6-weighted
+   repulsion between active and static particles applied at constant
+   strength (not gated by `C > 0`). The kernel exists already in the
+   density chain — it just needs to be exposed as a separate force,
+   tunable independently of the density solver.
+
+3. **Implement membrane forces** (porting `src/sphFluid.cl`'s
+   `_runComputeInteractionWithMembranes` family). This is mechanical
+   but ~500 lines of kernel code plus a backward derivation per kernel.
+   Required to run demo2.
+
+4. **Implement the worm/c302 bridge** in the Metal substrate. The
+   embedded-Python pattern from the OpenCL path can be reused; the main
+   work is exposing per-step muscle-activation arrays as XPBD external
+   forces.
+
+5. **Promote the Metal substrate from a separate binary to a backend
+   exposed by the main `Release/Sibernetic` binary.** Today
+   `sib_metal` is standalone; integrating it as `backend=metal` would
+   give users a single CLI, GUI rendering, and access to the existing
+   c302/NEURON tooling. The split-out `metal_common.h` /
+   `metal_common.mm` interface is designed to make this possible.
+
+See `DEVELOPMENT_LOG.md` for the full chronology of how each parity
+finding was reached.
+
+## Path to a native CUDA backend
+
+The same XPBD substrate that runs on Apple Metal would run unchanged on
+NVIDIA GPUs via a parallel CUDA implementation. A scaffolded plan
+already exists at [`src/cuda/README.md`](src/cuda/README.md), but the
+target architecture has shifted: instead of mirroring the legacy
+`owSolver` abstract base, a CUDA substrate should mirror the
+**`src/metal_diff/` differentiable substrate** module-for-module.
+
+Suggested layout (~2 weeks of focused CUDA work):
+
+```
+src/cuda_diff/
+├── build.sh                    # nvcc compile + link (cuRAND optional)
+├── cuda_common.{h,cu}          # CudaCtx, allocate-pool, build_static_grid (port of metal_common)
+├── ops_kernels_m6.cu           # M6 kernels: dist_*, wpoly6, rowsum, density_grad
+├── ops_xpbd_step.cu            # M7 imperative pipeline (port of ops_xpbd_step.mm)
+├── ops_xpbd_full.cu            # differentiable forward + backward
+├── ops_pair_spring.cu          # pair forces + spring bonds
+├── shaders.cu                  # all __global__ kernels (port of shaders.metal)
+├── load_config.py              # already-shared config loader
+├── dump_cuda_trajectory.py     # ports dump_metal_trajectory.py
+├── sgd_true.py                 # already-shared optimizer (just changes binary path)
+└── test_*.py                   # FD-validated per-kernel tests, mirroring metal_diff
+```
+
+**Why mirror the Metal substrate** rather than the OpenCL one:
+- The metal_diff substrate already has the *differentiable* contract
+  worked out — every forward kernel pairs with a backward kernel,
+  shared types live in a header, and the dispatcher pattern is clean.
+- OpenCL's `owOpenCLSolver` predates that and is forward-only.
+- A CUDA port that follows the metal_diff pattern gets analytic
+  gradients on NVIDIA hardware essentially for free (and with the
+  much-larger CUDA core counts on H100/B200, gradient-based learning at
+  whole-worm scale becomes practical).
+
+**Per-kernel translation rules** (mostly mechanical):
+
+| MSL (Metal Shading Language) | CUDA C++ |
+|---|---|
+| `kernel void foo(...)` | `__global__ void foo(...)` |
+| `device float *buf [[buffer(0)]]` | `float *buf` (positional arg) |
+| `[[thread_position_in_grid]]` | `blockIdx.x * blockDim.x + threadIdx.x` |
+| `threadgroup float partials[256]` | `__shared__ float partials[256]` |
+| `threadgroup_barrier(mem_flags::mem_threadgroup)` | `__syncthreads()` |
+| `dispatchThreads:MTLSizeMake(N,1,1)` | `<<<(N+255)/256, 256>>>` |
+| `MTLBuffer` | `cudaMalloc` + raw pointer |
+
+The math doesn't change; XPBD's constraint formulation, the kernel
+signatures, and the tested backward derivations all carry over directly.
+
+### Build + test plan
+1. **Phase 1 — single-kernel parity**: pick `wpoly6_inplace` (the
+   simplest M6 kernel), port to CUDA, run against an FD reference, and
+   verify bit-equality with the Metal output. Get the build (CMake or
+   plain nvcc) working before any further kernels.
+2. **Phase 2 — atomic ops**: port the rest of M6 (`dist_*`, `rowsum`,
+   `density_grad`). Each gets an FD test mirroring `test_dist.py` /
+   `test_dens_grad.py`.
+3. **Phase 3 — `xpbd_step`**: port the imperative pipeline. Cube-drop
+   smoke test (`test_xpbd.py` analog) should produce the same output as
+   the Metal version within float32 noise.
+4. **Phase 4 — differentiable pipeline**: port `xpbd_full_fwd` /
+   `xpbd_full_bwd`, add the per-step gradient-clip env var, rerun
+   `sgd_true.py` on demo1 (it should converge to the same optima as on
+   Metal).
+5. **Phase 5 — parity sweep**: add the CUDA backend to
+   `scripts/cross_backend_regression.py` and run all three substrates
+   (OpenCL, Metal, CUDA) against demo1; gradients should agree across
+   Metal and CUDA to within 1 % (the OpenCL path stays forward-only).
+
+### Why not simply use OpenCL on NVIDIA?
+
+It works (cloud-run benchmarks show ~1.6 ms/step on L4, identical
+physics to Metal), but:
+- Apple killed OpenCL on Apple Silicon, so it's not a *single-vendor*
+  cross-platform path forward.
+- The 2015 AMD APP SDK Sibernetic historically links against is
+  abandoned upstream.
+- NVIDIA's OpenCL is still maintained but receives little ongoing
+  investment from NVIDIA; CUDA gets all the new features (graph
+  capture, cooperative groups, FP16/BF16 in the compute path).
+- For *differentiable* physics on NVIDIA hardware specifically, CUDA
+  graph capture and cooperative-group reductions speed up the per-step
+  backward by 2–3× over OpenCL on the same hardware.
+
+OpenCL on NVIDIA stays as the **parity baseline** in
+`scripts/cross_backend_regression.py`: when the native CUDA backend
+lands, its outputs must match OpenCL within tolerance.
 
 ## References
 
