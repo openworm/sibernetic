@@ -140,6 +140,12 @@ def main():
                     help="seconds: dense sampling in [0, this]")
     ap.add_argument('--descent-fraction', type=float, default=0.55,
                     help="fraction of frames in the descent window")
+    ap.add_argument('--descent-curve', choices=['linear', 'quad'], default='quad',
+                    help="sample placement inside descent window")
+    ap.add_argument('--t-max', type=float, default=None,
+                    help="cap simulation time shown (seconds). Default = full data.")
+    ap.add_argument('--uniform', action='store_true',
+                    help="disable time-warping; sample uniformly across [0, t-max]")
     ap.add_argument('--fps', type=int, default=15)
     ap.add_argument('--width', type=int, default=900)
     ap.add_argument('--height', type=int, default=600)
@@ -147,6 +153,8 @@ def main():
                     help="sphere radius in sim units")
     ap.add_argument('--floor-band', type=float, default=3.0,
                     help="show boundary particles with y < this")
+    ap.add_argument('--hide-liquid', action='store_true',
+                    help="hide type-1 (liquid) particles, show only elastic")
     args = ap.parse_args()
 
     print(f"Loading OpenCL: {args.opencl}")
@@ -158,12 +166,21 @@ def main():
     print(f"  {len(m_frames)} frames over 0..{m_times[-1]:.3f}s")
 
     t_max = min(o_times[-1], m_times[-1])
-    target_times = time_warped_targets(t_max, args.samples,
-                                        args.descent_window,
-                                        args.descent_fraction)
-    print(f"Sampling {len(target_times)} frames "
-          f"({int(args.samples * args.descent_fraction)} in [0,{args.descent_window}s], "
-          f"rest in [{args.descent_window}s, {t_max:.2f}s])")
+    if args.t_max is not None:
+        t_max = min(t_max, args.t_max)
+
+    if args.uniform:
+        target_times = np.linspace(0, t_max, args.samples)
+        print(f"Sampling {len(target_times)} frames uniformly across [0, {t_max*1000:.1f} ms]"
+              f" (frame_dt = {t_max/(args.samples-1)*1000:.2f} ms)")
+    else:
+        target_times = time_warped_targets(t_max, args.samples,
+                                            args.descent_window,
+                                            args.descent_fraction,
+                                            args.descent_curve)
+        print(f"Sampling {len(target_times)} frames "
+              f"({int(args.samples * args.descent_fraction)} in [0,{args.descent_window}s], "
+              f"rest in [{args.descent_window}s, {t_max:.2f}s])")
 
     o_t = np.array(o_times)
     m_t = np.array(m_times)
@@ -205,17 +222,21 @@ def main():
     sphere_template = pv.Sphere(radius=args.particle_radius,
                                  theta_resolution=10, phi_resolution=10)
 
-    o_xyz, o_ts = o_frames[0]
-    m_xyz, m_ts = m_frames[0]
-    o_colors = ['blue' if t < 2.0 else 'red' for t in o_ts]
-    m_colors = ['blue' if t < 2.0 else 'red' for t in m_ts]
+    def filter_xyz(xyz, ts):
+        if args.hide_liquid:
+            mask = (ts >= 2.0) & (ts < 3.0)  # elastic only
+            return xyz[mask]
+        return xyz
+
+    o_xyz_f = filter_xyz(*o_frames[0])
+    m_xyz_f = filter_xyz(*m_frames[0])
 
     plotter.subplot(0, 0)
-    o_glyph = pv.PolyData(o_xyz).glyph(geom=sphere_template, scale=False, factor=1.0)
+    o_glyph = pv.PolyData(o_xyz_f).glyph(geom=sphere_template, scale=False, factor=1.0)
     o_actor = plotter.add_mesh(o_glyph, color='red', smooth_shading=True)
 
     plotter.subplot(0, 1)
-    m_glyph = pv.PolyData(m_xyz).glyph(geom=sphere_template, scale=False, factor=1.0)
+    m_glyph = pv.PolyData(m_xyz_f).glyph(geom=sphere_template, scale=False, factor=1.0)
     m_actor = plotter.add_mesh(m_glyph, color='red', smooth_shading=True)
 
     time_text_o = plotter.add_text("", position='lower_left', font_size=10,
@@ -227,18 +248,17 @@ def main():
                                   macro_block_size=1)
 
     for fi, (oi, mi, sim_t) in enumerate(zip(o_indices, m_indices, target_times)):
-        o_xyz, _ = o_frames[oi]
-        m_xyz, _ = m_frames[mi]
+        o_xyz_f = filter_xyz(*o_frames[oi])
+        m_xyz_f = filter_xyz(*m_frames[mi])
 
-        # Replace the glyph clouds in-place
         plotter.subplot(0, 0)
         plotter.remove_actor(o_actor)
-        o_glyph = pv.PolyData(o_xyz).glyph(geom=sphere_template, scale=False, factor=1.0)
+        o_glyph = pv.PolyData(o_xyz_f).glyph(geom=sphere_template, scale=False, factor=1.0)
         o_actor = plotter.add_mesh(o_glyph, color='red', smooth_shading=True)
 
         plotter.subplot(0, 1)
         plotter.remove_actor(m_actor)
-        m_glyph = pv.PolyData(m_xyz).glyph(geom=sphere_template, scale=False, factor=1.0)
+        m_glyph = pv.PolyData(m_xyz_f).glyph(geom=sphere_template, scale=False, factor=1.0)
         m_actor = plotter.add_mesh(m_glyph, color='red', smooth_shading=True)
 
         plotter.remove_actor(time_text_o)
