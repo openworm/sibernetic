@@ -1,9 +1,217 @@
-# Sibernetic PyTorch Solver Development Log
+# Sibernetic Development Log
 
-**Date:** December 2024
-**Goal:** Achieve full numerical parity between PyTorch and OpenCL PCISPH solvers
+This log is in reverse-chronological order. The most recent work — the
+**native Apple Metal differentiable substrate** — comes first, followed by
+historical entries on the PyTorch and Taichi solver attempts (those backends
+have been removed from the tree as of 2026-05-06; the entries are preserved
+as design context).
 
 ---
+
+# Native Metal substrate (XPBD, differentiable) — Spring 2026
+
+**Goal:** Replace the legacy auxiliary backends (PyTorch, Taichi) with a
+single first-class Apple-Metal-shader-based substrate that is (a) faster
+than OpenCL on Apple Silicon and (b) **differentiable end-to-end**, so
+gradient-based parameter calibration and inverse-problem inference become
+possible.
+
+**Status (commit `1699fe0`, 2026-05-06):** working forward + analytic
+backward through 25 ms of demo1 cube-drop. 4 of 5 trajectory parity checks
+vs the OpenCL reference pass; mean per-particle L2 = 4.01 over 60 samples
+in [0, 25 ms]. Metal: 1.08 ms/step on M3 Max vs OpenCL's 1.61 ms/step on
+NVIDIA L4.
+
+## Why XPBD
+
+The OpenCL legacy solver uses **PCISPH** (Solenthaler 2009): predict, evaluate
+density via SPH kernel, iteratively correct pressure to enforce
+incompressibility, project, integrate. PCISPH is mature, well-understood,
+and battle-tested on whole-worm simulations going back over a decade.
+
+The native Metal substrate uses **XPBD** (Macklin et al. 2016): treat every
+physical relationship as a constraint in position space, with explicit
+*compliance* parameters (`α`) controlling stiffness. Constraints we use:
+
+- `density_constraint`: one-sided density target (Macklin 2013 PBD-Fluids
+  convention — fluid expands freely, only over-compression triggers
+  projection).
+- `distance_constraint` (rigid mode) or `spring_K` (Hooke mode): elastic
+  bond between paired particles.
+- `floor_constraint`: unilateral inequality `y ≥ floor_y`, now with tunable
+  restitution coefficient `e ∈ [0, 1]` for elastic bounce.
+- `pair_forces`: viscosity + surface-tension as accumulated external
+  acceleration applied alongside gravity.
+
+Each constraint has a hand-derived analytic backward kernel
+(`solve_density_constraint_backward`,
+`solve_distance_constraints_seq_backward`, `solve_floor_constraint_backward`,
+`pair_forces_grid_backward`, `predict_positions_backward`,
+`update_velocities_backward`). Stitching them together produces exact
+gradients of any scalar loss with respect to: `rho_rest`, `spring_K`,
+`visc_pair_coef`, `alpha_dens`, `floor_y`, `restitution`, gravity, and
+initial particle states.
+
+**Why not just differentiate PCISPH?** The pressure-Poisson inner loop in
+PCISPH has no clean derivative — it's a fixed-point iteration. You can
+backprop through the unrolled iterations, but the resulting Jacobian is
+numerically fragile and the per-iteration kernel zoo is much larger than
+XPBD's. XPBD trades a slightly different physical formulation for clean
+single-shot constraint projections that each have a closed-form gradient.
+
+## Forward path
+
+```
+predict_positions       (semi-implicit Euler with sim_scale_inv unit bridge)
+  ↓
+for iter in n_iters:
+    dist_active_active + dist_active_static     (compute r² matrices)
+      ↓
+    wpoly6_inplace × 2                          (kernel-evaluate)
+      ↓
+    rowsum_density × 2  +  add                  (density per particle)
+      ↓
+    density_constraint_grad                     (∇C, denom_helper)
+      ↓
+    solve_density_constraint                    (Δλ, project)
+      ↓
+    [solve_distance_constraints_seq | spring_bonds_force]
+      ↓
+    [pair_forces_grid → ext_accel → apply]      (visco-surf if v>0)
+      ↓
+    solve_floor_constraint_with_mask            (elastic clamp w/ restitution)
+update_velocities       (recover v from Δx / dt)
+```
+
+Files: `src/metal_diff/shaders.metal` (kernels), `src/metal_diff/sib_metal.mm`
+(orchestrator + ops dispatcher).
+
+## Backward path
+
+`xpbd_full_bwd` walks the chain in reverse, recomputing per-step state from
+the saved `xpbd_full_fwd` state file as needed. The chain rule produces
+running `grad_x` and `grad_v` buffers that flow back step-by-step.
+
+**Critical practical issues encountered:**
+
+1. **NaN at degenerate contacts (post-impact, particles overlapping).**
+   `density_constraint_grad_backward` divided by `r` in `g_hat = dir/r`
+   without ε safeguard. Fixed: `r_safe = max(r, 1e-4)` and skip pairs
+   below threshold. Reduced TBPTT=1 NaN count from 414/1029 to 0/1029.
+
+2. **Chain-rule explosion through the chaotic post-impact regime.** Each
+   chain step amplifies position gradients by ~`sim_scale_inv` (≈1.35e5)
+   because `update_vel` divides by `dt` and `predict` multiplies by
+   `dt·sim_scale_inv`. Combined with Sibernetic's microscale
+   `mass=2e-12 kg`, gradients overflow to NaN within 5–10 chain steps.
+   Fixed: per-step gradient clipping in `xpbd_full_bwd` (env var
+   `BWD_CLIP_NORM=1e3`). The clipped gradients are *biased* but bounded
+   and useful for SGD direction; Adam in log-space normalizes the
+   magnitude.
+
+After these two fixes, `xpbd_full_bwd` produces finite gradients at every
+TBPTT level on demo1 1250-step trajectories.
+
+## Parity work and key findings
+
+### `rho_rest` unit-mismatch fix
+The Metal substrate's density kernel computes density in *sim-density
+units* (≈10⁻¹² with mass=2e-12, sim_scale=7.4e-6). The dump tool's default
+of `rho_rest=2.5e-13` (a toy-test convention) caused the density-constraint
+solver to over-correct massively at simulation start and explode the cube.
+Fix: default `rho_rest=1000.0` (matching `inc/owPhysicsConstant.h`'s
+`rho0 = 1000`). With this value, `C = density/rho_rest - 1 ≈ -1` always,
+so the one-sided projection skips and the cube falls cleanly under
+gravity + spring + floor constraints alone. Density-driven boundary
+repulsion is therefore *not active* in the Metal substrate's current
+demo1 configuration; the floor and pair forces handle boundary
+interaction.
+
+### `spring_K` saturation plateau
+Manual sweep + analytic SGD on `spring_K` revealed a saturation plateau
+at K∈[5500, 8500] where cube extent_y is 9.43–9.46 regardless of
+stiffness. Beyond K=9500 the simulation NaN-diverges. Optimum sits right
+at the stability cliff. SGD with corrected backward confirmed: K=8626 is
+4% better loss than K=5500, but at the boundary of stability.
+
+### `floor_y=2.0` parity fix
+OpenCL's PCISPH boundary band (boundary particles at y=0..3.34) makes the
+cube settle at y≈1 (sitting *on top* of boundary particles, not on a hard
+plane at y=0). Setting Metal's `floor_y` from 0.0 to 2.0 raises the cube
+to match OpenCL's effective floor. Result: max cube-center diff dropped
+from 7.08 to 5.15.
+
+### Elastic floor with restitution
+`solve_floor_constraint` now takes a restitution coefficient
+`e ∈ [0, 1]` (default 0 = legacy clamp). Implementation:
+`if x.y < floor_y: x.y = floor_y + e·(floor_y - x.y)`. Empirically
+restitution alone doesn't close the parity gap (cube extent is dominated
+by spring stiffness, not floor elasticity), but it's a clean tunable
+parameter for future work and has a matching analytic backward.
+
+### `∂L/∂alpha_dens` analytic backward
+Added per-particle gradient of loss w.r.t. the XPBD density compliance
+`A = alpha_inv_dt2`:
+
+```
+∂Δλ/∂A = -(λ_pre + Δλ)/D = -λ_post / D
+∂L/∂A_per_particle = chain · (-λ_post / D)
+∂L/∂alpha_dens = (Σ_i ∂L/∂A_i) / dt²
+```
+
+FD-validated to 1.9e-4 relative error on synthetic inputs. In the demo1
+configuration the gradient is correctly zero (density solver inactive in
+this regime), which is informative: the analytic backward correctly tells
+us alpha_dens is a non-tunable knob at the current operating point.
+
+### Irreducible algorithmic gap
+The remaining `cube_extent_diff` test failure is substrate-level:
+OpenCL's PCISPH performs an axis-asymmetric cube expansion in the first
+0.4 ms of simulation (`ext_x` = 12.30, `ext_y` = 12.36, `ext_z` = 9.40,
+from initial 10.02). This is the density solver pushing particles apart
+based on initial-state density estimation. XPBD's one-sided
+density-constraint with `rho_rest=1000` doesn't activate (C ≤ 0) and so
+doesn't replicate this initial puff-up. Closing that gap would require
+either a different density formulation or a separate "soft boundary
+repulsion" kernel that mimics PCISPH's initial expansion without
+enabling full chaotic density dynamics.
+
+## Performance
+
+| Workload | OpenCL (NVIDIA L4) | Metal (Apple M3 Max) |
+|---|---|---|
+| Per-step compute | 1.61 ms | 1.08 ms (1.49× faster) |
+| 25 ms sim end-to-end | 10 s (incl. Cloud Run cold start) | 1.4 s (7× faster) |
+| 3 s sim | 256 s | 162 s |
+| Steps/sec | 620 | 924 |
+
+The chunked dump tool (`dump_metal_trajectory.py` with `--chunk 5`) has
+~62 ms/chunk subprocess overhead; for fast end-to-end use `xpbd_full_fwd`
+which runs N steps in a single subprocess call.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `src/metal_diff/shaders.metal` | Forward + backward Metal compute kernels |
+| `src/metal_diff/sib_metal.mm` | Op dispatcher, host-side orchestration |
+| `src/metal_diff/build.sh` | Builds `sib_metal` binary on macOS |
+| `src/metal_diff/load_config.py` | Parse Sibernetic config → Metal binary buffers |
+| `src/metal_diff/dump_metal_trajectory.py` | Run sim, write `position_buffer.txt` |
+| `src/metal_diff/sgd_true.py` | Analytic-gradient SGD on (rho, K, v, α) |
+| `src/metal_diff/sgd_fd.py` | Finite-difference SGD fallback |
+| `src/metal_diff/test_*.py` | FD-validation tests for individual backward kernels |
+| `tests/test_demo1_backend_parity.py` | Trajectory-equivalence test vs OpenCL |
+| `scripts/render_demo1_parity.py` | pyvista side-by-side MP4 renderer |
+
+---
+
+# Historical context (PyTorch + Taichi work, 2024–early 2026)
+
+**Note (2026-05-06):** The PyTorch (`pytorch_solver.py`) and Taichi
+(`taichi_solver.py`) solver implementations have been removed from the
+tree. The historical entries below are preserved as design context for
+why we ultimately settled on a native Metal differentiable substrate.
 
 ## Executive Summary
 

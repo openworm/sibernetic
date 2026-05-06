@@ -1,19 +1,19 @@
 # metal_diff — hand-written differentiable Metal for Sibernetic
 
-This directory holds hand-written Metal compute kernels (no Taichi, no
-PyTorch-MPS abstraction) for a differentiable Sibernetic substrate.
-Apple Silicon GPU only for now; native CUDA equivalent is a separate
-follow-up.
+This directory holds hand-written Metal compute kernels for the native
+differentiable Sibernetic substrate. Apple Silicon GPU only for now;
+native CUDA equivalent is a separate follow-up.
 
 ## Why hand-written
 
-We tried Taichi-Metal earlier (see `taichi_solver.py` and
-`differentiable_solver.py`). Taichi-Metal works for the cube-only
-elastic case but has gaps (Metal autodiff is partial; the imperative
-solver pancakes; no path to demo1-scale without spatial neighbor
-search). The decision (2026-05-03) was to stop iterating on Taichi
-entirely and write the GPU kernels directly. Differentiability comes
-from pairing each forward kernel with a hand-derived backward kernel.
+Earlier substrate-prototyping attempts (PyTorch on MPS, Taichi-Metal)
+either lacked the autodiff coverage we needed or had algorithmic-scale
+issues (the coordinate-space bug in the Taichi imperative solver, MPS
+backward limitations) that didn't map cleanly to Sibernetic's particle
+counts. The decision (2026-05-03) was to write the GPU kernels directly
+in Metal Shading Language and pair each forward kernel with a
+hand-derived backward kernel. Both legacy backends have since been
+removed from the tree.
 
 ## What's here
 

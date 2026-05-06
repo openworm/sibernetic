@@ -119,10 +119,6 @@ public:
   int getLogStep() { return logStep; }
   float getTimeStep() const { return this->timeStep; }
   float getDelta() const { return delta; }
-  bool torchEnabled() const { return useTorch; }
-  bool taichiEnabled() const { return useTaichi; }
-  std::string getTaichiDevice() const { return taichiDevice; }
-  std::string getTorchDevice() const { return torchDevice; }
   std::string getSnapshotFileName() {
     std::string fileName = "./configuration/snapshot/" + configFileName + "_";
     std::stringstream ss;
@@ -253,10 +249,6 @@ private:
   std::string sourceFileName;
   bool nrnSimRun; // indicates if we also run NEURON simulation
   bool c302;      // indicates if we also run NEURON simulation
-  bool useTorch;  // run simulation using the PyTorch solver
-  bool useTaichi; // run simulation using the Taichi solver (GPU accelerated)
-  std::string taichiDevice; // Taichi device: "metal", "cuda", "cpu"
-  std::string torchDevice;  // PyTorch device: "cpu", "mps" (Apple Silicon), "cuda"
   std::string nrnSimulationFileName;
   std::map<std::string, float> constMap;
 };

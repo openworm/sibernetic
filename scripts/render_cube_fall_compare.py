@@ -81,7 +81,7 @@ def main():
     out_path = sys.argv[1] if len(sys.argv) > 1 else "/Users/slarson/Downloads/cube_drop_compare.mp4"
     left_path = sys.argv[2] if len(sys.argv) > 2 else "/tmp/sib_centered_dump/position_buffer.txt"
     right_path = sys.argv[3] if len(sys.argv) > 3 else "/tmp/metal_centered_nopair.txt"
-    left_label = sys.argv[4] if len(sys.argv) > 4 else "Sibernetic local (Taichi-Metal)"
+    left_label = sys.argv[4] if len(sys.argv) > 4 else "Reference"
     right_label = sys.argv[5] if len(sys.argv) > 5 else "Metal Native Substrate (no pair forces)"
 
     print(f"Loading LEFT: {left_path}")

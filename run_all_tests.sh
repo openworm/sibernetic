@@ -34,15 +34,13 @@ else
     echo "Skipping c302 tests due to missing NEURON" >&2
 fi
 
-# Run unit tests.  Skip engine comparison unless requested
+# Run unit tests.
 set +e
-RUN_ENGINE_TESTS=0 python3 -m pytest -q tests/test_pytorch_solver.py tests/test_energy.py
+python3 -m pytest -q tests/test_energy.py tests/test_solver_logs.py
 rc=$?
 set -e
 if [ "$rc" -ne 0 ] && [ "$rc" -ne 5 ]; then
     exit $rc
 fi
-
-RUN_ENGINE_TESTS=1 python3 -m pytest -q tests/test_torch_backend.py || true
 
 

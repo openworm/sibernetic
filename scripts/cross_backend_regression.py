@@ -1,30 +1,21 @@
 #!/usr/bin/env python3
-"""Run the same Sibernetic scenario across multiple backends, compare metrics.
+"""Run the same Sibernetic scenario on the OpenCL gold-standard solver
+and compare against the native Metal substrate (when --local-binary
+points at src/metal_diff/sib_metal).
 
-Catches the kind of cross-backend physics divergence we already know about
-from this repo's history:
-
-  - Taichi-Metal pancakes on Apple Silicon (5-sec sim → extent 7.6%)
-  - Taichi-CUDA freezes on Linux L4 (1-sec sim → cube doesn't fall)
-  - PyTorch (CPU) takes hours to even produce a frame on demo1 scale
-  - OpenCL on real GPU drops the cube ~5x faster than Taichi does
-
-Submits jobs to a Cloud Run runner (default the deployed
-`sibernetic-runner` instance) and/or runs a local binary, collects the
-cube-stability metrics, and prints a side-by-side comparison plus a
-PASS/FAIL gate keyed to the OpenCL baseline.
+Submits jobs to the `sibernetic-runner` Cloud Run instance for the
+OpenCL reference, optionally runs a local binary alongside, and prints
+a side-by-side cube-stability comparison plus a PASS/FAIL gate keyed
+to the OpenCL baseline.
 
 Usage examples:
 
-    # Default: hit Cloud Run, sweep cloud-runnable backends
+    # OpenCL on Cloud Run only
     python3 scripts/cross_backend_regression.py
 
-    # Include a local binary path (e.g. PR #222's native Metal)
+    # OpenCL (cloud) + native Metal (local)
     python3 scripts/cross_backend_regression.py \\
-        --local-binary /tmp/sibernetic-pr222/Release/Sibernetic --local-name "PR222-Metal"
-
-    # Only test specific backends
-    python3 scripts/cross_backend_regression.py --backend opencl --backend taichi-cuda
+        --local-binary src/metal_diff/sib_metal --local-name "Metal-native"
 
     # Override the scenario / sim length
     python3 scripts/cross_backend_regression.py --config demo1 --timelimit 1.0
@@ -177,7 +168,9 @@ def main(argv=None) -> int:
     p.add_argument(
         "--backend", action="append", default=None,
         help="Cloud Run backend to test (can pass multiple). "
-             "Default: opencl, torch-cuda, taichi-cuda.",
+             "Currently only `opencl` is supported by the main binary; "
+             "the native Metal substrate is exposed via the standalone "
+             "src/metal_diff/sib_metal binary on Apple Silicon.",
     )
     p.add_argument(
         "--local-binary", type=Path, default=None,
@@ -197,7 +190,7 @@ def main(argv=None) -> int:
     )
     args = p.parse_args(argv)
 
-    cloud_backends = args.backend or ["opencl", "torch-cuda", "taichi-cuda"]
+    cloud_backends = args.backend or ["opencl"]
     runs: list[dict] = []
 
     if not args.no_cloud:

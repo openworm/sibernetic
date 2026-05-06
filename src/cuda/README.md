@@ -8,10 +8,9 @@ The `ow-native-gpu-0.1.0` line is built on the strategic decision (see `DEVELOPM
 
 | Platform | Backend | Status |
 |---|---|---|
-| Apple Silicon | native Metal (PR #222 by Wei Weng) | merged-pending in `weiweng/modernize-makefile-osx` |
+| Apple Silicon | native Metal (`src/metal_diff/sib_metal`) | working, differentiable XPBD substrate |
 | NVIDIA | **native CUDA (this directory)** | **scaffolded; not implemented** |
 | Linux server | OpenCL via NVIDIA runtime (existing) | parity baseline; do not invest |
-| Cross-platform fallback | Taichi-CUDA / Taichi-Metal (existing) | bug-blocked; needs `taichi_solver.py` fix |
 
 ## Structure (mirrors PR #222 / Metal)
 
@@ -92,15 +91,6 @@ When PR #222 lands, the matching CUDA files would mirror these structurally:
 | `src/kernels/*.h` | `src/kernels/*.h` (already shared with Metal — same descriptors) |
 
 The Metal/CUDA divergence is **only** in the kernel language (MSL vs CUDA C++) and the host-side runtime API (Metal C++ vs CUDA Runtime). The algorithm specification, kernel descriptors, and abstract solver interface are shared.
-
-## Why not just use Taichi-CUDA?
-
-We tested it on 2026-05-03:
-- 1-sec demo1 sim: cube didn't move at all (mean_y unchanged 44.42 → 44.42)
-- 5-sec demo1 sim on Apple Silicon Taichi-Metal: cube pancaked (extent retention 7.6%)
-- Both manifest the same algorithmic bug in `taichi_solver.py` (the documented coordinate-scale issue)
-
-Fixing `taichi_solver.py` would unblock Taichi as a backend for both Metal and CUDA. Until then, native CUDA is the path forward for NVIDIA hardware.
 
 ## Why not just use OpenCL on NVIDIA?
 

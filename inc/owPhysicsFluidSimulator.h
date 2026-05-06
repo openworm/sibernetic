@@ -38,7 +38,6 @@
 
 #include "owPhysicsConstant.h"
 #include "owHelper.h"
-#include <Python.h>
 
 #if defined(__APPLE__) && defined(__aarch64__)
 #include <sys/time.h>
@@ -152,10 +151,6 @@ class owPhysicsFluidSimulator
 #ifndef OW_NO_OPENCL
         owOpenCLSolver *ocl_solver;
 #endif
-	PyObject *torchSolver;
-	PyObject *taichiSolver;
-	bool useTorchBackend;
-	bool useTaichiBackend;
 	float *position_cpp;			   // everywhere in the code %variableName%_cpp means that we create
 	float *velocity_cpp;			   // and initialize in 'ordinary' memory some data, which will be
 	float *pressure_cpp;			   // and initialize in 'ordinary' memory some data, which will be
@@ -173,8 +168,6 @@ class owPhysicsFluidSimulator
 	int iterationCount;
 	void destroy();
 	void genShellPaticlesList();
-	void initTorchSolver(bool isReset);  // Phase 1.4: Helper to eliminate duplicate init code
-	void initTaichiSolver(bool isReset); // Taichi GPU solver initialization
 };
 
 #endif //OW_PHYSICS_SIMULATOR_H

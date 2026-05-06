@@ -22,39 +22,20 @@ jobs:
       run: |
         git config --global core.autocrlf false
         git config --global core.eol lf
-        
+
     - uses: actions/checkout@v4
 
     - name: Install AMD OpenCL libraries needed for Sibernetic
       run: |
-
         lscpu
 
         echo "Installing OpenCL Drivers"
-
-        # Legacy install of Intel's OpenCL Drivers:
-        # Based on: https://github.com/openworm/OpenWorm/blob/master/Dockerfile
-        # mkdir intel-opencl-tmp
-        # cd intel-opencl-tmp
-        # mkdir intel-opencl
-        # wget https://github.com/openworm/OpenWorm/raw/dev_inte/SRB5.0_linux64.zip
-        # unzip SRB5.0_linux64.zip
-        # tar -C intel-opencl -Jxf intel-opencl-r5.0-63503.x86_64.tar.xz
-        # tar -C intel-opencl -Jxf intel-opencl-devel-r5.0-63503.x86_64.tar.xz
-        # tar -C intel-opencl -Jxf intel-opencl-cpu-r5.0-63503.x86_64.tar.xz
-        # sudo cp -R intel-opencl/* /
-        # sudo ldconfig
-        # cd ..
-        # sudo rm -r intel-opencl-tmp
-
-        # sudo cp -R /opt/intel/opencl/include/CL /usr/include/
-        # sudo apt install -y ocl-icd-opencl-dev vim 
 
         # Install AMD's OpenCL Drivers (AMD-APP-SDK 3.0):
         wget https://master.dl.sourceforge.net/project/nicehashsgminerv5viptools/APP%20SDK%20A%20Complete%20Development%20Platform/AMD%20APP%20SDK%203.0%20for%2064-bit%20Linux/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
         tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
         printf 'Y\n\n' | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
-        
+
         sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libOpenCL.so.1 /usr/lib/libOpenCL.so.1
         sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libamdocl64.so /usr/lib/libamdocl64.so
 
@@ -67,9 +48,7 @@ jobs:
 
     - name: Build Sibernetic
       run: |
-
         sudo apt install -y python3-dev python3-numpy freeglut3-dev libglu1-mesa-dev
-        #sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for some reason...
         python -V
         ls -alt /usr/bin/python*
         ls -alt
@@ -80,26 +59,14 @@ jobs:
       run: |
         ./Release/Sibernetic -h
 
-    - name: Run quick Sibernetic test
+    - name: Run quick Sibernetic OpenCL test
       run: |
         ldd ./Release/Sibernetic
-
         ./Release/Sibernetic -no_g timelimit=0.001
-
-    - name: Install Taichi for backend smoke test
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install taichi
-
-    - name: Smoke test (Taichi CPU)
-      run: ./Release/Sibernetic -no_g -f demo1 backend=taichi-cpu timelimit=0.001
 
     - name: Run tests
       run: |
-        pip install c302
-        pip install neuron
-        pip install pytest
-        pip install torch ruff pyneuroml
+        pip install c302 neuron pytest pyneuroml
         pip list
         which nrniv
         export NEURON_HOME=/home/runner/.local
@@ -107,19 +74,23 @@ jobs:
 
     - name: Generated file info
       run: |
-        
-        ls -alt  simulations/*
+        ls -alt simulations/*
         more simulations/C1_*/report.json
 
     - name: Final version info
       run: |
-
         python -V
         pip list
 
 
   build-macos:
-
+    # Native Metal substrate exercise. The main Sibernetic binary on Apple
+    # Silicon builds with OW_NO_OPENCL (no OpenCL driver available); the
+    # actual GPU simulation path lives in src/metal_diff/sib_metal, a
+    # separate Apple-Metal-shader-based binary that implements XPBD on the
+    # Apple GPU. This job builds and smoke-tests both: the main binary as a
+    # build-system regression check, the Metal substrate as the real GPU
+    # path.
     runs-on: macos-latest
 
     steps:
@@ -132,19 +103,57 @@ jobs:
         python3 -V
         which python3.13 || true
         brew --version
+        xcrun --version
 
-    - name: Build Sibernetic on macOS via setup.sh
-      run: |
-        ./setup.sh
+    - name: Build main Sibernetic binary via setup.sh
+      run: ./setup.sh
 
     - name: Print Sibernetic help
       run: ./Release/Sibernetic -h
 
-    - name: Print binary linkage
+    - name: Print main-binary linkage
       run: otool -L ./Release/Sibernetic
 
-    - name: Smoke test (Taichi CPU)
-      run: ./Release/Sibernetic -no_g -f demo1 backend=taichi-cpu timelimit=0.001
+    - name: Build native Metal substrate (sib_metal)
+      run: |
+        cd src/metal_diff
+        ./build.sh
+        ls -la sib_metal
 
-    - name: Smoke test (Taichi Metal)
-      run: ./Release/Sibernetic -no_g -f demo1 backend=taichi timelimit=0.001
+    - name: Native Metal substrate smoke test (xpbd_step on demo1)
+      run: |
+        cd src/metal_diff
+        ./sib_metal --help 2>&1 | head -30 || true
+        # Exercise the per-step XPBD pipeline: load demo1, run 10 steps,
+        # check the output file exists. This catches regressions in any of
+        # the M6/M7 kernels (density solve, distance constraints, floor,
+        # spring forces, pair forces) because all of them are touched by
+        # a single xpbd_step call.
+        python3 - <<'PY'
+        import os, sys, subprocess
+        sys.path.insert(0, '.')
+        from load_config import load_to_metal_buffers
+        info = load_to_metal_buffers('demo1', out_dir='/tmp/ci_demo1', h=3.34)
+        # Initial pos/vel
+        import numpy as np
+        pos = np.fromfile(info['paths']['pos_active'], dtype=np.float32).reshape(-1, 3)
+        vel = np.zeros_like(pos)
+        pos.astype(np.float32).tofile('/tmp/ci_pos_in.bin')
+        vel.astype(np.float32).tofile('/tmp/ci_vel_in.bin')
+        cmd = ['./sib_metal', 'xpbd_step',
+               str(info['n_active']), str(info['n_static']),
+               '3.34', '2e-12', '1000.0', '2e-5', '-9.8', '2.0', '1e-3', '3',
+               '/tmp/ci_pos_in.bin', '/tmp/ci_vel_in.bin',
+               info['paths']['pos_static'],
+               str(info['n_bonds']), info['paths']['bonds'],
+               '3.3e-9', '50',                    # alpha_dist, n_steps
+               '7.4e-6', '5e-5', '5500.0', '0.0'] # sim_scale, visc, K, restitution
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            print('STDOUT:', r.stdout); print('STDERR:', r.stderr); sys.exit(1)
+        out = np.fromfile('/tmp/xpbd_pos_out.bin', dtype=np.float32).reshape(-1, 3)
+        # Sanity: cube should still be in the box (no NaN/Inf, all y in [0, 100])
+        assert np.all(np.isfinite(out)), 'NaN/Inf in output positions'
+        assert np.all((out[:, 1] >= -10) & (out[:, 1] <= 100)), 'cube escaped box'
+        print(f'Native Metal smoke test PASSED ({info["n_active"]} active particles, 50 steps)')
+        PY

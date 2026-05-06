@@ -23,12 +23,15 @@ ARCH := $(shell uname -m)
 PYTHON_LIB_FLAGS ?= -framework Python
 
 ifeq ($(ARCH),arm64)
-TORCH_FLAGS := -DOW_NO_OPENCL
+# Apple Silicon: OpenCL is unavailable; the main binary builds with
+# OW_NO_OPENCL and the actual GPU simulation path lives in
+# src/metal_diff/sib_metal (built separately via src/metal_diff/build.sh).
+ARCH_DEFINES := -DOW_NO_OPENCL
 OPENCL_FLAG :=
 LIBS := $(PYTHON_LIB_FLAGS) -framework OpenGL -framework GLUT
 else
 SOURCES += src/owOpenCLSolver.cpp
-TORCH_FLAGS :=
+ARCH_DEFINES :=
 OPENCL_FLAG := -framework OpenCL
 LIBS := $(PYTHON_LIB_FLAGS) -framework OpenGL -framework GLUT -framework OpenCL
 endif
@@ -73,7 +76,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo 'Invoking: clang C++ Compiler'
 #### use this to compile against homebrew installed python
 #### change version number as necessary (2.7.n)
-	g++ -std=c++14 -O3 -Wall $(TORCH_FLAGS) -c -I$(PYTHONHEADERDIR) -I$(NUMPYHEADERDIR) -I$(INCDIR) $(OPENCL_FLAG) -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	g++ -std=c++14 -O3 -Wall $(ARCH_DEFINES) -c -I$(PYTHONHEADERDIR) -I$(NUMPYHEADERDIR) -I$(INCDIR) $(OPENCL_FLAG) -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

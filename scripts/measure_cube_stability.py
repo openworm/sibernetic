@@ -10,13 +10,8 @@ hitting the floor or collapsed into a pancake.
 Healthy cube  : extent retention > 0.5  (cube settled but kept its shape)
 Pancake bug   : extent retention < 0.2  (cube flattened against the floor)
 
-Background: the README claims Taichi's elastic body flattens to mean Y
-~0.24 after a 3s floor collision (vs PyTorch's 1.45). The proximate cause
-is the well-documented coordinate-space bug — elastic forces are
-effectively ~287x weaker than they should be relative to SPH pressure
-because they're computed in scaled coordinates while pressure is in world
-coordinates. This script gives that visual symptom an objective metric so
-fixes can be measured without watching gifs.
+Used to objectively quantify "did the elastic cube keep its shape after
+landing on the floor" without having to watch GIFs.
 
 Position buffer format (single header at top, then concatenated frames):
 

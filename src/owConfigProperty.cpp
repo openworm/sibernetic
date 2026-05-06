@@ -49,12 +49,9 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
   nrnSimRun = false;
   nrnSimulationFileName = "";
   simulation = nullptr;
-  useTorch = false;
-  useTaichi = false;
-  taichiDevice = "metal";  // Default to Metal on Mac
-  torchDevice = "cpu";     // Default; override with backend=torch-{mps,cuda,cpu}
 #ifdef OW_NO_OPENCL
-  useTaichi = true;  // Default to Taichi when OpenCL disabled
+  // No OpenCL = no GPU sim available via this binary. Use the standalone
+  // src/metal_diff/sib_metal binary on Apple Silicon for GPU simulation.
 #endif
     
   fillConstMap(); // map must be filled before parsing arguments, otherwise beta will be NaN because of division by zero
@@ -72,30 +69,11 @@ owConfigProperty::owConfigProperty(int argc, char **argv)
     if (strTemp.find("backend=") == 0) {
       std::string backend = strTemp.substr(strTemp.find('=') + 1);
       std::transform(backend.begin(), backend.end(), backend.begin(), ::tolower);
-      if (backend == "torch" || backend == "torch-cpu") {
-        useTorch = true;
-        useTaichi = false;
-        torchDevice = "cpu";
-      } else if (backend == "torch-mps") {
-        useTorch = true;
-        useTaichi = false;
-        torchDevice = "mps";
-      } else if (backend == "torch-cuda") {
-        useTorch = true;
-        useTaichi = false;
-        torchDevice = "cuda";
-      } else if (backend == "taichi" || backend == "taichi-metal") {
-        useTaichi = true;
-        useTorch = false;
-        taichiDevice = "metal";
-      } else if (backend == "taichi-cuda") {
-        useTaichi = true;
-        useTorch = false;
-        taichiDevice = "cuda";
-      } else if (backend == "taichi-cpu") {
-        useTaichi = true;
-        useTorch = false;
-        taichiDevice = "cpu";
+      if (backend != "opencl") {
+        std::cerr << "Unknown backend '" << backend << "'. "
+                  << "This binary supports backend=opencl only. "
+                  << "For Apple Silicon GPU simulation, use the standalone "
+                  << "src/metal_diff/sib_metal binary." << std::endl;
       }
     }
     if (strTemp.find("timestep=") == 0) {
