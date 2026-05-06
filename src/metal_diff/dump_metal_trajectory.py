@@ -47,7 +47,8 @@ def run_chunk(args, info, pos_in, vel_in, n_steps):
            str(args.alpha_dist), str(n_steps),
            f"{args.sim_scale:.15e}",
            f"{args.visc_pair_coef:.15e}",
-           f"{args.spring_k:.15e}"]
+           f"{args.spring_k:.15e}",
+           f"{args.restitution:.6f}"]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"xpbd_step failed: {r.stderr[:300]}")
@@ -83,6 +84,9 @@ def main():
     ap.add_argument('--visc-pair-coef', type=float, default=5e-5)
     ap.add_argument('--spring-k', type=float, default=1000.0)
     ap.add_argument('--floor-y', type=float, default=0.0)
+    ap.add_argument('--restitution', type=float, default=0.0,
+                    help="floor restitution coefficient e ∈ [0,1]; "
+                         "0=inelastic clamp (legacy), 1=perfectly elastic bounce")
     ap.add_argument('--out', default='/tmp/metal_position_buffer.txt')
     args = ap.parse_args()
 

@@ -748,21 +748,22 @@ static int run_xpbd_step(int argc, char **argv) {
     // visc_pair_coef enables the Sibernetic-equivalent viscosity +
     // surface tension pair-force pass. Default 0 disables it; 1e-4 is
     // Sibernetic's main path coefficient (see sphFluid.cl:602-624).
-    if (argc < 18 || argc > 22) {
+    if (argc < 18 || argc > 23) {
         fprintf(stderr,
             "usage: sib_metal xpbd_step "
             "<n_active> <n_static> <h> <mass> <rho_rest> <dt> <gravity_y> "
             "<floor_y> <alpha_density> <n_iters> "
             "<pos_active.bin> <vel_active.bin> <pos_static.bin> "
             "<n_bonds> <bonds.bin> <alpha_dist> [bench_steps] [sim_scale] "
-            "[visc_pair_coef] [spring_K]\n"
+            "[visc_pair_coef] [spring_K] [restitution]\n"
             "       (outputs written to /tmp/xpbd_{pos,vel}_out.bin)\n"
             "       bonds.bin format: per bond, [int32 i, int32 j, "
             "float32 rest_len, float32 _pad] (16 bytes each)\n"
             "       spring_K > 0 enables Hooke spring bonds AND disables\n"
             "       the rigid XPBD distance constraint (Sibernetic mode).\n"
             "       spring_K = elasticityCoefficient * sim_scale\n"
-            "       (Sibernetic default: 3e8 * 7.4e-6 = 2220).\n");
+            "       (Sibernetic default: 3e8 * 7.4e-6 = 2220).\n"
+            "       restitution ∈ [0,1]: floor elasticity (default 0).\n");
         return 1;
     }
     uint32_t n_active = (uint32_t)atoi(argv[2]);
@@ -789,6 +790,7 @@ static int run_xpbd_step(int argc, char **argv) {
     bool use_pair_forces = visc_pair_coef != 0.0f;
     float spring_K       = (argc >= 22) ? (float)atof(argv[21]) : 0.0f;
     bool use_springs     = spring_K != 0.0f;
+    float restitution    = (argc >= 23) ? (float)atof(argv[22]) : 0.0f;
     // Springs replace the rigid XPBD distance constraint when on.
     bool use_xpbd_bonds  = (n_bonds > 0) && !use_springs;
     // Springs feed into the same ext_accel buffer as pair_forces, so
@@ -1008,6 +1010,8 @@ static int run_xpbd_step(int argc, char **argv) {
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bufG     = [ctx.device newBufferWithBytes:&gravity_y length:sizeof(float)
             options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufRestitution = [ctx.device newBufferWithBytes:&restitution length:sizeof(float)
+            options:MTLResourceStorageModeShared];
         id<MTLBuffer> bufFloor = [ctx.device newBufferWithBytes:&floor_y length:sizeof(float)
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bufAdt2  = [ctx.device newBufferWithBytes:&alpha_inv_dt2 length:sizeof(float)
@@ -1203,13 +1207,14 @@ static int run_xpbd_step(int argc, char **argv) {
                         threadsPerThreadgroup:MTLSizeMake(1, 1, 1)];
                     [enc endEncoding];
                 }
-                // k. solve_floor_constraint
+                // k. solve_floor_constraint (elastic with restitution)
                 {
                     id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
                     [enc setComputePipelineState:pso_solve_f];
                     [enc setBuffer:bufPosPred offset:0 atIndex:0];
                     [enc setBuffer:bufFloor   offset:0 atIndex:1];
                     [enc setBuffer:bufNa      offset:0 atIndex:2];
+                    [enc setBuffer:bufRestitution offset:0 atIndex:3];
                     [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
                         threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
                     [enc endEncoding];
@@ -1545,6 +1550,10 @@ static int run_step_floor_fwd(int argc, char **argv) {
         float one = 1.0f;
         id<MTLBuffer> bOne = [ctx.device newBufferWithBytes:&one length:sizeof(float)
             options:MTLResourceStorageModeShared];
+        // Legacy step_floor_fwd test op uses inelastic floor (e=0).
+        float restitution_zero = 0.0f;
+        id<MTLBuffer> bRest = [ctx.device newBufferWithBytes:&restitution_zero
+            length:sizeof(float) options:MTLResourceStorageModeShared];
 
         for (uint32_t k = 0; k < K; k++) {
             id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
@@ -1558,11 +1567,12 @@ static int run_step_floor_fwd(int argc, char **argv) {
               [e dispatchThreads:MTLSizeMake(n,1,1)
                   threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
-            // floor with mask
+            // floor with mask (legacy: e=0, inelastic)
             { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
               [e setComputePipelineState:pso_floor];
               [e setBuffer:bXp offset:0 atIndex:0]; [e setBuffer:bClmp offset:0 atIndex:1];
               [e setBuffer:bFy offset:0 atIndex:2]; [e setBuffer:bN offset:0 atIndex:3];
+              [e setBuffer:bRest offset:0 atIndex:4];
               [e dispatchThreads:MTLSizeMake(n,1,1)
                   threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
@@ -1735,12 +1745,17 @@ static int run_step_floor_bwd(int argc, char **argv) {
             // ── Backward through floor ──
             // Inputs: ∂L/∂x_post_floor (= bGx_old). Outputs: ∂L/∂x_pre_floor
             // (which we'll call bGx_pred since that's pos before floor).
+            // Legacy step_floor_bwd uses inelastic floor (e=0).
+            float restitution_zero_b = 0.0f;
+            id<MTLBuffer> bRestZero = [ctx.device newBufferWithBytes:&restitution_zero_b
+                length:sizeof(float) options:MTLResourceStorageModeShared];
             { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
               [e setComputePipelineState:pso_flbw];
               [e setBuffer:bGx_old offset:0 atIndex:0];   // ∂L/∂x_post_floor
               [e setBuffer:bGx_pred offset:0 atIndex:1];  // accumulate into ∂L/∂x_pre_floor (= ∂L/∂x_pred)
               [e setBuffer:bGfy_per offset:0 atIndex:2];
               [e setBuffer:bClmp offset:0 atIndex:3]; [e setBuffer:bN offset:0 atIndex:4];
+              [e setBuffer:bRestZero offset:0 atIndex:5];
               [e dispatchThreads:MTLSizeMake(n,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
 
@@ -2916,7 +2931,8 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
             "<gravity_y> <alpha_density> "
             "<pos0.bin> <vel0.bin> <pos_static.bin> <state_out.bin> "
-            "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin] [floor_y]\n"
+            "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin] [floor_y] "
+            "[restitution]\n"
             "  state_out.bin contains the per-step trajectory: \n"
             "    K × [x_old(n*3) + v_old(n*3) + density(n) + grad_C(n*3) + denom_h(n)"
             "    [+ pair_density(n) if visc_pair_coef>0]"
@@ -2925,8 +2941,9 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
             "    Plus final v(n*3).\n"
             "  When spring_K > 0, bonds.bin must be provided (16 bytes per\n"
             "  bond: int32 i, int32 j, float32 rest_len, float32 _pad).\n"
-            "  When floor_y is set, soft clamp at y=floor_y is applied\n"
-            "  after density solve (matches xpbd_step's floor handling).\n");
+            "  When floor_y is set, elastic floor at y=floor_y is applied\n"
+            "  after density solve. restitution ∈ [0, 1] (default 0):\n"
+            "    0 = inelastic clamp (legacy), 1 = perfectly elastic bounce.\n");
         return 1;
     }
     uint32_t n_active = (uint32_t)atoi(argv[2]);
@@ -2953,6 +2970,8 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
     // Optional 20th arg: floor_y. Default = NaN means "no floor" (legacy).
     bool use_floor = (argc >= 20);
     float floor_y = use_floor ? (float)atof(argv[19]) : 0.0f;
+    // Optional 21st arg: restitution coefficient (default 0 = inelastic).
+    float restitution = (argc >= 21) ? (float)atof(argv[20]) : 0.0f;
     // Load bonds if springs enabled.
     uint32_t n_bonds = 0;
     int32_t *bond_ij_data = NULL;
@@ -3114,6 +3133,9 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
         // Floor constraint buffers (only when use_floor).
         id<MTLBuffer> bFloorY = use_floor
             ? [ctx.device newBufferWithBytes:&floor_y length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bRestitution = use_floor
+            ? [ctx.device newBufferWithBytes:&restitution length:sizeof(float)
                   options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bClamped = use_floor
             ? [ctx.device newBufferWithLength:(size_t)n_active * sizeof(int32_t)
@@ -3325,14 +3347,15 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
               [e setBuffer:bNa offset:0 atIndex:8];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
-            // (9b) Optional floor constraint with mask (matches xpbd_step).
+            // (9b) Optional elastic floor constraint with mask (matches xpbd_step).
             if (use_floor) {
                 id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
                 [e setComputePipelineState:pso_floor];
-                [e setBuffer:bXp      offset:0 atIndex:0];
-                [e setBuffer:bClamped offset:0 atIndex:1];
-                [e setBuffer:bFloorY  offset:0 atIndex:2];
-                [e setBuffer:bNa      offset:0 atIndex:3];
+                [e setBuffer:bXp           offset:0 atIndex:0];
+                [e setBuffer:bClamped      offset:0 atIndex:1];
+                [e setBuffer:bFloorY       offset:0 atIndex:2];
+                [e setBuffer:bNa           offset:0 atIndex:3];
+                [e setBuffer:bRestitution  offset:0 atIndex:4];
                 [e dispatchThreads:MTLSizeMake(n_active,1,1)
                     threadsPerThreadgroup:MTLSizeMake(64,1,1)];
                 [e endEncoding];
@@ -3431,6 +3454,9 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
     // Optional floor_y at argv[23] (positions 21, 22 reserved for K/visc grad outs).
     bool use_floor = (argc >= 24);
     float floor_y = use_floor ? (float)atof(argv[23]) : 0.0f;
+    // Optional restitution at argv[25] (after grad_alpha_dens output at argv[24]).
+    // Default 0 = inelastic (legacy). Pass 0..1 to enable elastic floor.
+    float restitution = (argc >= 26) ? (float)atof(argv[25]) : 0.0f;
     // Load bonds for springs (mirrors xpbd_full_fwd loader).
     uint32_t n_bonds = 0;
     int32_t *bond_ij_data = NULL;
@@ -3637,6 +3663,9 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         // sized as n_active * 3 floats (pos_b), NOT s_b which is just n.
         id<MTLBuffer> bGfloorScr = use_floor
             ? [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bRestitution_bw = use_floor
+            ? [ctx.device newBufferWithBytes:&restitution length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
             ? [ctx.device newBufferWithBytes:sorted_static_buf
                   length:(size_t)n_static * 3 * sizeof(float)
@@ -3773,6 +3802,7 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
                 [e setBuffer:bGx_pred      offset:0 atIndex:2];  // grad_floor per-particle (we discard)
                 [e setBuffer:bClamped_bw   offset:0 atIndex:3];
                 [e setBuffer:bNa           offset:0 atIndex:4];
+                [e setBuffer:bRestitution_bw offset:0 atIndex:5];
                 [e dispatchThreads:MTLSizeMake(n_active,1,1)
                     threadsPerThreadgroup:MTLSizeMake(64,1,1)];
                 [e endEncoding];

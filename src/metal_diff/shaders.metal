@@ -1762,22 +1762,29 @@ kernel void solve_density_constraint_backward(
     grad_alpha_inv_dt2[i] = chain * (-lambda_post / D);
 }
 
-// M7.3 — Floor constraint (hard inequality).
+// M7.3 — Elastic floor constraint with tunable restitution.
 //
-//   if x.y < floor_y:  x.y = floor_y
+//   if x.y < floor_y:
+//     δ = floor_y - x.y                         (penetration)
+//     x.y = floor_y + e · δ                     (reflect e-fraction)
 //
-// Trivial per-particle clamp. No Lagrange multiplier needed since this
-// is an unilateral hard constraint with infinite stiffness.
+// e = 0 → inelastic (legacy clamp at floor)
+// e = 1 → perfectly elastic bounce (full reflection across floor_y)
+//
+// Velocity is recovered downstream via update_velocities (v_new = (post -
+// pre) / dt), so the bounce-back appears automatically when e > 0.
 kernel void solve_floor_constraint(
-    device packed_float3 *pos_pred  [[buffer(0)]],
-    constant float       &floor_y   [[buffer(1)]],
-    constant uint        &n         [[buffer(2)]],
-    uint gid                        [[thread_position_in_grid]])
+    device packed_float3 *pos_pred     [[buffer(0)]],
+    constant float       &floor_y      [[buffer(1)]],
+    constant uint        &n            [[buffer(2)]],
+    constant float       &restitution  [[buffer(3)]],   // e ∈ [0, 1]
+    uint gid                            [[thread_position_in_grid]])
 {
     if (gid >= n) return;
     float3 x = float3(pos_pred[gid]);
     if (x.y < floor_y) {
-        x.y = floor_y;
+        float delta = floor_y - x.y;
+        x.y = floor_y + restitution * delta;
         pos_pred[gid] = packed_float3(x);
     }
 }
@@ -1862,20 +1869,30 @@ kernel void predict_positions_backward(
 }
 
 // M7.C-floor-fwd-mask — Forward floor constraint with mask emission.
-// Same effect as solve_floor_constraint, but also writes clamped[i] = 1
-// when the particle was clamped, 0 otherwise. The mask is consumed by
-// solve_floor_constraint_backward.
+// Now elastic with tunable restitution coefficient e ∈ [0, 1]:
+//   if x.y < floor_y:
+//     δ = floor_y - x.y                         (penetration)
+//     x.y = floor_y + e · δ                     (reflect e-fraction)
+// e = 0 → inelastic clamp (legacy behavior, particle stops)
+// e = 1 → perfectly elastic bounce (full reflection, KE preserved up to dt err)
+// e ∈ (0, 1) → partially elastic (some KE lost)
+//
+// The reflection geometry is exactly mirror across floor_y, scaled by e.
+// downstream update_velocities → v_y = (post - x_old)/dt picks up the
+// reversed sign automatically (since post > x_old when e > 0).
 kernel void solve_floor_constraint_with_mask(
-    device packed_float3 *pos_pred  [[buffer(0)]],
-    device int           *clamped   [[buffer(1)]],
-    constant float       &floor_y   [[buffer(2)]],
-    constant uint        &n         [[buffer(3)]],
-    uint gid                        [[thread_position_in_grid]])
+    device packed_float3 *pos_pred       [[buffer(0)]],
+    device int           *clamped        [[buffer(1)]],
+    constant float       &floor_y        [[buffer(2)]],
+    constant uint        &n              [[buffer(3)]],
+    constant float       &restitution    [[buffer(4)]],   // e ∈ [0, 1]
+    uint gid                              [[thread_position_in_grid]])
 {
     if (gid >= n) return;
     float3 x = float3(pos_pred[gid]);
     if (x.y < floor_y) {
-        x.y = floor_y;
+        float delta = floor_y - x.y;          // > 0, penetration depth
+        x.y = floor_y + restitution * delta;  // e=0 → floor_y; e=1 → 2·floor_y - x.y
         pos_pred[gid] = packed_float3(x);
         clamped[gid] = 1;
     } else {
@@ -1885,11 +1902,11 @@ kernel void solve_floor_constraint_with_mask(
 
 // M7.C-floor-bwd — Backward of solve_floor_constraint_with_mask.
 //
-// Forward semantics:
-//   if clamped[i]: pos_post[i] = (pos_pre.x, floor_y, pos_pre.z)
-//                  pos_post.y/dpos_pre.y = 0 (clamping kills gradient)
-//                  pos_post.y/dfloor_y   = 1
-//   else:          pos_post = pos_pre
+// Forward semantics (elastic with restitution e):
+//   if clamped[i]: post.y = floor_y + e·(floor_y - x.y) = (1+e)·floor_y - e·x.y
+//                  ∂post.y/∂x.y     = -e
+//                  ∂post.y/∂floor_y = 1 + e
+//   else:          post = pre, identity gradient
 //
 // We accumulate ∂L/∂pos_pre (caller may already have partial grads).
 // ∂L/∂floor_y is per-particle and host-summed into the scalar gradient.
@@ -1899,14 +1916,20 @@ kernel void solve_floor_constraint_backward(
     device float               *grad_floor     [[buffer(2)]],
     device const int           *clamped        [[buffer(3)]],
     constant uint              &n              [[buffer(4)]],
+    constant float             &restitution    [[buffer(5)]],   // e ∈ [0, 1]
     uint gid                                    [[thread_position_in_grid]])
 {
     if (gid >= n) return;
     float3 g_post = float3(grad_pos_post[gid]);
     if (clamped[gid] != 0) {
+        // post.y = (1+e)·floor_y - e·x.y
+        // ∂post.y/∂x.y = -e   ⇒  grad_pos_pre.y += -e · grad_post.y
+        // ∂post.y/∂floor_y = 1+e
         grad_pos_pre[gid] = packed_float3(float3(grad_pos_pre[gid]) +
-                                          float3(g_post.x, 0.0, g_post.z));
-        grad_floor[gid] = g_post.y;
+                                          float3(g_post.x,
+                                                  -restitution * g_post.y,
+                                                  g_post.z));
+        grad_floor[gid] = (1.0f + restitution) * g_post.y;
     } else {
         grad_pos_pre[gid] = packed_float3(float3(grad_pos_pre[gid]) + g_post);
         grad_floor[gid] = 0.0;
