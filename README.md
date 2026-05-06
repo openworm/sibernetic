@@ -304,11 +304,11 @@ cd ../..
     --floor-y 2.0 --restitution 0.0 \
     --out /tmp/metal_demo1.txt
 
-# 3. Get the OpenCL gold-standard trajectory. Either run OpenCL locally
-#    on Linux (./Release/Sibernetic -no_g -f demo1 -l_to timelimit=0.025
-#    logstep=20), or fetch from the OpenWorm sibernetic-runner Cloud Run
-#    instance — the file we used is at gs://sibernetic-runner-results/...
-#    (see scripts/cross_backend_regression.py for the runner client).
+# 3. Get the OpenCL gold-standard trajectory. Run on a Linux machine
+#    with a working OpenCL driver:
+#       ./Release/Sibernetic -no_g -f demo1 -l_to timelimit=0.025 logstep=20
+#    The position_buffer.txt that Sibernetic writes is the input format
+#    render_demo1_parity.py consumes.
 
 # 4. Render side-by-side comparison MP4
 .venv/bin/python scripts/render_demo1_parity.py \
@@ -333,10 +333,9 @@ Current status (commit `576a281`, 2026-05-06):
 |---|---|
 | Per-particle L2 trajectory error vs OpenCL (mean over 60 samples in [0, 25 ms]) | **4.01** |
 | `tests/test_demo1_backend_parity.py` passes | **4 of 5** |
-| Per-step compute on Apple M3 Max | 1.08 ms |
-| Per-step compute on NVIDIA L4 (OpenCL) | 1.61 ms |
-| 25 ms demo1 sim end-to-end (Metal local) | 1.4 s |
-| 25 ms demo1 sim end-to-end (OpenCL via Cloud Run) | 10 s |
+| Per-step compute on Apple M3 Max (Metal) | 1.08 ms |
+| Per-step compute on a representative datacenter-class GPU (OpenCL) | ~1.6 ms |
+| 25 ms demo1 sim wall-clock (Metal, local) | 1.4 s |
 
 ### Known gaps and caveats
 
@@ -495,7 +494,7 @@ signatures, and the tested backward derivations all carry over directly.
 
 ### Why not simply use OpenCL on NVIDIA?
 
-It works (cloud-run benchmarks show ~1.6 ms/step on L4, identical
+It works (~1.6 ms/step on a representative datacenter GPU, identical
 physics to Metal), but:
 - Apple killed OpenCL on Apple Silicon, so it's not a *single-vendor*
   cross-platform path forward.

@@ -4,7 +4,7 @@ spring_K, visc_pair_coef) to match OpenCL's demo1 cube-fall trajectory.
 Loss = w1*(Δmean_y_metal - Δmean_y_target)^2
      + w2*(extent_y_metal - extent_y_target)^2
 
-Targets (from OpenCL on Cloud Run L4 — see DEVELOPMENT_LOG):
+Targets (from OpenCL reference run on a remote L4 GPU — see DEVELOPMENT_LOG):
 - Δmean_y target: -36.75 (cube center fell this much in 1.0s)
 - extent_y target: 1.085 (cube y-extent ratio at t=1.0s)
 

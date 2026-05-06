@@ -181,7 +181,7 @@ enabling full chaotic density dynamics.
 | Workload | OpenCL (NVIDIA L4) | Metal (Apple M3 Max) |
 |---|---|---|
 | Per-step compute | 1.61 ms | 1.08 ms (1.49× faster) |
-| 25 ms sim end-to-end | 10 s (incl. Cloud Run cold start) | 1.4 s (7× faster) |
+| 25 ms sim end-to-end | 10 s (incl. cold-start) | 1.4 s (7× faster) |
 | 3 s sim | 256 s | 162 s |
 | Steps/sec | 620 | 924 |
 
@@ -616,13 +616,13 @@ solver.export_logs("simulation_log.json")
 
 ---
 
-## 2026-05-03 — Cross-backend GPU benchmark on NVIDIA L4 (Cloud Run)
+## 2026-05-03 — Cross-backend GPU benchmark on NVIDIA L4
 
 Goal: identify a modern, well-maintained GPU substrate to replace OpenCL for active development. Apple deprecated OpenCL on Apple Silicon, the AMD APP SDK 3.0 we link against is from 2015 and abandoned, and we wanted to know which of the alternatives (PyTorch CUDA, Taichi CUDA) actually delivers usable GPU performance for Sibernetic's PCISPH workload.
 
 ### Setup
 
-A throwaway Cloud Run service at `~/Documents/sibernetic-runner/` (slarsontech-private, not in this repo) wraps Sibernetic in a FastAPI runner with NVIDIA L4 GPU access via Cloud Run's gen2 GPU support. Same image, same hardware, same scenario — only `backend=` flag varies. Scenario: `demo1` cube-drop, `timelimit=0.05`, `logstep=10` → 2500 PCISPH integration steps with 218 elastic + 125 liquid + 17,498 boundary particles.
+Sibernetic was driven from a private FastAPI wrapper running the binary against an NVIDIA L4 GPU; same image, same hardware, same scenario — only `backend=` flag varies. Scenario: `demo1` cube-drop, `timelimit=0.05`, `logstep=10` → 2500 PCISPH integration steps with 218 elastic + 125 liquid + 17,498 boundary particles.
 
 ### Results
 
@@ -632,7 +632,7 @@ A throwaway Cloud Run service at `~/Documents/sibernetic-runner/` (slarsontech-p
 | **taichi-cuda** | **17.0 sec** | 148 | 2.1× slower |
 | torch-cuda (eager) | 165 sec | 15.1 | 21× slower |
 | torch-cuda + `torch.compile` | FAILED — TorchInductor compile subprocess crash on `run_compute_density` | — | — |
-| torch (cpu) on Cloud Run 8vCPU | 425 sec | 5.9 | 54× slower |
+| torch (cpu) on an 8-vCPU host | 425 sec | 5.9 | 54× slower |
 
 For a 1-second sim (50,000 steps), OpenCL completes in 84 sec wall clock with cube physics intact (extent retention 123%, mean Y 44 → 10, min Y 39 → 4 — i.e. cube fell and is sitting on the floor without pancaking).
 
@@ -667,7 +667,7 @@ At 0.05s sim (2500 steps), Taichi-CUDA shows extent retention 100% — but that'
 2. **`dt` audit.** The 250,000-step demo1 is a config-level decision, not a hardware one. Most production SPH papers use much larger timesteps.
 3. **Fix the pancake bug** in `taichi_solver.py` — the README's documented 3-step fix (`/sim_scale` removal + `simulationScaleInv` in integration + `h_scaled` for kernel coefficients).
 4. **Native-Metal port (PR #222)** as the Apple Silicon performance hedge — sits alongside taichi-cuda for cross-platform coverage.
-5. **Keep OpenCL on Cloud Run as the parity reference** for the cube-stability test threshold calibration. Don't bet new dev on it.
+5. **Keep OpenCL on a remote L4 GPU as the parity reference** for the cube-stability test threshold calibration. Don't bet new dev on it.
 
 ### Things deliberately ruled out
 
@@ -805,7 +805,7 @@ checkbox in the next-steps list stays UNCHECKED.
 
 ### Taichi-CUDA pancake check (2026-05-03)
 
-Submitted a 1-sec demo1 sim with `backend=taichi-cuda` against the Cloud Run runner.
+Submitted a 1-sec demo1 sim with `backend=taichi-cuda` against the remote runner.
 
 ```
 wall_clock:   73.6s (680 steps/sec)
@@ -1026,15 +1026,15 @@ User asked: "How does this performance compare to OpenCL exactly?" My
 earlier "15× faster than OpenCL" claim was unfair — different physics,
 different workload. To do this properly I (a) added M5 (differentiable
 SPH liquid in a box, all-pairs) and (b) ran fresh OpenCL and Taichi-CUDA
-benchmarks on the Cloud Run L4 GPU we set up earlier.
+benchmarks on a remote L4 GPU.
 
 **Same scenario, demo1 / 1.0s sim / 50K steps / 17K particles / full PCISPH:**
 
 | Backend | Hardware | Wall | Steps/s | Cube physics |
 |---|---|---|---|---|
-| OpenCL | L4 (Cloud Run) | 102.7s | 487 | ✓ intact (mean_y 44 → 7.7, 108% retention) |
+| OpenCL | L4 | 102.7s | 487 | ✓ intact (mean_y 44 → 7.7, 108% retention) |
 | Imperative Taichi-Metal *(post-int-fix)* | Apple Silicon | 94.7s | 528 | ✗ pancakes (mean_y falls but extent collapses) |
-| Taichi-CUDA *(Cloud Run image, pre-int-fix)* | L4 (Cloud Run) | 210.6s | 237 | ✗ barely falls (mean_y 44 → 41) |
+| Taichi-CUDA *(remote image, pre-int-fix)* | L4 | 210.6s | 237 | ✗ barely falls (mean_y 44 → 41) |
 
 OpenCL on L4 per-step breakdown from sim profiler:
 
@@ -1070,7 +1070,7 @@ TOTAL:          1.61 ms
    OpenCL on this hardware" is true at the substrate level — the gap is
    that the *Taichi solver code* on top of Metal is buggy. Fixing the
    Taichi solver would give us OpenCL-class behavior at ~10% better
-   throughput, no Cloud Run round-trip.
+   throughput, no remote round-trip.
 
 3. **The differentiable substrate cannot directly compare to OpenCL on
    demo1 yet** — we don't have a demo1-equivalent in differentiable
@@ -1785,11 +1785,11 @@ research/autodiff path = `differentiable_solver.py`.
 ### Apples-to-apples vs OpenCL on demo1: 1-second cube fall (2026-05-03)
 
 User asked for a fresh end-to-end comparison of the demo1 cube-fall
-demo, Metal substrate vs Sibernetic-runner OpenCL on Cloud Run L4.
+demo, Metal substrate vs Sibernetic-runner OpenCL on a remote L4 GPU L4.
 Both backends ran the SAME `configuration/demo1` (218 elastic + 125
 liquid + 17,498 boundary particles) for 1 second of sim time.
 
-|                            | OpenCL on L4 (Cloud Run)              | Metal on Apple Silicon (ours, dt=0.005)         | Metal at OpenCL's dt=2e-5                        |
+|                            | OpenCL on L4              | Metal on Apple Silicon (ours, dt=0.005)         | Metal at OpenCL's dt=2e-5                        |
 |----------------------------|---------------------------------------|-------------------------------------------------|--------------------------------------------------|
 | Steps                      | 50,000                                | 200                                             | 50,000                                           |
 | **Wall time**              | **89.7 s**                            | **0.27 s**                                      | **53.8 s**                                       |

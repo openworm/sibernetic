@@ -112,9 +112,9 @@ stays forward-only).
 
 ## Why not just use OpenCL on NVIDIA?
 
-It actually works fine — Cloud Run + L4 + NVIDIA's OpenCL runtime
-measures at 86 sec for a 1-sec demo1 sim with cube physics intact.
-However:
+It actually works fine — a remote L4 GPU running NVIDIA's OpenCL
+runtime measures at 86 sec for a 1-sec demo1 sim with cube physics
+intact. However:
 
 - Apple killed OpenCL on Apple Silicon, so it is not a *single-vendor*
   cross-platform path forward.
