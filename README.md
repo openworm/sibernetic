@@ -19,6 +19,26 @@ metrics and remaining gaps are documented below. See "Quickstart: render
 the demo1 cube drop" to regenerate this. Higher-quality MP4:
 [`docs/cube_drop_demo1_25ms.mp4`](docs/cube_drop_demo1_25ms.mp4).
 
+### Preview: demo2 membrane permeability (OpenCL only — native Metal substrate doesn't yet model membranes)
+
+![demo2: liquid drops onto two sheets, only the membrane-clad one retains it](docs/demo2_membranes_opencl.gif)
+
+Two side-by-side elastic sheets sit at `y=90.6`. The left sheet has a
+mesh of 2 112 membrane triangles connecting its 1 406 elastic particles
+(the right sheet has the same particles but **no** triangles). Two
+liquid columns (4 732 particles total) drop from above. Result: liquid
+pools on top of the left sheet (membrane = liquid-impermeable) and
+falls straight through the right sheet to the floor below (no
+membrane = no surface tension). 200 ms of sim, rendered at 30 fps.
+Higher-quality MP4: [`docs/demo2_membranes_opencl.mp4`](docs/demo2_membranes_opencl.mp4).
+
+This same membrane mechanism is what makes `demo1`'s cube
+liquid-impermeable in the OpenCL solver. The native Metal substrate
+ignores the `[membranes]` section in config files (see
+[caveat #4](#known-gaps-and-caveats) below), which is why liquid leaks
+through the cube shell almost immediately on the Metal side — porting
+membrane handling to the Metal substrate is one of the next-step items.
+
 ## Two solver paths
 
 Sibernetic ships with two physically-equivalent simulation paths. They use
