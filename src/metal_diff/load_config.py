@@ -4,17 +4,27 @@ Parses configuration/<scenario> files (the same ones OpenCL consumes)
 and writes binary buffers in the format our Metal CLI ops expect.
 
 Sections handled:
-  [position]    — N rows of (x, y, z, type)
-                  type 1.x = liquid, 2.x = elastic, 3.x = boundary
-  [velocity]    — N rows of (vx, vy, vz, _)
-  [connection]  — n_elastic × 32 rows of (jd, rij0, val1, val2)
-                  jd = neighbor index (-1 = empty slot); rij0 = rest length
+  [position]         — N rows of (x, y, z, type)
+                       type 1.x = liquid, 2.x = elastic, 3.x = boundary
+  [velocity]         — N rows of (vx, vy, vz, _)
+  [connection]       — n_elastic × 32 rows of (jd, rij0, val1, val2)
+                       jd = neighbor index (-1 = empty slot); rij0 = rest length
+  [membranes]        — N_membrane rows of (i, j, k) elastic-particle
+                       triangle vertices (global indices)
+  [particleMemIndex] — n_elastic × 7 lines of one int each:
+                       per-elastic-particle list of incident membrane
+                       indices (-1 sentinel for unused slots)
 
 Output mapping for our Metal substrate:
   active particles  ← (liquid + elastic), in original index order
   static particles  ← (boundary), in original index order
   bonds             ← decoded elastic connections (each bond once, i<j),
                       where i, j are indices INTO THE ACTIVE BUFFER
+  membrane_tris     ← int32 [N_membrane, 3], particle indices remapped
+                      to the ACTIVE buffer's local indexing
+  pmem_index        ← int32 [n_elastic, 7], same indexing as the
+                      OpenCL particleMembranesList; -1 means "no
+                      membrane here"
 
 Run as a script:
     .venv/bin/python src/metal_diff/load_config.py demo1 [--out /tmp/demo1]
@@ -33,16 +43,19 @@ def parse_config(path: str) -> dict:
         {'box': [x0,x1,y0,y1,z0,z1],
          'pos': np.ndarray [N,4]  (x,y,z,type),
          'vel': np.ndarray [N,4],
-         'connections': np.ndarray [n_elastic*32, 4]  (jd, rij0, val1, val2)}
+         'connections': np.ndarray [n_elastic*32, 4]  (jd, rij0, val1, val2),
+         'membranes': np.ndarray [N_membrane, 3] int32,
+         'pmem_index': np.ndarray [n_elastic*7] int32}
     """
-    sections = {'box': [], 'pos': [], 'vel': [], 'connections': []}
+    sections = {'box': [], 'pos': [], 'vel': [], 'connections': [],
+                'membranes': [], 'pmem_index': []}
     section_keys = {
         '[simulation box]': 'box',
         '[position]': 'pos',
         '[velocity]': 'vel',
         '[connection]': 'connections',
-        '[membranes]': '_membranes',     # ignored for now
-        '[particleMemIndex]': '_pmemidx', # ignored for now
+        '[membranes]': 'membranes',
+        '[particleMemIndex]': 'pmem_index',
         '[end]': None,
     }
     cur = None
@@ -56,7 +69,7 @@ def parse_config(path: str) -> dict:
                 if cur is None:
                     break
                 continue
-            if cur is None or cur.startswith('_'):
+            if cur is None:
                 continue
             sections[cur].append(s)
 
@@ -77,7 +90,23 @@ def parse_config(path: str) -> dict:
         )
     else:
         connections = np.zeros((0, 4), dtype=np.float32)
-    return {'box': box, 'pos': pos, 'vel': vel, 'connections': connections}
+    if sections['membranes']:
+        membranes = np.array(
+            [[int(x) for x in line.split()] for line in sections['membranes']],
+            dtype=np.int32,
+        )
+    else:
+        membranes = np.zeros((0, 3), dtype=np.int32)
+    if sections['pmem_index']:
+        # Each line is a single int (-1 sentinel for unused slot).
+        pmem_index = np.array(
+            [int(line.split()[0]) for line in sections['pmem_index']],
+            dtype=np.int32,
+        )
+    else:
+        pmem_index = np.zeros(0, dtype=np.int32)
+    return {'box': box, 'pos': pos, 'vel': vel, 'connections': connections,
+            'membranes': membranes, 'pmem_index': pmem_index}
 
 
 def split_by_type(pos: np.ndarray, vel: np.ndarray):
@@ -225,6 +254,43 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
 
     bonds = decode_bonds(cfg['connections'], n_elastic, active_idx)
 
+    # Membrane topology: triangle particle IDs are GLOBAL in the config;
+    # remap to local active-buffer indexing (same convention as bonds).
+    # OpenCL keeps them global because its position buffer is also
+    # global; our active-only buffer needs the remap. demo1's elastic
+    # particles come first in the global array, so global_to_local is
+    # the identity for elastic indices, but we don't rely on that.
+    membranes_global = cfg['membranes']
+    if len(membranes_global):
+        global_to_local = -np.ones(int(active_idx.max()) + 1, dtype=np.int64)
+        for local, glob in enumerate(active_idx):
+            if glob < len(global_to_local):
+                global_to_local[glob] = local
+        membrane_tris = np.zeros_like(membranes_global)
+        for ti in range(len(membranes_global)):
+            for vi in range(3):
+                g = int(membranes_global[ti, vi])
+                if 0 <= g < len(global_to_local):
+                    membrane_tris[ti, vi] = global_to_local[g]
+                else:
+                    membrane_tris[ti, vi] = -1
+    else:
+        membrane_tris = np.zeros((0, 3), dtype=np.int32)
+    n_membranes = len(membrane_tris)
+
+    # Per-particle membrane index list — (n_elastic * 7) int32, stored
+    # row-major so pmem_index[elastic_i * 7 + slot] is the membrane
+    # index (or -1) for that slot. Indexing matches OpenCL exactly.
+    pmem_index = cfg['pmem_index'].astype(np.int32)
+    expected_pmem_len = n_elastic * 7
+    if len(pmem_index) and len(pmem_index) != expected_pmem_len:
+        # Some configs may have trailing -1 lines truncated; pad.
+        if len(pmem_index) < expected_pmem_len:
+            pad = np.full(expected_pmem_len - len(pmem_index), -1, dtype=np.int32)
+            pmem_index = np.concatenate([pmem_index, pad])
+        else:
+            pmem_index = pmem_index[:expected_pmem_len]
+
     # Build static-particle spatial grid (one-time per scenario).
     sorted_static, cell_start, grid_dim, grid_origin = build_static_grid(
         pos_static, h)
@@ -238,6 +304,8 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
         'bonds':         os.path.join(out_dir, f"{scenario}_bonds.bin"),
         'sorted_static': os.path.join(out_dir, f"{scenario}_sorted_static.bin"),
         'cell_start':    os.path.join(out_dir, f"{scenario}_cell_start.bin"),
+        'membranes':     os.path.join(out_dir, f"{scenario}_membranes.bin"),
+        'pmem_index':    os.path.join(out_dir, f"{scenario}_pmem_index.bin"),
     }
     pos_active.tofile(paths['pos_active'])
     vel_active.tofile(paths['vel_active'])
@@ -245,6 +313,8 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
     bonds.tofile(paths['bonds'])
     sorted_static.tofile(paths['sorted_static'])
     cell_start.tofile(paths['cell_start'])
+    membrane_tris.astype(np.int32).tofile(paths['membranes'])
+    pmem_index.astype(np.int32).tofile(paths['pmem_index'])
 
     return {
         'scenario': scenario,
@@ -254,6 +324,7 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
         'n_elastic': n_elastic,
         'n_liquid': n_active - n_elastic,
         'n_bonds': len(bonds),
+        'n_membranes': n_membranes,
         'n_cells': n_cells,
         'grid_dim': grid_dim.tolist(),
         'grid_origin': grid_origin.tolist(),
@@ -277,6 +348,7 @@ def main():
     print(f"    boundary: {info['n_static']}")
     print(f"  Active (elastic+liquid): {info['n_active']}")
     print(f"  Bonds (deduped):         {info['n_bonds']}")
+    print(f"  Membrane triangles:      {info['n_membranes']}")
     print(f"  Sim box: {info['box']}")
     print(f"  Wrote binary buffers to:")
     for k, v in info['paths'].items():
