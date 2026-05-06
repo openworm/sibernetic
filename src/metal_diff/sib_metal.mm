@@ -2780,7 +2780,7 @@ static int run_solve_density_constraint_fwd(int argc, char **argv) {
 }
 
 static int run_solve_density_constraint_bwd(int argc, char **argv) {
-    if (argc != 18) {
+    if (argc != 18 && argc != 19) {
         fprintf(stderr,
             "usage: sib_metal solve_density_constraint_bwd "
             "<n_active> <rho_rest> <mass> <alpha_inv_dt2> "
@@ -2788,7 +2788,8 @@ static int run_solve_density_constraint_bwd(int argc, char **argv) {
             "<grad_pos_post.bin> <grad_lambda_post.bin> "
             "<grad_pos_pre_out.bin> <grad_lambda_pre_out.bin> "
             "<grad_density_out.bin> <grad_grad_C_out.bin> "
-            "<grad_denom_helper_out.bin> <grad_rho_rest_per_particle.bin>\n");
+            "<grad_denom_helper_out.bin> <grad_rho_rest_per_particle.bin> "
+            "[grad_alpha_inv_dt2_per_particle.bin]\n");
         return 1;
     }
     uint32_t n = (uint32_t)atoi(argv[2]);
@@ -2839,6 +2840,8 @@ static int run_solve_density_constraint_bwd(int argc, char **argv) {
             options:MTLResourceStorageModeShared];
         id<MTLBuffer> bGrout = [ctx.device newBufferWithLength:s_b
             options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGaout = [ctx.device newBufferWithLength:s_b
+            options:MTLResourceStorageModeShared];
         memset([bGpout contents], 0, pos_b);
         // Other outputs are written (not accumulated) so no need to zero.
 
@@ -2860,8 +2863,9 @@ static int run_solve_density_constraint_bwd(int argc, char **argv) {
         [e setBuffer:bGpout offset:0 atIndex:6]; [e setBuffer:bGlout offset:0 atIndex:7];
         [e setBuffer:bGdout offset:0 atIndex:8]; [e setBuffer:bGgcout offset:0 atIndex:9];
         [e setBuffer:bGhout offset:0 atIndex:10]; [e setBuffer:bGrout offset:0 atIndex:11];
-        [e setBuffer:bR offset:0 atIndex:12];    [e setBuffer:bM offset:0 atIndex:13];
-        [e setBuffer:bA offset:0 atIndex:14];    [e setBuffer:bN offset:0 atIndex:15];
+        [e setBuffer:bGaout offset:0 atIndex:12];
+        [e setBuffer:bR offset:0 atIndex:13];    [e setBuffer:bM offset:0 atIndex:14];
+        [e setBuffer:bA offset:0 atIndex:15];    [e setBuffer:bN offset:0 atIndex:16];
         [e dispatchThreads:MTLSizeMake(n,1,1)
             threadsPerThreadgroup:MTLSizeMake(64,1,1)];
         [e endEncoding];
@@ -2873,6 +2877,9 @@ static int run_solve_density_constraint_bwd(int argc, char **argv) {
         FILE *o4 = fopen(argv[15], "wb"); fwrite([bGgcout contents], 1, pos_b, o4); fclose(o4);
         FILE *o5 = fopen(argv[16], "wb"); fwrite([bGhout contents], 1, s_b, o5); fclose(o5);
         FILE *o6 = fopen(argv[17], "wb"); fwrite([bGrout contents], 1, s_b, o6); fclose(o6);
+        if (argc == 19) {
+            FILE *o7 = fopen(argv[18], "wb"); fwrite([bGaout contents], 1, s_b, o7); fclose(o7);
+        }
     }
     free(dens); free(gC); free(dh); free(lam); free(gP); free(gL);
     return 0;
@@ -3386,7 +3393,7 @@ static int run_xpbd_full_fwd(int argc, char **argv) {
 //   ∂L/∂x_init, ∂L/∂v_init, ∂L/∂rho_rest (scalar)
 // ──────────────────────────────────────────────────────────────────────
 static int run_xpbd_full_bwd(int argc, char **argv) {
-    if (argc < 17 || argc > 24) {
+    if (argc < 17 || argc > 25) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_bwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
@@ -3394,7 +3401,8 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
             "<state_in.bin> <pos_static.bin> <grad_x_final.bin> "
             "<grad_x_init_out.bin> <grad_v_init_out.bin> <grad_rho_out.bin> "
             "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin] "
-            "[grad_spring_K_out.bin] [grad_visc_K_out.bin] [floor_y]\n"
+            "[grad_spring_K_out.bin] [grad_visc_K_out.bin] [floor_y] "
+            "[grad_alpha_dens_out.bin]\n"
             "       (must match the xpbd_full_fwd args used to produce the "
             "state file)\n");
         return 1;
@@ -3565,6 +3573,7 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         id<MTLBuffer> bGgC = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
         id<MTLBuffer> bGdh = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
         id<MTLBuffer> bGrho_per = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bGalpha_per = [ctx.device newBufferWithLength:s_b options:MTLResourceStorageModeShared];
         // Density chain backward intermediates:
         id<MTLBuffer> bGW_or_Gr2_aa = [ctx.device newBufferWithLength:r2aa_b options:MTLResourceStorageModeShared];
         id<MTLBuffer> bGW_or_Gr2_as = [ctx.device newBufferWithLength:r2as_b options:MTLResourceStorageModeShared];
@@ -3658,6 +3667,7 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         float total_grad_rho = 0.0f;
         float total_grad_spring_K = 0.0f;  // Σ_steps Σ_i <∂a_i/∂K, ga_i>
         float total_grad_visc_K = 0.0f;    // Σ_steps Σ_i <∂a_i/∂visc_K, ga_i>
+        float total_grad_alpha_inv_dt2 = 0.0f;  // Σ_steps Σ_i ∂L/∂A from density solve
 
         // Truncated BPTT: gradients through chaotic dynamics explode
         // exponentially per step (~3× for our cube-spring system).
@@ -3802,8 +3812,9 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
               [e setBuffer:bGlam_pre offset:0 atIndex:7];
               [e setBuffer:bGdens offset:0 atIndex:8]; [e setBuffer:bGgC offset:0 atIndex:9];
               [e setBuffer:bGdh offset:0 atIndex:10];  [e setBuffer:bGrho_per offset:0 atIndex:11];
-              [e setBuffer:bR offset:0 atIndex:12];    [e setBuffer:bM offset:0 atIndex:13];
-              [e setBuffer:bA offset:0 atIndex:14];    [e setBuffer:bNa offset:0 atIndex:15];
+              [e setBuffer:bGalpha_per offset:0 atIndex:12];   // ∂L/∂A per particle (host sums)
+              [e setBuffer:bR offset:0 atIndex:13];    [e setBuffer:bM offset:0 atIndex:14];
+              [e setBuffer:bA offset:0 atIndex:15];    [e setBuffer:bNa offset:0 atIndex:16];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
             // (c) density_constraint_grad backward: contributes ∂L/∂x via grad_C and denom_helper
@@ -4020,6 +4031,10 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
             }
             total_grad_rho += kernel_rho + implicit_rho;
 
+            // Sum α gradient (per-particle ∂L/∂A from density solve backward).
+            float *ga = (float *)[bGalpha_per contents];
+            for (uint32_t i = 0; i < n_active; i++) total_grad_alpha_inv_dt2 += ga[i];
+
             // Per-step gradient clipping (when enabled via BWD_CLIP_NORM).
             // Apply to bGx_old_new and bGv_old_new BEFORE they become
             // running gradients for the previous chain step. NaN/Inf
@@ -4074,6 +4089,13 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         if (argc >= 23) {
             FILE *o5 = fopen(argv[22], "wb");
             fwrite(&total_grad_visc_K, 1, sizeof(float), o5); fclose(o5);
+        }
+        if (argc >= 25) {
+            // ∂L/∂alpha_dens = ∂L/∂(alpha_inv_dt2) · ∂(alpha_inv_dt2)/∂alpha_dens
+            //                = total_grad_alpha_inv_dt2 · (1/dt²)
+            float total_grad_alpha_dens = total_grad_alpha_inv_dt2 / (dt * dt);
+            FILE *o6 = fopen(argv[24], "wb");
+            fwrite(&total_grad_alpha_dens, 1, sizeof(float), o6); fclose(o6);
         }
     }
     free(all); free(pos_static); free(grad_x_fin);

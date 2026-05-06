@@ -1682,7 +1682,12 @@ kernel void solve_distance_constraints_seq_backward(
 //   ∂L/∂grad_C    = (Δλ/m)·ω - 2·Δλ/(m·D)·chain·g
 //   ∂L/∂helper    = -Δλ·m/(ρ²·D)·chain
 //   ∂L/∂ρ_rest   += chain · [density/(ρ²·D) + 2·Δλ·m·helper/(ρ³·D)]
-// (∂L/∂ρ_rest is per-particle; host sums to a scalar after the kernel.)
+//   ∂L/∂A         = chain · (-λ_post / D)        where A = alpha_inv_dt2,
+//                                                       λ_post = λ_pre + Δλ
+//                   Derivation: Δλ = -(C + A·λ_pre)/D, ∂Δλ/∂A simplifies
+//                   to -(λ_pre + Δλ)/D = -λ_post/D. Then
+//                   ∂L/∂A = (∂L/∂Δλ) · ∂Δλ/∂A = chain · (-λ_post/D).
+// (∂L/∂ρ_rest, ∂L/∂A are per-particle; host sums to a scalar after the kernel.)
 kernel void solve_density_constraint_backward(
     device const float          *density          [[buffer(0)]],
     device const packed_float3  *grad_C           [[buffer(1)]],
@@ -1698,11 +1703,12 @@ kernel void solve_density_constraint_backward(
     device packed_float3        *grad_grad_C      [[buffer(9)]],   // write
     device float                *grad_denom_h     [[buffer(10)]],  // write
     device float                *grad_rho_rest    [[buffer(11)]],  // per-particle (host sums)
+    device float                *grad_alpha_inv_dt2 [[buffer(12)]], // per-particle (host sums)
 
-    constant float              &rho_rest         [[buffer(12)]],
-    constant float              &mass             [[buffer(13)]],
-    constant float              &alpha_inv_dt2    [[buffer(14)]],
-    constant uint               &n_active         [[buffer(15)]],
+    constant float              &rho_rest         [[buffer(13)]],
+    constant float              &mass             [[buffer(14)]],
+    constant float              &alpha_inv_dt2    [[buffer(15)]],
+    constant uint               &n_active         [[buffer(16)]],
     uint i                                          [[thread_position_in_grid]])
 {
     if (i >= n_active) return;
@@ -1719,6 +1725,7 @@ kernel void solve_density_constraint_backward(
         grad_grad_C[i] = packed_float3(0.0);
         grad_denom_h[i] = 0.0;
         grad_rho_rest[i] = 0.0;
+        grad_alpha_inv_dt2[i] = 0.0;
         return;
     }
 
@@ -1728,6 +1735,7 @@ kernel void solve_density_constraint_backward(
     float lam = lambda_pre[i];
     float D = g2 / mass + (mass / (rho_rest * rho_rest)) * helper + alpha_inv_dt2;
     float dlambda = -(C + alpha_inv_dt2 * lam) / D;
+    float lambda_post = lam + dlambda;
 
     float omega_dot_g = dot(omega, g);
     float chain = omega_dot_g / mass + psi;
@@ -1749,6 +1757,9 @@ kernel void solve_density_constraint_backward(
                      + 2.0 * dlambda * mass * helper
                        / (rho_rest * rho_rest * rho_rest * D);
     grad_rho_rest[i] = chain * dlambda_dr;
+
+    // ∂L/∂A: A = alpha_inv_dt2. ∂Δλ/∂A = -(λ_pre + Δλ)/D = -λ_post/D.
+    grad_alpha_inv_dt2[i] = chain * (-lambda_post / D);
 }
 
 // M7.3 — Floor constraint (hard inequality).
