@@ -3673,6 +3673,24 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
         }
         int32_t k_stop = (int32_t)K - max_bw_steps;  // walk K-1 down to k_stop
 
+        // Per-step gradient clipping. Each chain step amplifies position
+        // gradients by ~sim_scale_inv (≈ 1.35e5) because update_vel
+        // backward divides by dt and predict backward multiplies by
+        // dt·sim_scale_inv. With Sibernetic's mass=2e-12 / sim_scale=7.4e-6,
+        // gradients overflow to NaN within 5–10 chain steps. Clipping the
+        // running x and v gradients per step yields a biased-but-bounded
+        // gradient that still points in the right direction for SGD.
+        // Set BWD_CLIP_NORM=0 (or unset) to disable; default = 1e3.
+        float clip_norm_x = 1e3f;
+        float clip_norm_v = 1e3f;
+        const char *clip_env = getenv("BWD_CLIP_NORM");
+        if (clip_env) {
+            clip_norm_x = (float)atof(clip_env);
+            clip_norm_v = clip_norm_x;
+            fprintf(stderr, "[xpbd_full_bwd] per-step gradient clipping: "
+                    "|grad_x|, |grad_v| L2 capped at %.3e\n", clip_norm_x);
+        }
+
         // Walk K steps backward (or fewer if truncated BPTT).
         for (int32_t k = (int32_t)K - 1; k >= k_stop; k--) {
             float *step_state = state + (size_t)k * per_step_floats;
@@ -4001,6 +4019,44 @@ static int run_xpbd_full_bwd(int argc, char **argv) {
                 implicit_rho -= dot / rho_rest;
             }
             total_grad_rho += kernel_rho + implicit_rho;
+
+            // Per-step gradient clipping (when enabled via BWD_CLIP_NORM).
+            // Apply to bGx_old_new and bGv_old_new BEFORE they become
+            // running gradients for the previous chain step. NaN/Inf
+            // values are zeroed so they don't propagate forever.
+            if (clip_env) {
+                float *gx = (float *)[bGx_old_new contents];
+                float *gv = (float *)[bGv_old_new contents];
+                size_t n_floats = 3 * (size_t)n_active;
+                // Zero out NaN/Inf elements first (degenerate-contact
+                // particles can produce them even after kernel epsilons).
+                int n_bad_x = 0, n_bad_v = 0;
+                for (size_t t = 0; t < n_floats; t++) {
+                    if (!isfinite(gx[t])) { gx[t] = 0.0f; n_bad_x++; }
+                    if (!isfinite(gv[t])) { gv[t] = 0.0f; n_bad_v++; }
+                }
+                // L2-norm clip.
+                double sum_x = 0.0, sum_v = 0.0;
+                for (size_t t = 0; t < n_floats; t++) {
+                    sum_x += (double)gx[t] * gx[t];
+                    sum_v += (double)gv[t] * gv[t];
+                }
+                float nx = (float)sqrt(sum_x);
+                float nv = (float)sqrt(sum_v);
+                if (nx > clip_norm_x && nx > 0.0f) {
+                    float s = clip_norm_x / nx;
+                    for (size_t t = 0; t < n_floats; t++) gx[t] *= s;
+                }
+                if (nv > clip_norm_v && nv > 0.0f) {
+                    float s = clip_norm_v / nv;
+                    for (size_t t = 0; t < n_floats; t++) gv[t] *= s;
+                }
+                if ((n_bad_x || n_bad_v) && k % 50 == 0) {
+                    fprintf(stderr, "[xpbd_full_bwd k=%d] zeroed NaN/Inf: "
+                            "%d in grad_x, %d in grad_v\n",
+                            (int)k, n_bad_x, n_bad_v);
+                }
+            }
 
             // Promote per-step grads to running for previous step.
             memcpy([bGx_running contents], [bGx_old_new contents], pos_b);

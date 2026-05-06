@@ -1360,14 +1360,19 @@ kernel void density_constraint_grad_backward(
     float3 grad = float3(0.0);
 
     // Active neighbors: handle both "self" (row i) and "as-neighbor" (row j) contributions.
+    // ε safeguards: g_hat = dir/r and h_minus_r/r diverge at r→0. Skip pairs
+    // with r below threshold (they'd contribute meaningless gradient anyway).
+    constexpr float R_MIN = 1e-4;   // sim units; below this, particles are coincident
     for (uint j = 0; j < n_active; j++) {
         if (j == i) continue;
         float r2 = r2_aa[i * n_active + j];
         if (r2 >= h2) continue;
+        if (r2 < R_MIN * R_MIN) continue;
         float r = sqrt(r2);
+        float r_safe = max(r, R_MIN);
         float h_minus_r = h - r;
         float3 dir = p_i - float3(active[j]);    // v
-        float3 g_hat = dir / r;
+        float3 g_hat = dir / r_safe;
         float coef = spiky_const * h_minus_r * h_minus_r / (r + 1e-7);
         float3 grad_W = coef * dir;
 
@@ -1376,7 +1381,7 @@ kernel void density_constraint_grad_backward(
         float ug_s = dot(u_self, g_hat);
         float3 u_perp_s = u_self - ug_s * g_hat;
         float3 J_T_u_s = spiky_const * h_minus_r *
-            (h_minus_r / r * u_perp_s - 2.0 * ug_s * g_hat);
+            (h_minus_r / r_safe * u_perp_s - 2.0 * ug_s * g_hat);
         grad += J_T_u_s;
 
         // "as-neighbor" (row j, where this pair is (j, i)):
@@ -1387,7 +1392,7 @@ kernel void density_constraint_grad_backward(
         float ug_n = dot(u_neigh, g_hat);
         float3 u_perp_n = u_neigh - ug_n * g_hat;
         float3 J_T_u_n = spiky_const * h_minus_r *
-            (h_minus_r / r * u_perp_n - 2.0 * ug_n * g_hat);
+            (h_minus_r / r_safe * u_perp_n - 2.0 * ug_n * g_hat);
         // ∂grad_W(p_j, p_i)/∂p_i = -J(p_i, p_j) → flip sign
         grad -= J_T_u_n;
     }
@@ -1396,10 +1401,12 @@ kernel void density_constraint_grad_backward(
     for (uint k = 0; k < n_static; k++) {
         float r2 = r2_as[i * n_static + k];
         if (r2 >= h2) continue;
+        if (r2 < R_MIN * R_MIN) continue;
         float r = sqrt(r2);
+        float r_safe = max(r, R_MIN);
         float h_minus_r = h - r;
         float3 dir = p_i - float3(static_p[k]);
-        float3 g_hat = dir / r;
+        float3 g_hat = dir / r_safe;
         float coef = spiky_const * h_minus_r * h_minus_r / (r + 1e-7);
         float3 grad_W = coef * dir;
 
@@ -1407,7 +1414,7 @@ kernel void density_constraint_grad_backward(
         float ug_s = dot(u_self, g_hat);
         float3 u_perp_s = u_self - ug_s * g_hat;
         float3 J_T_u_s = spiky_const * h_minus_r *
-            (h_minus_r / r * u_perp_s - 2.0 * ug_s * g_hat);
+            (h_minus_r / r_safe * u_perp_s - 2.0 * ug_s * g_hat);
         grad += J_T_u_s;
     }
 
