@@ -9,10 +9,15 @@ module for external muscle activating signals generation and input) as part of
 the [OpenWorm team](http://www.openworm.org/people.html). It is primarily
 written in C++ and OpenCL, with 3D visualization built on OpenGL.
 
-> 📺 **Preview**: see [`docs/cube_drop_demo1_25ms.mp4`](docs/cube_drop_demo1_25ms.mp4)
-> for a side-by-side comparison of the OpenCL gold standard vs the new
-> native Metal substrate on demo1's first 25 ms of cube-drop physics.
-> See "Quickstart: render the demo1 cube drop" below to regenerate it.
+### Preview: demo1 cube drop, OpenCL (left) vs native Metal (right)
+
+![Cube-drop comparison, first 25 ms](docs/cube_drop_demo1_25ms.gif)
+
+The cube falls under gravity, lands at ~7 ms, and settles by ~16 ms.
+Both backends produce visually similar trajectories; quantitative parity
+metrics and remaining gaps are documented below. See "Quickstart: render
+the demo1 cube drop" to regenerate this. Higher-quality MP4:
+[`docs/cube_drop_demo1_25ms.mp4`](docs/cube_drop_demo1_25ms.mp4).
 
 ## Two solver paths
 
