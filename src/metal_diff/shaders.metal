@@ -1956,3 +1956,199 @@ kernel void update_velocities_backward(
     grad_x_pred[gid] = packed_float3(float3(grad_x_pred[gid]) + g_v);
     grad_x_old[gid]  = packed_float3(float3(grad_x_old[gid])  - g_v);
 }
+
+// ────────────────────────────────────────────────────────────────────
+// M10 — Membrane forces.
+//
+// Port of the OpenCL membrane mechanism (sphFluid.cl:1042-1322): liquid
+// particles within distance r0 of an elastic particle that participates
+// in any membrane triangle get a position correction pushing them away
+// from the triangle plane. This is what keeps the elastic shell of
+// demo1 liquid-impermeable and what makes one of demo2's two sheets
+// retain its liquid pool.
+//
+// Convention in our Metal substrate:
+//   - Active buffer ordering: elastic [0, n_elastic), liquid [n_elastic,
+//     n_active). Type comes from index range, no separate buffer.
+//   - mem_corr is a per-active-particle 3-vec accumulator buffer; the
+//     forward fills it via accumulate_membrane_correction; the apply
+//     kernel adds it to position.
+//   - membranes is int32[n_membrane, 3] with vertex IDs in active-buffer
+//     local indexing (load_config.py remaps from global).
+//   - pmem_idx is int32[n_elastic, 7] of incident-membrane indices,
+//     -1 sentinel for unused slots. Same layout as OpenCL's
+//     particleMembranesList.
+// ────────────────────────────────────────────────────────────────────
+
+// Determinant of a 3x3 matrix specified by its three column vectors.
+// Inlined helper for the projection computation below.
+inline float calc_det_3x3(float3 c1, float3 c2, float3 c3) {
+    return c1.x * c2.y * c3.z + c1.y * c2.z * c3.x + c1.z * c2.x * c3.y
+         - c1.z * c2.y * c3.x - c1.x * c2.z * c3.y - c1.y * c2.x * c3.z;
+}
+
+// Project a 3D point onto the plane defined by triangle (pa, pb, pc).
+// Returns true on success; false if the triangle is degenerate (verts
+// colinear → 3x3 system singular). Matches sphFluid.cl:1066-1105 except
+// the .w == -1 sentinel is replaced by an out-param + bool return so
+// the Metal version is type-safe.
+inline bool project_to_plane(float3 ps, float3 pa, float3 pb, float3 pc,
+                              thread float3 &pm_out)
+{
+    // Same 3-equation system as the OpenCL helper:
+    //   Plane normal · (pm - pa) = 0
+    //   (pm - pa) · (pb - pa) = (ps - pa) · (pb - pa)
+    //   (pm - pa) · (pc - pa) = (ps - pa) · (pc - pa)
+    // Solve for pm via Cramer's rule on the 3x3 matrix.
+    float b_1 = pa.x * ((pb.y - pa.y) * (pc.z - pa.z) - (pb.z - pa.z) * (pc.y - pa.y))
+              + pa.y * ((pb.z - pa.z) * (pc.x - pa.x) - (pb.x - pa.x) * (pc.z - pa.z))
+              + pa.z * ((pb.x - pa.x) * (pc.y - pa.y) - (pb.y - pa.y) * (pc.x - pa.x));
+    float b_2 = ps.x * (pb.x - pa.x) + ps.y * (pb.y - pa.y) + ps.z * (pb.z - pa.z);
+    float b_3 = ps.x * (pc.x - pa.x) + ps.y * (pc.y - pa.y) + ps.z * (pc.z - pa.z);
+
+    float a11 = (pb.y - pa.y) * (pc.z - pa.z) - (pb.z - pa.z) * (pc.y - pa.y);
+    float a21 = (pb.z - pa.z) * (pc.x - pa.x) - (pb.x - pa.x) * (pc.z - pa.z);
+    float a31 = (pb.x - pa.x) * (pc.y - pa.y) - (pb.y - pa.y) * (pc.x - pa.x);
+    float3 a_1 = float3(a11, pb.x - pa.x, pc.x - pa.x);
+    float3 a_2 = float3(a21, pb.y - pa.y, pc.y - pa.y);
+    float3 a_3 = float3(a31, pb.z - pa.z, pc.z - pa.z);
+    float3 b   = float3(b_1, b_2, b_3);
+
+    float denom = calc_det_3x3(a_1, a_2, a_3);
+    // ε safeguard: skip degenerate triangles (colinear vertices).
+    if (fabs(denom) < 1e-9) return false;
+
+    pm_out = float3(
+        calc_det_3x3(b,   a_2, a_3) / denom,
+        calc_det_3x3(a_1, b,   a_3) / denom,
+        calc_det_3x3(a_1, a_2, b  ) / denom);
+    return true;
+}
+
+// M10.0 — Clear the per-particle membrane correction accumulator. Run
+// once per step before accumulate_membrane_correction.
+kernel void clear_membrane_correction(
+    device packed_float3 *mem_corr   [[buffer(0)]],
+    constant uint        &n_active   [[buffer(1)]],
+    uint gid                          [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    mem_corr[gid] = packed_float3(float3(0.0));
+}
+
+// M10.1 — Per-liquid-particle: iterate elastic neighbors within r0,
+// look up each elastic's incident triangles via pmem_idx, project the
+// liquid onto each triangle plane, accumulate weighted normals into
+// mem_corr.
+//
+// Bounded fixed arrays (MAX_NBR_HITS = 32) match OpenCL's
+// MAX_NEIGHBOR_COUNT — the per-particle neighbor list cap. For
+// configs that need more, we'd bump this constant.
+constant int MAX_NBR_HITS  = 32;
+constant int MAX_INCIDENT  = 7;   // matches MAX_MEMBRANES_INCLUDING_SAME_PARTICLE
+
+kernel void accumulate_membrane_correction(
+    device const packed_float3 *pos        [[buffer(0)]],   // active positions [n_active]
+    device const int           *membranes  [[buffer(1)]],   // [n_membranes, 3]
+    device const int           *pmem_idx   [[buffer(2)]],   // [n_elastic, 7]
+    device packed_float3       *mem_corr   [[buffer(3)]],   // [n_active] accumulator (acc into)
+    constant uint              &n_active   [[buffer(4)]],
+    constant uint              &n_elastic  [[buffer(5)]],
+    constant float             &r0         [[buffer(6)]],
+    uint gid                                [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    // Only liquid particles get membrane forces (matches OpenCL).
+    if (gid < n_elastic) return;
+
+    float3 pi = float3(pos[gid]);
+
+    // Accumulate per-elastic-neighbor normal vectors and distances.
+    float3 jd_normal[MAX_NBR_HITS];
+    float  jd_dist  [MAX_NBR_HITS];
+    int    jd_count = 0;
+
+    // Walk all elastic particles; pick those within r0.
+    for (uint j = 0; j < n_elastic; j++) {
+        if (jd_count >= MAX_NBR_HITS) break;
+
+        float3 pj = float3(pos[j]);
+        float3 dij = pi - pj;
+        float r2 = dot(dij, dij);
+        if (r2 >= r0 * r0) continue;
+        if (r2 < 1e-12) continue;             // ε safeguard: coincident particles
+        float dist = sqrt(r2);
+
+        // For this elastic neighbor, walk its incident triangles.
+        float3 normal_acc = float3(0.0);
+        int ijk_count = 0;
+        for (int slot = 0; slot < MAX_INCIDENT; slot++) {
+            int mdi = pmem_idx[j * MAX_INCIDENT + slot];
+            if (mdi < 0) break;                // -1 sentinel = end of list
+
+            int v0 = membranes[mdi * 3 + 0];
+            int v1 = membranes[mdi * 3 + 1];
+            int v2 = membranes[mdi * 3 + 2];
+            if (v0 < 0 || v1 < 0 || v2 < 0) continue;
+            // Vertex IDs are in active-buffer local indexing (remapped by
+            // load_config.py). Skip if anything's out of range.
+            if ((uint)v0 >= n_active || (uint)v1 >= n_active || (uint)v2 >= n_active) continue;
+
+            float3 pa = float3(pos[v0]);
+            float3 pb = float3(pos[v1]);
+            float3 pc = float3(pos[v2]);
+
+            float3 pos_p;
+            bool ok = project_to_plane(pi, pa, pb, pc, pos_p);
+            if (!ok) continue;                // degenerate triangle
+
+            float3 normal = pi - pos_p;
+            float n_len2 = dot(normal, normal);
+            if (n_len2 < 1e-12) continue;     // ε safeguard: pi already on the plane
+            float n_len = sqrt(n_len2);
+            normal_acc += normal / n_len;
+            ijk_count++;
+        }
+        if (ijk_count > 0) {
+            jd_normal[jd_count] = normal_acc / float(ijk_count);
+            jd_dist  [jd_count] = dist;
+            jd_count++;
+        }
+    }
+
+    if (jd_count == 0) return;
+
+    // Combine accumulated per-elastic-neighbor normals using the
+    // Ihmsen-2010 weighting w_c_im = max(0, (r0 - dist) / r0).
+    float3 n_c_i = float3(0.0);
+    float w_sum = 0.0;
+    float w_sum2 = 0.0;
+    for (int n = 0; n < jd_count; n++) {
+        float w = max(0.0f, (r0 - jd_dist[n]) / r0);
+        n_c_i  += jd_normal[n] * w;
+        w_sum  += w;
+        w_sum2 += w * (r0 - jd_dist[n]);
+    }
+
+    float n_len2 = dot(n_c_i, n_c_i);
+    // ε safeguards on both the normal-direction sqrt and the divide-
+    // by-w_sum (matches the divide-by-zero sites flagged in the
+    // OpenCL kernel — sphFluid.cl:1273, 1277).
+    if (n_len2 < 1e-12 || w_sum < 1e-9) return;
+    float n_len = sqrt(n_len2);
+
+    float3 delta_pos = (n_c_i / n_len) * (w_sum2 / w_sum);
+    mem_corr[gid] = packed_float3(float3(mem_corr[gid]) + delta_pos);
+}
+
+// M10.2 — Apply accumulated membrane corrections to active positions.
+// Per-particle, runs after accumulate_membrane_correction.
+kernel void apply_membrane_correction(
+    device packed_float3       *pos       [[buffer(0)]],   // active positions
+    device const packed_float3 *mem_corr  [[buffer(1)]],   // [n_active]
+    constant uint              &n_active  [[buffer(2)]],
+    uint gid                               [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    pos[gid] = packed_float3(float3(pos[gid]) + float3(mem_corr[gid]));
+}
