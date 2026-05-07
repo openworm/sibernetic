@@ -42,6 +42,25 @@ below for the full chronology of what was needed.
 Higher-quality MP4: [`docs/demo2_v9_sgd_perm.mp4`](docs/demo2_v9_sgd_perm.mp4).
 OpenCL gold-standard reference: [`docs/demo2_membranes_opencl.mp4`](docs/demo2_membranes_opencl.mp4).
 
+### Preview: one_sprig_test single elastic on a spring — OpenCL (left) vs native Metal (right)
+
+![one_sprig_test: a single elastic particle oscillates on a spring tied to a fixed anchor; both backends produce visually identical motion](docs/one_sprig_opencl_vs_metal.gif)
+
+The smallest possible elasticity scenario: a single elastic particle at
+`(17.535, 20.04, 17.535)` is held by one spring (rest length 14.195) to
+a fixed boundary anchor at `(17.535, 32.565, 17.535)`. With no other
+forces it oscillates vertically at the spring's natural frequency,
+~1379 Hz, with x and z stationary. 5 ms of sim, OpenCL on the left,
+native Metal substrate on the right; both panels show identical y at
+every frame (e.g. `y = 18.606` at `t = 2.000 ms`).
+
+This is the cleanest unit-test for the substrate's elastic-spring
+machinery. The same `anchor_k = 555` falls out of both backends from
+the OpenCL elasticity coefficient (`4 × 1.5e-4 / mass = 3e8`) times the
+0.25 non-worm-body factor (`sphFluid.cl:730`) times the simulation
+scale (`sim_scale = 0.0041`). Higher-quality MP4:
+[`docs/one_sprig_opencl_vs_metal.mp4`](docs/one_sprig_opencl_vs_metal.mp4).
+
 ## Two solver paths
 
 Sibernetic ships with two physically-equivalent simulation paths. They use

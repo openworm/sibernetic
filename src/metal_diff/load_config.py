@@ -59,6 +59,7 @@ def parse_config(path: str) -> dict:
         '[end]': None,
     }
     cur = None
+    pre_header_floats = []
     with open(path) as f:
         for line in f:
             s = line.strip()
@@ -70,8 +71,19 @@ def parse_config(path: str) -> dict:
                     break
                 continue
             if cur is None:
+                # Some configs (e.g. configuration/test/one_sprig_test) emit
+                # box bounds as 6 bare numbers BEFORE [position] without a
+                # [simulation box] header. Collect them as box defaults.
+                try:
+                    pre_header_floats.append(float(s))
+                except ValueError:
+                    pass
                 continue
             sections[cur].append(s)
+    # If the file had no [simulation box] but had bare leading numbers, treat
+    # the first 6 as the box bounds.
+    if not sections['box'] and len(pre_header_floats) >= 6:
+        sections['box'] = [str(v) for v in pre_header_floats[:6]]
 
     box = [float(x) for x in sections['box']]
     pos = np.array(

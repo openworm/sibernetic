@@ -79,14 +79,27 @@ def run_chunk(args, info, pos_in, vel_in, n_steps):
         cmd.append(f"{args.anchor_k:.15e}")
     elif args.vel_clamp > 0:
         cmd.append('0')   # placeholder for anchor_k
+    # Optional-arg protocol: every "optional" slot needs either a value
+    # OR an explicit '0' placeholder so subsequent args land at the
+    # right argv positions.
+    need_after_vel = args.box_clamp or args.muscle_freq > 0 or args.muscle_amp > 0
     if args.vel_clamp > 0:
         cmd.append(f"{args.vel_clamp:.15e}")
-    elif args.box_clamp:
-        cmd.append('0')   # placeholder for vel_clamp
+    elif need_after_vel:
+        cmd.append('0')   # vel_clamp placeholder
+
+    need_after_box = args.muscle_freq > 0 or args.muscle_amp > 0
     if args.box_clamp:
-        # Pass box bounds [xmin, xmax, ymin, ymax, zmin, zmax]
         for v in info['box']:
             cmd.append(f"{v:.6f}")
+    elif need_after_box:
+        cmd.extend(['0'] * 6)   # box_clamp placeholder
+
+    if args.muscle_freq > 0 or args.muscle_amp > 0:
+        cmd.extend([f"{args.muscle_freq:.6f}", f"{args.muscle_amp:.6f}"])
+        # Cumulative-step-based time offset preserves muscle phase across chunks.
+        time_offset_s = args.cumulative_steps * args.dt
+        cmd.append(f"{time_offset_s:.9e}")
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"xpbd_step failed: {r.stderr[:300]}")
@@ -162,6 +175,12 @@ def main():
                          "from config). Prevents impact-event ejection from "
                          "permanently escaping the simulation. Default ON.")
     ap.add_argument('--no-box-clamp', dest='box_clamp', action='store_false')
+    ap.add_argument('--muscle-freq', type=float, default=0.0,
+                    help="Active muscle drive frequency (Hz). Modulates "
+                         "anchor spring rest length sinusoidally. 0 = passive.")
+    ap.add_argument('--muscle-amp', type=float, default=0.0,
+                    help="Active muscle drive fractional amplitude (0..1). "
+                         "0.2 = 20 percent rest-length modulation. 0 = passive.")
     args = ap.parse_args()
 
     sys.path.insert(0, HERE)
@@ -234,8 +253,10 @@ def main():
     chunk_sizes_used = []             # per-snapshot chunk size, for header
     t0 = time.perf_counter()
     cur_pos, cur_vel = pos_active.copy(), vel_active.copy()
+    args.cumulative_steps = 0   # tracks total steps run so far (for muscle-drive phase continuity)
     for k, n_steps in enumerate(schedule):
         cur_pos, cur_vel = run_chunk(args, info, cur_pos, cur_vel, n_steps)
+        args.cumulative_steps += n_steps
         snapshots.append(cur_pos.copy())
         chunk_sizes_used.append(n_steps)
         if (k + 1) % 100 == 0:

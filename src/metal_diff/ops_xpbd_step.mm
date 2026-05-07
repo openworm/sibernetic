@@ -47,7 +47,7 @@ int run_xpbd_step(int argc, char **argv) {
     // visc_pair_coef enables the Sibernetic-equivalent viscosity +
     // surface tension pair-force pass. Default 0 disables it; 1e-4 is
     // Sibernetic's main path coefficient (see sphFluid.cl:602-624).
-    if (argc < 18 || argc > 39) {
+    if (argc < 18 || argc > 42) {
         fprintf(stderr,
             "usage: sib_metal xpbd_step "
             "<n_active> <n_static> <h> <mass> <rho_rest> <dt> <gravity_y> "
@@ -135,6 +135,14 @@ int run_xpbd_step(int argc, char **argv) {
         box_max[2] = (float)atof(argv[38]);
         use_box_clamp = box_max[0] > box_min[0];
     }
+    // Active muscle drive: anchor rest length sinusoidal modulation.
+    // muscle_amp = 0 (default) = pure passive Hooke spring.
+    float muscle_freq = (argc >= 40) ? (float)atof(argv[39]) : 0.0f;
+    float muscle_amp  = (argc >= 41) ? (float)atof(argv[40]) : 0.0f;
+    // Time offset (seconds) — added to step*dt so muscle phase persists
+    // across chunked invocations. dump_metal_trajectory.py tracks
+    // cumulative steps and passes the offset.
+    float time_offset_s = (argc >= 42) ? (float)atof(argv[41]) : 0.0f;
     // Anchors are only meaningful when springs are on (uses spring_K).
     bool need_ext_accel_with_anchors = (use_anchors && (spring_K != 0.0f));
     // Springs replace the rigid XPBD distance constraint when on.
@@ -375,6 +383,17 @@ int run_xpbd_step(int argc, char **argv) {
         id<MTLBuffer> bufBoxMax = use_box_clamp
             ? [ctx.device newBufferWithBytes:box_max length:3*sizeof(float)
                   options:MTLResourceStorageModeShared] : nil;
+        // Muscle drive: scalars + per-step time_t buffer (updated each step).
+        id<MTLBuffer> bufMuscleFreq = (use_anchors && use_springs)
+            ? [ctx.device newBufferWithBytes:&muscle_freq length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufMuscleAmp = (use_anchors && use_springs)
+            ? [ctx.device newBufferWithBytes:&muscle_amp length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        float time_t_init = 0.0f;
+        id<MTLBuffer> bufTimeT = (use_anchors && use_springs)
+            ? [ctx.device newBufferWithBytes:&time_t_init length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
         // M10 membrane buffers.
         id<MTLBuffer> bufMembranes = use_membranes
             ? [ctx.device newBufferWithBytes:mem_tris
@@ -540,14 +559,21 @@ int run_xpbd_step(int argc, char **argv) {
             if (use_anchors && use_springs) {
                 // Sheet anchors: elastic→boundary bonds. Without these,
                 // sheets fall under gravity and collapse to floor.
+                // Optional muscle drive: anchor rest length oscillates
+                // sinusoidally, producing visible periodic contraction.
+                float current_t = time_offset_s + (float)step * dt;
+                memcpy([bufTimeT contents], &current_t, sizeof(float));
                 id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
                 [enc setComputePipelineState:pso_anchor];
-                [enc setBuffer:bufPosOld   offset:0 atIndex:0];
-                [enc setBuffer:bufAnchors  offset:0 atIndex:1];
-                [enc setBuffer:bufExtAccel offset:0 atIndex:2];
-                [enc setBuffer:bufAnchorK  offset:0 atIndex:3];
-                [enc setBuffer:bufNanchors offset:0 atIndex:4];
-                [enc setBuffer:bufNa       offset:0 atIndex:5];
+                [enc setBuffer:bufPosOld     offset:0 atIndex:0];
+                [enc setBuffer:bufAnchors    offset:0 atIndex:1];
+                [enc setBuffer:bufExtAccel   offset:0 atIndex:2];
+                [enc setBuffer:bufAnchorK    offset:0 atIndex:3];
+                [enc setBuffer:bufNanchors   offset:0 atIndex:4];
+                [enc setBuffer:bufNa         offset:0 atIndex:5];
+                [enc setBuffer:bufMuscleFreq offset:0 atIndex:6];
+                [enc setBuffer:bufMuscleAmp  offset:0 atIndex:7];
+                [enc setBuffer:bufTimeT      offset:0 atIndex:8];
                 [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
                     threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
                 [enc endEncoding];

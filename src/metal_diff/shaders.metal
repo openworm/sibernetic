@@ -667,21 +667,34 @@ kernel void spring_anchor_force(
     constant float             &spring_K        [[buffer(3)]],
     constant uint              &n_anchors       [[buffer(4)]],
     constant uint              &n_active        [[buffer(5)]],
+    constant float             &muscle_freq     [[buffer(6)]],   // Hz; 0 = inactive
+    constant float             &muscle_amp      [[buffer(7)]],   // fractional rest-len modulation
+    constant float             &time_t          [[buffer(8)]],   // current sim time, sec
     uint gid                                     [[thread_position_in_grid]])
 {
     if (gid >= n_active) return;
     float3 p_i = float3(active_pos[gid]);
     float3 a_i = float3(0.0);
 
+    // Optional active muscle drive: anchor rest length oscillates at
+    // muscle_freq with fractional amplitude muscle_amp. Mimics a muscle
+    // contracting/relaxing — e.g., cardiomyocyte rhythm or intentional
+    // c302 muscle activation pattern (here on a single anchor; for worm
+    // sims this would be per-particle / per-spring).
+    float modulation = 1.0f;
+    if (muscle_amp != 0.0f && muscle_freq != 0.0f) {
+        modulation = 1.0f + muscle_amp * sin(2.0f * (float)M_PI_F * muscle_freq * time_t);
+    }
+
     for (uint k = 0; k < n_anchors; k++) {
         // Layout: [i_int, pad_int, ax, ay, az, rest, pad, pad]
-        // First 4 bytes are int — read as int by reinterpreting.
         int anchor_i = as_type<int>(anchors[k * 8 + 0]);
         if (anchor_i != (int)gid) continue;
         float ax = anchors[k * 8 + 2];
         float ay = anchors[k * 8 + 3];
         float az = anchors[k * 8 + 4];
-        float L  = anchors[k * 8 + 5];
+        float L_base = anchors[k * 8 + 5];
+        float L = L_base * modulation;   // active contraction
         float3 p_a = float3(ax, ay, az);
         float3 dir = p_i - p_a;
         float r = length(dir);
