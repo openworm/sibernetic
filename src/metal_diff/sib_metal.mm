@@ -34,6 +34,10 @@ int run_pair_forces_fwd(int argc, char **argv);
 int run_pair_forces_bwd(int argc, char **argv);
 int run_spring_bonds_fwd(int argc, char **argv);
 int run_spring_bonds_bwd(int argc, char **argv);
+int run_accumulate_membrane_fwd(int argc, char **argv);
+int run_accumulate_membrane_bwd(int argc, char **argv);
+int run_apply_membrane_fwd(int argc, char **argv);
+int run_apply_membrane_bwd(int argc, char **argv);
 
 
 int main(int argc, char **argv) {
@@ -101,6 +105,14 @@ int main(int argc, char **argv) {
         return run_spring_bonds_fwd(argc, argv);
     if (strcmp(argv[1], "spring_bonds_bwd") == 0)
         return run_spring_bonds_bwd(argc, argv);
+    if (strcmp(argv[1], "accumulate_membrane_fwd") == 0)
+        return run_accumulate_membrane_fwd(argc, argv);
+    if (strcmp(argv[1], "accumulate_membrane_bwd") == 0)
+        return run_accumulate_membrane_bwd(argc, argv);
+    if (strcmp(argv[1], "apply_membrane_fwd") == 0)
+        return run_apply_membrane_fwd(argc, argv);
+    if (strcmp(argv[1], "apply_membrane_bwd") == 0)
+        return run_apply_membrane_bwd(argc, argv);
     fprintf(stderr, "unknown op: %s\n", argv[1]);
     return 1;
 }

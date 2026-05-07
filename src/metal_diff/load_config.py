@@ -128,39 +128,40 @@ def split_by_type(pos: np.ndarray, vel: np.ndarray):
 
 
 def decode_bonds(connections: np.ndarray, n_elastic: int,
-                 active_idx: np.ndarray) -> np.ndarray:
-    """Decode the 32-slot connection table into a deduplicated bonds list.
+                 active_idx: np.ndarray, all_pos: np.ndarray = None):
+    """Decode the 32-slot connection table into elastic-elastic bonds and
+    elastic→boundary anchors.
 
     Each elastic particle i_elastic (0..n_elastic-1) has 32 connection
     slots. Slot k of particle i is at connection row i*32 + k. A slot
     is "empty" if jd <= 0 (typically -1 in the file).
 
-    The neighbor index `jd` is in GLOBAL indexing (over all particles).
-    We need to remap to the ACTIVE buffer's local indexing.
+    The neighbor index `jd` is in GLOBAL indexing. Three cases:
+    - jd indexes another active particle (elastic) → bond
+    - jd indexes a boundary particle (type ≥ 3) → anchor
+    - jd <= 0 or out of range → skip
 
     Returns:
-        bonds: structured ndarray with fields (i, j, rest, pad) — the
-        same format `xpbd_step` and `step_bond_fwd` already consume.
-        Each bond appears once (i < j).
+        bonds:   structured ndarray (i, j, rest, pad) — elastic-elastic
+                 bonds, deduped (i < j).
+        anchors: structured ndarray (i, ax, ay, az, rest, pad, pad, pad)
+                 — elastic-to-boundary anchors. `i` is the elastic
+                 active-local index; (ax, ay, az) is the FIXED boundary
+                 position (the anchor target); rest is the spring rest
+                 length. NOT deduped (one row per anchor connection).
+                 Pass `all_pos[:, :3]` (shape [N_total, 3]) so we can
+                 look up boundary positions by global index.
     """
     bonds_set = set()
     bonds_rest = {}
-    # Map global → local (active_idx position)
+    anchors_list = []   # list of (local_i, ax, ay, az, rest)
+
     global_to_local = -np.ones(int(active_idx.max()) + 1, dtype=np.int64)
     for local, glob in enumerate(active_idx):
         if glob < len(global_to_local):
             global_to_local[glob] = local
 
     for i_elastic in range(n_elastic):
-        # In the config, elastic particles are in some position within
-        # the global array. The CONNECTION block is indexed by elastic
-        # particle, so i_elastic = 0..n_elastic-1 corresponds to the
-        # FIRST n_elastic active particles in the original order? Or
-        # the first n_elastic of TYPE 2.x?
-        # Sibernetic's loader (owConfigProperty.cpp) lays out particles
-        # in the order they appear in the file, and elastic particles
-        # come FIRST in our demo1 (218 elastic, then 125 liquid, then
-        # boundary). So elastic particle i_elastic = global index i_elastic.
         global_i = i_elastic
         local_i = int(global_to_local[global_i]) if global_i < len(global_to_local) else -1
         if local_i < 0:
@@ -173,6 +174,21 @@ def decode_bonds(connections: np.ndarray, n_elastic: int,
             if jd <= 0:
                 continue
             global_j = int(jd)
+            if all_pos is not None and 0 <= global_j < len(all_pos):
+                # If the target is a boundary particle, treat as anchor.
+                # all_pos[:, 3] holds the type field.
+                target_type = all_pos[global_j, 3] if all_pos.shape[1] > 3 else None
+            else:
+                target_type = None
+            if target_type is not None and target_type >= 3.0:
+                # Boundary anchor — capture its position (it's frozen).
+                ax, ay, az = (float(all_pos[global_j, 0]),
+                              float(all_pos[global_j, 1]),
+                              float(all_pos[global_j, 2]))
+                rest_len = float(connections[row, 1])
+                anchors_list.append((local_i, ax, ay, az, rest_len))
+                continue
+            # Otherwise it should be an active (elastic) particle.
             if global_j < 0 or global_j >= len(global_to_local):
                 continue
             local_j = int(global_to_local[global_j])
@@ -189,7 +205,16 @@ def decode_bonds(connections: np.ndarray, n_elastic: int,
                             ('rest', np.float32), ('pad', np.float32)])
     for k, (i, j) in enumerate(sorted(bonds_set)):
         bonds[k] = (i, j, bonds_rest[(i, j)], 0.0)
-    return bonds
+
+    # Anchors: 8-float-aligned struct (i + 1 pad int + 3 anchor + 1 rest + 2 pad = 32B).
+    anchors = np.zeros(len(anchors_list),
+                       dtype=[('i', np.int32), ('pad0', np.int32),
+                              ('ax', np.float32), ('ay', np.float32),
+                              ('az', np.float32), ('rest', np.float32),
+                              ('pad1', np.float32), ('pad2', np.float32)])
+    for k, (i, ax, ay, az, rest) in enumerate(anchors_list):
+        anchors[k] = (i, 0, ax, ay, az, rest, 0.0, 0.0)
+    return bonds, anchors
 
 
 def build_static_grid(positions: np.ndarray, h: float):
@@ -252,7 +277,8 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
     vel_active = cfg['vel'][active_idx, :3].astype(np.float32)
     pos_static = cfg['pos'][static_idx, :3].astype(np.float32)
 
-    bonds = decode_bonds(cfg['connections'], n_elastic, active_idx)
+    bonds, anchors = decode_bonds(cfg['connections'], n_elastic, active_idx,
+                                    all_pos=cfg['pos'])
 
     # Membrane topology: triangle particle IDs are GLOBAL in the config;
     # remap to local active-buffer indexing (same convention as bonds).
@@ -302,6 +328,7 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
         'vel_active':    os.path.join(out_dir, f"{scenario}_vel_active.bin"),
         'pos_static':    os.path.join(out_dir, f"{scenario}_pos_static.bin"),
         'bonds':         os.path.join(out_dir, f"{scenario}_bonds.bin"),
+        'anchors':       os.path.join(out_dir, f"{scenario}_anchors.bin"),
         'sorted_static': os.path.join(out_dir, f"{scenario}_sorted_static.bin"),
         'cell_start':    os.path.join(out_dir, f"{scenario}_cell_start.bin"),
         'membranes':     os.path.join(out_dir, f"{scenario}_membranes.bin"),
@@ -311,6 +338,7 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
     vel_active.tofile(paths['vel_active'])
     pos_static.tofile(paths['pos_static'])
     bonds.tofile(paths['bonds'])
+    anchors.tofile(paths['anchors'])
     sorted_static.tofile(paths['sorted_static'])
     cell_start.tofile(paths['cell_start'])
     membrane_tris.astype(np.int32).tofile(paths['membranes'])
@@ -324,6 +352,7 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
         'n_elastic': n_elastic,
         'n_liquid': n_active - n_elastic,
         'n_bonds': len(bonds),
+        'n_anchors': len(anchors),
         'n_membranes': n_membranes,
         'n_cells': n_cells,
         'grid_dim': grid_dim.tolist(),
@@ -348,6 +377,7 @@ def main():
     print(f"    boundary: {info['n_static']}")
     print(f"  Active (elastic+liquid): {info['n_active']}")
     print(f"  Bonds (deduped):         {info['n_bonds']}")
+    print(f"  Boundary anchors:        {info['n_anchors']}")
     print(f"  Membrane triangles:      {info['n_membranes']}")
     print(f"  Sim box: {info['box']}")
     print(f"  Wrote binary buffers to:")

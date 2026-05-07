@@ -19,25 +19,28 @@ metrics and remaining gaps are documented below. See "Quickstart: render
 the demo1 cube drop" to regenerate this. Higher-quality MP4:
 [`docs/cube_drop_demo1_25ms.mp4`](docs/cube_drop_demo1_25ms.mp4).
 
-### Preview: demo2 membrane permeability (OpenCL only — native Metal substrate doesn't yet model membranes)
+### Preview: demo2 membrane permeability — OpenCL (top) vs native Metal (bottom)
 
-![demo2: liquid drops onto two sheets, only the membrane-clad one retains it](docs/demo2_membranes_opencl.gif)
+![demo2: liquid drops onto a half-membraned sheet; both backends now retain the membrane half and pass through the porous half](docs/demo2_v9_sgd_perm.gif)
 
-Two side-by-side elastic sheets sit at `y=90.6`. The left sheet has a
-mesh of 2 112 membrane triangles connecting its 1 406 elastic particles
-(the right sheet has the same particles but **no** triangles). Two
-liquid columns (4 732 particles total) drop from above. Result: liquid
-pools on top of the left sheet (membrane = liquid-impermeable) and
-falls straight through the right sheet to the floor below (no
-membrane = no surface tension). 200 ms of sim, rendered at 30 fps.
-Higher-quality MP4: [`docs/demo2_membranes_opencl.mp4`](docs/demo2_membranes_opencl.mp4).
+A single elastic sheet sits at `y=90.6` spanning `x ∈ [3.3, 130.3]`.
+The left half (x < ~60) has a mesh of 2 112 membrane triangles
+connecting 1 122 of the 2 812 elastic particles; the right half has the
+same particle layout but no triangles. 4 732 liquid particles drop from
+above, half over each side. Result: liquid pools on top of the
+membraned half (liquid-impermeable) and passes through the porous half
+(no surface-tension barrier). 42 ms of sim, top OpenCL, bottom native
+Metal substrate at SGD-tuned parameters (`spring_k=2697`,
+`anchor_k=12177`, `rho_rest=8e-13`).
 
-This same membrane mechanism is what makes `demo1`'s cube
-liquid-impermeable in the OpenCL solver. The native Metal substrate
-ignores the `[membranes]` section in config files (see
-[caveat #4](#known-gaps-and-caveats) below), which is why liquid leaks
-through the cube shell almost immediately on the Metal side — porting
-membrane handling to the Metal substrate is one of the next-step items.
+The native Metal substrate **now implements membranes** (M10 forward
+analytic + backward FD-validated, M11 boundary anchor springs, M12 SPH
+pressure dynamics, M13 box-wall clamp). See ["Recent development:
+porting demo2 to the native Metal substrate"](#recent-development-porting-demo2-to-the-native-metal-substrate)
+below for the full chronology of what was needed.
+
+Higher-quality MP4: [`docs/demo2_v9_sgd_perm.mp4`](docs/demo2_v9_sgd_perm.mp4).
+OpenCL gold-standard reference: [`docs/demo2_membranes_opencl.mp4`](docs/demo2_membranes_opencl.mp4).
 
 ## Two solver paths
 
@@ -195,6 +198,48 @@ python3 test_learn_floor.py             # SGD on floor_y from synthetic data
 All ship green; expected per-element relative error is 1e-3 to 1e-6
 depending on the kernel.
 
+## Recent development: porting demo2 to the native Metal substrate
+
+This section recaps the work that landed demo2 (the membrane permeability
+demo) on the native Metal substrate. The starting point was a Metal
+substrate that ran demo1 (cube drop) end-to-end with FD-validated
+forward + backward physics, but ignored the `[membranes]` section of
+config files entirely. The end point is the side-by-side comparison
+GIF at the top of this README. What it took:
+
+| Phase | Module | What landed |
+|---|---|---|
+| M10 forward | `shaders.metal`, `load_config.py`, `ops_xpbd_step.mm`, `ops_xpbd_full.mm` | Three-kernel membrane chain (`clear_membrane_correction`, `accumulate_membrane_correction`, `apply_membrane_correction`) ported from `sphFluid.cl:1042-1322`. Position-only soft constraint applied AFTER `update_velocities` to avoid a 41 750 m/s velocity injection that would otherwise rocket liquid into space. |
+| M10 backward | `shaders.metal`, `ops_membrane.mm`, `test_membrane_correction.py` | Hand-derived analytic backward through plane projection + unit-vector chain rule + Ihmsen weighting. FD-validated to <7e-4 relative error across single-triangle, shared-edge, and multi-liquid scenarios. |
+| Phase 5 | `ops_xpbd_full.mm` | Wired membrane backward into `xpbd_full_bwd`'s reverse walk. Multi-step FD test passes at K=1/2/3/5 (max rel error 1e-4). Caught and fixed a GPU-host sync bug where host-side `memcpy` raced with the queued `update_velocities_backward` write to `bGx_running`. |
+| M11 anchors | `load_config.py`, `shaders.metal`, `ops_xpbd_step.mm` | Sibernetic configs encode 670 elastic→boundary spring connections in the same `[connection]` table as elastic→elastic bonds; my `decode_bonds()` was silently dropping them because their `j` index didn't map to active-buffer-local. Added separate anchor-spring kernel and CLI plumbing. Without this, sheets fall under gravity and crash to the floor in 20 ms. |
+| Initial vel | `dump_metal_trajectory.py` | Was zeroing `vel_active` instead of reading from config. demo2's 4 732 liquid particles all start with `v_y = -0.027 m/s`. Fixed by reading `cfg['vel'][:, :3]`. |
+| `rho_rest` units | `dump_metal_trajectory.py` | My SPH density kernel computes `ρ` in `kg/sim_unit³` (uses `h` in particle units) but the CLI default was `--rho-rest 1000` (kg/m³). Mismatch by ~10¹⁵ → density constraint never fired → surface tension dominated → liquid bunched. Default now `8e-13` so the constraint fires when liquid hits elastic neighbors. |
+| M12 pressure | `shaders.metal` | Implemented WCSPH-style pressure-force kernel (`pressure_force_grid`) as a backup counter-force to surface-tension cohesion. Optional via `--pressure-k`; off by default since correct `rho_rest` makes the existing density constraint already provide pressure-like behavior. |
+| Decoupled anchor stiffness | `ops_xpbd_step.mm`, `dump_metal_trajectory.py` | Added `--anchor-k` so sheet edges can flex independently of internal bond stiffness. SGD pushed it UP (200 → 12 177) which kept the sheet at the right altitude while internal `K=2697` allowed flex. |
+| M13 box clamp | `shaders.metal`, `ops_xpbd_step.mm` | Hard wall + velocity clamp. Impact-event ejection (~1 000 OOB particles flying off in random xz directions) reduced to ~0. Velocity clamp at 1.0 m/s prevents CFL violations. |
+| SGD permeability | `sgd_demo2_permeability.py` | Finite-diff SGD over (`spring_K`, `anchor_k`) targeting OpenCL's t=16 ms per-side liquid `y_mean`. Loss dropped from 562 → 220 (61% reduction) over 13 iterations. Best params: `K=2697`, `anchor_k=12177`. |
+
+Two adjacent gotchas worth flagging:
+
+1. **Gradient explosion in `xpbd_full_bwd`**, not a NaN bug. Per-step
+   amplification through the Sibernetic-scale density-spring chain is
+   ~400 000×. At default `BWD_TBPTT=50` the gradient overflows to NaN
+   within 4–5 chain steps. Fix: `BWD_TBPTT=3` plus log-space
+   gradient-norm clip = 10. Inside-the-window gradients are biased but
+   stable, and Adam in log-space handles the bias fine.
+
+2. **`pair_forces_grid` was producing lateral compression** without
+   the OpenCL PCISPH pressure forces to balance it. With `rho_rest` set
+   correctly, the existing one-sided density constraint provides the
+   counterbalance and z-spread now matches OpenCL within 1–3% by t=16ms.
+   The new `pressure_force_grid` (M12) is available as a more
+   physically-grounded alternative for future work.
+
+The full chronology with parameter sweeps, per-frame quantitative
+comparisons, and per-bug repro is in
+[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md).
+
 ## Building
 
 ### Linux (OpenCL backend)
@@ -286,8 +331,8 @@ Physical algorithms supported across both paths:
 
 - Incompressible fluid (PCISPH on OpenCL; XPBD density-constraint on Metal)
 - Elastic matter (rest-length springs + density-driven puff-up)
-- Liquid-impermeable membranes (OpenCL only — Metal substrate doesn't yet
-  model membranes; cube-drop demo doesn't need them)
+- Liquid-impermeable membranes (both paths — Metal substrate added
+  M10 forward + analytic backward, FD-validated)
 - Boundary handling
 - Surface tension (PCISPH only — Metal exposes the same kernel
   contribution as a tunable `visc_pair_coef`)
@@ -392,12 +437,15 @@ Current status (commit `576a281`, 2026-05-06):
    shorten the trajectory window via `BWD_TBPTT` or implement higher
    precision in the backward kernels.
 
-4. **No membrane support yet.** demo1's elastic shell + liquid + (no
-   membranes) works end-to-end on the Metal substrate. demo2 — which
-   relies on liquid-impermeable membranes — has no Metal implementation.
-   Adding it requires porting `compute_interaction_with_membranes` from
-   `src/sphFluid.cl` and the corresponding membrane-force kernels in the
-   OpenCL pipeline.
+4. **Membrane permeability close but not exact.** Membrane support is
+   now in (M10 forward + analytic backward, FD-validated; SGD-tuned on
+   demo2). At t=16ms the SGD-converged Metal config has membrane-side
+   liquid mean y=69 (target from OpenCL: 56) and porous-side liquid
+   mean y=13 (target: 6). The Metal substrate over-retains a bit on
+   both sides; loss is in a local minimum. Multi-start SGD or expanding
+   the trainable set to (`K`, `anchor_k`, `rho_rest`, `alpha_dens`,
+   plus a future `mem_alpha` membrane-magnitude scaling) is the next
+   improvement.
 
 5. **No worm/c302 integration.** The native Metal substrate runs
    forward-only XPBD with no hook into the NEURON/c302 muscle-activation
@@ -421,10 +469,12 @@ Listed in rough order of effort, lowest first:
    density chain — it just needs to be exposed as a separate force,
    tunable independently of the density solver.
 
-3. **Implement membrane forces** (porting `src/sphFluid.cl`'s
-   `_runComputeInteractionWithMembranes` family). This is mechanical
-   but ~500 lines of kernel code plus a backward derivation per kernel.
-   Required to run demo2.
+3. **Tighter demo2 permeability match via multi-start SGD.** The single
+   SGD run that landed v9 (`K=2697`, `anchor_k=12177`) hit a local
+   minimum at L=220 (61% reduction from the unconverged starting point
+   but still 13 sim units off the membrane-side target and 7 off the
+   porous-side target). Multi-start, more trainable parameters, or a
+   second-order method should close most of that gap.
 
 4. **Implement the worm/c302 bridge** in the Metal substrate. The
    embedded-Python pattern from the OpenCL path can be reused; the main

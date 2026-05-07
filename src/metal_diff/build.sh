@@ -20,6 +20,7 @@ clang++ -std=c++17 -O2 \
     ops_xpbd_step.mm \
     ops_xpbd_full.mm \
     ops_pair_spring.mm \
+    ops_membrane.mm \
     ops_test_steps.mm \
     ops_test_density.mm \
     sib_metal.mm \

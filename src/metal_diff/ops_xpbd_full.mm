@@ -34,14 +34,15 @@
 int run_xpbd_full_fwd(int argc, char **argv) {
     // Optional 15th arg: sim_scale (default 1.0 — toy convention)
     // Optional 16th arg: visc_pair_coef (default 0 — pair forces off)
-    if (argc < 15 || argc > 20) {
+    if (argc < 15 || argc > 26) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_fwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
             "<gravity_y> <alpha_density> "
             "<pos0.bin> <vel0.bin> <pos_static.bin> <state_out.bin> "
             "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin] [floor_y] "
-            "[restitution]\n"
+            "[restitution] [n_membranes] [n_elastic] [r0] "
+            "[membranes.bin] [pmem_index.bin]\n"
             "  state_out.bin contains the per-step trajectory: \n"
             "    K × [x_old(n*3) + v_old(n*3) + density(n) + grad_C(n*3) + denom_h(n)"
             "    [+ pair_density(n) if visc_pair_coef>0]"
@@ -52,7 +53,10 @@ int run_xpbd_full_fwd(int argc, char **argv) {
             "  bond: int32 i, int32 j, float32 rest_len, float32 _pad).\n"
             "  When floor_y is set, elastic floor at y=floor_y is applied\n"
             "  after density solve. restitution ∈ [0, 1] (default 0):\n"
-            "    0 = inelastic clamp (legacy), 1 = perfectly elastic bounce.\n");
+            "    0 = inelastic clamp (legacy), 1 = perfectly elastic bounce.\n"
+            "  n_membranes > 0 enables M10 membrane interaction (forward only;\n"
+            "    state-file format is unchanged in Phase 3 — xpbd_full_bwd\n"
+            "    will not yet attribute gradients through membranes).\n");
         return 1;
     }
     uint32_t n_active = (uint32_t)atoi(argv[2]);
@@ -81,6 +85,15 @@ int run_xpbd_full_fwd(int argc, char **argv) {
     float floor_y = use_floor ? (float)atof(argv[19]) : 0.0f;
     // Optional 21st arg: restitution coefficient (default 0 = inelastic).
     float restitution = (argc >= 21) ? (float)atof(argv[20]) : 0.0f;
+    // M10 membrane interaction (forward only in Phase 3).
+    uint32_t n_membranes = (argc >= 22) ? (uint32_t)atoi(argv[21]) : 0u;
+    uint32_t n_elastic   = (argc >= 23) ? (uint32_t)atoi(argv[22]) : 0u;
+    float r0_mem         = (argc >= 24) ? (float)atof(argv[23]) : 0.0f;
+    const char *path_membranes = (argc >= 25) ? argv[24] : NULL;
+    const char *path_pmem_idx  = (argc >= 26) ? argv[25] : NULL;
+    bool use_membranes = (n_membranes > 0) && (n_elastic > 0)
+                         && path_membranes && path_pmem_idx
+                         && (r0_mem > 0.0f);
     // Load bonds if springs enabled.
     uint32_t n_bonds = 0;
     int32_t *bond_ij_data = NULL;
@@ -130,14 +143,38 @@ int run_xpbd_full_fwd(int argc, char **argv) {
     float *vel0 = rd(argv[12], (size_t)n_active * 3);
     float *pos_static = rd(argv[13], (size_t)n_static * 3);
 
+    // Load membrane topology (int32 buffers, sized in bytes — read via fopen).
+    int32_t *mem_tris = NULL;
+    int32_t *mem_pidx = NULL;
+    if (use_membranes) {
+        size_t tris_bytes = (size_t)n_membranes * 3 * sizeof(int32_t);
+        size_t pidx_bytes = (size_t)n_elastic * 7 * sizeof(int32_t);
+        FILE *fa = fopen(path_membranes, "rb");
+        if (!fa) { fprintf(stderr, "open %s\n", path_membranes); return 1; }
+        mem_tris = (int32_t *)malloc(tris_bytes);
+        if (fread(mem_tris, 1, tris_bytes, fa) != tris_bytes) {
+            fprintf(stderr, "short read on %s\n", path_membranes); return 1;
+        }
+        fclose(fa);
+        FILE *fb2 = fopen(path_pmem_idx, "rb");
+        if (!fb2) { fprintf(stderr, "open %s\n", path_pmem_idx); return 1; }
+        mem_pidx = (int32_t *)malloc(pidx_bytes);
+        if (fread(mem_pidx, 1, pidx_bytes, fb2) != pidx_bytes) {
+            fprintf(stderr, "short read on %s\n", path_pmem_idx); return 1;
+        }
+        fclose(fb2);
+    }
+
     size_t pos_b = (size_t)n_active * 3 * sizeof(float);
     size_t s_b = (size_t)n_active * sizeof(float);
 
     // Per-step state arrays (host).
     // Layout per step: [x_old(3n) + v_old(3n) + density(n) + grad_C(3n) + denom_h(n)
     //                   + pair_density(n) if use_pair
-    //                   + floor_clamped_mask(n as int32) if use_floor]
-    int extra_per_step = (use_pair ? 1 : 0) + (use_floor ? 1 : 0);
+    //                   + floor_clamped_mask(n as int32) if use_floor
+    //                   + mem_corr(3n) if use_membranes]
+    int extra_per_step = (use_pair ? 1 : 0) + (use_floor ? 1 : 0)
+                       + (use_membranes ? 3 : 0);
     size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1 + extra_per_step);
     float *state = (float *)calloc((size_t)K * per_step_floats, sizeof(float));
     // Static spatial grid buffers — declared in outer scope so the
@@ -167,6 +204,13 @@ int run_xpbd_full_fwd(int argc, char **argv) {
             ? make_pso(ctx, "spring_bonds_force") : nil;
         id<MTLComputePipelineState> pso_floor = use_floor
             ? make_pso(ctx, "solve_floor_constraint_with_mask") : nil;
+        // M10 membrane PSOs.
+        id<MTLComputePipelineState> pso_mem_clear = use_membranes
+            ? make_pso(ctx, "clear_membrane_correction") : nil;
+        id<MTLComputePipelineState> pso_mem_acc   = use_membranes
+            ? make_pso(ctx, "accumulate_membrane_correction") : nil;
+        id<MTLComputePipelineState> pso_mem_apply = use_membranes
+            ? make_pso(ctx, "apply_membrane_correction") : nil;
 
         size_t r2aa_b = (size_t)n_active * n_active * sizeof(float);
         size_t r2as_b = (size_t)n_active * n_static * sizeof(float);
@@ -248,6 +292,24 @@ int run_xpbd_full_fwd(int argc, char **argv) {
                   options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bClamped = use_floor
             ? [ctx.device newBufferWithLength:(size_t)n_active * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        // M10 membrane buffers.
+        id<MTLBuffer> bMembranes = use_membranes
+            ? [ctx.device newBufferWithBytes:mem_tris
+                  length:(size_t)n_membranes * 3 * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bPmemIdx = use_membranes
+            ? [ctx.device newBufferWithBytes:mem_pidx
+                  length:(size_t)n_elastic * 7 * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bMemCorr = use_membranes
+            ? [ctx.device newBufferWithLength:pos_b
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bNelastic = use_membranes
+            ? [ctx.device newBufferWithBytes:&n_elastic length:sizeof(uint32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bR0       = use_membranes
+            ? [ctx.device newBufferWithBytes:&r0_mem length:sizeof(float)
                   options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bSortedS = (use_pair && n_static > 0)
             ? [ctx.device newBufferWithBytes:sorted_static_buf
@@ -470,6 +532,8 @@ int run_xpbd_full_fwd(int argc, char **argv) {
                 [e endEncoding];
             }
             // (10) update_vel: v_new = (xp - x_old) · sim_scale / dt
+            // Runs BEFORE membrane apply — velocity is from post-floor pos
+            // only. See xpbd_step.mm for rationale.
             { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
               [e setComputePipelineState:pso_uv];
               [e setBuffer:bV offset:0 atIndex:0]; [e setBuffer:bX offset:0 atIndex:1];
@@ -478,6 +542,37 @@ int run_xpbd_full_fwd(int argc, char **argv) {
               [e setBuffer:bSS offset:0 atIndex:5];
               [e dispatchThreads:MTLSizeMake(n_active,1,1) threadsPerThreadgroup:MTLSizeMake(64,1,1)];
               [e endEncoding]; }
+            // (10b) M10 membrane interaction — position-only correction,
+            // last op of the step (after update_velocities).
+            if (use_membranes) {
+                { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                  [e setComputePipelineState:pso_mem_clear];
+                  [e setBuffer:bMemCorr offset:0 atIndex:0];
+                  [e setBuffer:bNa      offset:0 atIndex:1];
+                  [e dispatchThreads:MTLSizeMake(n_active,1,1)
+                      threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+                  [e endEncoding]; }
+                { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                  [e setComputePipelineState:pso_mem_acc];
+                  [e setBuffer:bXp         offset:0 atIndex:0];
+                  [e setBuffer:bMembranes  offset:0 atIndex:1];
+                  [e setBuffer:bPmemIdx    offset:0 atIndex:2];
+                  [e setBuffer:bMemCorr    offset:0 atIndex:3];
+                  [e setBuffer:bNa         offset:0 atIndex:4];
+                  [e setBuffer:bNelastic   offset:0 atIndex:5];
+                  [e setBuffer:bR0         offset:0 atIndex:6];
+                  [e dispatchThreads:MTLSizeMake(n_active,1,1)
+                      threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+                  [e endEncoding]; }
+                { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                  [e setComputePipelineState:pso_mem_apply];
+                  [e setBuffer:bXp      offset:0 atIndex:0];
+                  [e setBuffer:bMemCorr offset:0 atIndex:1];
+                  [e setBuffer:bNa      offset:0 atIndex:2];
+                  [e dispatchThreads:MTLSizeMake(n_active,1,1)
+                      threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+                  [e endEncoding]; }
+            }
             [cmd commit]; [cmd waitUntilCompleted];
 
             // SAVE density, grad_C, denom_helper for backward
@@ -490,6 +585,13 @@ int run_xpbd_full_fwd(int argc, char **argv) {
                 size_t floor_off = (size_t)(11 + (use_pair ? 1 : 0)) * n_active;
                 memcpy(step_state + floor_off, [bClamped contents],
                        (size_t)n_active * sizeof(int32_t));
+            }
+            // Save mem_corr (after pair_density + floor mask slots).
+            if (use_membranes) {
+                size_t mc_off = (size_t)(11
+                                + (use_pair ? 1 : 0)
+                                + (use_floor ? 1 : 0)) * n_active;
+                memcpy(step_state + mc_off, [bMemCorr contents], pos_b);
             }
             // Save x_post in trajectory
             memcpy(traj + (size_t)(k + 1) * n_active * 3,
@@ -510,6 +612,8 @@ int run_xpbd_full_fwd(int argc, char **argv) {
     if (cell_start_buf)    free(cell_start_buf);
     if (bond_ij_data) free(bond_ij_data);
     if (bond_rest_data) free(bond_rest_data);
+    if (mem_tris) free(mem_tris);
+    if (mem_pidx) free(mem_pidx);
     return 0;
 }
 
@@ -525,7 +629,7 @@ int run_xpbd_full_fwd(int argc, char **argv) {
 //   ∂L/∂x_init, ∂L/∂v_init, ∂L/∂rho_rest (scalar)
 // ──────────────────────────────────────────────────────────────────────
 int run_xpbd_full_bwd(int argc, char **argv) {
-    if (argc < 17 || argc > 25) {
+    if (argc < 17 || argc > 31) {
         fprintf(stderr,
             "usage: sib_metal xpbd_full_bwd "
             "<n_active> <n_static> <K> <h> <mass> <rho_rest> <dt> "
@@ -534,7 +638,8 @@ int run_xpbd_full_bwd(int argc, char **argv) {
             "<grad_x_init_out.bin> <grad_v_init_out.bin> <grad_rho_out.bin> "
             "[sim_scale] [visc_pair_coef] [spring_K] [bonds.bin] "
             "[grad_spring_K_out.bin] [grad_visc_K_out.bin] [floor_y] "
-            "[grad_alpha_dens_out.bin]\n"
+            "[grad_alpha_dens_out.bin] [restitution] "
+            "[n_membranes] [n_elastic] [r0] [membranes.bin] [pmem_index.bin]\n"
             "       (must match the xpbd_full_fwd args used to produce the "
             "state file)\n");
         return 1;
@@ -566,6 +671,15 @@ int run_xpbd_full_bwd(int argc, char **argv) {
     // Optional restitution at argv[25] (after grad_alpha_dens output at argv[24]).
     // Default 0 = inelastic (legacy). Pass 0..1 to enable elastic floor.
     float restitution = (argc >= 26) ? (float)atof(argv[25]) : 0.0f;
+    // M10 membrane backward (must match xpbd_full_fwd args).
+    uint32_t n_membranes = (argc >= 27) ? (uint32_t)atoi(argv[26]) : 0u;
+    uint32_t n_elastic   = (argc >= 28) ? (uint32_t)atoi(argv[27]) : 0u;
+    float r0_mem         = (argc >= 29) ? (float)atof(argv[28]) : 0.0f;
+    const char *path_membranes = (argc >= 30) ? argv[29] : NULL;
+    const char *path_pmem_idx  = (argc >= 31) ? argv[30] : NULL;
+    bool use_membranes = (n_membranes > 0) && (n_elastic > 0)
+                         && path_membranes && path_pmem_idx
+                         && (r0_mem > 0.0f);
     // Load bonds for springs (mirrors xpbd_full_fwd loader).
     uint32_t n_bonds = 0;
     int32_t *bond_ij_data = NULL;
@@ -614,7 +728,8 @@ int run_xpbd_full_bwd(int argc, char **argv) {
     //   [K × per_step_floats] state
     //   [(K+1) × n*3] traj
     //   [n*3] vel_final
-    int extra_per_step = (use_pair ? 1 : 0) + (use_floor ? 1 : 0);
+    int extra_per_step = (use_pair ? 1 : 0) + (use_floor ? 1 : 0)
+                       + (use_membranes ? 3 : 0);
     size_t per_step_floats = (size_t)n_active * (3 + 3 + 1 + 3 + 1 + extra_per_step);
     size_t state_size = (size_t)K * per_step_floats
                       + (size_t)(K + 1) * n_active * 3
@@ -626,6 +741,28 @@ int run_xpbd_full_bwd(int argc, char **argv) {
 
     float *pos_static = rd(argv[12], (size_t)n_static * 3);
     float *grad_x_fin = rd(argv[13], (size_t)n_active * 3);
+
+    // Load membrane topology if enabled.
+    int32_t *mem_tris = NULL;
+    int32_t *mem_pidx = NULL;
+    if (use_membranes) {
+        size_t tris_bytes = (size_t)n_membranes * 3 * sizeof(int32_t);
+        size_t pidx_bytes = (size_t)n_elastic * 7 * sizeof(int32_t);
+        FILE *fa = fopen(path_membranes, "rb");
+        if (!fa) { fprintf(stderr, "open %s\n", path_membranes); return 1; }
+        mem_tris = (int32_t *)malloc(tris_bytes);
+        if (fread(mem_tris, 1, tris_bytes, fa) != tris_bytes) {
+            fprintf(stderr, "short read on %s\n", path_membranes); return 1;
+        }
+        fclose(fa);
+        FILE *fb2 = fopen(path_pmem_idx, "rb");
+        if (!fb2) { fprintf(stderr, "open %s\n", path_pmem_idx); return 1; }
+        mem_pidx = (int32_t *)malloc(pidx_bytes);
+        if (fread(mem_pidx, 1, pidx_bytes, fb2) != pidx_bytes) {
+            fprintf(stderr, "short read on %s\n", path_pmem_idx); return 1;
+        }
+        fclose(fb2);
+    }
 
     size_t pos_b = (size_t)n_active * 3 * sizeof(float);
     size_t s_b = (size_t)n_active * sizeof(float);
@@ -663,6 +800,11 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         // Floor backward (matches forward solve_floor_constraint_with_mask).
         id<MTLComputePipelineState> pso_floor_bw = use_floor
             ? make_pso(ctx, "solve_floor_constraint_backward") : nil;
+        // M10 backward kernels.
+        id<MTLComputePipelineState> pso_mem_apply_bw = use_membranes
+            ? make_pso(ctx, "apply_membrane_correction_backward") : nil;
+        id<MTLComputePipelineState> pso_mem_acc_bw = use_membranes
+            ? make_pso(ctx, "accumulate_membrane_correction_backward") : nil;
 
         // Build static spatial grid for pair_forces backward (matches forward).
         GridDim3 grid_dim_struct = {0, 0, 0};
@@ -696,6 +838,28 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         id<MTLBuffer> bGx_running = [ctx.device newBufferWithBytes:grad_x_fin length:pos_b options:MTLResourceStorageModeShared];
         id<MTLBuffer> bGv_running = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
         memset([bGv_running contents], 0, pos_b);
+
+        // M10 membrane buffers.
+        id<MTLBuffer> bMembranes_bw = use_membranes
+            ? [ctx.device newBufferWithBytes:mem_tris
+                  length:(size_t)n_membranes * 3 * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bPmemIdx_bw = use_membranes
+            ? [ctx.device newBufferWithBytes:mem_pidx
+                  length:(size_t)n_elastic * 7 * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bGmemCorr = use_membranes
+            ? [ctx.device newBufferWithLength:pos_b
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bXpre = use_membranes
+            ? [ctx.device newBufferWithLength:pos_b
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bNelastic_bw = use_membranes
+            ? [ctx.device newBufferWithBytes:&n_elastic length:sizeof(uint32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bR0_bw = use_membranes
+            ? [ctx.device newBufferWithBytes:&r0_mem length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
 
         // Per-step working gradients:
         id<MTLBuffer> bGv_in = [ctx.device newBufferWithLength:pos_b options:MTLResourceStorageModeShared];
@@ -923,7 +1087,47 @@ int run_xpbd_full_bwd(int argc, char **argv) {
             }
 
             id<MTLCommandBuffer> cmd = [ctx.queue commandBuffer];
-            // (a) update_vel backward: ∂L/∂v_new (=bGv_in) → +bGx_running (∂L/∂x_post), +bGx_old_new (∂L/∂x_old)
+            // (a-mem) M10 membrane backward — runs FIRST in reverse since
+            //         membrane apply is now the LAST forward op of the
+            //         step (after update_velocities). bGx_running enters
+            //         the loop body as ∂L/∂x_post_step = ∂L/∂x_post_apply.
+            //         apply_bw is identity for x (∂L/∂x_pre_apply ←
+            //         ∂L/∂x_post_apply, in place). accumulate_bw chains
+            //         ∂L/∂mem_corr through the projection and adds to
+            //         ∂L/∂x_pre_acc (which lives in the same bGx_running
+            //         buffer). After: bGx_running = ∂L/∂x_post_floor,
+            //         which is what the rest of the chain expects.
+            if (use_membranes) {
+                size_t mc_off = (size_t)(11
+                                + (use_pair ? 1 : 0)
+                                + (use_floor ? 1 : 0)) * n_active;
+                float *mc_step  = step_state + mc_off;
+                float *x_post   = traj + (size_t)(k + 1) * n_active * 3;
+                float *xpre_buf = (float *)[bXpre contents];
+                for (uint32_t i = 0; i < n_active * 3u; i++) {
+                    xpre_buf[i] = x_post[i] - mc_step[i];
+                }
+                memcpy([bGmemCorr contents], [bGx_running contents], pos_b);
+
+                id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
+                [e setComputePipelineState:pso_mem_acc_bw];
+                [e setBuffer:bXpre          offset:0 atIndex:0];
+                [e setBuffer:bMembranes_bw  offset:0 atIndex:1];
+                [e setBuffer:bPmemIdx_bw    offset:0 atIndex:2];
+                [e setBuffer:bGmemCorr      offset:0 atIndex:3];
+                [e setBuffer:bGx_running    offset:0 atIndex:4];   // accumulate
+                [e setBuffer:bNa            offset:0 atIndex:5];
+                [e setBuffer:bNelastic_bw   offset:0 atIndex:6];
+                [e setBuffer:bR0_bw         offset:0 atIndex:7];
+                [e dispatchThreads:MTLSizeMake(n_active,1,1)
+                    threadsPerThreadgroup:MTLSizeMake(64,1,1)];
+                [e endEncoding];
+                // Sync after membrane_bw so subsequent kernels see the
+                // updated bGx_running.
+                [cmd commit]; [cmd waitUntilCompleted];
+                cmd = [ctx.queue commandBuffer];
+            }
+            // (a) update_vel backward: ∂L/∂v_new (=bGv_in) → +bGx_running (∂L/∂x_post_floor), +bGx_old_new (∂L/∂x_old)
             { id<MTLComputeCommandEncoder> e = [cmd computeCommandEncoder];
               [e setComputePipelineState:pso_uvbw];
               [e setBuffer:bGv_in offset:0 atIndex:0];
@@ -1238,6 +1442,8 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         }
     }
     free(all); free(pos_static); free(grad_x_fin);
+    if (mem_tris) free(mem_tris);
+    if (mem_pidx) free(mem_pidx);
     if (sorted_static_buf) free(sorted_static_buf);
     if (cell_start_buf)    free(cell_start_buf);
     if (bond_ij_data) free(bond_ij_data);

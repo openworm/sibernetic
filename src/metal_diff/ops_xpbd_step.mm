@@ -47,14 +47,16 @@ int run_xpbd_step(int argc, char **argv) {
     // visc_pair_coef enables the Sibernetic-equivalent viscosity +
     // surface tension pair-force pass. Default 0 disables it; 1e-4 is
     // Sibernetic's main path coefficient (see sphFluid.cl:602-624).
-    if (argc < 18 || argc > 23) {
+    if (argc < 18 || argc > 39) {
         fprintf(stderr,
             "usage: sib_metal xpbd_step "
             "<n_active> <n_static> <h> <mass> <rho_rest> <dt> <gravity_y> "
             "<floor_y> <alpha_density> <n_iters> "
             "<pos_active.bin> <vel_active.bin> <pos_static.bin> "
             "<n_bonds> <bonds.bin> <alpha_dist> [bench_steps] [sim_scale] "
-            "[visc_pair_coef] [spring_K] [restitution]\n"
+            "[visc_pair_coef] [spring_K] [restitution] "
+            "[n_membranes] [n_elastic] [r0] [membranes.bin] [pmem_index.bin] "
+            "[n_anchors] [anchors.bin] [pressure_k]\n"
             "       (outputs written to /tmp/xpbd_{pos,vel}_out.bin)\n"
             "       bonds.bin format: per bond, [int32 i, int32 j, "
             "float32 rest_len, float32 _pad] (16 bytes each)\n"
@@ -62,7 +64,13 @@ int run_xpbd_step(int argc, char **argv) {
             "       the rigid XPBD distance constraint (Sibernetic mode).\n"
             "       spring_K = elasticityCoefficient * sim_scale\n"
             "       (Sibernetic default: 3e8 * 7.4e-6 = 2220).\n"
-            "       restitution ∈ [0,1]: floor elasticity (default 0).\n");
+            "       restitution ∈ [0,1]: floor elasticity (default 0).\n"
+            "       n_membranes > 0 enables membrane interaction (M10):\n"
+            "         membranes.bin: [n_membranes, 3] int32 vertex IDs\n"
+            "                        in active-buffer local indexing\n"
+            "         pmem_index.bin: [n_elastic*7] int32 incident-tri\n"
+            "                         indices per elastic, -1 sentinel\n"
+            "         r0: membrane neighbor radius (Sibernetic uses h/2)\n");
         return 1;
     }
     uint32_t n_active = (uint32_t)atoi(argv[2]);
@@ -90,11 +98,50 @@ int run_xpbd_step(int argc, char **argv) {
     float spring_K       = (argc >= 22) ? (float)atof(argv[21]) : 0.0f;
     bool use_springs     = spring_K != 0.0f;
     float restitution    = (argc >= 23) ? (float)atof(argv[22]) : 0.0f;
+    // M10 membrane interaction (off when n_membranes==0).
+    uint32_t n_membranes = (argc >= 24) ? (uint32_t)atoi(argv[23]) : 0u;
+    uint32_t n_elastic   = (argc >= 25) ? (uint32_t)atoi(argv[24]) : 0u;
+    float r0_mem         = (argc >= 26) ? (float)atof(argv[25]) : 0.0f;
+    const char *path_membranes = (argc >= 27) ? argv[26] : NULL;
+    const char *path_pmem_idx  = (argc >= 28) ? argv[27] : NULL;
+    bool use_membranes = (n_membranes > 0) && (n_elastic > 0)
+                         && path_membranes && path_pmem_idx
+                         && (r0_mem > 0.0f);
+    // M11 boundary anchor springs (off when n_anchors == 0).
+    uint32_t n_anchors = (argc >= 29) ? (uint32_t)atoi(argv[28]) : 0u;
+    const char *path_anchors = (argc >= 30) ? argv[29] : NULL;
+    bool use_anchors = (n_anchors > 0) && path_anchors;
+    // M12 SPH pressure force (counter to surface-tension cohesion).
+    float pressure_k = (argc >= 31) ? (float)atof(argv[30]) : 0.0f;
+    bool use_pressure = pressure_k > 0.0f;
+    // Anchor stiffness — separate from bond stiffness so sheets can flex
+    // at edges while internal bonds stay rigid. 0 means use spring_K.
+    float anchor_k_in = (argc >= 32) ? (float)atof(argv[31]) : 0.0f;
+    float anchor_k = (anchor_k_in > 0.0f) ? anchor_k_in : spring_K;
+    // Velocity clamp magnitude (m/s) — caps |v| to prevent CFL-violating
+    // teleport past boundary walls. 0 = disabled.
+    float vel_clamp = (argc >= 33) ? (float)atof(argv[32]) : 0.0f;
+    bool use_vel_clamp = vel_clamp > 0.0f;
+    // Box clamp: 6 args xmin xmax ymin ymax zmin zmax. Activates when
+    // xmax > xmin (sentinel = all zeros = disabled).
+    float box_min[3] = {0,0,0}, box_max[3] = {0,0,0};
+    bool use_box_clamp = false;
+    if (argc >= 39) {
+        box_min[0] = (float)atof(argv[33]);
+        box_max[0] = (float)atof(argv[34]);
+        box_min[1] = (float)atof(argv[35]);
+        box_max[1] = (float)atof(argv[36]);
+        box_min[2] = (float)atof(argv[37]);
+        box_max[2] = (float)atof(argv[38]);
+        use_box_clamp = box_max[0] > box_min[0];
+    }
+    // Anchors are only meaningful when springs are on (uses spring_K).
+    bool need_ext_accel_with_anchors = (use_anchors && (spring_K != 0.0f));
     // Springs replace the rigid XPBD distance constraint when on.
     bool use_xpbd_bonds  = (n_bonds > 0) && !use_springs;
     // Springs feed into the same ext_accel buffer as pair_forces, so
     // we need the apply_ext_accel scaffolding even if pair_forces is off.
-    bool need_ext_accel  = use_pair_forces || use_springs;
+    bool need_ext_accel  = use_pair_forces || use_springs || need_ext_accel_with_anchors || use_pressure;
     // Sibernetic-equivalent precomputed amps (see owPhysicsConstant.h).
     // h_scaled = h * sim_scale; divgradWviscoCoeff = 45/(π·h_s^6);
     // surfTensCoeff = mass·Wpoly6Coef·sim_scale; Wpoly6Coef = 315/(64π·h_s^9).
@@ -166,6 +213,41 @@ int run_xpbd_step(int argc, char **argv) {
         fclose(f);
     }
 
+    // Load anchor data if enabled (8 floats per anchor, see shaders.metal).
+    float *anchors_data = NULL;
+    if (use_anchors) {
+        size_t anchor_bytes = (size_t)n_anchors * 8 * sizeof(float);
+        FILE *fa = fopen(path_anchors, "rb");
+        if (!fa) { fprintf(stderr, "cannot open %s\n", path_anchors); exit(1); }
+        anchors_data = (float *)malloc(anchor_bytes);
+        if (fread(anchors_data, 1, anchor_bytes, fa) != anchor_bytes) {
+            fprintf(stderr, "short read on %s\n", path_anchors); exit(1);
+        }
+        fclose(fa);
+    }
+
+    // Load membrane topology if enabled.
+    int32_t *mem_tris = NULL;
+    int32_t *mem_pidx = NULL;
+    if (use_membranes) {
+        size_t tris_bytes = (size_t)n_membranes * 3 * sizeof(int32_t);
+        size_t pidx_bytes = (size_t)n_elastic * 7 * sizeof(int32_t);
+        FILE *f1 = fopen(path_membranes, "rb");
+        if (!f1) { fprintf(stderr, "cannot open %s\n", path_membranes); exit(1); }
+        mem_tris = (int32_t *)malloc(tris_bytes);
+        if (fread(mem_tris, 1, tris_bytes, f1) != tris_bytes) {
+            fprintf(stderr, "short read on %s\n", path_membranes); exit(1);
+        }
+        fclose(f1);
+        FILE *f2 = fopen(path_pmem_idx, "rb");
+        if (!f2) { fprintf(stderr, "cannot open %s\n", path_pmem_idx); exit(1); }
+        mem_pidx = (int32_t *)malloc(pidx_bytes);
+        if (fread(mem_pidx, 1, pidx_bytes, f2) != pidx_bytes) {
+            fprintf(stderr, "short read on %s\n", path_pmem_idx); exit(1);
+        }
+        fclose(f2);
+    }
+
     @autoreleasepool {
         MetalCtx ctx = make_ctx();
 
@@ -198,6 +280,21 @@ int run_xpbd_step(int argc, char **argv) {
             ? make_pso(ctx, "apply_ext_accel") : nil;
         id<MTLComputePipelineState> pso_spring      = use_springs
             ? make_pso(ctx, "spring_bonds_force") : nil;
+        id<MTLComputePipelineState> pso_anchor      = (use_anchors && use_springs)
+            ? make_pso(ctx, "spring_anchor_force") : nil;
+        id<MTLComputePipelineState> pso_pressure    = use_pressure
+            ? make_pso(ctx, "pressure_force_grid") : nil;
+        id<MTLComputePipelineState> pso_clampv      = use_vel_clamp
+            ? make_pso(ctx, "clamp_velocity") : nil;
+        id<MTLComputePipelineState> pso_clampbox    = use_box_clamp
+            ? make_pso(ctx, "clamp_to_box") : nil;
+        // M10 membrane PSOs (compiled only when use_membranes).
+        id<MTLComputePipelineState> pso_mem_clear   = use_membranes
+            ? make_pso(ctx, "clear_membrane_correction") : nil;
+        id<MTLComputePipelineState> pso_mem_acc     = use_membranes
+            ? make_pso(ctx, "accumulate_membrane_correction") : nil;
+        id<MTLComputePipelineState> pso_mem_apply   = use_membranes
+            ? make_pso(ctx, "apply_membrane_correction") : nil;
 
         size_t pos_a_bytes = (size_t)n_active * 3 * sizeof(float);
         size_t pos_s_bytes = (size_t)n_static * 3 * sizeof(float);
@@ -254,6 +351,48 @@ int run_xpbd_step(int argc, char **argv) {
                   options:MTLResourceStorageModeShared] : nil;
         id<MTLBuffer> bufSpringK = use_springs
             ? [ctx.device newBufferWithBytes:&spring_K length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        // Anchor buffers (only when use_anchors AND use_springs).
+        id<MTLBuffer> bufAnchors = (use_anchors && use_springs)
+            ? [ctx.device newBufferWithBytes:anchors_data
+                  length:(size_t)n_anchors * 8 * sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufNanchors = (use_anchors && use_springs)
+            ? [ctx.device newBufferWithBytes:&n_anchors length:sizeof(uint32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufPressureK = use_pressure
+            ? [ctx.device newBufferWithBytes:&pressure_k length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufAnchorK = (use_anchors && use_springs)
+            ? [ctx.device newBufferWithBytes:&anchor_k length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufVelClamp = use_vel_clamp
+            ? [ctx.device newBufferWithBytes:&vel_clamp length:sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufBoxMin = use_box_clamp
+            ? [ctx.device newBufferWithBytes:box_min length:3*sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufBoxMax = use_box_clamp
+            ? [ctx.device newBufferWithBytes:box_max length:3*sizeof(float)
+                  options:MTLResourceStorageModeShared] : nil;
+        // M10 membrane buffers.
+        id<MTLBuffer> bufMembranes = use_membranes
+            ? [ctx.device newBufferWithBytes:mem_tris
+                  length:(size_t)n_membranes * 3 * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufPmemIdx   = use_membranes
+            ? [ctx.device newBufferWithBytes:mem_pidx
+                  length:(size_t)n_elastic * 7 * sizeof(int32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufMemCorr   = use_membranes
+            ? [ctx.device newBufferWithLength:pos_a_bytes
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufNelastic  = use_membranes
+            ? [ctx.device newBufferWithBytes:&n_elastic
+                  length:sizeof(uint32_t)
+                  options:MTLResourceStorageModeShared] : nil;
+        id<MTLBuffer> bufR0        = use_membranes
+            ? [ctx.device newBufferWithBytes:&r0_mem length:sizeof(float)
                   options:MTLResourceStorageModeShared] : nil;
 
         // Bond buffers: layout in memory is [int32 i, int32 j, float32 rest, float32 pad]
@@ -398,6 +537,41 @@ int run_xpbd_step(int argc, char **argv) {
                     threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
                 [enc endEncoding];
             }
+            if (use_anchors && use_springs) {
+                // Sheet anchors: elastic→boundary bonds. Without these,
+                // sheets fall under gravity and collapse to floor.
+                id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                [enc setComputePipelineState:pso_anchor];
+                [enc setBuffer:bufPosOld   offset:0 atIndex:0];
+                [enc setBuffer:bufAnchors  offset:0 atIndex:1];
+                [enc setBuffer:bufExtAccel offset:0 atIndex:2];
+                [enc setBuffer:bufAnchorK  offset:0 atIndex:3];
+                [enc setBuffer:bufNanchors offset:0 atIndex:4];
+                [enc setBuffer:bufNa       offset:0 atIndex:5];
+                [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                [enc endEncoding];
+            }
+            if (use_pressure) {
+                // SPH pressure force counters surface-tension cohesion
+                // (M12). Uses density from PREVIOUS step (one-step lag,
+                // acceptable since density changes slowly per step).
+                id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                [enc setComputePipelineState:pso_pressure];
+                [enc setBuffer:bufPosOld    offset:0 atIndex:0];
+                [enc setBuffer:bufDens      offset:0 atIndex:1];
+                [enc setBuffer:bufExtAccel  offset:0 atIndex:2];
+                [enc setBuffer:bufH         offset:0 atIndex:3];
+                [enc setBuffer:bufH2        offset:0 atIndex:4];
+                [enc setBuffer:bufMass      offset:0 atIndex:5];
+                [enc setBuffer:bufSimScale  offset:0 atIndex:6];
+                [enc setBuffer:bufRho       offset:0 atIndex:7];
+                [enc setBuffer:bufPressureK offset:0 atIndex:8];
+                [enc setBuffer:bufNa        offset:0 atIndex:9];
+                [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                [enc endEncoding];
+            }
             if (need_ext_accel) {
                 id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
                 [enc setComputePipelineState:pso_apply_ext];
@@ -521,6 +695,12 @@ int run_xpbd_step(int argc, char **argv) {
             }
 
             // ── 3. update_velocities ──
+            // Note: must run BEFORE membrane apply so velocity is computed
+            // from the post-floor (pre-membrane) position. Otherwise the
+            // membrane's position bump (~r0/2 per step) gets converted into
+            // a huge velocity injection (delta/dt) that rockets liquid into
+            // space. Membrane is a position-only soft constraint here; it
+            // doesn't change momentum.
             {
                 id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
                 [enc setComputePipelineState:pso_updvel];
@@ -533,6 +713,73 @@ int run_xpbd_step(int argc, char **argv) {
                 [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
                     threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
                 [enc endEncoding];
+            }
+            // ── 3.1 Velocity clamp ── prevents CFL teleport past walls.
+            if (use_vel_clamp) {
+                id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                [enc setComputePipelineState:pso_clampv];
+                [enc setBuffer:bufVel       offset:0 atIndex:0];
+                [enc setBuffer:bufVelClamp  offset:0 atIndex:1];
+                [enc setBuffer:bufNa        offset:0 atIndex:2];
+                [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                [enc endEncoding];
+            }
+            // ── 3.2 Box clamp ── hard wall — particles outside sim box
+            // get pushed back to the boundary face with zeroed normal velocity.
+            if (use_box_clamp) {
+                id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                [enc setComputePipelineState:pso_clampbox];
+                [enc setBuffer:bufPosPred offset:0 atIndex:0];
+                [enc setBuffer:bufVel     offset:0 atIndex:1];
+                [enc setBuffer:bufBoxMin  offset:0 atIndex:2];
+                [enc setBuffer:bufBoxMax  offset:0 atIndex:3];
+                [enc setBuffer:bufNa      offset:0 atIndex:4];
+                [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                [enc endEncoding];
+            }
+
+            // ── 3.5 Membrane interaction (M10) ──
+            // Runs LAST in the step (after update_velocities) so it acts
+            // as a position-only correction. The pos buffer at this point
+            // is x_post_floor; we accumulate mem_corr based on those
+            // positions and then add it. update_velocities already saw
+            // x_post_floor so velocity is unaffected by the bump.
+            if (use_membranes) {
+                {
+                    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                    [enc setComputePipelineState:pso_mem_clear];
+                    [enc setBuffer:bufMemCorr offset:0 atIndex:0];
+                    [enc setBuffer:bufNa      offset:0 atIndex:1];
+                    [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [enc endEncoding];
+                }
+                {
+                    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                    [enc setComputePipelineState:pso_mem_acc];
+                    [enc setBuffer:bufPosPred   offset:0 atIndex:0];
+                    [enc setBuffer:bufMembranes offset:0 atIndex:1];
+                    [enc setBuffer:bufPmemIdx   offset:0 atIndex:2];
+                    [enc setBuffer:bufMemCorr   offset:0 atIndex:3];
+                    [enc setBuffer:bufNa        offset:0 atIndex:4];
+                    [enc setBuffer:bufNelastic  offset:0 atIndex:5];
+                    [enc setBuffer:bufR0        offset:0 atIndex:6];
+                    [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [enc endEncoding];
+                }
+                {
+                    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                    [enc setComputePipelineState:pso_mem_apply];
+                    [enc setBuffer:bufPosPred offset:0 atIndex:0];
+                    [enc setBuffer:bufMemCorr offset:0 atIndex:1];
+                    [enc setBuffer:bufNa      offset:0 atIndex:2];
+                    [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [enc endEncoding];
+                }
             }
 
             [cmd commit];
@@ -560,6 +807,9 @@ int run_xpbd_step(int argc, char **argv) {
     free(pos_active_init); free(vel_active_init); free(pos_static);
     free(sorted_static); free(cell_start);
     if (bonds_raw) free(bonds_raw);
+    if (mem_tris) free(mem_tris);
+    if (mem_pidx) free(mem_pidx);
+    if (anchors_data) free(anchors_data);
     return 0;
 }
 

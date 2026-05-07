@@ -49,6 +49,44 @@ def run_chunk(args, info, pos_in, vel_in, n_steps):
            f"{args.visc_pair_coef:.15e}",
            f"{args.spring_k:.15e}",
            f"{args.restitution:.6f}"]
+    # Append M10 membrane args if enabled and config has membranes.
+    use_mem = (not args.no_membranes) and info.get('n_membranes', 0) > 0
+    if use_mem:
+        r0 = args.mem_r0 if args.mem_r0 > 0 else (args.h * 0.5)
+        cmd.extend([str(info['n_membranes']),
+                    str(info['n_elastic']),
+                    f"{r0:.15e}",
+                    info['paths']['membranes'],
+                    info['paths']['pmem_index']])
+    else:
+        # Skip membrane args but reserve slots so anchor args land at right argv index.
+        # The CLI is positional. If membranes are off but anchors are on, we still
+        # need to pass placeholder membrane args first.
+        if (not args.no_anchors) and info.get('n_anchors', 0) > 0:
+            cmd.extend(['0', '0', '0.0', '/tmp/_unused.bin', '/tmp/_unused.bin'])
+    # M11 boundary anchor springs.
+    use_anc = (not args.no_anchors) and info.get('n_anchors', 0) > 0
+    if use_anc:
+        cmd.extend([str(info['n_anchors']), info['paths']['anchors']])
+    elif args.pressure_k > 0:
+        # Reserve anchor slots so pressure_k lands at right position
+        cmd.extend(['0', '/tmp/_unused.bin'])
+    if args.pressure_k > 0:
+        cmd.append(f"{args.pressure_k:.15e}")
+    elif args.anchor_k > 0:
+        cmd.append('0')   # placeholder to advance to anchor_k position
+    if args.anchor_k > 0:
+        cmd.append(f"{args.anchor_k:.15e}")
+    elif args.vel_clamp > 0:
+        cmd.append('0')   # placeholder for anchor_k
+    if args.vel_clamp > 0:
+        cmd.append(f"{args.vel_clamp:.15e}")
+    elif args.box_clamp:
+        cmd.append('0')   # placeholder for vel_clamp
+    if args.box_clamp:
+        # Pass box bounds [xmin, xmax, ymin, ymax, zmin, zmax]
+        for v in info['box']:
+            cmd.append(f"{v:.6f}")
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"xpbd_step failed: {r.stderr[:300]}")
@@ -77,8 +115,15 @@ def main():
     ap.add_argument('--h', type=float, default=3.34)
     ap.add_argument('--mass', type=float, default=2e-12)
     ap.add_argument('--sim-scale', type=float, default=7.4e-6)
-    ap.add_argument('--rho-rest', type=float, default=1000.0,
-                    help="rest density (kg/m³); Sibernetic uses 1000 (water).")
+    ap.add_argument('--rho-rest', type=float, default=8e-13,
+                    help="rest density (kg/sim_unit³, NOT kg/m³). For demo2 "
+                         "the natural liquid-only density is ~2.5e-13. Setting "
+                         "rho_rest = 8e-13 means the density constraint only "
+                         "fires when liquid encounters elastic neighbors (i.e. "
+                         "compressed against a sheet). This produces the "
+                         "membrane vs porous behavior: liquid flows through "
+                         "elastic gaps until it accumulates against a "
+                         "membraned region. Tunable per scenario.")
     ap.add_argument('--alpha-dens', type=float, default=1e-3)
     ap.add_argument('--alpha-dist', type=float, default=3.3e-9)
     ap.add_argument('--visc-pair-coef', type=float, default=5e-5)
@@ -88,6 +133,35 @@ def main():
                     help="floor restitution coefficient e ∈ [0,1]; "
                          "0=inelastic clamp (legacy), 1=perfectly elastic bounce")
     ap.add_argument('--out', default='/tmp/metal_position_buffer.txt')
+    ap.add_argument('--no-membranes', action='store_true',
+                    help="disable M10 membrane interaction even if config "
+                         "has [membranes] (default: enabled when present)")
+    ap.add_argument('--mem-r0', type=float, default=0.0,
+                    help="membrane neighbor radius (sim units). Default 0 "
+                         "→ uses h/2 (Sibernetic convention).")
+    ap.add_argument('--no-anchors', action='store_true',
+                    help="disable M11 boundary anchor springs even if config "
+                         "has elastic→boundary bonds (default: on)")
+    ap.add_argument('--pressure-k', type=float, default=0.0,
+                    help="M12 SPH pressure stiffness. 0 = disabled. "
+                         "Counters surface-tension cohesion; required for "
+                         "non-bunching liquid behavior with pair forces on. "
+                         "Try 1e-3 to 1e1 range and SGD-tune.")
+    ap.add_argument('--anchor-k', type=float, default=0.0,
+                    help="Boundary anchor spring stiffness. 0 = use spring_k. "
+                         "Lower than spring_k lets sheets flex at edges while "
+                         "internal bonds stay rigid (matches OpenCL elastic "
+                         "sheet behavior).")
+    ap.add_argument('--vel-clamp', type=float, default=1.0,
+                    help="Maximum velocity magnitude (m/s). Caps velocity to "
+                         "prevent CFL-violating teleport past boundary walls. "
+                         "0 = disabled. Default 1.0 ≈ CFL number 0.8 for "
+                         "h=3.34, sim_scale=7.4e-6, dt=2e-5.")
+    ap.add_argument('--box-clamp', action='store_true', default=True,
+                    help="Hard-clamp particles to sim box (xmin..zmax read "
+                         "from config). Prevents impact-event ejection from "
+                         "permanently escaping the simulation. Default ON.")
+    ap.add_argument('--no-box-clamp', dest='box_clamp', action='store_false')
     args = ap.parse_args()
 
     sys.path.insert(0, HERE)
@@ -109,7 +183,13 @@ def main():
     # Active buffer ordering: elastic (0..n_elastic-1) + liquid (n_elastic..n_active-1).
     # Static buffer: boundary in original order.
     pos_active = pos_all[types < 3.0, :3].astype(np.float32)
-    vel_active = np.zeros_like(pos_active)
+    # Use the config's initial velocities, NOT zero. Sibernetic configs
+    # encode v_init per particle (e.g. demo2 liquids start with v_y=-0.027
+    # m/s). Zeroing means liquid lags real OpenCL behaviour by ~2× in fall
+    # rate. cfg['vel'] has [vx, vy, vz, type] per particle; we want the
+    # active subset's xyz components only.
+    vel_all = cfg['vel'][:, :3].astype(np.float32)
+    vel_active = vel_all[types < 3.0].astype(np.float32)
     pos_static = pos_all[types >= 3.0, :3].astype(np.float32)
     static_types = types[types >= 3.0]
     active_types = types[types < 3.0]
@@ -135,6 +215,19 @@ def main():
     else:
         print(f"  uniform: chunks of {args.chunk}")
     print(f"  rho={args.rho_rest:.3e} K={args.spring_k:.1f} v={args.visc_pair_coef:.3e}")
+    use_mem = (not args.no_membranes) and info.get('n_membranes', 0) > 0
+    if use_mem:
+        r0 = args.mem_r0 if args.mem_r0 > 0 else (args.h * 0.5)
+        print(f"  M10 membranes: ON ({info['n_membranes']} triangles, r0={r0:.3f})")
+    else:
+        print(f"  M10 membranes: OFF (n_membranes={info.get('n_membranes', 0)}, "
+              f"--no-membranes={args.no_membranes})")
+    use_anc = (not args.no_anchors) and info.get('n_anchors', 0) > 0
+    if use_anc:
+        print(f"  M11 anchors:   ON ({info['n_anchors']} elastic→boundary bonds)")
+    else:
+        print(f"  M11 anchors:   OFF (n_anchors={info.get('n_anchors', 0)}, "
+              f"--no-anchors={args.no_anchors})")
     print(f"  Output: {args.out}")
 
     snapshots = [pos_active.copy()]   # frame 0

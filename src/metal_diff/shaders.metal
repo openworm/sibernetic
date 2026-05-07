@@ -517,6 +517,79 @@ kernel void pair_forces_grid(
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// pressure_force_grid — SPH pressure force (Becker & Teschner WCSPH).
+// Counters surface-tension cohesion that otherwise causes liquid blobs
+// to compress (bunching). Mirrors what PCISPH does in OpenCL through
+// its iterative pressure-density-correction loop.
+//
+// Per particle i with current density ρ_i:
+//   p_i = max(0, k_pressure * (ρ_i - ρ_rest))   (linear Tait-like)
+// Per neighbor pair (i, j) within r < h:
+//   F_i += -m * (p_i + p_j) / (2 * ρ_j) * gradW_spiky(r_ij) * unit_dir
+// where gradW_spiky_magnitude = -45/(π · h_scaled^6) * (h_scaled - r_scaled)²
+// and unit_dir = (p_i - p_j) / r_unit (particle units).
+//
+// The key difference from XPBD's density constraint: this is a smooth
+// FORCE (m/s² added to ext_accel) applied every step, not a positional
+// projection. It acts continuously to keep particles apart whenever
+// density exceeds rest, providing the counterbalance that makes
+// surface tension non-collapsing in PCISPH.
+// ──────────────────────────────────────────────────────────────────────
+kernel void pressure_force_grid(
+    device const packed_float3 *active_pos      [[buffer(0)]],
+    device const float         *density         [[buffer(1)]],
+    device packed_float3       *ext_accel       [[buffer(2)]],   // accumulate
+    constant float             &h               [[buffer(3)]],
+    constant float             &h2              [[buffer(4)]],
+    constant float             &mass            [[buffer(5)]],
+    constant float             &sim_scale       [[buffer(6)]],
+    constant float             &rho_rest        [[buffer(7)]],
+    constant float             &pressure_k      [[buffer(8)]],
+    constant uint              &n_active        [[buffer(9)]],
+    uint i                                       [[thread_position_in_grid]])
+{
+    if (i >= n_active) return;
+    float rho_i = max(density[i], 1e-30f);
+    float p_i_pressure = max(0.0f, pressure_k * (rho_i - rho_rest));
+    if (p_i_pressure == 0.0f) {
+        // No compressive pressure to project — nothing for this particle
+        // to push others away with. Still leave ext_accel unchanged.
+        return;
+    }
+    float3 pos_i = float3(active_pos[i]);
+    float3 force = float3(0.0);
+    float h_scaled = h * sim_scale;
+    float h_s6 = h_scaled * h_scaled * h_scaled * h_scaled * h_scaled * h_scaled;
+    float spiky_grad_coef = -45.0f / ((float)M_PI_F * h_s6);
+
+    for (uint j = 0; j < n_active; j++) {
+        if (j == i) continue;
+        float3 pos_j = float3(active_pos[j]);
+        float3 dij = pos_i - pos_j;
+        float r2 = dot(dij, dij);
+        if (r2 >= h2 || r2 < 1e-12) continue;
+        float r_unit = sqrt(r2);
+        float r_scaled = r_unit * sim_scale;
+        float h_minus_r = h_scaled - r_scaled;
+        // Spiky gradient magnitude (without sign — sign applied via dir).
+        // Standard SPH: ∇W_spiky = -45/(π h^6) * (h-r)² · unit_dir
+        // The gradient points from j to i, magnitude (h-r)² · spiky_coef.
+        float kernel_grad_mag = spiky_grad_coef * h_minus_r * h_minus_r;
+
+        float rho_j = max(density[j], 1e-30f);
+        float p_j_pressure = max(0.0f, pressure_k * (rho_j - rho_rest));
+
+        // Symmetric pressure: F_i_from_j = -m * (p_i + p_j) / (2·ρ_j) · ∇W
+        // (This is the simplest stable form; Müller 2003.)
+        float coef = -mass * (p_i_pressure + p_j_pressure) / (2.0f * rho_j) * kernel_grad_mag;
+        force += coef * (dij / r_unit);
+    }
+
+    // Convert force → acceleration (a = F/m). Add to ext_accel.
+    ext_accel[i] = packed_float3(float3(ext_accel[i]) + force / mass);
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // spring_bonds_force — Hooke-style elastic bond forces for the
 // Sibernetic body model. Per active particle i, walks all bonds and
 // accumulates per-bond acceleration into ext_accel.
@@ -575,6 +648,49 @@ kernel void spring_bonds_force(
     }
 
     ext_accel[i] = packed_float3(float3(ext_accel[i]) + a_i);
+}
+
+// spring_anchor_force — Hooke spring from elastic particles to FIXED
+// boundary positions. The Sibernetic config encodes elastic→boundary
+// connections in the same [connection] table as elastic→elastic
+// bonds. These are sheet anchors: without them, sheets fall under
+// gravity. The anchor record format (8 floats per anchor):
+//   [int i, int pad0, float ax, float ay, float az, float rest, pad, pad]
+// We pack as `device const float4*` × 2 so each anchor is read as two
+// float4s. anchor[2k+0] = (i_as_float, pad, ax, ay), anchor[2k+1] =
+// (az, rest, pad, pad). Easier: use packed_float8 (not native), so
+// we just stride by 8 floats and pull fields out.
+kernel void spring_anchor_force(
+    device const packed_float3 *active_pos      [[buffer(0)]],
+    device const float         *anchors         [[buffer(1)]],   // 8 floats per anchor
+    device packed_float3       *ext_accel       [[buffer(2)]],
+    constant float             &spring_K        [[buffer(3)]],
+    constant uint              &n_anchors       [[buffer(4)]],
+    constant uint              &n_active        [[buffer(5)]],
+    uint gid                                     [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    float3 p_i = float3(active_pos[gid]);
+    float3 a_i = float3(0.0);
+
+    for (uint k = 0; k < n_anchors; k++) {
+        // Layout: [i_int, pad_int, ax, ay, az, rest, pad, pad]
+        // First 4 bytes are int — read as int by reinterpreting.
+        int anchor_i = as_type<int>(anchors[k * 8 + 0]);
+        if (anchor_i != (int)gid) continue;
+        float ax = anchors[k * 8 + 2];
+        float ay = anchors[k * 8 + 3];
+        float az = anchors[k * 8 + 4];
+        float L  = anchors[k * 8 + 5];
+        float3 p_a = float3(ax, ay, az);
+        float3 dir = p_i - p_a;
+        float r = length(dir);
+        if (r < 1e-7) continue;
+        float delta = r - L;
+        a_i += -spring_K * delta * dir / r;
+    }
+
+    ext_accel[gid] = packed_float3(float3(ext_accel[gid]) + a_i);
 }
 
 // spring_bonds_force_backward — gradient of ext_accel w.r.t. positions
@@ -1813,6 +1929,55 @@ kernel void update_velocities(
     vel[gid] = packed_float3(dx * sim_scale / dt);
 }
 
+// Velocity magnitude clamp — prevents CFL-violating velocities from
+// teleporting particles past the boundary walls in one timestep.
+// CFL-stable speed: h * sim_scale / dt. For h=3.34, sim_scale=7.4e-6,
+// dt=2e-5: ~1.24 m/s. We want a safety factor so v_max should be
+// less than that. Default 1.0 m/s gives CFL number ~0.8.
+kernel void clamp_velocity(
+    device packed_float3       *vel        [[buffer(0)]],
+    constant float             &v_max      [[buffer(1)]],
+    constant uint              &n          [[buffer(2)]],
+    uint gid                                [[thread_position_in_grid]])
+{
+    if (gid >= n) return;
+    float3 v = float3(vel[gid]);
+    float speed = length(v);
+    if (speed > v_max && speed > 0.0f) {
+        vel[gid] = packed_float3(v * (v_max / speed));
+    }
+}
+
+// Hard position clamp to the simulation box. Active particles outside
+// box bounds get clamped to the boundary face AND have their velocity
+// component perpendicular to that face zeroed (inelastic wall impact).
+// Prevents impact-event ejection from cascading into permanent escape.
+kernel void clamp_to_box(
+    device packed_float3       *pos        [[buffer(0)]],
+    device packed_float3       *vel        [[buffer(1)]],
+    constant packed_float3     &box_min    [[buffer(2)]],
+    constant packed_float3     &box_max    [[buffer(3)]],
+    constant uint              &n          [[buffer(4)]],
+    uint gid                                [[thread_position_in_grid]])
+{
+    if (gid >= n) return;
+    float3 p = float3(pos[gid]);
+    float3 v = float3(vel[gid]);
+    float3 bmin = float3(box_min);
+    float3 bmax = float3(box_max);
+    bool changed = false;
+    if (p.x < bmin.x) { p.x = bmin.x; v.x = max(v.x, 0.0f); changed = true; }
+    if (p.x > bmax.x) { p.x = bmax.x; v.x = min(v.x, 0.0f); changed = true; }
+    if (p.y < bmin.y) { p.y = bmin.y; v.y = max(v.y, 0.0f); changed = true; }
+    if (p.y > bmax.y) { p.y = bmax.y; v.y = min(v.y, 0.0f); changed = true; }
+    if (p.z < bmin.z) { p.z = bmin.z; v.z = max(v.z, 0.0f); changed = true; }
+    if (p.z > bmax.z) { p.z = bmax.z; v.z = min(v.z, 0.0f); changed = true; }
+    if (changed) {
+        pos[gid] = packed_float3(p);
+        vel[gid] = packed_float3(v);
+    }
+}
+
 // Utility — Element-wise add: dst += src.
 // Used in the XPBD step to combine active-active and active-static
 // densities into a single density vector before constraint projection.
@@ -2151,4 +2316,267 @@ kernel void apply_membrane_correction(
 {
     if (gid >= n_active) return;
     pos[gid] = packed_float3(float3(pos[gid]) + float3(mem_corr[gid]));
+}
+
+// ────────────────────────────────────────────────────────────────────
+// M10 backwards. Three kernels mirror the three forwards.
+//
+//   clear_membrane_correction:        no inputs from physics state →
+//                                     no backward kernel needed (the
+//                                     forward overwrite breaks any
+//                                     gradient chain through it).
+//
+//   apply_membrane_correction:        pos_post = pos_pre + mem_corr.
+//                                     Linear, so backward is identity:
+//                                       ∂L/∂pos_pre  = ∂L/∂pos_post
+//                                       ∂L/∂mem_corr = ∂L/∂pos_post
+//
+//   accumulate_membrane_correction:   the hard one — gradient flows
+//                                     through plane projection,
+//                                     unit-normal averaging, and
+//                                     Ihmsen weighting. See derivation
+//                                     in the kernel comment below.
+// ────────────────────────────────────────────────────────────────────
+
+// M10.2.bw — Backward for apply_membrane_correction. Trivial split
+// of the upstream gradient onto pos_pre and a fresh mem_corr-grad
+// buffer. Both outputs are accumulated.
+kernel void apply_membrane_correction_backward(
+    device const packed_float3 *grad_pos_post   [[buffer(0)]],
+    device packed_float3       *grad_pos_pre    [[buffer(1)]],   // accumulate
+    device packed_float3       *grad_mem_corr   [[buffer(2)]],   // accumulate
+    constant uint              &n_active        [[buffer(3)]],
+    uint gid                                     [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    float3 g = float3(grad_pos_post[gid]);
+    grad_pos_pre[gid]  = packed_float3(float3(grad_pos_pre[gid])  + g);
+    grad_mem_corr[gid] = packed_float3(float3(grad_mem_corr[gid]) + g);
+}
+
+// M10.1.bw — Backward for accumulate_membrane_correction.
+//
+// Forward (per liquid I, gid >= n_elastic):
+//   For each elastic neighbor n with dist_n = ||pos[I] - pos[n]|| < r0:
+//     For each incident triangle t = (va, vb, vc) of elastic n:
+//       n_v_t = (pb - pa) × (pc - pa)        triangle (non-unit) normal
+//       alpha_t = <pos[I] - pa, n_v_t> / <n_v_t, n_v_t>
+//       pos_p_t = pos[I] - n_v_t · alpha_t   plane projection
+//       n_t     = pos[I] - pos_p_t           = n_v_t · alpha_t
+//       contrib_t = n_t / ||n_t||            unit normal toward I
+//     jd_normal[n] = mean of contrib_t over valid triangles
+//     w_n = max(0, (r0 - dist_n) / r0)
+//   N_I  = Σ_n w_n · jd_normal[n]
+//   W_I  = Σ_n w_n
+//   W2_I = Σ_n w_n · (r0 - dist_n)
+//   delta_I = (N_I / ||N_I||) · (W2_I / W_I)
+//   mem_corr[I] += delta_I
+//
+// Each backward thread (per active k) scans all liquids, recomputes
+// the forward, identifies whether k is the liquid (k == I), an elastic
+// neighbor (k == n), or a triangle vertex (k ∈ {va,vb,vc} of some
+// triangle of some n that's a neighbor of I), and accumulates the
+// matching VJP into grad_pos[k].
+//
+// Brute-force per-thread scan: O(n_liquid · n_elastic · 7) per thread,
+// fine at demo1 scale. Phase 6 will swap in a spatial-grid version
+// for demo2.
+kernel void accumulate_membrane_correction_backward(
+    device const packed_float3 *pos          [[buffer(0)]],   // [n_active]
+    device const int           *membranes    [[buffer(1)]],   // [n_membranes, 3]
+    device const int           *pmem_idx     [[buffer(2)]],   // [n_elastic, 7]
+    device const packed_float3 *grad_corr    [[buffer(3)]],   // [n_active] upstream
+    device packed_float3       *grad_pos     [[buffer(4)]],   // [n_active] accumulate
+    constant uint              &n_active     [[buffer(5)]],
+    constant uint              &n_elastic    [[buffer(6)]],
+    constant float             &r0           [[buffer(7)]],
+    uint kk                                   [[thread_position_in_grid]])
+{
+    if (kk >= n_active) return;
+    float3 dp_k = float3(0.0);
+
+    // Outer scan: each liquid particle I that may have written into mem_corr.
+    for (uint I = n_elastic; I < n_active; I++) {
+        float3 G_I = float3(grad_corr[I]);
+        if (dot(G_I, G_I) == 0.0) continue;
+
+        float3 pi = float3(pos[I]);
+
+        // ---- Forward recompute (mirrors accumulate_membrane_correction) ----
+        // Pre-pass to fix N_I, W_I, W2_I, jd_normal[n], jd_dist[n].
+        // Bounded by MAX_NBR_HITS (32).
+        float3 jd_normal[MAX_NBR_HITS];
+        float  jd_dist  [MAX_NBR_HITS];
+        uint   jd_elast [MAX_NBR_HITS];   // elastic neighbor index
+        int    jd_count = 0;
+        float3 N_I = float3(0.0);
+        float  W_I = 0.0;
+        float  W2_I = 0.0;
+
+        for (uint j = 0; j < n_elastic; j++) {
+            if (jd_count >= MAX_NBR_HITS) break;
+            float3 pj = float3(pos[j]);
+            float3 dij = pi - pj;
+            float r2 = dot(dij, dij);
+            if (r2 >= r0 * r0) continue;
+            if (r2 < 1e-12) continue;
+            float dist = sqrt(r2);
+
+            float3 normal_acc = float3(0.0);
+            int ijk_count = 0;
+            for (int slot = 0; slot < MAX_INCIDENT; slot++) {
+                int mdi = pmem_idx[j * MAX_INCIDENT + slot];
+                if (mdi < 0) break;
+                int v0 = membranes[mdi * 3 + 0];
+                int v1 = membranes[mdi * 3 + 1];
+                int v2 = membranes[mdi * 3 + 2];
+                if (v0 < 0 || v1 < 0 || v2 < 0) continue;
+                if ((uint)v0 >= n_active || (uint)v1 >= n_active || (uint)v2 >= n_active) continue;
+
+                float3 pa = float3(pos[v0]);
+                float3 pb = float3(pos[v1]);
+                float3 pc = float3(pos[v2]);
+                float3 pos_p;
+                bool ok = project_to_plane(pi, pa, pb, pc, pos_p);
+                if (!ok) continue;
+                float3 n_t = pi - pos_p;
+                float n_len2 = dot(n_t, n_t);
+                if (n_len2 < 1e-12) continue;
+                float n_len = sqrt(n_len2);
+                normal_acc += n_t / n_len;
+                ijk_count++;
+            }
+            if (ijk_count > 0) {
+                float w = max(0.0f, (r0 - dist) / r0);
+                jd_normal[jd_count] = normal_acc / float(ijk_count);
+                jd_dist  [jd_count] = dist;
+                jd_elast [jd_count] = j;
+                N_I  += w * jd_normal[jd_count];
+                W_I  += w;
+                W2_I += w * (r0 - dist);
+                jd_count++;
+            }
+        }
+        if (jd_count == 0) continue;
+        float N_norm2 = dot(N_I, N_I);
+        if (N_norm2 < 1e-12 || W_I < 1e-9) continue;
+        float N_norm = sqrt(N_norm2);
+        float3 N_hat = N_I / N_norm;
+        float W_ratio = W2_I / W_I;
+
+        // ---- Upstream chain through delta = N_hat · W_ratio ----
+        // ∂L/∂N_I (3-vec): (W_ratio / N_norm) · (G_I - N_hat·<N_hat,G_I>)
+        float gI_dot_Nhat = dot(G_I, N_hat);
+        float3 G_N_I = (W_ratio / N_norm) * (G_I - N_hat * gI_dot_Nhat);
+        // ∂L/∂W2 = <G_I, N_hat>/W_I; ∂L/∂W = -W_ratio·<G_I, N_hat>/W_I
+        float G_W2 = gI_dot_Nhat / W_I;
+        float G_W  = -W_ratio * gI_dot_Nhat / W_I;
+
+        // Path A: contributions to dp_k from k==I (liquid) and from
+        // each neighbor's dist (k==I and k==jd_elast[n]).
+        // Pi gets contributions from every n's dist_n + every triangle's
+        // pos_p path (handled below in the per-triangle inner loop).
+
+        // ---- Per-elastic-neighbor inner loop for VJP ----
+        // For k != I and k not == any jd_elast and k not a triangle vertex
+        // of any of these neighbors, dp_k contribution is 0; cheap continue.
+        for (int n = 0; n < jd_count; n++) {
+            uint j = jd_elast[n];
+            float dist = jd_dist[n];
+            float w = max(0.0f, (r0 - dist) / r0);
+            // ∂L/∂jd_normal[n] (vec) = w · G_N_I
+            float3 G_jd_normal = w * G_N_I;
+            // ∂L/∂w_n total = <jd_normal[n], G_N_I> + G_W + G_W2 · (r0 - dist)
+            float G_w = dot(jd_normal[n], G_N_I) + G_W + G_W2 * (r0 - dist);
+            // ∂L/∂dist_n total = -G_w / r0  -  G_W2 · w
+            float G_dist = -G_w / r0 - G_W2 * w;
+            // dist = ||pi - pj|| → ∂dist/∂pi = unit, ∂dist/∂pj = -unit
+            float3 pj = float3(pos[j]);
+            float3 unit_dij = (pi - pj) / dist;
+            // Path: dist contribution
+            if (kk == I) dp_k += G_dist * unit_dij;
+            if (kk == j) dp_k -= G_dist * unit_dij;
+
+            // ---- Per-triangle VJP ----
+            int ijk_count = 0;
+            // Re-walk to count valid triangles (need ijk_count for divide).
+            for (int slot = 0; slot < MAX_INCIDENT; slot++) {
+                int mdi = pmem_idx[j * MAX_INCIDENT + slot];
+                if (mdi < 0) break;
+                int v0 = membranes[mdi * 3 + 0];
+                int v1 = membranes[mdi * 3 + 1];
+                int v2 = membranes[mdi * 3 + 2];
+                if (v0 < 0 || v1 < 0 || v2 < 0) continue;
+                if ((uint)v0 >= n_active || (uint)v1 >= n_active || (uint)v2 >= n_active) continue;
+                float3 pa = float3(pos[v0]);
+                float3 pb = float3(pos[v1]);
+                float3 pc = float3(pos[v2]);
+                float3 pos_p;
+                if (!project_to_plane(pi, pa, pb, pc, pos_p)) continue;
+                float3 n_t = pi - pos_p;
+                float n_len2 = dot(n_t, n_t);
+                if (n_len2 < 1e-12) continue;
+                ijk_count++;
+            }
+            if (ijk_count == 0) continue;
+            // Now do gradient accumulation per triangle.
+            for (int slot = 0; slot < MAX_INCIDENT; slot++) {
+                int mdi = pmem_idx[j * MAX_INCIDENT + slot];
+                if (mdi < 0) break;
+                int v0 = membranes[mdi * 3 + 0];
+                int v1 = membranes[mdi * 3 + 1];
+                int v2 = membranes[mdi * 3 + 2];
+                if (v0 < 0 || v1 < 0 || v2 < 0) continue;
+                if ((uint)v0 >= n_active || (uint)v1 >= n_active || (uint)v2 >= n_active) continue;
+                float3 pa = float3(pos[v0]);
+                float3 pb = float3(pos[v1]);
+                float3 pc = float3(pos[v2]);
+                float3 pos_p;
+                if (!project_to_plane(pi, pa, pb, pc, pos_p)) continue;
+                float3 n_t = pi - pos_p;
+                float n_len2 = dot(n_t, n_t);
+                if (n_len2 < 1e-12) continue;
+                float n_len = sqrt(n_len2);
+                float3 contrib_t = n_t / n_len;
+                // ∂L/∂contrib_t = G_jd_normal / ijk_count
+                float3 G_contrib = G_jd_normal / float(ijk_count);
+                // ∂L/∂n_t (unit-vector chain rule)
+                //   = (G_contrib - contrib·<contrib,G_contrib>) / n_len
+                float3 G_nt = (G_contrib - contrib_t * dot(contrib_t, G_contrib)) / n_len;
+                // n_t = pi - pos_p_t
+                //   ∂n_t/∂pi = +I → contributes +G_nt to dp_pi
+                //   ∂n_t/∂pos_p_t = -I → contributes -G_nt to dp_pos_p_t
+                if (kk == I) dp_k += G_nt;
+                float3 G_p = -G_nt;  // ∂L/∂pos_p_t
+
+                // ---- VJP through project_to_plane(pi, pa, pb, pc) → pos_p_t ----
+                // Reconstruct n_v, alpha, nn for VJP formulas (matches forward).
+                float3 d_b = pb - pa;
+                float3 d_c = pc - pa;
+                float3 n_v = cross(d_b, d_c);
+                float nn = dot(n_v, n_v);
+                if (nn < 1e-9) continue;   // degenerate triangle (matches forward skip)
+                float s = dot(pi - pa, n_v);
+                float alpha = s / nn;
+
+                float nv_dot_Gp = dot(n_v, G_p);
+                float3 dp_pi  = G_p - n_v * (nv_dot_Gp / nn);
+
+                // G_n_v = -alpha · G_p + (nv_dot_Gp / nn) · (2·alpha·n_v - (pi - pa))
+                float3 G_n_v = -alpha * G_p
+                              + (nv_dot_Gp / nn) * (2.0f * alpha * n_v - (pi - pa));
+
+                float3 dp_pa = n_v * (nv_dot_Gp / nn) + cross(G_n_v, pc - pb);
+                float3 dp_pb = cross(pc - pa, G_n_v);
+                float3 dp_pc = cross(G_n_v, pb - pa);
+
+                if (kk == I)        dp_k += dp_pi;
+                if ((int)kk == v0)  dp_k += dp_pa;
+                if ((int)kk == v1)  dp_k += dp_pb;
+                if ((int)kk == v2)  dp_k += dp_pc;
+            }
+        }
+    }
+
+    grad_pos[kk] = packed_float3(float3(grad_pos[kk]) + dp_k);
 }
