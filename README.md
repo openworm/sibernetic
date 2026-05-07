@@ -9,57 +9,57 @@ module for external muscle activating signals generation and input) as part of
 the [OpenWorm team](http://www.openworm.org/people.html). It is primarily
 written in C++ and OpenCL, with 3D visualization built on OpenGL.
 
-### Preview: demo1 cube drop, OpenCL (left) vs native Metal (right)
+## Demo previews — OpenCL gold standard vs native Metal substrate
 
-![Cube-drop comparison, first 25 ms](docs/cube_drop_demo1_25ms.gif)
+![Four backend-comparison demos: demo1 cube drop, demo2 membrane permeability, one_sprig_test, worm_alone_half_resolution](docs/sibernetic_demos_combined.gif)
 
-The cube falls under gravity, lands at ~7 ms, and settles by ~16 ms.
-Both backends produce visually similar trajectories; quantitative parity
-metrics and remaining gaps are documented below. See "Quickstart: render
-the demo1 cube drop" to regenerate this. Higher-quality MP4:
-[`docs/cube_drop_demo1_25ms.mp4`](docs/cube_drop_demo1_25ms.mp4).
+| Scenario | What it tests | Detailed writeup |
+|---|---|---|
+| `demo1` cube drop | dense liquid + elastic shell, 218 elastic particles | [`docs/demos.md#demo1-cube-drop`](docs/demos.md#demo1-cube-drop) |
+| `demo2` membrane permeability | impermeable vs porous sheet, 4 732 liquid + 2 812 elastic | [`docs/demos.md#demo2-membrane-permeability`](docs/demos.md#demo2-membrane-permeability) |
+| `one_sprig_test` | smallest elasticity unit-test, single spring on a fixed anchor | [`docs/demos.md#one_sprig_test`](docs/demos.md#one_sprig_test) |
+| `worm_alone_half_resolution` | smallest worm config, 2 290 worm-elastic + membranes + gut liquid | [`docs/demos.md#worm_alone_half_resolution`](docs/demos.md#worm_alone_half_resolution) |
 
-### Preview: demo2 membrane permeability — OpenCL (top) vs native Metal (bottom)
+Each demo has its own dedicated MP4 (link above) with quantitative
+parity metrics, the SGD-tuned Metal parameters used to match OpenCL,
+and a `Regenerate locally` block.
 
-![demo2: liquid drops onto a half-membraned sheet; both backends now retain the membrane half and pass through the porous half](docs/demo2_v9_sgd_perm.gif)
+## Quickstart: run a demo comparison
 
-A single elastic sheet sits at `y=90.6` spanning `x ∈ [3.3, 130.3]`.
-The left half (x < ~60) has a mesh of 2 112 membrane triangles
-connecting 1 122 of the 2 812 elastic particles; the right half has the
-same particle layout but no triangles. 4 732 liquid particles drop from
-above, half over each side. Result: liquid pools on top of the
-membraned half (liquid-impermeable) and passes through the porous half
-(no surface-tension barrier). 42 ms of sim, top OpenCL, bottom native
-Metal substrate at SGD-tuned parameters (`spring_k=2697`,
-`anchor_k=12177`, `rho_rest=8e-13`).
+To reproduce any of the four demo MP4s on Apple Silicon you need
+both binaries and Python.
 
-The native Metal substrate **now implements membranes** (M10 forward
-analytic + backward FD-validated, M11 boundary anchor springs, M12 SPH
-pressure dynamics, M13 box-wall clamp). See ["Recent development:
-porting demo2 to the native Metal substrate"](#recent-development-porting-demo2-to-the-native-metal-substrate)
-below for the full chronology of what was needed.
+```bash
+# 1. Build both binaries
+./setup.sh                            # main Sibernetic (OpenCL)
+cd src/metal_diff && ./build.sh && cd ../..
 
-Higher-quality MP4: [`docs/demo2_v9_sgd_perm.mp4`](docs/demo2_v9_sgd_perm.mp4).
-OpenCL gold-standard reference: [`docs/demo2_membranes_opencl.mp4`](docs/demo2_membranes_opencl.mp4).
+# 2. Pick a demo scenario from configuration/ (demo1, demo2,
+#    one_sprig_test, etc.) and dump a Metal trajectory.
+.venv/bin/python src/metal_diff/dump_metal_trajectory.py \
+    --scenario demo1 --steps 1250 --chunk 5 \
+    --rho-rest 1000.0 --visc-pair-coef 5e-5 --spring-k 5500 \
+    --floor-y 2.0 --restitution 0.0 \
+    --out /tmp/metal_demo1.txt
 
-### Preview: one_sprig_test single elastic on a spring — OpenCL (left) vs native Metal (right)
+# 3. Get the OpenCL gold-standard trajectory the same way (Linux
+#    machine with a working OpenCL driver):
+#       ./Release/Sibernetic -no_g -f demo1 -l_to timelimit=0.025 logstep=20
+#    Sibernetic writes position_buffer.txt; copy back to /tmp/opencl_demo1.txt.
 
-![one_sprig_test: a single elastic particle oscillates on a spring tied to a fixed anchor; both backends produce visually identical motion](docs/one_sprig_opencl_vs_metal.gif)
+# 4. Render side-by-side (use scripts/render_demo1_parity.py for demo1,
+#    src/metal_diff/render_one_sprig.py for one_sprig_test,
+#    src/metal_diff/render_worm.py for worm scenarios)
+.venv/bin/python scripts/render_demo1_parity.py \
+    docs/cube_drop_demo1_25ms.mp4 \
+    /tmp/opencl_demo1.txt /tmp/metal_demo1.txt \
+    --samples 60 --t-max 0.025 --uniform --hide-liquid \
+    --fps 15 --particle-radius 0.7
+```
 
-The smallest possible elasticity scenario: a single elastic particle at
-`(17.535, 20.04, 17.535)` is held by one spring (rest length 14.195) to
-a fixed boundary anchor at `(17.535, 32.565, 17.535)`. With no other
-forces it oscillates vertically at the spring's natural frequency,
-~1379 Hz, with x and z stationary. 5 ms of sim, OpenCL on the left,
-native Metal substrate on the right; both panels show identical y at
-every frame (e.g. `y = 18.606` at `t = 2.000 ms`).
-
-This is the cleanest unit-test for the substrate's elastic-spring
-machinery. The same `anchor_k = 555` falls out of both backends from
-the OpenCL elasticity coefficient (`4 × 1.5e-4 / mass = 3e8`) times the
-0.25 non-worm-body factor (`sphFluid.cl:730`) times the simulation
-scale (`sim_scale = 0.0041`). Higher-quality MP4:
-[`docs/one_sprig_opencl_vs_metal.mp4`](docs/one_sprig_opencl_vs_metal.mp4).
+Per-demo parameter recipes and rendering commands live in
+[`docs/demos.md`](docs/demos.md). The substrate's CLI flags are
+documented in `src/metal_diff/dump_metal_trajectory.py --help`.
 
 ## Two solver paths
 
@@ -356,57 +356,25 @@ Physical algorithms supported across both paths:
 - Surface tension (PCISPH only — Metal exposes the same kernel
   contribution as a tunable `visc_pair_coef`)
 
-There are two demo configurations:
+Demo configurations available in `configuration/`:
 
-1. `configuration/demo1` — an elastic cube containing liquid, dropping under
-   gravity onto a boundary floor. Used for parity testing.
-2. `configuration/demo2` — two membrane sheets attached to boundaries; one
+1. `demo1` — an elastic cube containing liquid, dropping under
+   gravity onto a boundary floor. Used for cube-drop parity testing.
+2. `demo2` — two membrane sheets attached to boundaries; one
    liquid-impermeable, one not.
+3. `one_sprig_test` — a single elastic particle on one spring tied
+   to a fixed boundary anchor; the smallest possible elasticity unit
+   test.
+4. `worm_alone_half_resolution` — the smallest worm-scale config:
+   2 290 worm-elastic + 388 gut-liquid + 2 838 membrane triangles.
+5. Larger worm variants — `worm_swim_half_resolution`,
+   `worm_crawl_half_resolution`, etc. (see `configuration/`).
 
-Press `1` or `2` in the GUI to switch. `Space` pauses.
-
-## Quickstart: render the demo1 cube drop
-
-A pre-rendered side-by-side comparison MP4 (OpenCL gold standard vs the
-native Metal substrate, demo1 first 25 ms) is bundled at
-[`docs/cube_drop_demo1_25ms.mp4`](docs/cube_drop_demo1_25ms.mp4) — click to
-download/play in the GitHub web UI.
-
-To regenerate it locally on Apple Silicon:
-
-```bash
-# 1. Build both binaries
-./setup.sh                            # main Sibernetic (OpenCL build path)
-cd src/metal_diff && ./build.sh       # native Metal sib_metal binary
-cd ../..
-
-# 2. Run the Metal substrate on demo1 for 25 ms (1250 steps), dump the
-#    resulting trajectory in Sibernetic position_buffer.txt format
-.venv/bin/python src/metal_diff/dump_metal_trajectory.py \
-    --scenario demo1 --steps 1250 --chunk 5 --dt 2e-5 \
-    --rho-rest 1000.0 --visc-pair-coef 5e-5 --spring-k 5500 \
-    --floor-y 2.0 --restitution 0.0 \
-    --out /tmp/metal_demo1.txt
-
-# 3. Get the OpenCL gold-standard trajectory. Run on a Linux machine
-#    with a working OpenCL driver:
-#       ./Release/Sibernetic -no_g -f demo1 -l_to timelimit=0.025 logstep=20
-#    The position_buffer.txt that Sibernetic writes is the input format
-#    render_demo1_parity.py consumes.
-
-# 4. Render side-by-side comparison MP4
-.venv/bin/python scripts/render_demo1_parity.py \
-    docs/cube_drop_demo1_25ms.mp4 \
-    /tmp/opencl_demo1.txt /tmp/metal_demo1.txt \
-    --samples 60 --t-max 0.025 --uniform --hide-liquid \
-    --fps 15 --particle-radius 0.7
-```
-
-The output is a 60-frame, 4-second MP4 of the cube falling and landing,
-with both backends side-by-side. Both should show roughly the same
-behaviour: cube starts centered at `y=44`, falls under gravity, lands at
-~7 ms, and settles by ~16 ms with negligible horizontal drift in this
-window.
+In the OpenCL GUI binary, press `1` or `2` to switch demos. `Space`
+pauses. For the Metal substrate, pass `--scenario <name>` to
+`src/metal_diff/dump_metal_trajectory.py`. End-to-end recipes for
+each demo, including the SGD-tuned Metal parameters, live in
+[`docs/demos.md`](docs/demos.md).
 
 ## Parity status and caveats vs OpenCL
 
