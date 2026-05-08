@@ -143,7 +143,8 @@ void build_static_grid(
     const float *pos_static_in, uint32_t n_static, float h,
     float **sorted_static_out, int **cell_start_out,
     GridDim3 *grid_dim_out, GridOrigin3 *grid_origin_out,
-    int *n_cells_out)
+    int *n_cells_out,
+    const float *aux_in, float **sorted_aux_out)
 {
     if (n_static == 0) {
         *sorted_static_out = NULL;
@@ -191,8 +192,14 @@ void build_static_grid(
     int *cell_start = (int *)calloc((size_t)(n_cells + 1), sizeof(int));
     for (uint32_t i = 0; i < n_static; i++) cell_start[cell_ids[i] + 1]++;
     for (int c = 1; c <= n_cells; c++) cell_start[c] += cell_start[c - 1];
-    // Scatter into sorted output.
+    // Scatter into sorted output. Optionally scatter a parallel aux
+    // array (e.g. boundary normals) using the same permutation so it
+    // stays index-aligned with sorted_static.
     float *sorted_static = (float *)malloc((size_t)n_static * 3 * sizeof(float));
+    float *sorted_aux = NULL;
+    if (aux_in != NULL && sorted_aux_out != NULL) {
+        sorted_aux = (float *)malloc((size_t)n_static * 3 * sizeof(float));
+    }
     int *write_pos = (int *)calloc((size_t)n_cells, sizeof(int));
     for (uint32_t i = 0; i < n_static; i++) {
         int c = cell_ids[i];
@@ -200,9 +207,15 @@ void build_static_grid(
         sorted_static[dst*3+0] = pos_static_in[i*3+0];
         sorted_static[dst*3+1] = pos_static_in[i*3+1];
         sorted_static[dst*3+2] = pos_static_in[i*3+2];
+        if (sorted_aux) {
+            sorted_aux[dst*3+0] = aux_in[i*3+0];
+            sorted_aux[dst*3+1] = aux_in[i*3+1];
+            sorted_aux[dst*3+2] = aux_in[i*3+2];
+        }
     }
     free(cell_ids); free(write_pos);
     *sorted_static_out = sorted_static;
     *cell_start_out = cell_start;
+    if (sorted_aux_out) *sorted_aux_out = sorted_aux;
 }
 

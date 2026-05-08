@@ -90,15 +90,17 @@ def run_metal(scenario, params, n_steps, chunk, tag):
         "--steps", str(n_steps),
         "--chunk", str(chunk),
         "--rho-rest", f"{params['rho_rest']:.6e}",
+        "--alpha-dens", f"{params.get('alpha_dens', 1e-3):.6e}",
         "--visc-pair-coef", f"{params['visc']:.6e}",
         "--spring-k", f"{params['spring_K']:.6f}",
         "--anchor-k", f"{params['anchor_k']:.6f}",
         "--alpha-dist", f"{params['alpha_dist']:.6e}",
-        "--floor-y", str(params.get('floor_y', 0)),
-        "--vel-clamp", "0",
-        "--no-box-clamp",
+        "--floor-y", f"{params.get('floor_y', 0):.4f}",
+        "--vel-clamp", f"{params.get('vel_clamp', 0):.4f}",
         "--out", out,
     ]
+    if not params.get('box_clamp', True):
+        cmd.append('--no-box-clamp')
     if not params.get('membranes', True):
         cmd.append("--no-membranes")
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=str(REPO))
@@ -107,10 +109,17 @@ def run_metal(scenario, params, n_steps, chunk, tag):
     return out
 
 
-def fd_grad(scenario, base_params, target_traj, n_e, key, eps=0.05, **run_kwargs):
-    """Centered FD on log(param[key])."""
-    p_p = dict(base_params); p_p[key] = base_params[key] * np.exp(eps)
-    p_m = dict(base_params); p_m[key] = base_params[key] * np.exp(-eps)
+def fd_grad(scenario, base_params, target_traj, n_e, key, eps=0.05,
+            log_space=True, **run_kwargs):
+    """Centered FD. If log_space, perturb param multiplicatively (log-space
+    gradient); otherwise add/subtract eps directly (linear-space gradient)."""
+    p_p = dict(base_params); p_m = dict(base_params)
+    if log_space:
+        p_p[key] = base_params[key] * np.exp(eps)
+        p_m[key] = base_params[key] * np.exp(-eps)
+    else:
+        p_p[key] = base_params[key] + eps
+        p_m[key] = max(0.0, base_params[key] - eps)
     out_p = run_metal(scenario, p_p, tag=f'fd_p_{key}', **run_kwargs)
     out_m = run_metal(scenario, p_m, tag=f'fd_m_{key}', **run_kwargs)
     L_p = loss_vs_opencl(parse_traj(out_p)[0], target_traj, n_e)
@@ -135,8 +144,28 @@ def main():
     ap.add_argument('--init-rho-rest', type=float, default=1000.0)
     ap.add_argument('--init-visc', type=float, default=5e-5)
     ap.add_argument('--init-alpha-dist', type=float, default=3.3e-9)
+    ap.add_argument('--init-alpha-dens', type=float, default=1e-3,
+                    help='XPBD compliance for the density constraint. '
+                         '1e-3 (default) = soft, almost off; 1e3 = solver '
+                         'fires hard each iter, mimics PCISPH behavior.')
+    ap.add_argument('--init-floor-y', type=float, default=0.0)
+    ap.add_argument('--init-vel-clamp', type=float, default=0.0)
+    ap.add_argument('--box-clamp', action='store_true', default=True,
+                    help='enable box clamp (default on; disable with --no-box-clamp)')
+    ap.add_argument('--no-box-clamp', dest='box_clamp', action='store_false')
     ap.add_argument('--trainable', default='spring_K,rho_rest,visc',
-                    help='comma-separated subset of {spring_K,anchor_k,rho_rest,visc,alpha_dist}')
+                    help='comma-separated subset of {spring_K,anchor_k,rho_rest,visc,alpha_dist,floor_y,vel_clamp}')
+    ap.add_argument('--linear-trainable', default='floor_y,vel_clamp',
+                    help='subset of trainable that updates LINEARLY (not log-space). '
+                         'Use for bounded params like floor_y where exp() blows up. '
+                         'Each gets a separate FD eps interpreted as additive.')
+    ap.add_argument('--linear-fd-eps', type=float, default=0.5,
+                    help='FD eps for linear-trainable params (additive). '
+                         'Smaller for floor_y (bounded), larger for unbounded.')
+    ap.add_argument('--linear-lr', type=float, default=0.05,
+                    help='lr for linear-trainable updates (additive step size cap).')
+    ap.add_argument('--max-linear-step', type=float, default=2.0,
+                    help='max additive step per linear param per iter')
     ap.add_argument('--history-out', default='/tmp/sgd_worm_history.json')
     args = ap.parse_args()
 
@@ -149,11 +178,16 @@ def main():
         'rho_rest': args.init_rho_rest,
         'visc': args.init_visc,
         'alpha_dist': args.init_alpha_dist,
-        'floor_y': 0,
+        'alpha_dens': args.init_alpha_dens,
+        'floor_y': args.init_floor_y,
+        'vel_clamp': args.init_vel_clamp,
+        'box_clamp': args.box_clamp,
         'membranes': True,
     }
-    trainable = args.trainable.split(',')
-    print(f'Trainable: {trainable}')
+    trainable = [k for k in args.trainable.split(',') if k]
+    linear_set = set(k for k in args.linear_trainable.split(',') if k) & set(trainable)
+    print(f'Trainable (log-space): {[k for k in trainable if k not in linear_set]}')
+    print(f'Trainable (linear-space): {sorted(linear_set)}')
 
     history = []
     best_L = float('inf'); best_params = dict(params)
@@ -182,27 +216,64 @@ def main():
 
         line = (f'[step {it}] L={L:.4e}{star}  ' +
                 ' '.join(f'{k}={params[k]:.4g}' for k in trainable))
-        print(line)
+        print(line, flush=True)
 
         # FD over each trainable
         grads = {}
         for k in trainable:
+            log_space = (k not in linear_set)
+            eps = args.fd_eps if log_space else args.linear_fd_eps
             try:
                 g = fd_grad(args.scenario, params, target_traj, n_e, k,
-                             eps=args.fd_eps, n_steps=args.n_steps,
-                             chunk=args.chunk)
+                             eps=eps, log_space=log_space,
+                             n_steps=args.n_steps, chunk=args.chunk)
                 grads[k] = g
             except RuntimeError as e:
                 print(f'  FD {k} failed: {e}'); grads[k] = 0
         elapsed = time.perf_counter() - t0
-        print(f'  grads={grads}  ({elapsed:.1f}s)')
+        print(f'  grads={grads}  ({elapsed:.1f}s)', flush=True)
 
         history.append({'step': it, 'L': L, 'params': dict(params), 'grads': grads})
-        # Step in log space (clipped)
+        # Persist history every iter so we don't lose progress on crash
+        with open(args.history_out, 'w') as f:
+            json.dump(history, f, indent=2, default=str)
+
+        # Detect oscillation: if loss went UP from prev step AND prev step's
+        # grad sign for any trainable flipped relative to current, we're
+        # bouncing across the optimum. Halve lrs and damp the next step.
+        # Without this, steep loss surfaces produce limit cycles like
+        # fy=3.76 ↔ fy=4.76 (worm_swim diagnostic 2026-05-07).
+        oscillating = False
+        if len(history) >= 2:
+            prev = history[-2]
+            if L > prev['L']:
+                for k in trainable:
+                    g_prev = prev['grads'].get(k, 0)
+                    g_now = grads.get(k, 0)
+                    if g_prev * g_now < 0:
+                        oscillating = True
+                        break
+        if oscillating:
+            # On oscillation, take a damped half-step toward where the prev
+            # iter started (which had a better L by definition).
+            print(f'  [oscillation detected — halving step]', flush=True)
+            damping = 0.5
+        else:
+            damping = 1.0
+
+        # Update params: log-space step for unbounded, linear-step for bounded
         for k in trainable:
-            g = max(-10, min(10, grads.get(k, 0)))
-            params[k] = float(params[k] * np.exp(-args.lr * g))
-            params[k] = max(params[k], 1e-12)
+            g = grads.get(k, 0)
+            if k in linear_set:
+                # Linear update: clip step magnitude to ±max_linear_step
+                step = -args.linear_lr * g * damping
+                step = max(-args.max_linear_step, min(args.max_linear_step, step))
+                params[k] = float(max(0.0, params[k] + step))
+            else:
+                # Log-space update: clip log-grad to ±10 (multiplier ≤ exp(lr·10))
+                g_clip = max(-10, min(10, g))
+                params[k] = float(params[k] * np.exp(-args.lr * g_clip * damping))
+                params[k] = max(params[k], 1e-12)
 
         if L < 1e-3:
             print(f'\n[CONVERGED at L={L:.2e}]')

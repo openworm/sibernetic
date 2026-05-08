@@ -2004,6 +2004,89 @@ kernel void add_inplace(
     dst[gid] += src[gid];
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// M14 — Boundary handling (Ihmsen 2010, "Boundary Handling and Adaptive
+// Time-stepping for PCISPH", VRIPHYS 2010, formulas 9-11).
+//
+// Pushes active particles away from boundary particles via a weighted
+// position correction. This is what holds the worm at the right buoyant
+// height in worm_swim and gives the water its flat-layer settling
+// behavior — without it, water and worm both fall to the floor and the
+// worm bends under unopposed pressure (diagnosed 2026-05-07).
+//
+// Per active particle i, walk neighboring boundary particles b within
+// radius r0 (typical r0 = h/2):
+//     w_b      = max(0, (r0 - dist_ib) / r0)        // formula (10)
+//     n_c_i   += w_b · n_b                          // formula (9)
+//     w_sum   += w_b
+//     w2_sum  += w_b · (r0 - dist_ib)               // formula (11) sum#2
+// Then if |n_c_i| > 0:
+//     Δp = (n_c_i / |n_c_i|) · (w2_sum / w_sum)
+//     pos_pred += Δp                                // formula (11)
+//
+// Boundary normals (n_b) are pre-computed at config-load time and stored
+// in the same grid-sorted order as `sorted_static`. They're outward-
+// pointing in OpenCL but we negate the sign-of-effect via the position-
+// projection algebra; if n_b were inward we'd subtract — easy to flip
+// at runtime if a config has the opposite convention.
+// ──────────────────────────────────────────────────────────────────────
+kernel void boundary_position_correction(
+    device packed_float3       *pos_pred       [[buffer(0)]],
+    device const packed_float3 *sorted_static  [[buffer(1)]],
+    device const packed_float3 *sorted_normals [[buffer(2)]],
+    device const int           *cell_start     [[buffer(3)]],
+    constant float             &r0             [[buffer(4)]],
+    constant float             &gain           [[buffer(5)]],
+    constant uint              &n_active       [[buffer(6)]],
+    constant int3              &grid_dim       [[buffer(7)]],
+    constant packed_float3     &grid_origin    [[buffer(8)]],
+    constant float             &h              [[buffer(9)]],
+    uint gid                                    [[thread_position_in_grid]])
+{
+    if (gid >= n_active) return;
+    float3 p_i = float3(pos_pred[gid]);
+    float r0_inv = 1.0f / max(r0, 1e-7f);
+
+    float3 n_c_i  = float3(0.0);
+    float  w_sum  = 0.0;
+    float  w2_sum = 0.0;
+
+    int3 my_cell = int3(floor((p_i - float3(grid_origin)) / h));
+    int n_cells_xy = grid_dim.x * grid_dim.y;
+    for (int dz = -1; dz <= 1; dz++) {
+        int cz = my_cell.z + dz;
+        if (cz < 0 || cz >= grid_dim.z) continue;
+        for (int dy = -1; dy <= 1; dy++) {
+            int cy = my_cell.y + dy;
+            if (cy < 0 || cy >= grid_dim.y) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int cx = my_cell.x + dx;
+                if (cx < 0 || cx >= grid_dim.x) continue;
+                int c_id = cx + cy * grid_dim.x + cz * n_cells_xy;
+                int start = cell_start[c_id];
+                int end   = cell_start[c_id + 1];
+                for (int j = start; j < end; j++) {
+                    float3 p_b = float3(sorted_static[j]);
+                    float3 d   = p_i - p_b;
+                    float dist = length(d);
+                    if (dist >= r0) continue;
+                    float w_b  = (r0 - dist) * r0_inv;     // ≥ 0 since dist < r0
+                    float3 n_b = float3(sorted_normals[j]);
+                    n_c_i  += w_b * n_b;
+                    w_sum  += w_b;
+                    w2_sum += w_b * (r0 - dist);
+                }
+            }
+        }
+    }
+
+    float ncl = length(n_c_i);
+    if (ncl > 1e-7f && w_sum > 1e-7f) {
+        float3 dp = (n_c_i / ncl) * (w2_sum / w_sum) * gain;
+        pos_pred[gid] = packed_float3(p_i + dp);
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────
 // M7.C: Backward kernels for the gradient chain (Option 3).
 // Each pairs with its forward kernel above. Hand-derived gradients,

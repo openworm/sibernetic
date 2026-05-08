@@ -66,18 +66,42 @@ def run_chunk(args, info, pos_in, vel_in, n_steps):
             cmd.extend(['0', '0', '0.0', '/tmp/_unused.bin', '/tmp/_unused.bin'])
     # M11 boundary anchor springs.
     use_anc = (not args.no_anchors) and info.get('n_anchors', 0) > 0
+    # Reserve anchor slots if ANY subsequent optional arg needs to land
+    # at the right argv position. C++ reads argv[28..38] = n_anchors,
+    # path_anchors, pressure_k, anchor_k, vel_clamp, box_min[0..2],
+    # box_max[0..2]. If any of these are set, we must emit placeholders
+    # for the slots before them.
+    need_anchor_slots = (use_anc
+                         or args.pressure_k > 0
+                         or args.anchor_k > 0
+                         or args.vel_clamp > 0
+                         or args.box_clamp
+                         or args.muscle_freq > 0
+                         or args.muscle_amp > 0)
     if use_anc:
         cmd.extend([str(info['n_anchors']), info['paths']['anchors']])
-    elif args.pressure_k > 0:
-        # Reserve anchor slots so pressure_k lands at right position
+    elif need_anchor_slots:
         cmd.extend(['0', '/tmp/_unused.bin'])
+
+    need_pressure_slot = (args.pressure_k > 0
+                          or args.anchor_k > 0
+                          or args.vel_clamp > 0
+                          or args.box_clamp
+                          or args.muscle_freq > 0
+                          or args.muscle_amp > 0)
     if args.pressure_k > 0:
         cmd.append(f"{args.pressure_k:.15e}")
-    elif args.anchor_k > 0:
+    elif need_pressure_slot:
         cmd.append('0')   # placeholder to advance to anchor_k position
+
+    need_anchor_k_slot = (args.anchor_k > 0
+                          or args.vel_clamp > 0
+                          or args.box_clamp
+                          or args.muscle_freq > 0
+                          or args.muscle_amp > 0)
     if args.anchor_k > 0:
         cmd.append(f"{args.anchor_k:.15e}")
-    elif args.vel_clamp > 0:
+    elif need_anchor_k_slot:
         cmd.append('0')   # placeholder for anchor_k
     # Optional-arg protocol: every "optional" slot needs either a value
     # OR an explicit '0' placeholder so subsequent args land at the
@@ -95,11 +119,19 @@ def run_chunk(args, info, pos_in, vel_in, n_steps):
     elif need_after_box:
         cmd.extend(['0'] * 6)   # box_clamp placeholder
 
+    need_muscle_slots = (args.muscle_freq > 0 or args.muscle_amp > 0
+                         or args.bound_r0 > 0)
     if args.muscle_freq > 0 or args.muscle_amp > 0:
         cmd.extend([f"{args.muscle_freq:.6f}", f"{args.muscle_amp:.6f}"])
-        # Cumulative-step-based time offset preserves muscle phase across chunks.
         time_offset_s = args.cumulative_steps * args.dt
         cmd.append(f"{time_offset_s:.9e}")
+    elif need_muscle_slots:
+        cmd.extend(['0', '0', '0'])
+
+    if args.bound_r0 > 0:
+        cmd.extend([f"{args.bound_r0:.6e}",
+                    f"{args.bound_gain:.6e}",
+                    info['paths']['static_normals']])
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"xpbd_step failed: {r.stderr[:300]}")
@@ -181,6 +213,12 @@ def main():
     ap.add_argument('--muscle-amp', type=float, default=0.0,
                     help="Active muscle drive fractional amplitude (0..1). "
                          "0.2 = 20 percent rest-length modulation. 0 = passive.")
+    ap.add_argument('--bound-r0', type=float, default=0.0,
+                    help="M14 boundary correction radius (Ihmsen 2010). "
+                         "0 = disabled. Typical: h/2 ≈ 1.67 for default h=3.34.")
+    ap.add_argument('--bound-gain', type=float, default=1.0,
+                    help="M14 boundary response gain (1.0 = literal Ihmsen "
+                         "2010 formula, < 1 = damped, > 1 = stiffer).")
     args = ap.parse_args()
 
     sys.path.insert(0, HERE)

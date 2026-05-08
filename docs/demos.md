@@ -154,6 +154,103 @@ period/half-amplitude loss formulation.
 
 ---
 
+## worm_swim_half_resolution
+
+Same worm body as `worm_alone` (2 290 elastic + 2 838 membrane
+triangles + 388 gut liquid) but immersed in an 80 929-particle water
+bath. 4-panel comparison: top row full worm in 3/4 isometric, bottom
+row side-on closeup. Left column OpenCL, right column native Metal
+substrate. 25 ms passive sim.
+
+Higher-quality MP4 (4-panel grid):
+[`worm_swim_opencl_vs_metal.mp4`](worm_swim_opencl_vs_metal.mp4).
+
+### Tuned parameters (Metal substrate)
+
+- `rho_rest = 4e-13` — set at the natural water density (kg/sim_unit³,
+  measured by computing Wpoly6-summed neighbor density on the initial
+  config). Crossing this threshold from above triggers the XPBD
+  density solver, which gives the worm its buoyancy.
+- `alpha_dens = 1e3` — XPBD compliance for the density constraint.
+  At the default 1e-3 the constraint is too soft and the
+  mass-over-density² denominator term dominates, so the constraint
+  barely fires. 1e3 makes the α/dt² term competitive with the
+  mass term, so each iteration produces a meaningful position
+  correction.
+- `n_iters = 3` — default; 6 iterations gives marginal improvement
+  (L: 12.43 → 11.94) at 2× the wall time.
+- `spring_K = 3500` — same as `worm_alone`. Worm-body bonds.
+- `floor_y = 0.5` — the boundary-particle floor catches the worm
+  before it can sink past y=0.5 in degenerate cases. Not a buoyancy
+  proxy here — the density solver does the lifting.
+- `visc_pair_coef = 5e-5`, `vel_clamp = 50.0`.
+
+### M14 boundary kernel (substrate-level addition this session)
+
+A new Ihmsen 2010 boundary-handling kernel
+(`boundary_position_correction` at `shaders.metal:M14`) was added so
+that boundary normals can push active particles away from walls.
+**It is NOT used for worm_swim** — the buoyancy lift comes from the
+density solver as described above — but the kernel is in place for
+scenarios where wall repulsion matters more than incompressibility.
+Sort-aligned with `sorted_static`; gain and r₀ controllable from the
+CLI (`--bound-r0 1.67 --bound-gain 0.05` typical).
+
+### Parity over 25 ms
+
+| t (ms) | OpenCL `<y_e>` | Metal `<y_e>` | Δ_w | OpenCL `<y_l>` | Metal `<y_l>` | Δ_l |
+|---|---|---|---|---|---|---|
+| 0.0  | 17.766 | 17.766 |  0.000 | 8.068 | 8.068 |  0.000 |
+| 1.0  | 15.608 | 15.089 | -0.519 | 8.034 | 7.493 | -0.540 |
+| 5.0  | 11.001 | 11.564 | +0.563 | 8.107 | 7.540 | -0.568 |
+| 10.0 | 10.454 |  9.694 | -0.760 | 8.108 | 7.480 | -0.629 |
+| 15.0 | 10.650 |  8.650 | -2.000 | 8.082 | 7.537 | -0.545 |
+| 20.0 | 10.795 |  8.576 | -2.219 | 8.066 | 7.656 | -0.410 |
+| 25.0 | 10.852 |  7.713 | -3.139 | 8.055 | 7.661 | -0.394 |
+
+Total mean-squared per-elastic-particle distance over 25 ms: 12.43.
+
+Worm shape preservation (max-span change vs initial):
+- OpenCL: 160.71 → 159.62  (0.7 % shrink)
+- Metal:  160.71 → 157.46  (2.0 % shrink)
+
+The worm is well-shaped throughout — no bending or collapse — but
+sits ~3 sim units lower than OpenCL by 25 ms. The remaining gap is
+the equilibrium-pressure piece: OpenCL's PCISPH iterates pressure
+until density exactly matches `rho_0` per step, building up sustained
+pressure that supports the worm against gravity. Metal's XPBD density
+solver only fires when density *exceeds* `rho_rest`, so steady-state
+pressure is zero and the worm slowly sinks under gravity alone. A
+proper PCISPH-iterative-pressure rewrite of the inner XPBD loop
+would close that gap and is the next worm-config follow-up.
+
+### Regenerate locally
+
+```bash
+# OpenCL: stage config under non-"worm" basename to bypass c302 hook
+cp configuration/worm_swim_half_resolution \
+   /tmp/passive/passive_swim_half_resolution
+./Release/Sibernetic -no_g -f /tmp/passive/passive_swim_half_resolution \
+    -l_to timelimit=0.025 logstep=5
+# → position_buffer.txt; copy back to /tmp/worm_swim_opencl_25ms.txt
+
+# Native Metal — 25 ms
+.venv/bin/python src/metal_diff/dump_metal_trajectory.py \
+    --scenario worm_swim_half_resolution \
+    --steps 1250 --chunk 5 \
+    --rho-rest 4e-13 --alpha-dens 1e3 \
+    --visc-pair-coef 5e-5 \
+    --spring-k 3500 --anchor-k 1 \
+    --alpha-dist 3.3e-9 --floor-y 0.5 \
+    --vel-clamp 50.0 \
+    --out /tmp/worm_swim_metal.txt
+
+# Render the 4 panels (iso + closeup, both backends) — see render
+# script in docs/demos.md → worm_alone_half_resolution.
+```
+
+---
+
 ## worm_alone_half_resolution
 
 Smallest worm config: 2 290 worm-body elastic particles + 2 838

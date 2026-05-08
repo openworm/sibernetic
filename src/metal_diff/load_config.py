@@ -260,7 +260,7 @@ def build_static_grid(positions: np.ndarray, h: float):
     counts = np.bincount(sorted_ids, minlength=n_cells)
     cell_start = np.zeros(n_cells + 1, dtype=np.int32)
     cell_start[1:] = np.cumsum(counts)
-    return sorted_pos, cell_start, grid_dim, box_min.astype(np.float32)
+    return sorted_pos, cell_start, grid_dim, box_min.astype(np.float32), perm
 
 
 def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
@@ -330,9 +330,18 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
             pmem_index = pmem_index[:expected_pmem_len]
 
     # Build static-particle spatial grid (one-time per scenario).
-    sorted_static, cell_start, grid_dim, grid_origin = build_static_grid(
+    sorted_static, cell_start, grid_dim, grid_origin, perm = build_static_grid(
         pos_static, h)
     n_cells = int(grid_dim.prod())
+
+    # Boundary normals (Ihmsen 2010): in Sibernetic configs the boundary
+    # particles' "velocity" entries are repurposed as inward-pointing
+    # surface normals (see sphFluid.cl:791 — "for boundary, non-moving
+    # particles velocity has no sense, but instead we need to store
+    # normal vector"). Write them in PRE-SORT (original-pos-order) so
+    # the C++ build_static_grid can sort them with the SAME permutation
+    # it applies to pos_static. Sorting twice would mis-align them.
+    static_normals_unsorted = cfg['vel'][static_idx, :3].astype(np.float32)
 
     os.makedirs(out_dir, exist_ok=True)
     paths = {
@@ -343,6 +352,7 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
         'anchors':       os.path.join(out_dir, f"{scenario}_anchors.bin"),
         'sorted_static': os.path.join(out_dir, f"{scenario}_sorted_static.bin"),
         'cell_start':    os.path.join(out_dir, f"{scenario}_cell_start.bin"),
+        'static_normals': os.path.join(out_dir, f"{scenario}_static_normals.bin"),
         'membranes':     os.path.join(out_dir, f"{scenario}_membranes.bin"),
         'pmem_index':    os.path.join(out_dir, f"{scenario}_pmem_index.bin"),
     }
@@ -353,6 +363,7 @@ def load_to_metal_buffers(scenario: str, out_dir: str = "/tmp",
     anchors.tofile(paths['anchors'])
     sorted_static.tofile(paths['sorted_static'])
     cell_start.tofile(paths['cell_start'])
+    static_normals_unsorted.tofile(paths['static_normals'])
     membrane_tris.astype(np.int32).tofile(paths['membranes'])
     pmem_index.astype(np.int32).tofile(paths['pmem_index'])
 

@@ -47,7 +47,7 @@ int run_xpbd_step(int argc, char **argv) {
     // visc_pair_coef enables the Sibernetic-equivalent viscosity +
     // surface tension pair-force pass. Default 0 disables it; 1e-4 is
     // Sibernetic's main path coefficient (see sphFluid.cl:602-624).
-    if (argc < 18 || argc > 42) {
+    if (argc < 18 || argc > 45) {
         fprintf(stderr,
             "usage: sib_metal xpbd_step "
             "<n_active> <n_static> <h> <mass> <rho_rest> <dt> <gravity_y> "
@@ -143,6 +143,15 @@ int run_xpbd_step(int argc, char **argv) {
     // across chunked invocations. dump_metal_trajectory.py tracks
     // cumulative steps and passes the offset.
     float time_offset_s = (argc >= 42) ? (float)atof(argv[41]) : 0.0f;
+    // M14 — Boundary handling (Ihmsen 2010). r0 = boundary correction
+    // radius (sim units), gain = response amplitude (1.0 = literal
+    // formula, < 1 = damped, > 1 = stiffer). Path = grid-sorted
+    // boundary normals bin (matches sorted_static order).
+    float bound_r0   = (argc >= 43) ? (float)atof(argv[42]) : 0.0f;
+    float bound_gain = (argc >= 44) ? (float)atof(argv[43]) : 0.0f;
+    const char *path_bound_normals = (argc >= 45) ? argv[44] : NULL;
+    bool use_boundary_corr = (bound_r0 > 0.0f && bound_gain > 0.0f &&
+                              path_bound_normals != NULL);
     // Anchors are only meaningful when springs are on (uses spring_K).
     bool need_ext_accel_with_anchors = (use_anchors && (spring_K != 0.0f));
     // Springs replace the rigid XPBD distance constraint when on.
@@ -198,15 +207,28 @@ int run_xpbd_step(int argc, char **argv) {
     float *vel_active_init = read_floats(path_vel_active, (size_t)n_active * 3);
     float *pos_static      = read_floats(path_pos_static, (size_t)n_static * 3);
 
+    // Boundary normals (Ihmsen 2010). Loaded only when M14 enabled —
+    // un-sorted at this point; build_static_grid sorts them alongside
+    // positions so they stay aligned with sorted_static.
+    float *static_normals_unsorted = NULL;
+    if (use_boundary_corr) {
+        static_normals_unsorted = read_floats(path_bound_normals,
+                                               (size_t)n_static * 3);
+    }
+
     // Build static spatial grid (one-time per process invocation).
     float *sorted_static = NULL;
+    float *sorted_static_normals = NULL;
     int *cell_start = NULL;
     GridDim3 grid_dim_struct;
     GridOrigin3 grid_origin_struct;
     int n_cells = 0;
     build_static_grid(pos_static, n_static, h,
                       &sorted_static, &cell_start,
-                      &grid_dim_struct, &grid_origin_struct, &n_cells);
+                      &grid_dim_struct, &grid_origin_struct, &n_cells,
+                      static_normals_unsorted,
+                      use_boundary_corr ? &sorted_static_normals : NULL);
+    if (static_normals_unsorted) free(static_normals_unsorted);
 
     // Load bonds. Format per bond: [i:int32, j:int32, rest_len:float32, pad:float32]
     // Total 16 bytes per bond. Read raw and unpack.
@@ -296,6 +318,9 @@ int run_xpbd_step(int argc, char **argv) {
             ? make_pso(ctx, "clamp_velocity") : nil;
         id<MTLComputePipelineState> pso_clampbox    = use_box_clamp
             ? make_pso(ctx, "clamp_to_box") : nil;
+        // M14 — Boundary handling (Ihmsen 2010).
+        id<MTLComputePipelineState> pso_boundcorr   = use_boundary_corr
+            ? make_pso(ctx, "boundary_position_correction") : nil;
         // M10 membrane PSOs (compiled only when use_membranes).
         id<MTLComputePipelineState> pso_mem_clear   = use_membranes
             ? make_pso(ctx, "clear_membrane_correction") : nil;
@@ -326,6 +351,15 @@ int run_xpbd_step(int argc, char **argv) {
         id<MTLBuffer> bufCellStart = [ctx.device newBufferWithBytes:cell_start
             length:(size_t)(n_cells + 1) * sizeof(int)
             options:MTLResourceStorageModeShared];
+        // M14 — sorted boundary normals (parallel to sorted_static).
+        id<MTLBuffer> bufSortedNormals = (use_boundary_corr && n_static > 0)
+            ? [ctx.device newBufferWithBytes:sorted_static_normals
+                length:pos_s_bytes options:MTLResourceStorageModeShared]
+            : [ctx.device newBufferWithLength:16 options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufBoundR0   = [ctx.device newBufferWithBytes:&bound_r0
+            length:sizeof(float) options:MTLResourceStorageModeShared];
+        id<MTLBuffer> bufBoundGain = [ctx.device newBufferWithBytes:&bound_gain
+            length:sizeof(float) options:MTLResourceStorageModeShared];
         // Pack grid_dim as int3 (4 ints in metal alignment) and grid_origin as packed_float3.
         int grid_dim_packed[4] = {grid_dim_struct.x, grid_dim_struct.y, grid_dim_struct.z, 0};
         float grid_origin_packed[3] = {grid_origin_struct.x, grid_origin_struct.y, grid_origin_struct.z};
@@ -492,11 +526,14 @@ int run_xpbd_step(int argc, char **argv) {
         id<MTLBuffer> bufNasTot = [ctx.device newBufferWithBytes:&n_as_total length:sizeof(uint32_t)
             options:MTLResourceStorageModeShared];
 
-        // Pair-force step needs a density value at start of step. For
-        // step 0 we have nothing yet, so seed bufDens with rho_rest as
-        // a one-time approximation. Subsequent steps inherit density
-        // from the previous step's last inner-XPBD iteration.
-        if (use_pair_forces) {
+        // Pair-force step AND pressure_force_grid both need a density
+        // value at start of step. For step 0 we have nothing yet, so
+        // seed bufDens with rho_rest as a one-time approximation.
+        // Subsequent steps inherit density from the previous step's
+        // last inner-XPBD iteration. Without this seed, pressure reads
+        // uninitialized memory and NaNs out (diagnosed 2026-05-07 on
+        // worm_swim — visc=0+pressure failed, visc=5e-5+pressure didn't).
+        if (use_pair_forces || use_pressure) {
             float *dens0 = (float *)[bufDens contents];
             for (uint32_t i = 0; i < n_active; i++) dens0[i] = rho_rest;
         }
@@ -690,6 +727,27 @@ int run_xpbd_step(int argc, char **argv) {
                         threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
                     [enc endEncoding];
                 }
+                // i.5 — boundary handling INSIDE the iteration loop
+                // (Ihmsen 2010 §3.2 — applied iteratively as part of
+                // pressure-density correction). Each iteration applies
+                // a fractional correction; converges over n_iters.
+                if (use_boundary_corr) {
+                    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                    [enc setComputePipelineState:pso_boundcorr];
+                    [enc setBuffer:bufPosPred       offset:0 atIndex:0];
+                    [enc setBuffer:bufSortedStatic  offset:0 atIndex:1];
+                    [enc setBuffer:bufSortedNormals offset:0 atIndex:2];
+                    [enc setBuffer:bufCellStart     offset:0 atIndex:3];
+                    [enc setBuffer:bufBoundR0       offset:0 atIndex:4];
+                    [enc setBuffer:bufBoundGain     offset:0 atIndex:5];
+                    [enc setBuffer:bufNa            offset:0 atIndex:6];
+                    [enc setBuffer:bufGridDim       offset:0 atIndex:7];
+                    [enc setBuffer:bufGridOrigin    offset:0 atIndex:8];
+                    [enc setBuffer:bufH             offset:0 atIndex:9];
+                    [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                        threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                    [enc endEncoding];
+                }
                 // j. solve_distance_constraints (elastic bonds, sequential)
                 //    Skipped when springs are on — Hooke forces handle bonds.
                 if (use_xpbd_bonds) {
@@ -766,6 +824,29 @@ int run_xpbd_step(int argc, char **argv) {
                 [enc endEncoding];
             }
 
+            // ── 3.4 Boundary handling (M14, Ihmsen 2010) ──
+            // Position-only correction that pushes active particles
+            // away from boundary surfaces. Runs AFTER update_velocities
+            // so the bump doesn't inject velocity (same convention as
+            // the membrane handler).
+            if (use_boundary_corr) {
+                id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+                [enc setComputePipelineState:pso_boundcorr];
+                [enc setBuffer:bufPosPred       offset:0 atIndex:0];
+                [enc setBuffer:bufSortedStatic  offset:0 atIndex:1];
+                [enc setBuffer:bufSortedNormals offset:0 atIndex:2];
+                [enc setBuffer:bufCellStart     offset:0 atIndex:3];
+                [enc setBuffer:bufBoundR0       offset:0 atIndex:4];
+                [enc setBuffer:bufBoundGain     offset:0 atIndex:5];
+                [enc setBuffer:bufNa            offset:0 atIndex:6];
+                [enc setBuffer:bufGridDim       offset:0 atIndex:7];
+                [enc setBuffer:bufGridOrigin    offset:0 atIndex:8];
+                [enc setBuffer:bufH             offset:0 atIndex:9];
+                [enc dispatchThreads:MTLSizeMake(n_active, 1, 1)
+                    threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
+                [enc endEncoding];
+            }
+
             // ── 3.5 Membrane interaction (M10) ──
             // Runs LAST in the step (after update_velocities) so it acts
             // as a position-only correction. The pos buffer at this point
@@ -832,6 +913,7 @@ int run_xpbd_step(int argc, char **argv) {
     }
     free(pos_active_init); free(vel_active_init); free(pos_static);
     free(sorted_static); free(cell_start);
+    if (sorted_static_normals) free(sorted_static_normals);
     if (bonds_raw) free(bonds_raw);
     if (mem_tris) free(mem_tris);
     if (mem_pidx) free(mem_pidx);

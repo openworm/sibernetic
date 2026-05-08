@@ -19,6 +19,7 @@ written in C++ and OpenCL, with 3D visualization built on OpenGL.
 | `demo2` membrane permeability | impermeable vs porous sheet, 4 732 liquid + 2 812 elastic | [`docs/demos.md#demo2-membrane-permeability`](docs/demos.md#demo2-membrane-permeability) |
 | `one_sprig_test` | smallest elasticity unit-test, single spring on a fixed anchor | [`docs/demos.md#one_sprig_test`](docs/demos.md#one_sprig_test) |
 | `worm_alone_half_resolution` | smallest worm config, 2 290 worm-elastic + membranes + gut liquid | [`docs/demos.md#worm_alone_half_resolution`](docs/demos.md#worm_alone_half_resolution) |
+| `worm_swim_half_resolution` | worm immersed in 80 929 liquid bath; tests buoyancy + water dynamics | [`docs/demos.md#worm_swim_half_resolution`](docs/demos.md#worm_swim_half_resolution) |
 
 Each demo has its own dedicated MP4 (link above) with quantitative
 parity metrics, the SGD-tuned Metal parameters used to match OpenCL,

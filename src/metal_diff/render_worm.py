@@ -115,7 +115,8 @@ def render(traj, boundary, frame_dt_ms, membranes, n_e, n_l, out_path, *,
            fps=30, width=900, height=900, title='worm', box_min=(0,0,0),
            box_max=(100.2, 50.1, 267.2), max_frames=0, zoom=1.0,
            focus_on_worm=True, view='iso', z_focus_frac=0.5,
-           z_extent_frac=1.0, show_edges=False):
+           z_extent_frac=1.0, show_edges=False, liquid_opacity=0.7,
+           liquid_point_size=3, membrane_opacity=0.85):
     """Render worm trajectory.
 
     view options:
@@ -239,7 +240,8 @@ def render(traj, boundary, frame_dt_ms, membranes, n_e, n_l, out_path, *,
         if actor_liq is not None: plotter.remove_actor(actor_liq)
         if faces_flat is not None:
             mem = pv.PolyData(elastic_pts, faces_flat)
-            actor_mem = plotter.add_mesh(mem, color='lightcoral', opacity=0.85,
+            actor_mem = plotter.add_mesh(mem, color='lightcoral',
+                                          opacity=membrane_opacity,
                                           smooth_shading=True,
                                           show_edges=show_edges,
                                           edge_color='maroon',
@@ -249,9 +251,10 @@ def render(traj, boundary, frame_dt_ms, membranes, n_e, n_l, out_path, *,
 
         if len(liquid_pts):
             liq = pv.PolyData(liquid_pts)
-            actor_liq = plotter.add_mesh(liq, color='royalblue', point_size=4,
+            actor_liq = plotter.add_mesh(liq, color='royalblue',
+                                          point_size=liquid_point_size,
                                           render_points_as_spheres=True,
-                                          opacity=0.85)
+                                          opacity=liquid_opacity)
 
         plotter.remove_actor(time_text)
         t_ms = fi * frame_dt_ms
@@ -298,6 +301,12 @@ def main():
                          '(smaller = tighter)')
     ap.add_argument('--show-edges', action='store_true',
                     help='draw membrane triangle edges (helps depth perception)')
+    ap.add_argument('--liquid-opacity', type=float, default=0.7,
+                    help='liquid particle alpha (lower = more transparent)')
+    ap.add_argument('--liquid-point-size', type=float, default=3.0,
+                    help='liquid particle screen size in pixels')
+    ap.add_argument('--membrane-opacity', type=float, default=0.85,
+                    help='worm membrane alpha (lower = see liquid through worm)')
     args = ap.parse_args()
 
     traj, boundary, frame_dt, meta = parse_trajectory(args.input)
@@ -310,7 +319,10 @@ def main():
            box_max=tuple(args.box_max), max_frames=args.max_frames,
            zoom=args.zoom, focus_on_worm=not args.no_focus_worm,
            view=args.view, z_focus_frac=args.z_focus_frac,
-           z_extent_frac=args.z_extent_frac, show_edges=args.show_edges)
+           z_extent_frac=args.z_extent_frac, show_edges=args.show_edges,
+           liquid_opacity=args.liquid_opacity,
+           liquid_point_size=args.liquid_point_size,
+           membrane_opacity=args.membrane_opacity)
     print(f'Saved {args.output}')
 
 
