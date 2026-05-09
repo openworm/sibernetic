@@ -7,7 +7,7 @@ physical body dynamics within the [OpenWorm project](http://www.openworm.org)
 by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python
 module for external muscle activating signals generation and input) as part of
 the [OpenWorm team](http://www.openworm.org/people.html). It is primarily
-written in C++ and OpenCL, with 3D visualization built on OpenGL.
+written in C++ and OpenCL, with 3D visualization built on OpenGL.  We have now extended the implementation to Metal.
 
 ## Demo previews — OpenCL gold standard vs native Metal substrate
 
