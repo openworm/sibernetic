@@ -120,6 +120,14 @@ jobs:
         ./build.sh
         ls -la sib_metal
 
+    - name: Install numpy for smoke-test driver
+      run: |
+        # The smoke test below uses load_config.py which `import numpy as np`.
+        # macos-latest's system python3 doesn't ship numpy by default; install it.
+        # `--break-system-packages` is required on Python 3.13+ runners that
+        # treat the system interpreter as PEP-668 externally-managed.
+        python3 -m pip install --break-system-packages --quiet numpy
+
     - name: Native Metal substrate smoke test (xpbd_step on demo1)
       run: |
         cd src/metal_diff

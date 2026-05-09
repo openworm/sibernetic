@@ -156,6 +156,8 @@ period/half-amplitude loss formulation.
 
 ## worm_swim_half_resolution
 
+![worm_swim: worm body immersed in 80 929-particle water bath; OpenCL (left column) vs native Metal (right column), iso (top row) and middle-section closeup (bottom row)](worm_swim_opencl_vs_metal.gif)
+
 Same worm body as `worm_alone` (2 290 elastic + 2 838 membrane
 triangles + 388 gut liquid) but immersed in an 80 929-particle water
 bath. 4-panel comparison: top row full worm in 3/4 isometric, bottom
@@ -252,6 +254,8 @@ cp configuration/worm_swim_half_resolution \
 ---
 
 ## worm_alone_half_resolution
+
+![worm_alone: 2 290 worm-elastic particles + 2 838 membranes + 388 gut liquid; OpenCL (left column) vs native Metal (right column), iso (top row) and middle-section closeup (bottom row)](worm_alone_opencl_vs_metal.gif)
 
 Smallest worm config: 2 290 worm-body elastic particles + 2 838
 membrane triangles + 388 liquid particles in the gut, in a

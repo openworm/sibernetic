@@ -11,7 +11,7 @@ written in C++ and OpenCL, with 3D visualization built on OpenGL.  We have now e
 
 ## Demo previews — OpenCL gold standard vs native Metal substrate
 
-![Four backend-comparison demos: demo1 cube drop, demo2 membrane permeability, one_sprig_test, worm_alone_half_resolution](docs/sibernetic_demos_combined.gif)
+![Five backend-comparison demos: demo1 cube drop, demo2 membrane permeability, one_sprig_test, worm_alone_half_resolution, worm_swim_half_resolution](docs/sibernetic_demos_combined.gif)
 
 | Scenario | What it tests | Detailed writeup |
 |---|---|---|
