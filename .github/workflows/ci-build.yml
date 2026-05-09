@@ -130,16 +130,20 @@ jobs:
 
     - name: Native Metal substrate smoke test (xpbd_step on demo1)
       run: |
-        cd src/metal_diff
-        ./sib_metal --help 2>&1 | head -30 || true
+        # load_to_metal_buffers reads `configuration/<scenario>` relative
+        # to cwd, so the smoke test must run from the repo root, not from
+        # src/metal_diff/. Pre-locate the binary so we can call it after
+        # the cd.
+        export SIB_METAL=$(pwd)/src/metal_diff/sib_metal
+        $SIB_METAL --help 2>&1 | head -30 || true
         # Exercise the per-step XPBD pipeline: load demo1, run 10 steps,
         # check the output file exists. This catches regressions in any of
         # the M6/M7 kernels (density solve, distance constraints, floor,
         # spring forces, pair forces) because all of them are touched by
         # a single xpbd_step call.
-        python3 - <<'PY'
+        python3 - <<PY
         import os, sys, subprocess
-        sys.path.insert(0, '.')
+        sys.path.insert(0, 'src/metal_diff')
         from load_config import load_to_metal_buffers
         info = load_to_metal_buffers('demo1', out_dir='/tmp/ci_demo1', h=3.34)
         # Initial pos/vel
@@ -148,7 +152,7 @@ jobs:
         vel = np.zeros_like(pos)
         pos.astype(np.float32).tofile('/tmp/ci_pos_in.bin')
         vel.astype(np.float32).tofile('/tmp/ci_vel_in.bin')
-        cmd = ['./sib_metal', 'xpbd_step',
+        cmd = [os.environ['SIB_METAL'], 'xpbd_step',
                str(info['n_active']), str(info['n_static']),
                '3.34', '2e-12', '1000.0', '2e-5', '-9.8', '2.0', '1e-3', '3',
                '/tmp/ci_pos_in.bin', '/tmp/ci_vel_in.bin',
