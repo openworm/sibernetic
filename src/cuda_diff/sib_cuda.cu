@@ -56,6 +56,8 @@ int main(int argc, char **argv) {
         return run_pair_forces_grid_bwd(argc, argv);
     if (std::strcmp(argv[1], "visc_K_partial") == 0)
         return run_visc_K_partial(argc, argv);
+    if (std::strcmp(argv[1], "xpbd_full_fwd") == 0)
+        return run_xpbd_full_fwd(argc, argv);
     fprintf(stderr, "unknown op: %s\n", argv[1]);
     return 1;
 }
