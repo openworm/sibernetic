@@ -1033,3 +1033,140 @@ __global__ void apply_ext_accel_backward(const float3 *grad_v_new,
                                       prev_a.y + dt * g_new.y,
                                       prev_a.z + dt * g_new.z);
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// pair_forces_grid_fwd — viscosity + surface-tension SPH pair forces.
+//
+// Direct port of src/metal_diff/shaders.metal::pair_forces_grid. Each
+// active particle gets one block of 32 threads (single warp). Threads
+// cooperatively stripe over (a) the dense active-active neighbor list
+// and (b) the 27 grid cells of boundary particles around the particle's
+// cell. Per-thread visc and surf partials are warp-reduced via
+// __shfl_down_sync; thread 0 writes the final ext_accel[i].
+// ══════════════════════════════════════════════════════════════════════
+__global__ void pair_forces_grid_fwd(const float3 *active_pos,
+                                     const float3 *active_vel,
+                                     const float3 *sorted_static,
+                                     const int *cell_start,
+                                     const float *density,
+                                     float3 *ext_accel,
+                                     float h,
+                                     float h2,
+                                     float sim_scale,
+                                     float visc_pair_coef,
+                                     float visc_amp,
+                                     float surf_amp,
+                                     unsigned int n_active,
+                                     int grid_dim_x,
+                                     int grid_dim_y,
+                                     int grid_dim_z,
+                                     float grid_origin_x,
+                                     float grid_origin_y,
+                                     float grid_origin_z)
+{
+    unsigned int i = blockIdx.x;
+    if (i >= n_active) return;
+
+    unsigned int t = threadIdx.x;
+    unsigned int T = blockDim.x;
+
+    float3 p_i = active_pos[i];
+    float3 v_i = active_vel[i];
+    float h_scaled  = h * sim_scale;
+    float h2_scaled = h_scaled * h_scaled;
+    float ss2       = sim_scale * sim_scale;
+
+    float visc_x = 0.0f, visc_y = 0.0f, visc_z = 0.0f;
+    float surf_x = 0.0f, surf_y = 0.0f, surf_z = 0.0f;
+
+    // ── active-active (dense) ──
+    for (unsigned int k = t; k < n_active; k += T) {
+        if (k == i) continue;
+        float3 p_j = active_pos[k];
+        float3 v_j = active_vel[k];
+        float dir_x = p_i.x - p_j.x;
+        float dir_y = p_i.y - p_j.y;
+        float dir_z = p_i.z - p_j.z;
+        float r2_unit = dir_x*dir_x + dir_y*dir_y + dir_z*dir_z;
+        if (r2_unit >= h2) continue;
+        float r_unit = sqrtf(r2_unit);
+        float r_scaled = r_unit * sim_scale;
+        float h_minus_r = h_scaled - r_scaled;
+        float r2_scaled = r2_unit * ss2;
+        float surf_kern = (h2_scaled - r2_scaled);
+        surf_kern = surf_kern * surf_kern * surf_kern;
+
+        float visc_coef = visc_pair_coef * h_minus_r * (1.0f/1000.0f);
+        visc_x += visc_coef * (v_j.x - v_i.x);
+        visc_y += visc_coef * (v_j.y - v_i.y);
+        visc_z += visc_coef * (v_j.z - v_i.z);
+        surf_x += surf_kern * dir_x;
+        surf_y += surf_kern * dir_y;
+        surf_z += surf_kern * dir_z;
+    }
+
+    // ── static (boundary) via 27-cell grid lookup. v_j ≡ 0. ──
+    int my_cx = (int)floorf((p_i.x - grid_origin_x) / h);
+    int my_cy = (int)floorf((p_i.y - grid_origin_y) / h);
+    int my_cz = (int)floorf((p_i.z - grid_origin_z) / h);
+    int n_cells_xy = grid_dim_x * grid_dim_y;
+    for (int dz = -1; dz <= 1; dz++) {
+        int cz = my_cz + dz;
+        if (cz < 0 || cz >= grid_dim_z) continue;
+        for (int dy = -1; dy <= 1; dy++) {
+            int cy = my_cy + dy;
+            if (cy < 0 || cy >= grid_dim_y) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int cx = my_cx + dx;
+                if (cx < 0 || cx >= grid_dim_x) continue;
+                int c_id = cx + cy * grid_dim_x + cz * n_cells_xy;
+                int start = cell_start[c_id];
+                int end   = cell_start[c_id + 1];
+                for (int j = start + (int)t; j < end; j += (int)T) {
+                    float3 p_j = sorted_static[j];
+                    float dir_x = p_i.x - p_j.x;
+                    float dir_y = p_i.y - p_j.y;
+                    float dir_z = p_i.z - p_j.z;
+                    float r2_unit = dir_x*dir_x + dir_y*dir_y + dir_z*dir_z;
+                    if (r2_unit >= h2) continue;
+                    float r_unit = sqrtf(r2_unit);
+                    float r_scaled = r_unit * sim_scale;
+                    float h_minus_r = h_scaled - r_scaled;
+                    float r2_scaled = r2_unit * ss2;
+                    float surf_kern = (h2_scaled - r2_scaled);
+                    surf_kern = surf_kern * surf_kern * surf_kern;
+
+                    // Boundary velocity is zero -> (v_j - v_i) = -v_i.
+                    float visc_coef = visc_pair_coef * h_minus_r * (1.0f/1000.0f);
+                    visc_x += visc_coef * (-v_i.x);
+                    visc_y += visc_coef * (-v_i.y);
+                    visc_z += visc_coef * (-v_i.z);
+                    surf_x += surf_kern * dir_x;
+                    surf_y += surf_kern * dir_y;
+                    surf_z += surf_kern * dir_z;
+                }
+            }
+        }
+    }
+
+    // Warp-reduce within the single 32-thread block. T == 32, so one
+    // round of __shfl_down_sync produces the full sum in lane 0.
+    for (int off = 16; off > 0; off >>= 1) {
+        visc_x += __shfl_down_sync(0xffffffff, visc_x, off);
+        visc_y += __shfl_down_sync(0xffffffff, visc_y, off);
+        visc_z += __shfl_down_sync(0xffffffff, visc_z, off);
+        surf_x += __shfl_down_sync(0xffffffff, surf_x, off);
+        surf_y += __shfl_down_sync(0xffffffff, surf_y, off);
+        surf_z += __shfl_down_sync(0xffffffff, surf_z, off);
+    }
+
+    if (t == 0) {
+        // For density-zero rows (shouldn't happen at settled state but
+        // might at step 0), clamp to avoid 1/0.
+        float rho_i = fmaxf(density[i], 1e-30f);
+        float inv_rho = visc_amp / rho_i;
+        ext_accel[i] = make_float3(inv_rho * visc_x + surf_amp * surf_x,
+                                   inv_rho * visc_y + surf_amp * surf_y,
+                                   inv_rho * visc_z + surf_amp * surf_z);
+    }
+}
