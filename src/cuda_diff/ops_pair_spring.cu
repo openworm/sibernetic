@@ -342,6 +342,121 @@ int run_pair_forces_grid_fwd(int argc, char **argv) {
     return 0;
 }
 
+// ── pair_forces_grid_bwd ──────────────────────────────────────────────
+// Mirrors run_pair_forces_grid_fwd's CLI convention (grid_origin path on
+// argv, not hardcoded /tmp). Two output files: grad_pos and grad_vel.
+// Both are pre-zeroed since the kernel does grad_pos[i] += dp_i.
+int run_pair_forces_grid_bwd(int argc, char **argv) {
+    if (argc != 20) {
+        fprintf(stderr,
+            "usage: sib_cuda pair_forces_grid_bwd "
+            "<n_active> <n_static> <h> <mass> <sim_scale> <visc_pair_coef> "
+            "<pos_active.bin> <vel_active.bin> <sorted_static.bin> "
+            "<cell_start.bin> <density.bin> "
+            "<grid_dim_x> <grid_dim_y> <grid_dim_z> "
+            "<grid_origin.bin> <grad_ext_accel.bin> "
+            "<grad_pos_out.bin> <grad_vel_out.bin>\n");
+        return 1;
+    }
+    unsigned int n_active = (unsigned int)std::atoi(argv[2]);
+    unsigned int n_static = (unsigned int)std::atoi(argv[3]);
+    float h              = (float)std::atof(argv[4]);
+    float mass           = (float)std::atof(argv[5]);
+    float sim_scale      = (float)std::atof(argv[6]);
+    float visc_pair_coef = (float)std::atof(argv[7]);
+    const char *path_pa = argv[8];
+    const char *path_va = argv[9];
+    const char *path_ss = argv[10];
+    const char *path_cs = argv[11];
+    const char *path_d  = argv[12];
+    int grid_dim_x = std::atoi(argv[13]);
+    int grid_dim_y = std::atoi(argv[14]);
+    int grid_dim_z = std::atoi(argv[15]);
+    const char *path_go  = argv[16];
+    const char *path_gea = argv[17];
+    const char *path_gp_out = argv[18];
+    const char *path_gv_out = argv[19];
+
+    // Host-side amp scalars (identical to forward driver).
+    float h2 = h * h;
+    double h_scaled = (double)h * (double)sim_scale;
+    double h_s6 = std::pow(h_scaled, 6.0);
+    double h_s9 = std::pow(h_scaled, 9.0);
+    double divgradWvisco = 45.0 / (M_PI * h_s6);
+    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco *
+                             std::pow((double)sim_scale, 3.0));
+    double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
+    float surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si *
+                             (double)sim_scale / (double)mass);
+
+    int n_cells = grid_dim_x * grid_dim_y * grid_dim_z;
+    float *h_pos = read_floats_or_die(path_pa, (size_t)n_active * 3);
+    float *h_vel = read_floats_or_die(path_va, (size_t)n_active * 3);
+    float *h_ss  = read_floats_or_die(path_ss, (size_t)n_static * 3);
+    int   *h_cs  = read_ints_or_die  (path_cs, (size_t)(n_cells + 1));
+    float *h_d   = read_floats_or_die(path_d,  (size_t)n_active);
+    float *h_go  = read_floats_or_die(path_go, 3);
+    float *h_gea = read_floats_or_die(path_gea, (size_t)n_active * 3);
+
+    float3 *d_pos = nullptr, *d_vel = nullptr, *d_ss = nullptr;
+    float3 *d_gea = nullptr, *d_gp = nullptr, *d_gv = nullptr;
+    int *d_cs = nullptr;
+    float *d_d = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_pos, (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_vel, (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_ss,  (size_t)n_static * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_gea, (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_gp,  (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_gv,  (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_cs,  (size_t)(n_cells + 1) * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_d,   (size_t)n_active * sizeof(float)));
+
+    CUDA_CHECK(cudaMemcpy(d_pos, h_pos, (size_t)n_active * 3 * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_vel, h_vel, (size_t)n_active * 3 * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_ss,  h_ss,  (size_t)n_static * 3 * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_gea, h_gea, (size_t)n_active * 3 * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_cs,  h_cs,  (size_t)(n_cells + 1) * sizeof(int),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_d,   h_d,   (size_t)n_active * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    // Kernel does grad_pos[i] += dp_i — pre-zero to match Metal driver.
+    CUDA_CHECK(cudaMemset(d_gp, 0, (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMemset(d_gv, 0, (size_t)n_active * sizeof(float3)));
+
+    // One thread per particle (Metal: dispatchThreads(n_active, 1, 1) tpg 64).
+    const unsigned int TPB = 64;
+    unsigned int grid = (n_active + TPB - 1) / TPB;
+    pair_forces_grid_bwd<<<grid, TPB>>>(
+        d_pos, d_vel, d_ss, d_cs, d_d, d_gea, d_gp, d_gv,
+        h, h2, sim_scale, visc_pair_coef, visc_amp, surf_amp,
+        n_active,
+        grid_dim_x, grid_dim_y, grid_dim_z,
+        h_go[0], h_go[1], h_go[2]);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    float *h_gp = (float *)std::malloc((size_t)n_active * 3 * sizeof(float));
+    float *h_gv = (float *)std::malloc((size_t)n_active * 3 * sizeof(float));
+    CUDA_CHECK(cudaMemcpy(h_gp, d_gp, (size_t)n_active * 3 * sizeof(float),
+                          cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(h_gv, d_gv, (size_t)n_active * 3 * sizeof(float),
+                          cudaMemcpyDeviceToHost));
+    write_floats_or_die(path_gp_out, h_gp, (size_t)n_active * 3);
+    write_floats_or_die(path_gv_out, h_gv, (size_t)n_active * 3);
+
+    cudaFree(d_pos); cudaFree(d_vel); cudaFree(d_ss);
+    cudaFree(d_gea); cudaFree(d_gp);  cudaFree(d_gv);
+    cudaFree(d_cs);  cudaFree(d_d);
+    std::free(h_pos); std::free(h_vel); std::free(h_ss);
+    std::free(h_cs);  std::free(h_d);   std::free(h_go);
+    std::free(h_gea); std::free(h_gp);  std::free(h_gv);
+    return 0;
+}
+
 // ── apply_ext_accel_backward ──────────────────────────────────────────
 int run_apply_ext_accel_bwd(int argc, char **argv) {
     if (argc != 7) {

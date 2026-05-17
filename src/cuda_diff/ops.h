@@ -33,3 +33,4 @@ int run_spring_bonds_force_bwd(int argc, char **argv);
 int run_spring_K_partial(int argc, char **argv);
 int run_apply_ext_accel_bwd(int argc, char **argv);
 int run_pair_forces_grid_fwd(int argc, char **argv);
+int run_pair_forces_grid_bwd(int argc, char **argv);

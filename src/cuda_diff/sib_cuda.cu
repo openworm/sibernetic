@@ -52,6 +52,8 @@ int main(int argc, char **argv) {
         return run_apply_ext_accel_bwd(argc, argv);
     if (std::strcmp(argv[1], "pair_forces_grid_fwd") == 0)
         return run_pair_forces_grid_fwd(argc, argv);
+    if (std::strcmp(argv[1], "pair_forces_grid_bwd") == 0)
+        return run_pair_forces_grid_bwd(argc, argv);
     fprintf(stderr, "unknown op: %s\n", argv[1]);
     return 1;
 }

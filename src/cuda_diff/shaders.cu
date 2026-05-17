@@ -1170,3 +1170,199 @@ __global__ void pair_forces_grid_fwd(const float3 *active_pos,
                                    inv_rho * visc_z + surf_amp * surf_z);
     }
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// pair_forces_grid_bwd — gradients of (visc + surf) ext_accel
+// w.r.t. positions and velocities.
+//
+// Direct port of src/metal_diff/shaders.metal::pair_forces_grid_backward.
+// See that file's lines 776-808 for the math derivation.
+//
+// Symmetric backward trick: each thread (for particle i) reads both its
+// OWN upstream ga_i = ∂L/∂(ext_accel_i) and every neighbor's ga_j (active
+// only; boundary frozen) and accumulates contributions to ONLY ∂L/∂p_i
+// and ∂L/∂v_i. The cross-particle gradients ∂L/∂p_j get picked up when
+// thread j runs its own loop and sees i as a neighbor. No atomics.
+//
+// One thread per particle (much simpler than forward — no warp reduction).
+// ──────────────────────────────────────────────────────────────────────
+__global__ void pair_forces_grid_bwd(const float3 *active_pos,
+                                     const float3 *active_vel,
+                                     const float3 *sorted_static,
+                                     const int *cell_start,
+                                     const float *density,
+                                     const float3 *grad_ext_accel,
+                                     float3 *grad_pos,
+                                     float3 *grad_vel,
+                                     float h,
+                                     float h2,
+                                     float sim_scale,
+                                     float visc_pair_coef,
+                                     float visc_amp,
+                                     float surf_amp,
+                                     unsigned int n_active,
+                                     int grid_dim_x,
+                                     int grid_dim_y,
+                                     int grid_dim_z,
+                                     float grid_origin_x,
+                                     float grid_origin_y,
+                                     float grid_origin_z)
+{
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n_active) return;
+
+    float3 p_i = active_pos[i];
+    float3 v_i = active_vel[i];
+    float3 ga_i = grad_ext_accel[i];
+    float rho_i = fmaxf(density[i], 1e-30f);
+
+    float h_scaled  = h * sim_scale;
+    float h2_scaled = h_scaled * h_scaled;
+    float ss2       = sim_scale * sim_scale;
+
+    float G_v_i_x = (visc_amp / rho_i) * ga_i.x;
+    float G_v_i_y = (visc_amp / rho_i) * ga_i.y;
+    float G_v_i_z = (visc_amp / rho_i) * ga_i.z;
+    float G_s_i_x = surf_amp * ga_i.x;
+    float G_s_i_y = surf_amp * ga_i.y;
+    float G_s_i_z = surf_amp * ga_i.z;
+
+    float dp_x = 0.0f, dp_y = 0.0f, dp_z = 0.0f;
+    float dv_x = 0.0f, dv_y = 0.0f, dv_z = 0.0f;
+
+    // ── active-active loop ──
+    for (unsigned int k = 0; k < n_active; k++) {
+        if (k == i) continue;
+        float3 p_j = active_pos[k];
+        float3 v_j = active_vel[k];
+        float dir_x = p_i.x - p_j.x;
+        float dir_y = p_i.y - p_j.y;
+        float dir_z = p_i.z - p_j.z;
+        float r2_unit = dir_x*dir_x + dir_y*dir_y + dir_z*dir_z;
+        if (r2_unit >= h2) continue;
+        float r_unit = sqrtf(r2_unit);
+        if (r_unit < 1e-7f) continue;
+
+        float r_scaled = r_unit * sim_scale;
+        float h_minus_r = h_scaled - r_scaled;
+        float r2_scaled = r2_unit * ss2;
+        float h2r2 = h2_scaled - r2_scaled;
+        float surf_kern = h2r2 * h2r2 * h2r2;
+        float surf_kern_deriv = h2r2 * h2r2;
+        float v_diff_x = v_j.x - v_i.x;
+        float v_diff_y = v_j.y - v_i.y;
+        float v_diff_z = v_j.z - v_i.z;
+
+        float rho_j = fmaxf(density[k], 1e-30f);
+        float3 ga_j = grad_ext_accel[k];
+        float G_v_j_x = (visc_amp / rho_j) * ga_j.x;
+        float G_v_j_y = (visc_amp / rho_j) * ga_j.y;
+        float G_v_j_z = (visc_amp / rho_j) * ga_j.z;
+        float G_s_j_x = surf_amp * ga_j.x;
+        float G_s_j_y = surf_amp * ga_j.y;
+        float G_s_j_z = surf_amp * ga_j.z;
+
+        // G_v_diff = G_v_j - G_v_i,  G_s_diff = G_s_i - G_s_j  (asymmetric — intentional)
+        float G_v_diff_x = G_v_j_x - G_v_i_x;
+        float G_v_diff_y = G_v_j_y - G_v_i_y;
+        float G_v_diff_z = G_v_j_z - G_v_i_z;
+        float G_s_diff_x = G_s_i_x - G_s_j_x;
+        float G_s_diff_y = G_s_i_y - G_s_j_y;
+        float G_s_diff_z = G_s_i_z - G_s_j_z;
+
+        // viscosity ∂L/∂p_i: (K_v / r) · <G_v_diff, v_diff> · dir
+        float visc_p_coef = (visc_pair_coef * sim_scale / (1000.0f * r_unit));
+        float dot_Gv_vd = G_v_diff_x*v_diff_x + G_v_diff_y*v_diff_y + G_v_diff_z*v_diff_z;
+        dp_x += visc_p_coef * dot_Gv_vd * dir_x;
+        dp_y += visc_p_coef * dot_Gv_vd * dir_y;
+        dp_z += visc_p_coef * dot_Gv_vd * dir_z;
+
+        // surface tension ∂L/∂p_i:
+        //   -6·ss²·surf_kern_deriv · dir · <dir, G_s_diff> + surf_kern · G_s_diff
+        float dot_dir_Gs = dir_x*G_s_diff_x + dir_y*G_s_diff_y + dir_z*G_s_diff_z;
+        float surf_p_coef = -6.0f * ss2 * surf_kern_deriv * dot_dir_Gs;
+        dp_x += surf_p_coef * dir_x + surf_kern * G_s_diff_x;
+        dp_y += surf_p_coef * dir_y + surf_kern * G_s_diff_y;
+        dp_z += surf_p_coef * dir_z + surf_kern * G_s_diff_z;
+
+        // viscosity ∂L/∂v_i: (visc_pair_coef · h_minus_r / 1000) · G_v_diff
+        float visc_v_coef = visc_pair_coef * h_minus_r / 1000.0f;
+        dv_x += visc_v_coef * G_v_diff_x;
+        dv_y += visc_v_coef * G_v_diff_y;
+        dv_z += visc_v_coef * G_v_diff_z;
+    }
+
+    // ── active-static loop (boundary j, v_j = 0, ga_j = 0) ──
+    int my_cx = (int)floorf((p_i.x - grid_origin_x) / h);
+    int my_cy = (int)floorf((p_i.y - grid_origin_y) / h);
+    int my_cz = (int)floorf((p_i.z - grid_origin_z) / h);
+    int n_cells_xy = grid_dim_x * grid_dim_y;
+    for (int dz = -1; dz <= 1; dz++) {
+        int cz = my_cz + dz;
+        if (cz < 0 || cz >= grid_dim_z) continue;
+        for (int dy = -1; dy <= 1; dy++) {
+            int cy = my_cy + dy;
+            if (cy < 0 || cy >= grid_dim_y) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int cx = my_cx + dx;
+                if (cx < 0 || cx >= grid_dim_x) continue;
+                int c_id = cx + cy * grid_dim_x + cz * n_cells_xy;
+                int start = cell_start[c_id];
+                int end   = cell_start[c_id + 1];
+                for (int j = start; j < end; j++) {
+                    float3 p_j = sorted_static[j];
+                    float dir_x = p_i.x - p_j.x;
+                    float dir_y = p_i.y - p_j.y;
+                    float dir_z = p_i.z - p_j.z;
+                    float r2_unit = dir_x*dir_x + dir_y*dir_y + dir_z*dir_z;
+                    if (r2_unit >= h2) continue;
+                    float r_unit = sqrtf(r2_unit);
+                    if (r_unit < 1e-7f) continue;
+
+                    float r_scaled = r_unit * sim_scale;
+                    float h_minus_r = h_scaled - r_scaled;
+                    float r2_scaled = r2_unit * ss2;
+                    float h2r2 = h2_scaled - r2_scaled;
+                    float surf_kern = h2r2 * h2r2 * h2r2;
+                    float surf_kern_deriv = h2r2 * h2r2;
+                    // v_j = 0, so v_diff = -v_i
+                    float v_diff_x = -v_i.x;
+                    float v_diff_y = -v_i.y;
+                    float v_diff_z = -v_i.z;
+
+                    // Boundary: G_v_j = 0, G_s_j = 0
+                    float G_v_diff_x = -G_v_i_x;
+                    float G_v_diff_y = -G_v_i_y;
+                    float G_v_diff_z = -G_v_i_z;
+                    float G_s_diff_x = G_s_i_x;
+                    float G_s_diff_y = G_s_i_y;
+                    float G_s_diff_z = G_s_i_z;
+
+                    float visc_p_coef = (visc_pair_coef * sim_scale / (1000.0f * r_unit));
+                    float dot_Gv_vd = G_v_diff_x*v_diff_x + G_v_diff_y*v_diff_y + G_v_diff_z*v_diff_z;
+                    dp_x += visc_p_coef * dot_Gv_vd * dir_x;
+                    dp_y += visc_p_coef * dot_Gv_vd * dir_y;
+                    dp_z += visc_p_coef * dot_Gv_vd * dir_z;
+
+                    float dot_dir_Gs = dir_x*G_s_diff_x + dir_y*G_s_diff_y + dir_z*G_s_diff_z;
+                    float surf_p_coef = -6.0f * ss2 * surf_kern_deriv * dot_dir_Gs;
+                    dp_x += surf_p_coef * dir_x + surf_kern * G_s_diff_x;
+                    dp_y += surf_p_coef * dir_y + surf_kern * G_s_diff_y;
+                    dp_z += surf_p_coef * dir_z + surf_kern * G_s_diff_z;
+
+                    float visc_v_coef = visc_pair_coef * h_minus_r / 1000.0f;
+                    dv_x += visc_v_coef * G_v_diff_x;
+                    dv_y += visc_v_coef * G_v_diff_y;
+                    dv_z += visc_v_coef * G_v_diff_z;
+                }
+            }
+        }
+    }
+
+    // Accumulate into existing grad buffers (driver pre-zeros, but kernel
+    // does read-modify-write so it composes with prior contributions).
+    float3 prev_gp = grad_pos[i];
+    grad_pos[i] = make_float3(prev_gp.x + dp_x, prev_gp.y + dp_y, prev_gp.z + dp_z);
+    float3 prev_gv = grad_vel[i];
+    grad_vel[i] = make_float3(prev_gv.x + dv_x, prev_gv.y + dv_y, prev_gv.z + dv_z);
+}
