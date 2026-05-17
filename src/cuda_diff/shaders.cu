@@ -1366,3 +1366,108 @@ __global__ void pair_forces_grid_bwd(const float3 *active_pos,
     float3 prev_gv = grad_vel[i];
     grad_vel[i] = make_float3(prev_gv.x + dv_x, prev_gv.y + dv_y, prev_gv.z + dv_z);
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// visc_K_partial — per-particle dot of (∂(visc_accel_i)/∂visc_pair_coef)
+// with upstream grad_ext_accel[i]. Host sums per-particle scalars to get
+// the total ∂L/∂(visc_pair_coef).
+//
+// Direct port of src/metal_diff/shaders.metal::visc_K_partial. Same
+// pair-grid structure as pair_forces_grid_bwd: one thread per particle,
+// active-active dense loop + 27-cell boundary traversal. Simpler though:
+// scalar output, no surf component (surface tension doesn't depend on
+// visc_pair_coef), no v-derivative.
+//
+//   ∂(visc_accel_i)/∂visc_pair_coef = (visc_amp / ρ_i) · Σ_neighbors
+//     (v_j - v_i) · (h_s - r_s) / 1000     (visc_pair_coef factored out)
+// ══════════════════════════════════════════════════════════════════════
+__global__ void visc_K_partial(const float3 *active_pos,
+                               const float3 *active_vel,
+                               const float3 *sorted_static,
+                               const int *cell_start,
+                               const float *density,
+                               const float3 *grad_ext_accel,
+                               float *per_particle,
+                               float h,
+                               float h2,
+                               float sim_scale,
+                               float visc_amp,
+                               unsigned int n_active,
+                               int grid_dim_x,
+                               int grid_dim_y,
+                               int grid_dim_z,
+                               float grid_origin_x,
+                               float grid_origin_y,
+                               float grid_origin_z)
+{
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n_active) return;
+
+    float3 p_i = active_pos[i];
+    float3 v_i = active_vel[i];
+    float3 ga_i = grad_ext_accel[i];
+    float h_scaled = h * sim_scale;
+    float rho_i = fmaxf(density[i], 1e-30f);
+
+    float pv_x = 0.0f, pv_y = 0.0f, pv_z = 0.0f;
+
+    // ── active-active loop ──
+    for (unsigned int k = 0; k < n_active; k++) {
+        if (k == i) continue;
+        float3 p_j = active_pos[k];
+        float3 v_j = active_vel[k];
+        float dir_x = p_i.x - p_j.x;
+        float dir_y = p_i.y - p_j.y;
+        float dir_z = p_i.z - p_j.z;
+        float r2 = dir_x*dir_x + dir_y*dir_y + dir_z*dir_z;
+        if (r2 >= h2) continue;
+        float r = sqrtf(r2);
+        float h_minus_r = h_scaled - r * sim_scale;
+        float c = h_minus_r * (1.0f/1000.0f);
+        pv_x += (v_j.x - v_i.x) * c;
+        pv_y += (v_j.y - v_i.y) * c;
+        pv_z += (v_j.z - v_i.z) * c;
+    }
+
+    // ── active-static loop (boundary, v_j = 0) ──
+    int my_cx = (int)floorf((p_i.x - grid_origin_x) / h);
+    int my_cy = (int)floorf((p_i.y - grid_origin_y) / h);
+    int my_cz = (int)floorf((p_i.z - grid_origin_z) / h);
+    int n_cells_xy = grid_dim_x * grid_dim_y;
+    for (int dz = -1; dz <= 1; dz++) {
+        int cz = my_cz + dz;
+        if (cz < 0 || cz >= grid_dim_z) continue;
+        for (int dy = -1; dy <= 1; dy++) {
+            int cy = my_cy + dy;
+            if (cy < 0 || cy >= grid_dim_y) continue;
+            for (int dx = -1; dx <= 1; dx++) {
+                int cx = my_cx + dx;
+                if (cx < 0 || cx >= grid_dim_x) continue;
+                int c_id = cx + cy * grid_dim_x + cz * n_cells_xy;
+                int start = cell_start[c_id];
+                int end   = cell_start[c_id + 1];
+                for (int j = start; j < end; j++) {
+                    float3 p_j = sorted_static[j];
+                    float dir_x = p_i.x - p_j.x;
+                    float dir_y = p_i.y - p_j.y;
+                    float dir_z = p_i.z - p_j.z;
+                    float r2 = dir_x*dir_x + dir_y*dir_y + dir_z*dir_z;
+                    if (r2 >= h2) continue;
+                    float r = sqrtf(r2);
+                    float h_minus_r = h_scaled - r * sim_scale;
+                    float c = h_minus_r * (1.0f/1000.0f);
+                    // v_j = 0 -> contribution is -v_i * c
+                    pv_x += (-v_i.x) * c;
+                    pv_y += (-v_i.y) * c;
+                    pv_z += (-v_i.z) * c;
+                }
+            }
+        }
+    }
+
+    float scale = visc_amp / rho_i;
+    float daK_x = scale * pv_x;
+    float daK_y = scale * pv_y;
+    float daK_z = scale * pv_z;
+    per_particle[i] = daK_x * ga_i.x + daK_y * ga_i.y + daK_z * ga_i.z;
+}

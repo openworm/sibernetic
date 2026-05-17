@@ -501,3 +501,111 @@ int run_apply_ext_accel_bwd(int argc, char **argv) {
     std::free(h_gn); std::free(h_go); std::free(h_ge);
     return 0;
 }
+
+// ── visc_K_partial ────────────────────────────────────────────────────
+// Outputs per-particle scalar (n_active floats); the caller (xpbd_full_bwd
+// in sub-task F) sums to get ∂L/∂(visc_pair_coef). Mirrors the
+// run_spring_K_partial convention — driver writes raw per-particle array,
+// not the host-summed scalar. We take `mass` on the CLI because the host
+// computes visc_amp from it (same formula as pair_forces_grid_fwd). We do
+// NOT take visc_pair_coef — by construction the kernel is computing the
+// partial w.r.t. it (the multiplier is factored out of the kernel).
+int run_visc_K_partial(int argc, char **argv) {
+    if (argc != 18) {
+        fprintf(stderr,
+            "usage: sib_cuda visc_K_partial "
+            "<n_active> <n_static> <h> <mass> <sim_scale> "
+            "<pos_active.bin> <vel_active.bin> <sorted_static.bin> "
+            "<cell_start.bin> <density.bin> "
+            "<grid_dim_x> <grid_dim_y> <grid_dim_z> "
+            "<grid_origin.bin> <grad_ext_accel.bin> "
+            "<per_particle_out.bin>\n");
+        return 1;
+    }
+    unsigned int n_active = (unsigned int)std::atoi(argv[2]);
+    unsigned int n_static = (unsigned int)std::atoi(argv[3]);
+    float h         = (float)std::atof(argv[4]);
+    float mass      = (float)std::atof(argv[5]);
+    float sim_scale = (float)std::atof(argv[6]);
+    const char *path_pa  = argv[7];
+    const char *path_va  = argv[8];
+    const char *path_ss  = argv[9];
+    const char *path_cs  = argv[10];
+    const char *path_d   = argv[11];
+    int grid_dim_x = std::atoi(argv[12]);
+    int grid_dim_y = std::atoi(argv[13]);
+    int grid_dim_z = std::atoi(argv[14]);
+    const char *path_go  = argv[15];
+    const char *path_gea = argv[16];
+    const char *path_out = argv[17];
+
+    // Host-side visc_amp (mirrors run_pair_forces_grid_fwd: lines 282-288).
+    float h2 = h * h;
+    double h_scaled = (double)h * (double)sim_scale;
+    double h_s6 = std::pow(h_scaled, 6.0);
+    double divgradWvisco = 45.0 / (M_PI * h_s6);
+    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco *
+                             std::pow((double)sim_scale, 3.0));
+
+    int n_cells = grid_dim_x * grid_dim_y * grid_dim_z;
+    float *h_pos = read_floats_or_die(path_pa, (size_t)n_active * 3);
+    float *h_vel = read_floats_or_die(path_va, (size_t)n_active * 3);
+    float *h_ss  = read_floats_or_die(path_ss, (size_t)n_static * 3);
+    int   *h_cs  = read_ints_or_die  (path_cs, (size_t)(n_cells + 1));
+    float *h_d   = read_floats_or_die(path_d,  (size_t)n_active);
+    float *h_go  = read_floats_or_die(path_go, 3);
+    float *h_gea = read_floats_or_die(path_gea, (size_t)n_active * 3);
+
+    float3 *d_pos = nullptr, *d_vel = nullptr, *d_ss = nullptr;
+    float3 *d_gea = nullptr;
+    int *d_cs = nullptr;
+    float *d_d = nullptr, *d_pp = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_pos, (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_vel, (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_ss,  (size_t)n_static * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_gea, (size_t)n_active * sizeof(float3)));
+    CUDA_CHECK(cudaMalloc(&d_cs,  (size_t)(n_cells + 1) * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_d,   (size_t)n_active * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&d_pp,  (size_t)n_active * sizeof(float)));
+
+    CUDA_CHECK(cudaMemcpy(d_pos, h_pos, (size_t)n_active * 3 * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_vel, h_vel, (size_t)n_active * 3 * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_ss,  h_ss,  (size_t)n_static * 3 * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_gea, h_gea, (size_t)n_active * 3 * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_cs,  h_cs,  (size_t)(n_cells + 1) * sizeof(int),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_d,   h_d,   (size_t)n_active * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    // Per-particle output is write-only (kernel does `per_particle[i] = ...`),
+    // but zero-init for safety in case n_active==0 / partial launches.
+    CUDA_CHECK(cudaMemset(d_pp, 0, (size_t)n_active * sizeof(float)));
+
+    // One thread per particle (Metal: dispatchThreads(n_active, 1, 1) tpg 64).
+    const unsigned int TPB = 64;
+    unsigned int grid = (n_active + TPB - 1) / TPB;
+    visc_K_partial<<<grid, TPB>>>(
+        d_pos, d_vel, d_ss, d_cs, d_d, d_gea, d_pp,
+        h, h2, sim_scale, visc_amp,
+        n_active,
+        grid_dim_x, grid_dim_y, grid_dim_z,
+        h_go[0], h_go[1], h_go[2]);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    float *h_pp = (float *)std::malloc((size_t)n_active * sizeof(float));
+    CUDA_CHECK(cudaMemcpy(h_pp, d_pp, (size_t)n_active * sizeof(float),
+                          cudaMemcpyDeviceToHost));
+    write_floats_or_die(path_out, h_pp, (size_t)n_active);
+
+    cudaFree(d_pos); cudaFree(d_vel); cudaFree(d_ss);
+    cudaFree(d_gea); cudaFree(d_cs);  cudaFree(d_d);
+    cudaFree(d_pp);
+    std::free(h_pos); std::free(h_vel); std::free(h_ss);
+    std::free(h_cs);  std::free(h_d);   std::free(h_go);
+    std::free(h_gea); std::free(h_pp);
+    return 0;
+}
