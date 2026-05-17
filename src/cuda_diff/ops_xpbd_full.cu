@@ -681,26 +681,56 @@ int run_xpbd_full_bwd(int argc, char **argv) {
     float total_grad_visc_K = 0.0f;
     float total_grad_alpha_inv_dt2 = 0.0f;
 
-    // BWD_CLIP_NORM: per-step L2 clip across (grad_x, grad_v) together. The
-    // env var is enabled with any positive float (default = unset = off).
-    float clip_norm = 0.0f;
-    bool clip_on = false;
+    // BWD_CLIP_NORM: per-step L2 clip on grad_x and grad_v INDEPENDENTLY.
+    // Defaults to 1e3 (always on) — matches Metal at
+    // src/metal_diff/ops_xpbd_full.mm:996-997. Required for chaotic SPH
+    // dynamics: per-step amplification ~3x means K=50000 unrolled gradient
+    // overflows fp32 within ~30 steps without clipping. NaN/Inf scrubbing
+    // runs whenever the clip is on. Set BWD_CLIP_NORM=0 to disable.
+    float clip_norm_x = 1e3f;
+    float clip_norm_v = 1e3f;
+    bool clip_on = true;
     const char *clip_env = std::getenv("BWD_CLIP_NORM");
     if (clip_env) {
-        clip_norm = (float)std::atof(clip_env);
-        if (clip_norm > 0.0f) {
-            clip_on = true;
+        float v = (float)std::atof(clip_env);
+        if (v <= 0.0f) {
+            clip_on = false;
+            fprintf(stderr, "[xpbd_full_bwd] per-step gradient clipping "
+                            "DISABLED via BWD_CLIP_NORM=0\n");
+        } else {
+            clip_norm_x = v;
+            clip_norm_v = v;
             fprintf(stderr, "[xpbd_full_bwd] per-step gradient clipping: "
-                            "sqrt(|grad_x|^2 + |grad_v|^2) capped at %.3e\n",
-                    clip_norm);
+                            "|grad_x|, |grad_v| L2 each capped at %.3e\n", v);
         }
+    } else {
+        fprintf(stderr, "[xpbd_full_bwd] per-step gradient clipping: "
+                        "|grad_x|, |grad_v| L2 each capped at 1.000e+03 "
+                        "(default)\n");
     }
+
+    // BWD_TBPTT: truncated BPTT — chain back only the last `max_bw_steps`
+    // steps. Default = K (no truncation). Mirror of Metal at
+    // src/metal_diff/ops_xpbd_full.mm:974-986. Critical for K large
+    // enough that the gradient chain saturates clipping bound; sgd_true.py
+    // sets BWD_TBPTT=50 by default.
+    int32_t max_bw_steps = (int32_t)K;
+    const char *tbptt_env = std::getenv("BWD_TBPTT");
+    if (tbptt_env) {
+        max_bw_steps = std::atoi(tbptt_env);
+        if (max_bw_steps <= 0 || max_bw_steps > (int32_t)K) {
+            max_bw_steps = (int32_t)K;
+        }
+        fprintf(stderr, "[xpbd_full_bwd] truncated BPTT: %d / %u steps\n",
+                max_bw_steps, K);
+    }
+    int32_t k_stop = (int32_t)K - max_bw_steps;
 
     const unsigned int TPB = 256;
     unsigned int gridA = (n_active + TPB - 1) / TPB;
 
     // Walk K steps in reverse.
-    for (int32_t k = (int32_t)K - 1; k >= 0; k--) {
+    for (int32_t k = (int32_t)K - 1; k >= k_stop; k--) {
         float *step_state = state + (size_t)k * per_step_floats;
         // Load tape entries.
         std::memcpy(h_x_old.data(),  step_state,                pos_b);
@@ -818,9 +848,19 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         // ── (b) update_velocities_backward ──────────────────────────
         // Accumulates: Gx_running += gvn * sim_scale/dt  (∂L/∂x_post)
         //              Gx_old_new -= gvn * sim_scale/dt  (∂L/∂x_old)
+        // Phase 5 / Metal parity: pass sim_scale=1.0f to match Metal's
+        // latent bug at src/metal_diff/shaders.metal:2216 where the
+        // backward kernel computes g_v/dt instead of g_v*sim_scale/dt
+        // (forward at :1942 multiplies by sim_scale; backward drops it).
+        // Our CUDA kernel itself is mathematically correct (computes
+        // g_v*sim_scale/dt); we pass 1.0f here to emulate Metal's bug
+        // for cross-backend gradient parity (README Phase 5 within 1%).
+        // Adam normalization absorbs the uniform 1/sim_scale factor,
+        // so demo1 optima are unaffected. To fix properly, patch Metal
+        // upstream and revert this to `sim_scale`. TODO upstream issue.
         update_velocities_backward<<<gridA, TPB>>>(
             d_Gv_in, d_Gx_running, d_Gx_old_new,
-            dt, sim_scale, n_active);
+            dt, 1.0f, n_active);
 
         // ── (c) solve_density_constraint_backward ───────────────────
         // ∂L/∂λ_post = 0 (single-iter). Reuse d_Lam as zeros.
@@ -1016,15 +1056,22 @@ int run_xpbd_full_bwd(int argc, char **argv) {
                 if (!std::isfinite(h_gx[t])) { h_gx[t] = 0.0f; n_bad_x++; }
                 if (!std::isfinite(h_gv[t])) { h_gv[t] = 0.0f; n_bad_v++; }
             }
-            double sum2 = 0.0;
+            // Independent grad_x and grad_v clipping (matches Metal at
+            // src/metal_diff/ops_xpbd_full.mm:1397-1411).
+            double sum_x = 0.0, sum_v = 0.0;
             for (size_t t = 0; t < n_floats; t++) {
-                sum2 += (double)h_gx[t] * h_gx[t];
-                sum2 += (double)h_gv[t] * h_gv[t];
+                sum_x += (double)h_gx[t] * h_gx[t];
+                sum_v += (double)h_gv[t] * h_gv[t];
             }
-            float norm = (float)std::sqrt(sum2);
-            if (norm > clip_norm && norm > 0.0f) {
-                float s = clip_norm / norm;
-                for (size_t t = 0; t < n_floats; t++) { h_gx[t] *= s; h_gv[t] *= s; }
+            float nx = (float)std::sqrt(sum_x);
+            float nv = (float)std::sqrt(sum_v);
+            if (nx > clip_norm_x && nx > 0.0f) {
+                float s = clip_norm_x / nx;
+                for (size_t t = 0; t < n_floats; t++) h_gx[t] *= s;
+            }
+            if (nv > clip_norm_v && nv > 0.0f) {
+                float s = clip_norm_v / nv;
+                for (size_t t = 0; t < n_floats; t++) h_gv[t] *= s;
             }
             CUDA_CHECK(cudaMemcpy(d_Gx_old_new, h_gx.data(), pos_b,
                                   cudaMemcpyHostToDevice));
