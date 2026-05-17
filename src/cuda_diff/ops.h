@@ -23,8 +23,9 @@ int run_solve_density_constraint_bwd(int argc, char **argv);
 int run_xpbd_step(int argc, char **argv);
 
 // ── xpbd_full_fwd / xpbd_full_bwd (ops_xpbd_full.cu) ─────────────────
-// Per spec Phase 4. Differentiable XPBD forward; backward is sub-task F.
+// Per spec Phase 4. Differentiable XPBD forward + backward.
 int run_xpbd_full_fwd(int argc, char **argv);
+int run_xpbd_full_bwd(int argc, char **argv);
 
 // ── Pair forces + spring bonds (ops_pair_spring.cu) ──────────────────
 int run_spring_bonds_force(int argc, char **argv);
