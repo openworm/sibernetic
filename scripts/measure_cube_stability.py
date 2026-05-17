@@ -21,7 +21,7 @@ Position buffer format (single header at top, then concatenated frames):
     line  8      numOfBoundaryP
     line  9      time_step
     line 10      log_step
-    line 11+     particles, all frames concatenated, in elastic→liquid→
+    line 11+     particles, all frames concatenated, in elastic->liquid->
                  boundary order. Each line: "x y z type", with type ~= 2
                  for elastic, ~= 1 for liquid, == 3 for boundary.
 
@@ -151,14 +151,14 @@ def main(argv=None):
     print(f"  particles         : {m['n_elastic']} elastic + {m['n_liquid']} liquid + {m['n_boundary']} boundary")
     print(f"  frames            : {m['n_frames']} (logstep={m['log_step']}, buffer-header dt={m['buffer_header_dt']:g})")
     print()
-    print(f"  elastic Y extent  : {m['initial_elastic_extent_y']:7.3f} → {m['final_elastic_extent_y']:7.3f}  (retention {m['extent_retention']:.1%})")
-    print(f"  elastic mean Y    : {m['initial_elastic_mean_y']:7.3f} → {m['final_elastic_mean_y']:7.3f}")
-    print(f"  elastic lowest Y  : {m['initial_elastic_min_y']:7.3f} → {m['final_elastic_min_y']:7.3f}")
+    print(f"  elastic Y extent  : {m['initial_elastic_extent_y']:7.3f} -> {m['final_elastic_extent_y']:7.3f}  (retention {m['extent_retention']:.1%})")
+    print(f"  elastic mean Y    : {m['initial_elastic_mean_y']:7.3f} -> {m['final_elastic_mean_y']:7.3f}")
+    print(f"  elastic lowest Y  : {m['initial_elastic_min_y']:7.3f} -> {m['final_elastic_min_y']:7.3f}")
     print()
     print(f"  threshold         : retention >= {args.threshold:.0%}")
     print(f"  result            : {status}")
     if not passed:
-        print(f"  → cube collapsed; structural integrity not preserved.")
+        print(f"  -> cube collapsed; structural integrity not preserved.")
 
     if args.json:
         print()
