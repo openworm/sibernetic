@@ -20,6 +20,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 
 import numpy as np
@@ -28,6 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 import platform
 BIN = os.path.join(HERE,
                    "sib_cuda.exe" if platform.system() == "Windows" else "sib_cuda")
+TMP = tempfile.gettempdir()
 
 _TARGET_DM = -36.75
 _TARGET_EXT = 1.085
@@ -37,13 +39,13 @@ def load_demo1_inputs():
     """Set up demo1 binary buffers; return info dict."""
     sys.path.insert(0, HERE)
     from load_config import load_to_metal_buffers
-    return load_to_metal_buffers('demo1', out_dir='/tmp/demo1_metal', h=3.34)
+    return load_to_metal_buffers('demo1', out_dir=os.path.join(TMP, 'demo1_metal'), h=3.34)
 
 
 def run_fwd(info, rho, K, v, n_steps, alpha_dens=1e-3, dt=2e-5, sim_scale=7.4e-6,
             mass=2e-12, h=3.34, gravity_y=-9.8, floor_y=0.0):
     """xpbd_full_fwd → state file. Returns final positions [n_active, 3]."""
-    state_path = "/tmp/sgd_true_state.bin"
+    state_path = os.path.join(TMP, "sgd_true_state.bin")
     cmd = [BIN, "xpbd_full_fwd",
            str(info['n_active']), str(info['n_static']), str(n_steps),
            str(h), str(mass), f"{rho:.15e}",
@@ -68,7 +70,7 @@ def run_fwd(info, rho, K, v, n_steps, alpha_dens=1e-3, dt=2e-5, sim_scale=7.4e-6
 
 def compute_metrics(traj_final, n_elastic):
     """Compute Δmean_y and extent_y_ratio for the elastic cube."""
-    pos_init = np.fromfile('/tmp/demo1_metal/demo1_pos_active.bin',
+    pos_init = np.fromfile(os.path.join(TMP, 'demo1_metal', 'demo1_pos_active.bin'),
                             dtype=np.float32).reshape(-1, 3)
     init_mean_y = float(pos_init[:, 1].mean())
     elastic_init = pos_init[:n_elastic]
@@ -96,7 +98,7 @@ def loss_and_grad_x(traj_final, n_elastic, w_dm=1.0, w_ext=1.0):
 
     Returns (L, dL/dx [n_active, 3], dm, ext_ratio).
     """
-    pos_init = np.fromfile('/tmp/demo1_metal/demo1_pos_active.bin',
+    pos_init = np.fromfile(os.path.join(TMP, 'demo1_metal', 'demo1_pos_active.bin'),
                             dtype=np.float32).reshape(-1, 3)
     init_mean_y = float(pos_init[:, 1].mean())
     elastic_init = pos_init[:n_elastic]
@@ -133,33 +135,47 @@ def loss_and_grad_x(traj_final, n_elastic, w_dm=1.0, w_ext=1.0):
 def run_bwd(info, rho, K, v, n_steps, grad_x_final, alpha_dens=1e-3, dt=2e-5,
             sim_scale=7.4e-6, mass=2e-12, h=3.34, gravity_y=-9.8, floor_y=0.0):
     """xpbd_full_bwd → (∂L/∂rho, ∂L/∂spring_K, ∂L/∂visc_K, ∂L/∂alpha_dens)."""
-    np.asarray(grad_x_final, dtype=np.float32).tofile('/tmp/sgd_true_gxf.bin')
+    gxf_path = os.path.join(TMP, 'sgd_true_gxf.bin')
+    state_path = os.path.join(TMP, 'sgd_true_state.bin')
+    gx0_path = os.path.join(TMP, 'sgd_true_gx0.bin')
+    gv0_path = os.path.join(TMP, 'sgd_true_gv0.bin')
+    grho_path = os.path.join(TMP, 'sgd_true_grho.bin')
+    gK_path = os.path.join(TMP, 'sgd_true_gK.bin')
+    gvK_path = os.path.join(TMP, 'sgd_true_gvK.bin')
+    galpha_path = os.path.join(TMP, 'sgd_true_galpha.bin')
+    np.asarray(grad_x_final, dtype=np.float32).tofile(gxf_path)
     cmd = [BIN, "xpbd_full_bwd",
            str(info['n_active']), str(info['n_static']), str(n_steps),
            str(h), str(mass), f"{rho:.15e}",
            str(dt), str(gravity_y), f"{alpha_dens:.15e}",
-           '/tmp/sgd_true_state.bin',
+           state_path,
            info['paths']['pos_static'],
-           '/tmp/sgd_true_gxf.bin',
-           '/tmp/sgd_true_gx0.bin',
-           '/tmp/sgd_true_gv0.bin',
-           '/tmp/sgd_true_grho.bin',
+           gxf_path,
+           gx0_path,
+           gv0_path,
+           grho_path,
            f"{sim_scale:.15e}", f"{v:.15e}",
            f"{K:.15e}", info['paths']['bonds'],
-           '/tmp/sgd_true_gK.bin',
-           '/tmp/sgd_true_gvK.bin',
+           gK_path,
+           gvK_path,
            f"{floor_y:.6f}",
-           '/tmp/sgd_true_galpha.bin']
+           galpha_path]
     subprocess.run(cmd, check=True, capture_output=True)
-    g_rho = float(np.fromfile('/tmp/sgd_true_grho.bin', dtype=np.float32)[0])
-    g_K = float(np.fromfile('/tmp/sgd_true_gK.bin', dtype=np.float32)[0])
-    g_v = float(np.fromfile('/tmp/sgd_true_gvK.bin', dtype=np.float32)[0])
-    g_alpha = float(np.fromfile('/tmp/sgd_true_galpha.bin', dtype=np.float32)[0])
+    g_rho = float(np.fromfile(grho_path, dtype=np.float32)[0])
+    g_K = float(np.fromfile(gK_path, dtype=np.float32)[0])
+    g_v = float(np.fromfile(gvK_path, dtype=np.float32)[0])
+    g_alpha = float(np.fromfile(galpha_path, dtype=np.float32)[0])
     return g_rho, g_K, g_v, g_alpha
 
 
 def main():
     global _TARGET_DM, _TARGET_EXT
+    # Windows console (cp1252) chokes on Δ/∂/α/★; force UTF-8 stdout when
+    # supported (Python 3.7+ has reconfigure()).
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument('--max-steps', type=int, default=15)
     ap.add_argument('--lr', type=float, default=0.05)
@@ -273,7 +289,7 @@ def main():
     rho_b, K_b, v_b, alpha_b = best_params
     print(f"  rho={rho_b:.6e} K={K_b:.3f} v={v_b:.6e} alpha={alpha_b:.6e}")
 
-    out = "/tmp/sgd_true_history.json"
+    out = os.path.join(TMP, "sgd_true_history.json")
     with open(out, 'w') as f: json.dump(history, f, indent=2)
     print(f"History: {out}")
     return 0
