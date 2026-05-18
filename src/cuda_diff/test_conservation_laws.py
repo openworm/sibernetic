@@ -100,15 +100,19 @@ def main():
     v_all = np.concatenate([v_per_step, v_final[None, :, :]], axis=0)
     x_all = np.concatenate([x_per_step, traj[-1:None, :, :].reshape(1, n_active, 3)], axis=0)
 
-    # Conservation checks
+    # Conservation checks (accumulate failures across all checks)
+    any_fail = False
+
+    # CHECK 1: No NaN/Inf
     n_nans = int(np.isnan(v_all).sum() + np.isinf(v_all).sum()
                  + np.isnan(x_all).sum() + np.isinf(x_all).sum())
     if n_nans > 0:
-        print(f"FAIL: {n_nans} NaN/Inf in trajectory")
-        return 1
-    print(f"[CHECK 1] no NaN/Inf: PASS ({x_all.size + v_all.size} floats checked)")
+        print(f"[CHECK 1] no NaN/Inf: FAIL ({n_nans} NaN/Inf in trajectory)")
+        any_fail = True
+    else:
+        print(f"[CHECK 1] no NaN/Inf: PASS ({x_all.size + v_all.size} floats checked)")
 
-    # n_active is constant by construction; just confirm
+    # CHECK 2: n_active is constant by construction; just confirm
     print(f"[CHECK 2] n_active = {n_active} (constant by design): PASS")
 
     # Compute per-step metrics
@@ -116,21 +120,51 @@ def main():
     KE = 0.5 * MASS * np.sum(v_all ** 2, axis=(1, 2))  # scalar per step
     p_y = MASS * np.sum(v_all[:, :, 1], axis=1)         # scalar per step
 
-    # y-momentum check: should change smoothly under gravity + reaction
+    # CHECK 3: y-momentum smoothness
+    # Gravity-only baseline: dp_y/dt = n_active * m * g (constant), so d^2 p_y/dt^2 = 0.
+    # Floor reaction adds spikes once particles hit FLOOR_Y. Bound by 1e6x the
+    # gravity acceleration scale: this is loose enough to permit reasonable
+    # floor-reaction impulses but catches teleport-magnitude jumps
+    # (a particle teleporting at O(1 m/s) gives d^2 p_y/dt^2 ~ m/DT^2 = 5e-3,
+    #  well above the 1e6x threshold).
+    grav_accel_scale = abs(n_active * MASS * G_Y)  # ~6.7e-9 for demo1
+    p_y_threshold = 1.0e6 * grav_accel_scale
     dp_dt = np.diff(p_y) / DT
     max_jump = float(np.abs(np.diff(dp_dt)).max())
-    print(f"[CHECK 3] y-momentum smoothness: max |d^2 p_y / dt^2| = {max_jump:.3e}")
-    # No specific threshold — just sanity check no insane jumps
+    if max_jump > p_y_threshold:
+        print(f"[CHECK 3] y-momentum smoothness: FAIL "
+              f"(max |d^2 p_y / dt^2| = {max_jump:.3e} > "
+              f"threshold {p_y_threshold:.3e} = 1e6 * |n*m*g|)")
+        any_fail = True
+    else:
+        print(f"[CHECK 3] y-momentum smoothness: PASS "
+              f"(max |d^2 p_y / dt^2| = {max_jump:.3e} <= "
+              f"threshold {p_y_threshold:.3e} = 1e6 * |n*m*g|)")
 
-    # Energy check: should be bounded, not exponentially growing
+    # CHECK 4: kinetic energy bound
+    # Upper bound for unimpeded free fall of duration K*dt:
+    #   KE(t) <= 0.5 * n * m * (g*t)^2
+    # Allow 100x that bound to permit numerical noise + transient spring/floor
+    # impulses while still catching exponential blow-up (the docstring warns
+    # about energy gain rather than dissipation).
+    t_total = K * DT
+    KE_freefall_bound = 0.5 * n_active * MASS * (abs(G_Y) * t_total) ** 2
+    KE_threshold = 100.0 * KE_freefall_bound
     KE_max = float(KE.max())
     KE_final = float(KE[-1])
     KE_initial = float(KE[0])
     print(f"[CHECK 4] kinetic energy:")
     print(f"   initial: {KE_initial:.3e}  max: {KE_max:.3e}  final: {KE_final:.3e}")
     print(f"   max/initial ratio: {KE_max / max(KE_initial, 1e-30):.2e}")
+    if KE_max > KE_threshold:
+        print(f"   FAIL: KE.max() = {KE_max:.3e} > "
+              f"threshold {KE_threshold:.3e} = 100 * 0.5*n*m*(g*K*dt)^2")
+        any_fail = True
+    else:
+        print(f"   PASS: KE.max() = {KE_max:.3e} <= "
+              f"threshold {KE_threshold:.3e} = 100 * 0.5*n*m*(g*K*dt)^2")
 
-    # Final velocity sanity
+    # Final velocity sanity (diagnostic only)
     v_final_norm = float(np.linalg.norm(v_final))
     print(f"   final ||v|| = {v_final_norm:.3e} m/s")
 
@@ -157,8 +191,10 @@ def main():
     except ImportError:
         print("(matplotlib not available; plot skipped)")
 
-    # Overall verdict: all 4 checks PASS
-    # (no quantitative threshold on KE/momentum — XPBD damping is parameter-dependent)
+    # Overall verdict: nonzero exit if ANY of the 4 checks failed
+    if any_fail:
+        print("\n[OVERALL FAIL] conservation laws audit")
+        return 1
     print("\n[OVERALL PASS] conservation laws audit")
     return 0
 
