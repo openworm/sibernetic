@@ -27,10 +27,9 @@ Format (matches scripts/measure_cube_stability.py header parsing):
   line 11+    particles concatenated (elastic -> liquid -> boundary),
               4 cols: x y z type (1.x liquid, 2.x elastic, 3.x boundary)
 
-Usage:
+Usage (output path defaults to tempfile.gettempdir() if --out is omitted):
     python src/cuda_diff/dump_cuda_full_trajectory.py \
-        --scenario demo1 --K 50000 --logstep 500 --dt 2e-5 \
-        --out /tmp/cuda_full_position_buffer.txt
+        --scenario demo1 --K 50000 --logstep 500 --dt 2e-5
 """
 import argparse
 import os

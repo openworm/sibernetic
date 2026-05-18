@@ -1,10 +1,15 @@
 # Sibernetic CUDA differentiable substrate
 
 CUDA port of `src/metal_diff/`, implementing the work plan in
-`src/cuda/README.md`. Mirrors the Metal substrate file-for-file so the
-shared Python harnesses (`load_config.py`, `sgd_true.py`,
-`dump_*_trajectory.py`) work against either backend by swapping only the
-binary path.
+`src/cuda/README.md`. Mirrors the Metal substrate's kernel set and the
+integrated XPBD CLI surface (`xpbd_full_fwd` / `xpbd_full_bwd` /
+`xpbd_step`) so the shared Python harnesses (`load_config.py`,
+`sgd_true.py`, `dump_*_trajectory.py`) work against either backend by
+swapping only the binary path. Unit-level CLI ops (the standalone
+`pair_forces_*`, `spring_bonds_*`, density-chain primitives) follow
+similar argv conventions but were renamed where the underlying kernel
+gained a "_grid" qualifier; see the **Op-name map** below. Membranes
+(M10) are intentionally out-of-scope — see **Known limitations**.
 
 ## Layout
 
@@ -81,12 +86,45 @@ outputs in-process.
   dt/sim_scale combination -- physics divergence, not a kernel bug. See
   the V5 commit message for details.
 
+## Op-name map (CUDA ↔ Metal)
+
+Integrated XPBD ops (`xpbd_full_fwd`, `xpbd_full_bwd`, `xpbd_step`) have
+identical names and argv layouts in both substrates, so the shared
+Python harnesses are substrate-agnostic. Standalone kernel ops differ:
+
+| CUDA op (`sib_cuda <op>`) | Metal op (`sib_metal <op>`) | Notes |
+|---|---|---|
+| `pair_forces_grid_fwd` / `_bwd` | `pair_forces_fwd` / `_bwd` | CUDA name reflects the spatial-grid acceleration in the kernel body |
+| `spring_bonds_force` / `_bwd` | `spring_bonds_fwd` / `_bwd` | "force" = the force-based (not constraint-based) bond model used by both |
+| `visc_K_partial`, `spring_K_partial` | (host-only on Metal) | CUDA exposes these as standalone ops for FD validation |
+| `apply_ext_accel`, `apply_ext_accel_bwd` | (inlined in Metal) | CUDA exposes these as standalone ops for the integrated chain |
+| `dist_active_static[_bwd]`, `dist_active_active[_bwd]`, `wpoly6_inplace[_bwd]`, `rowsum_density[_bwd]`, `density_constraint_grad[_bwd]`, `solve_density_constraint_bwd` | identical names | M6 / M9 chain primitives |
+
+## Test-suite mapping
+
+CUDA ships 13 tests vs Metal's 19 because several Metal unit tests were
+consolidated into broader end-to-end checks on the CUDA side:
+
+| CUDA test | Metal-side coverage |
+|---|---|
+| `test_m6_cuda.py`, `test_m6_bwd_cuda.py` | `test_dist.py` + `test_dens_grad.py` + `test_grad.py` + `test_solve_dens_bwd.py` |
+| `test_xpbd_full_fwd_cuda.py` | `test_xpbd.py` + `test_xpbd_full.py` + `test_xpbd_full_spring.py` + `test_xpbd_full_visc.py` |
+| `test_xpbd_full_bwd_cuda.py`, `test_xpbd_full_bwd_longchain_cuda.py` | `test_constraint_grad_bwd.py` + `test_param_grads.py` + `test_dens_alpha_grad.py` |
+| `test_pair_forces_grid_cuda.py` | `test_pair_forces_bwd.py` |
+| `test_visc_K_partial_cuda.py`, `test_m7_1_bwd_cuda.py` | per-parameter FD checks |
+| `test_cube_drop_cuda.py` | demo1 integration check |
+| `test_conservation_laws.py`, `test_fuzz_xpbd_full.py`, `test_demo1_edge_cases.py` | CUDA-only audits (no Metal counterpart) |
+
+Membrane tests (`test_membrane_correction.py`, `test_xpbd_full_membrane.py`)
+have no CUDA counterpart — M10 is out-of-scope.
+
 ## Upstream reference
 
-The line-by-line counterpart to every file here is in `src/metal_diff/`.
-When in doubt about a kernel's contract or a host driver's argv layout,
-look at the matching `.mm` / `.metal` first - the CUDA file is intended
-to be a mechanical translation.
+The line-by-line kernel-level counterpart to every file here is in
+`src/metal_diff/`. When in doubt about a kernel's math or the integrated
+XPBD argv layout, look at the matching `.mm` / `.metal` first — the
+CUDA kernel implementations are intended as mechanical ports. Unit-level
+CLI argv layouts may differ at the surface; see the Op-name map above.
 
 Validation history lives in the git log for `ow-native-gpu-0.1.0`
 (search commit messages for `V1` .. `V5`).
