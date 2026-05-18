@@ -225,13 +225,7 @@ int run_xpbd_step(int argc, char **argv) {
             if (!skip_density) {
                 // rowsum_density / density_constraint_grad declare
                 // __shared__ float partials[256] and tree-reduce with
-                // stride = T/2. TPB > 256 writes OOB; TPB not a power of 2
-                // <= 256 silently drops elements.
-                constexpr unsigned int TPB_REDUCE = 256;
-                static_assert(TPB_REDUCE == 256,
-                              "rowsum_density/density_constraint_grad: "
-                              "TPB must be 256 (shared partials[256] + "
-                              "power-of-2 tree reduce)");
+                // stride = T/2; TPB_REDUCE (cuda_common.h) is fixed at 256.
                 // density chain
                 {
                     dim3 t2(16, 16);

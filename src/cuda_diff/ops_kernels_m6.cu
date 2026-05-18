@@ -249,12 +249,7 @@ int run_rowsum_density(int argc, char **argv) {
                           cudaMemcpyHostToDevice));
 
     // rowsum_density declares __shared__ float partials[256] and tree-reduces
-    // with stride = T/2. TPB > 256 writes OOB; TPB not a power of 2 <= 256
-    // silently drops elements.
-    constexpr unsigned int TPB_REDUCE = 256;
-    static_assert(TPB_REDUCE == 256,
-                  "rowsum_density: TPB must be 256 "
-                  "(shared partials[256] + power-of-2 tree reduce)");
+    // with stride = T/2; TPB_REDUCE (cuda_common.h) is fixed at 256 to match.
     auto t0 = std::chrono::steady_clock::now();
     for (int it = 0; it < iters; it++) {
         rowsum_density<<<n_rows, TPB_REDUCE>>>(d_W, d_density, mass,
@@ -336,13 +331,8 @@ int run_density_constraint_grad(int argc, char **argv) {
                           cudaMemcpyHostToDevice));
 
     // density_constraint_grad declares __shared__ float3 partials_grad[256]
-    // and __shared__ float partials_denom[256] and tree-reduces with stride
-    // = T/2. TPB > 256 writes OOB; TPB not a power of 2 <= 256 silently
-    // drops elements.
-    constexpr unsigned int TPB_REDUCE = 256;
-    static_assert(TPB_REDUCE == 256,
-                  "density_constraint_grad: TPB must be 256 "
-                  "(shared partials[256] + power-of-2 tree reduce)");
+    // + __shared__ float partials_denom[256] and tree-reduces with stride
+    // = T/2; TPB_REDUCE (cuda_common.h) is fixed at 256 to match.
     auto t0 = std::chrono::steady_clock::now();
     for (int it = 0; it < iters; it++) {
         density_constraint_grad<<<n_active, TPB_REDUCE>>>(
@@ -411,13 +401,8 @@ int run_dist_active_static_bwd(int argc, char **argv) {
                           cudaMemcpyHostToDevice));
 
     // dist_active_static_bwd uses __shared__ float3 partials[256] + tree
-    // reduction with stride = T/2; T must be 256 (any other power of 2
-    // <= 256 would technically work for the reduction but under-uses
-    // shared mem and silently mis-sizes the partials array).
-    constexpr unsigned int TPB_REDUCE = 256;
-    static_assert(TPB_REDUCE == 256,
-                  "dist_active_static_bwd: TPB must be 256 "
-                  "(shared partials[256] + power-of-2 tree reduce)");
+    // reduction with stride = T/2; TPB_REDUCE (cuda_common.h) is fixed at
+    // 256 to match the shared-mem size.
     dist_active_static_bwd<<<n_active, TPB_REDUCE>>>(
         d_active, d_static, d_gr2, d_gact, n_active, n_static);
     CUDA_CHECK(cudaGetLastError());

@@ -295,11 +295,8 @@ int run_xpbd_full_fwd(int argc, char **argv) {
         if (use_pair) {
             // 32 threads per particle, one block per particle.
             // shaders.cu hardcodes a 5-round __shfl_down_sync (offsets
-            // 16/8/4/2/1) that sums exactly one warp; anything other than
-            // 32 silently miscomputes.
-            constexpr unsigned int TPB_PAIR = 32;
-            static_assert(TPB_PAIR == 32,
-                          "pair_forces_grid_fwd: TPB must be 32 (single warp)");
+            // 16/8/4/2/1) that sums exactly one warp; TPB_PAIR
+            // (cuda_common.h) is fixed at 32.
             pair_forces_grid_fwd<<<n_active, TPB_PAIR>>>(
                 d_X, d_V, d_SortedS, d_CellStart, d_D, d_ExtA,
                 h, h2, sim_scale, visc_pair_coef, visc_amp, surf_amp,
@@ -340,12 +337,8 @@ int run_xpbd_full_fwd(int argc, char **argv) {
         wpoly6_inplace<<<(n_aa_total + TPB - 1) / TPB, TPB>>>(
             d_Waa, h2, poly6_const, n_aa_total);
         // rowsum_density / density_constraint_grad declare __shared__
-        // float partials[256] and tree-reduce with stride = T/2. TPB > 256
-        // writes OOB; TPB not a power of 2 <= 256 silently drops elements.
-        constexpr unsigned int TPB_REDUCE = 256;
-        static_assert(TPB_REDUCE == 256,
-                      "rowsum_density/density_constraint_grad: TPB must be 256 "
-                      "(shared partials[256] + power-of-2 tree reduce)");
+        // float partials[256] and tree-reduce with stride = T/2;
+        // TPB_REDUCE (cuda_common.h) is fixed at 256.
         rowsum_density<<<n_active, TPB_REDUCE>>>(d_Waa, d_D_aa, mass,
                                                  n_active, n_active);
         if (n_static > 0) {
@@ -813,10 +806,8 @@ int run_xpbd_full_bwd(int argc, char **argv) {
             // step's density solve, mirroring fwd ordering).
             CUDA_CHECK(cudaMemcpy(d_D, h_paird.data(), s_b,
                                   cudaMemcpyHostToDevice));
-            // 32 threads per particle; single-warp __shfl_down_sync invariant.
-            constexpr unsigned int TPB_PAIR = 32;
-            static_assert(TPB_PAIR == 32,
-                          "pair_forces_grid_fwd: TPB must be 32 (single warp)");
+            // 32 threads per particle; single-warp __shfl_down_sync invariant
+            // is honored by TPB_PAIR (cuda_common.h).
             pair_forces_grid_fwd<<<n_active, TPB_PAIR>>>(
                 d_X, d_V, d_SortedS, d_CellStart, d_D, d_ExtA,
                 h, h2, sim_scale, visc_pair_coef, visc_amp, surf_amp,
@@ -971,13 +962,9 @@ int run_xpbd_full_bwd(int argc, char **argv) {
                 d_R2as, d_GW_as, h2, poly6_const, n_as_total);
             // dist_active_static_bwd: one block per active particle,
             // 256 threads cooperate over the n_static axis. TPB_REDUCE
-            // must be 256 to match shared partials[256] + power-of-2
-            // tree reduce.
-            constexpr unsigned int TPB_REDUCE_DAS = 256;
-            static_assert(TPB_REDUCE_DAS == 256,
-                          "dist_active_static_bwd: TPB must be 256 "
-                          "(shared partials[256] + power-of-2 tree reduce)");
-            dist_active_static_bwd<<<n_active, TPB_REDUCE_DAS>>>(
+            // (cuda_common.h) is fixed at 256 to match shared partials[256]
+            // + power-of-2 tree reduce.
+            dist_active_static_bwd<<<n_active, TPB_REDUCE>>>(
                 d_Xp, d_Sp, d_GW_as, d_Gx_pred, n_active, n_static);
         }
 

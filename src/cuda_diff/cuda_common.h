@@ -93,3 +93,22 @@ void build_static_grid(
     GridDim3 *grid_dim_out, GridOrigin3 *grid_origin_out,
     int *n_cells_out,
     const float *aux_in = NULL, float **sorted_aux_out = NULL);
+
+// ── Kernel block-size contracts ──────────────────────────────────────
+// These values are baked into kernel implementations in shaders.cu via
+// hard-coded shared-memory sizes and warp-shuffle widths. Changing
+// either constant here changes every launch site consistently but does
+// NOT change the kernel internals — you'd also need to edit shaders.cu.
+// Host drivers reference these symbols at launch so the contract is
+// visible at every callsite.
+//
+//   TPB_REDUCE = 256 : kernels with __shared__ partials[256] +
+//                      power-of-2 tree reduce
+//                      (rowsum_density, density_constraint_grad,
+//                      dist_active_static_bwd, sum_atomic_to_scalar,
+//                      grad_rho_atomic).
+//   TPB_PAIR   =  32 : kernels with __shfl_down_sync over one warp
+//                      (pair_forces_grid_fwd's 5-round shuffle at
+//                      offsets 16/8/4/2/1).
+constexpr unsigned int TPB_REDUCE = 256;
+constexpr unsigned int TPB_PAIR   = 32;
