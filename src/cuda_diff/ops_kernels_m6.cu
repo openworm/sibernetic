@@ -762,23 +762,5 @@ int run_solve_density_constraint_bwd(int argc, char **argv) {
     return 0;
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// xpbd_full_fwd_step / xpbd_full_bwd_step
-//
-// Single-step differentiable XPBD subset (predict + floor + update only).
-// Used as the Phase 4 differentiability proof. Density + bonds backwards
-// land in a follow-on once their forward analogs need SGD.
-//
-// fwd CLI:
-//   sib_cuda xpbd_full_fwd_step
-//       <n> <dt> <gravity_y> <floor_y> <restitution> <sim_scale>
-//       <pos_old.bin> <vel.bin>
-//       <pos_pred_save.bin> <pos_post_save.bin> <vel_new.bin>
-//
-// bwd CLI:
-//   sib_cuda xpbd_full_bwd_step
-//       <n> <dt> <gravity_y> <floor_y> <restitution> <sim_scale>
-//       <pos_pred_save.bin> <pos_old.bin>
-//       <grad_vel_new.bin>
-//       <grad_pos_old.bin> <grad_vel.bin>
-//       <grad_gravity_y.bin> <grad_floor_y.bin> <grad_restitution.bin>
+// End of file. (Phase 4 single-step XPBD ops were superseded by the
+// multi-step xpbd_full_fwd / xpbd_full_bwd drivers in ops_xpbd_full.cu.)

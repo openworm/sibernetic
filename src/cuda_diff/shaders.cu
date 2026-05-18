@@ -364,60 +364,6 @@ __global__ void clamp_velocity(float3 *vel, float v_max, unsigned int n)
     }
 }
 
-// Utility — sum a 1-D float array and atomicAdd the reduction to a scalar.
-// Single-block launch <<<1, TPB>>>; TPB must equal the partials[] size below.
-// Used to accumulate per-particle scalar grads (rho_rest, alpha_density)
-// from the M7.1_bwd output into a running scalar accumulator across the
-// multi-step reverse loop.
-__global__ void sum_atomic_to_scalar(const float *src, float *dst,
-                                     unsigned int n)
-{
-    __shared__ float partials[256];
-    unsigned int t = threadIdx.x;
-    unsigned int T = blockDim.x;
-    float sum = 0.0f;
-    for (unsigned int k = t; k < n; k += T) sum += src[k];
-    partials[t] = sum;
-    __syncthreads();
-    for (unsigned int s = T / 2; s > 0; s >>= 1) {
-        if (t < s) partials[t] += partials[t + s];
-        __syncthreads();
-    }
-    if (t == 0) atomicAdd(dst, partials[0]);
-}
-
-// Adds the M6.4-side contribution to ∂L/∂ρ_rest.
-// M6.4 forward computes grad_C[i] = (m/ρ_rest)·Σ_k ∇W, so grad_C scales as
-// 1/ρ_rest. Given ω_i = ∂L/∂grad_C[i] (= grad_grad_C from M7.1_bwd) and
-// the saved grad_C values, the correction is:
-//   ∂L/∂ρ_rest_via_grad_C += -(1/ρ_rest) · Σ_i ⟨ω_i, grad_C[i]⟩
-// This complements the direct ∂L/∂ρ_rest contribution from M7.1_bwd
-// (which only captures C and D dependencies in solve_density_constraint).
-// Single-block dot-product reduction → atomicAdd to scalar accumulator.
-__global__ void rho_rest_grad_via_M6_4(const float3 *grad_grad_C,
-                                       const float3 *grad_C_saved,
-                                       float *grad_rho_dst,
-                                       float rho_rest,
-                                       unsigned int n)
-{
-    __shared__ float partials[256];
-    unsigned int t = threadIdx.x;
-    unsigned int T = blockDim.x;
-    float sum = 0.0f;
-    for (unsigned int i = t; i < n; i += T) {
-        float3 a = grad_grad_C[i];
-        float3 b = grad_C_saved[i];
-        sum += a.x*b.x + a.y*b.y + a.z*b.z;
-    }
-    partials[t] = sum;
-    __syncthreads();
-    for (unsigned int s = T / 2; s > 0; s >>= 1) {
-        if (t < s) partials[t] += partials[t + s];
-        __syncthreads();
-    }
-    if (t == 0) atomicAdd(grad_rho_dst, -partials[0] / rho_rest);
-}
-
 // ──────────────────────────────────────────────────────────────────────
 // M7 backward kernels — paired adjoint of predict/floor/update.
 //
@@ -448,13 +394,19 @@ __global__ void predict_positions_backward(const float3 *grad_pos_pred,
     if (gid >= n) return;
     float3 g_xp = grad_pos_pred[gid];
     // grad_pos_old += grad_pos_pred (identity).
-    float3 prev = grad_pos_old[gid];
-    grad_pos_old[gid] = make_float3(prev.x + g_xp.x,
-                                    prev.y + g_xp.y,
-                                    prev.z + g_xp.z);
-    // grad_vel = grad_pos_pred * dt * sim_scale_inv.
+    float3 prev_x = grad_pos_old[gid];
+    grad_pos_old[gid] = make_float3(prev_x.x + g_xp.x,
+                                    prev_x.y + g_xp.y,
+                                    prev_x.z + g_xp.z);
+    // grad_vel += grad_pos_pred * dt * sim_scale_inv.
+    // Accumulate (was overwrite); matches Metal's predict_positions_backward
+    // contract at shaders.metal:2128 so callers can rely on grad_vel being
+    // an output-accumulator regardless of backend.
     float k = dt * sim_scale_inv;
-    grad_vel[gid] = make_float3(g_xp.x * k, g_xp.y * k, g_xp.z * k);
+    float3 prev_v = grad_vel[gid];
+    grad_vel[gid] = make_float3(prev_v.x + g_xp.x * k,
+                                prev_v.y + g_xp.y * k,
+                                prev_v.z + g_xp.z * k);
     // grad_gravity_y += grad_pos_pred.y * dt * dt * sim_scale_inv (atomic).
     float contrib = g_xp.y * dt * dt * sim_scale_inv;
     atomicAdd(grad_gravity_y, contrib);
@@ -491,130 +443,6 @@ __global__ void solve_floor_constraint_backward(const float3 *grad_pos_post,
         atomicAdd(grad_floor_y, gpp.y * (1.0f + restitution));
         atomicAdd(grad_restitution, gpp.y * (floor_y - xp.y));
     }
-}
-
-// solve_distance_constraints_seq_with_save: same as the forward bond
-// projector but also persists per-bond pre-state (pi, pj, λ_pre) to a
-// `state` buffer of 7·n_bonds floats. The backward kernel needs these
-// to reconstruct Δλ and the projection geometry.
-__global__ void solve_distance_constraints_seq_with_save(
-    float3 *pos_pred,
-    float *lambdas,
-    const int2 *bond_ij,
-    const float *rest_len,
-    float *state,
-    float alpha_inv_dt2,
-    float mass_inv,
-    unsigned int n_bonds)
-{
-    if (threadIdx.x != 0 || blockIdx.x != 0) return;
-    for (unsigned int b = 0; b < n_bonds; b++) {
-        int i = bond_ij[b].x;
-        int j = bond_ij[b].y;
-        float3 pi = pos_pred[i];
-        float3 pj = pos_pred[j];
-        float lambda_pre = lambdas[b];
-
-        unsigned int base = b * 7;
-        state[base + 0] = pi.x; state[base + 1] = pi.y; state[base + 2] = pi.z;
-        state[base + 3] = pj.x; state[base + 4] = pj.y; state[base + 5] = pj.z;
-        state[base + 6] = lambda_pre;
-
-        float dx = pi.x - pj.x, dy = pi.y - pj.y, dz = pi.z - pj.z;
-        float d = sqrtf(dx*dx + dy*dy + dz*dz);
-        if (d < 1e-7f) continue;
-        float C = d - rest_len[b];
-        float inv_d = 1.0f / d;
-        float gx = dx * inv_d, gy = dy * inv_d, gz = dz * inv_d;
-        float D = 2.0f * mass_inv + alpha_inv_dt2;
-        float dlambda = -(C + alpha_inv_dt2 * lambda_pre) / D;
-        float corr = dlambda * mass_inv;
-        pos_pred[i] = make_float3(pi.x + gx * corr,
-                                  pi.y + gy * corr,
-                                  pi.z + gz * corr);
-        pos_pred[j] = make_float3(pj.x - gx * corr,
-                                  pj.y - gy * corr,
-                                  pj.z - gz * corr);
-        lambdas[b] = lambda_pre + dlambda;
-    }
-}
-
-// solve_distance_constraints_seq_backward: hand-derived adjoint of the
-// Gauss-Seidel bond projection. Walks bonds in REVERSE order; each bond's
-// backward sees pos_grad as updated by later bonds. Single thread; no
-// races.
-//
-// alpha_param is the compliance α (NOT α/dt²); dt2 = dt²; the kernel
-// scales internally per the chain-rule derivation in shaders.metal.
-__global__ void solve_distance_constraints_seq_backward(
-    float3 *pos_grad,
-    float *lambda_grad,
-    float *alpha_grad,
-    const int2 *bond_ij,
-    const float *rest_len,
-    const float *state,
-    float alpha_inv_dt2,
-    float alpha_param,
-    float dt2,
-    float mass_inv,
-    unsigned int n_bonds)
-{
-    if (threadIdx.x != 0 || blockIdx.x != 0) return;
-    float local_alpha_grad = 0.0f;
-    for (int bi = (int)n_bonds - 1; bi >= 0; bi--) {
-        unsigned int b = (unsigned int)bi;
-        int i = bond_ij[b].x;
-        int j = bond_ij[b].y;
-        unsigned int base = b * 7;
-
-        float3 pi_pre = make_float3(state[base+0], state[base+1], state[base+2]);
-        float3 pj_pre = make_float3(state[base+3], state[base+4], state[base+5]);
-        float lambda_pre = state[base+6];
-
-        float vx = pi_pre.x - pj_pre.x;
-        float vy = pi_pre.y - pj_pre.y;
-        float vz = pi_pre.z - pj_pre.z;
-        float d = sqrtf(vx*vx + vy*vy + vz*vz);
-        if (d < 1e-7f) continue;
-        float inv_d = 1.0f / d;
-        float gx = vx * inv_d, gy = vy * inv_d, gz = vz * inv_d;
-        float L = rest_len[b];
-        float C = d - L;
-        float D = 2.0f * mass_inv + alpha_inv_dt2;
-        float dlambda = -(C + alpha_inv_dt2 * lambda_pre) / D;
-
-        float3 omega = pos_grad[i];
-        float3 phi   = pos_grad[j];
-        float psi    = lambda_grad[b];
-
-        float deltax = omega.x - phi.x;
-        float deltay = omega.y - phi.y;
-        float deltaz = omega.z - phi.z;
-        float delta_g = deltax * gx + deltay * gy + deltaz * gz;
-
-        float coef1 = dlambda * mass_inv * inv_d;
-        float coef2 = -delta_g * mass_inv / D;
-        // delta_J = coef1 · (delta - delta_g · g) + coef2 · g
-        float dJx = coef1 * (deltax - delta_g * gx) + coef2 * gx;
-        float dJy = coef1 * (deltay - delta_g * gy) + coef2 * gy;
-        float dJz = coef1 * (deltaz - delta_g * gz) + coef2 * gz;
-
-        float psi_over_D = psi / D;
-        pos_grad[i] = make_float3(omega.x + dJx - psi_over_D * gx,
-                                  omega.y + dJy - psi_over_D * gy,
-                                  omega.z + dJz - psi_over_D * gz);
-        pos_grad[j] = make_float3(phi.x - dJx + psi_over_D * gx,
-                                  phi.y - dJy + psi_over_D * gy,
-                                  phi.z - dJz + psi_over_D * gz);
-
-        lambda_grad[b] = -delta_g * alpha_param * mass_inv / (dt2 * D)
-                       + psi * 2.0f * mass_inv / D;
-
-        float dlambda_dalpha = (C - 2.0f * lambda_pre * mass_inv) / (dt2 * D * D);
-        float chain_param = delta_g * mass_inv + psi;
-        local_alpha_grad += chain_param * dlambda_dalpha;
-    }
-    atomicAdd(alpha_grad, local_alpha_grad);
 }
 
 // update_velocities_backward:
@@ -1040,8 +868,8 @@ __global__ void spring_bonds_force_backward(const float3 *active_pos,
 // spring_K_partial — per-particle partial of ∂L/∂spring_K. The per-bond
 // contribution to a_i is -K·(r-L)·dir/r; differentiating w.r.t. K gives
 // daK_i = -(r-L)·dir/r. The per-particle partial = ⟨daK_i, ga_i⟩, summed
-// over incident bonds. Host sums per_particle[] to a scalar via
-// sum_atomic_to_scalar to get ∂L/∂K.
+// over incident bonds. The host driver in ops_xpbd_full.cu sums
+// per_particle[] into the running scalar ∂L/∂K (see L1051-1066).
 __global__ void spring_K_partial(const float3 *active_pos,
                                  const int2 *bond_ij,
                                  const float *bond_rest,

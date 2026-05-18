@@ -88,12 +88,6 @@ __global__ void update_velocities(float3 *vel, const float3 *pos_old,
 // ── Utility ───────────────────────────────────────────────────────────
 __global__ void add_inplace(float *dst, const float *src, unsigned int n);
 __global__ void clamp_velocity(float3 *vel, float v_max, unsigned int n);
-__global__ void sum_atomic_to_scalar(const float *src, float *dst,
-                                     unsigned int n);
-__global__ void rho_rest_grad_via_M6_4(const float3 *grad_grad_C,
-                                       const float3 *grad_C_saved,
-                                       float *grad_rho_dst,
-                                       float rho_rest, unsigned int n);
 
 // ── M7 backward ───────────────────────────────────────────────────────
 __global__ void predict_positions_backward(const float3 *grad_pos_pred,
@@ -109,15 +103,6 @@ __global__ void solve_floor_constraint_backward(const float3 *grad_pos_post,
                                                 float *grad_restitution,
                                                 float floor_y, float restitution,
                                                 unsigned int n);
-__global__ void solve_distance_constraints_seq_with_save(
-    float3 *pos_pred, float *lambdas, const int2 *bond_ij,
-    const float *rest_len, float *state,
-    float alpha_inv_dt2, float mass_inv, unsigned int n_bonds);
-__global__ void solve_distance_constraints_seq_backward(
-    float3 *pos_grad, float *lambda_grad, float *alpha_grad,
-    const int2 *bond_ij, const float *rest_len, const float *state,
-    float alpha_inv_dt2, float alpha_param, float dt2,
-    float mass_inv, unsigned int n_bonds);
 __global__ void update_velocities_backward(const float3 *grad_vel_new,
                                            float3 *grad_pos_post,
                                            float3 *grad_pos_old,

@@ -40,7 +40,7 @@
 
 // ──────────────────────────────────────────────────────────────────────
 int run_xpbd_step(int argc, char **argv) {
-    if (argc < 20) {
+    if (argc < 21) {
         fprintf(stderr,
             "usage: sib_cuda xpbd_step "
             "<n_active> <n_static> <h> <mass> <rho_rest> <dt> <gravity_y> "
@@ -107,6 +107,9 @@ int run_xpbd_step(int argc, char **argv) {
             if (std::fread(pair, sizeof(int32_t), 2, f) != 2 ||
                 std::fread(lenpad, sizeof(float), 2, f) != 2) {
                 fprintf(stderr, "short read on %s\n", path_bonds);
+                std::fclose(f);
+                std::free(h_bond_ij);
+                std::free(h_rest_len);
                 return 1;
             }
             h_bond_ij[b].x = pair[0];

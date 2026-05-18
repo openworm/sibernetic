@@ -105,10 +105,17 @@ void build_static_grid(
 //   TPB_REDUCE = 256 : kernels with __shared__ partials[256] +
 //                      power-of-2 tree reduce
 //                      (rowsum_density, density_constraint_grad,
-//                      dist_active_static_bwd, sum_atomic_to_scalar,
-//                      grad_rho_atomic).
+//                      dist_active_static_bwd, density_constraint_grad_bwd).
 //   TPB_PAIR   =  32 : kernels with __shfl_down_sync over one warp
 //                      (pair_forces_grid_fwd's 5-round shuffle at
 //                      offsets 16/8/4/2/1).
 constexpr unsigned int TPB_REDUCE = 256;
 constexpr unsigned int TPB_PAIR   = 32;
+// Compile-time invariants: these constants are baked into shared-memory
+// allocations (`__shared__ float partials[256]`) and warp-shuffle widths
+// in shaders.cu. Changing them here without updating the kernel internals
+// would silently corrupt results — a static_assert is cheaper than that.
+static_assert(TPB_REDUCE == 256,
+              "shaders.cu reductions hardcode __shared__ partials[256]");
+static_assert(TPB_PAIR == 32,
+              "pair_forces_grid_fwd warp-shuffle assumes a full 32-lane warp");

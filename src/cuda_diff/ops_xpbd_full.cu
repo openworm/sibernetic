@@ -122,9 +122,29 @@ int run_xpbd_full_fwd(int argc, char **argv) {
         std::fseek(fb, 0, SEEK_END);
         long sz = std::ftell(fb);
         std::fseek(fb, 0, SEEK_SET);
+        if (sz <= 0 || (sz % 16) != 0) {
+            fprintf(stderr,
+                    "bonds.bin %s is empty or not a multiple of 16 bytes "
+                    "(got %ld bytes)\n", bonds_path, sz);
+            std::fclose(fb);
+            return 1;
+        }
         n_bonds = (uint32_t)(sz / 16);
-        uint8_t *raw = (uint8_t *)std::malloc((size_t)n_bonds * 16);
-        std::fread(raw, 1, (size_t)n_bonds * 16, fb);
+        size_t raw_bytes = (size_t)n_bonds * 16;
+        uint8_t *raw = (uint8_t *)std::malloc(raw_bytes);
+        if (!raw) {
+            fprintf(stderr, "malloc failed for %zu bytes (bonds.bin)\n",
+                    raw_bytes);
+            std::fclose(fb);
+            return 1;
+        }
+        if (std::fread(raw, 1, raw_bytes, fb) != raw_bytes) {
+            fprintf(stderr, "short read on %s (expected %zu bytes)\n",
+                    bonds_path, raw_bytes);
+            std::free(raw);
+            std::fclose(fb);
+            return 1;
+        }
         std::fclose(fb);
         bond_ij_data = (int32_t *)std::malloc((size_t)n_bonds * 2 * sizeof(int32_t));
         bond_rest_data = (float *)std::malloc((size_t)n_bonds * sizeof(float));
@@ -544,9 +564,29 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         std::fseek(fb, 0, SEEK_END);
         long sz = std::ftell(fb);
         std::fseek(fb, 0, SEEK_SET);
+        if (sz <= 0 || (sz % 16) != 0) {
+            fprintf(stderr,
+                    "bonds.bin %s is empty or not a multiple of 16 bytes "
+                    "(got %ld bytes)\n", bonds_path, sz);
+            std::fclose(fb);
+            return 1;
+        }
         n_bonds = (uint32_t)(sz / 16);
-        uint8_t *raw = (uint8_t *)std::malloc((size_t)n_bonds * 16);
-        std::fread(raw, 1, (size_t)n_bonds * 16, fb);
+        size_t raw_bytes = (size_t)n_bonds * 16;
+        uint8_t *raw = (uint8_t *)std::malloc(raw_bytes);
+        if (!raw) {
+            fprintf(stderr, "malloc failed for %zu bytes (bonds.bin)\n",
+                    raw_bytes);
+            std::fclose(fb);
+            return 1;
+        }
+        if (std::fread(raw, 1, raw_bytes, fb) != raw_bytes) {
+            fprintf(stderr, "short read on %s (expected %zu bytes)\n",
+                    bonds_path, raw_bytes);
+            std::free(raw);
+            std::fclose(fb);
+            return 1;
+        }
         std::fclose(fb);
         bond_ij_data = (int32_t *)std::malloc((size_t)n_bonds * 2 * sizeof(int32_t));
         bond_rest_data = (float *)std::malloc((size_t)n_bonds * sizeof(float));
@@ -969,9 +1009,11 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         }
 
         // ── (f) predict_positions_backward ──────────────────────────
-        //   Gx_old_new += Gx_pred  (accumulates)
-        //   Gv_old_new = Gx_pred * dt * sim_scale_inv  (WRITES)
-        // The kernel writes grad_vel — that's what we want for v_after_apply.
+        //   Gx_old_new += Gx_pred                       (accumulates)
+        //   Gv_old_new += Gx_pred * dt * sim_scale_inv  (accumulates)
+        // grad_vel is pre-zeroed at line 850 each step, so accumulate-
+        // from-zero equals a write. Kernel contract matches Metal's
+        // accumulate semantics at src/metal_diff/shaders.metal:2128.
         predict_positions_backward<<<gridA, TPB>>>(
             d_Gx_pred, d_Gx_old_new, d_Gv_old_new, d_Ggy_per,
             dt, sim_scale_inv, n_active);
