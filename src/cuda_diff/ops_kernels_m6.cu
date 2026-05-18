@@ -410,10 +410,16 @@ int run_dist_active_static_bwd(int argc, char **argv) {
     CUDA_CHECK(cudaMemcpy(d_gact, h_gact, (size_t)n_active * 3 * sizeof(float),
                           cudaMemcpyHostToDevice));
 
-    const unsigned int TPB = 128;
-    unsigned int grid = (n_active + TPB - 1) / TPB;
-    dist_active_static_bwd<<<grid, TPB>>>(d_active, d_static, d_gr2, d_gact,
-                                          n_active, n_static);
+    // dist_active_static_bwd uses __shared__ float3 partials[256] + tree
+    // reduction with stride = T/2; T must be 256 (any other power of 2
+    // <= 256 would technically work for the reduction but under-uses
+    // shared mem and silently mis-sizes the partials array).
+    constexpr unsigned int TPB_REDUCE = 256;
+    static_assert(TPB_REDUCE == 256,
+                  "dist_active_static_bwd: TPB must be 256 "
+                  "(shared partials[256] + power-of-2 tree reduce)");
+    dist_active_static_bwd<<<n_active, TPB_REDUCE>>>(
+        d_active, d_static, d_gr2, d_gact, n_active, n_static);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 

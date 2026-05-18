@@ -659,7 +659,15 @@ __global__ void update_velocities_backward(const float3 *grad_vel_new,
 // M6.0_bwd — backward of dist_active_static.
 // Static positions are frozen (no gradient written for them).
 // ∂L/∂active[i] += Σ_j ∂L/∂r²[i,j] · 2·(active[i] - static_p[j])
-// One thread per active i; no race (each thread owns its row of grad_active).
+//
+// One block per active particle i; T (= blockDim.x, must be 256) threads
+// stripe over j and tree-reduce partial sums via shared memory. Thread 0
+// of each block accumulates the row sum into grad_active[i]. No atomics
+// (each block owns its row of grad_active).
+//
+// At demo1 scale (343 × 17498), this is ~140× the parallelism of the
+// original 1-thread-per-i kernel — the j-loop now executes 17498/256 ≈
+// 68 iterations per thread instead of 17498 serially.
 __global__ void dist_active_static_bwd(const float3 *active,
                                        const float3 *static_p,
                                        const float *grad_r2,
@@ -667,19 +675,39 @@ __global__ void dist_active_static_bwd(const float3 *active,
                                        unsigned int n_active,
                                        unsigned int n_static)
 {
-    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int i = blockIdx.x;
     if (i >= n_active) return;
+
+    __shared__ float3 partials[256];
+    unsigned int t = threadIdx.x;
+    unsigned int T = blockDim.x;
+
     float3 ai = active[i];
     float gx = 0.0f, gy = 0.0f, gz = 0.0f;
-    for (unsigned int j = 0; j < n_static; j++) {
+    for (unsigned int j = t; j < n_static; j += T) {
         float3 sj = static_p[j];
         float c = 2.0f * grad_r2[i * n_static + j];
         gx += c * (ai.x - sj.x);
         gy += c * (ai.y - sj.y);
         gz += c * (ai.z - sj.z);
     }
-    float3 prev = grad_active[i];
-    grad_active[i] = make_float3(prev.x + gx, prev.y + gy, prev.z + gz);
+    partials[t] = make_float3(gx, gy, gz);
+    __syncthreads();
+
+    for (unsigned int stride = T / 2; stride > 0; stride >>= 1) {
+        if (t < stride) {
+            partials[t].x += partials[t + stride].x;
+            partials[t].y += partials[t + stride].y;
+            partials[t].z += partials[t + stride].z;
+        }
+        __syncthreads();
+    }
+    if (t == 0) {
+        float3 prev = grad_active[i];
+        grad_active[i] = make_float3(prev.x + partials[0].x,
+                                     prev.y + partials[0].y,
+                                     prev.z + partials[0].z);
+    }
 }
 //   ∂L/∂active[i] += Σ_{j≠i} (grad_r2[i,j] + grad_r2[j,i]) · 2·(active[i] - active[j])
 __global__ void dist_active_active_bwd(const float3 *active,

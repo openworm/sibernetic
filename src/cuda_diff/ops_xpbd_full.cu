@@ -969,7 +969,15 @@ int run_xpbd_full_bwd(int argc, char **argv) {
             unsigned int n_as_total = n_active * n_static;
             wpoly6_inplace_bwd<<<(n_as_total + TPB - 1) / TPB, TPB>>>(
                 d_R2as, d_GW_as, h2, poly6_const, n_as_total);
-            dist_active_static_bwd<<<gridA, TPB>>>(
+            // dist_active_static_bwd: one block per active particle,
+            // 256 threads cooperate over the n_static axis. TPB_REDUCE
+            // must be 256 to match shared partials[256] + power-of-2
+            // tree reduce.
+            constexpr unsigned int TPB_REDUCE_DAS = 256;
+            static_assert(TPB_REDUCE_DAS == 256,
+                          "dist_active_static_bwd: TPB must be 256 "
+                          "(shared partials[256] + power-of-2 tree reduce)");
+            dist_active_static_bwd<<<n_active, TPB_REDUCE_DAS>>>(
                 d_Xp, d_Sp, d_GW_as, d_Gx_pred, n_active, n_static);
         }
 
