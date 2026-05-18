@@ -70,6 +70,29 @@ static void load_bonds(const char *path, unsigned int n_bonds,
     std::fclose(f);
 }
 
+// Pair-force amplitude scalars (mirrors metal_diff/ops_pair_spring.mm:60-67).
+// Computed host-side in double, downcast to float, then passed to the
+// kernel. visc_amp drives the viscosity pair force; surf_amp drives the
+// surface-tension cohesion force. The forward driver, the backward
+// driver, and the visc_K_partial driver must all use the same formula —
+// any divergence shows up as analytic-vs-FD gradient mismatch in the
+// pair_forces / visc_K tests.
+static void compute_pair_amps(float h, float sim_scale, float mass,
+                              float *out_h2,
+                              float *out_visc_amp, float *out_surf_amp)
+{
+    *out_h2 = h * h;
+    double h_scaled = (double)h * (double)sim_scale;
+    double h_s6 = std::pow(h_scaled, 6.0);
+    double h_s9 = std::pow(h_scaled, 9.0);
+    double divgradWvisco = 45.0 / (M_PI * h_s6);
+    *out_visc_amp = (float)(1.5 * (double)mass * divgradWvisco *
+                            std::pow((double)sim_scale, 3.0));
+    double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
+    *out_surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si *
+                            (double)sim_scale / (double)mass);
+}
+
 // ── spring_bonds_force ────────────────────────────────────────────────
 int run_spring_bonds_force(int argc, char **argv) {
     if (argc != 8) {
@@ -311,17 +334,8 @@ int run_pair_forces_grid_fwd(int argc, char **argv) {
     const char *path_go = argv[16];
     const char *path_out = argv[17];
 
-    // Host-side amp scalars (mirrors metal_diff/ops_pair_spring.mm:60-67).
-    float h2 = h * h;
-    double h_scaled = (double)h * (double)sim_scale;
-    double h_s6 = std::pow(h_scaled, 6.0);
-    double h_s9 = std::pow(h_scaled, 9.0);
-    double divgradWvisco = 45.0 / (M_PI * h_s6);
-    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco *
-                             std::pow((double)sim_scale, 3.0));
-    double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
-    float surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si *
-                             (double)sim_scale / (double)mass);
+    float h2, visc_amp, surf_amp;
+    compute_pair_amps(h, sim_scale, mass, &h2, &visc_amp, &surf_amp);
 
     int n_cells = grid_dim_x * grid_dim_y * grid_dim_z;
     float *h_pos = read_floats_or_die(path_pa, (size_t)n_active * 3);
@@ -354,10 +368,7 @@ int run_pair_forces_grid_fwd(int argc, char **argv) {
 
     // 32 threads per particle, one block per particle (single warp).
     // shaders.cu hardcodes a 5-round __shfl_down_sync (offsets 16/8/4/2/1)
-    // that sums exactly one warp; anything other than 32 silently miscomputes.
-    constexpr unsigned int TPB_PAIR = 32;
-    static_assert(TPB_PAIR == 32,
-                  "pair_forces_grid_fwd: TPB must be 32 (single warp)");
+    // that sums exactly one warp; TPB_PAIR (cuda_common.h) is fixed at 32.
     pair_forces_grid_fwd<<<n_active, TPB_PAIR>>>(
         d_pos, d_vel, d_ss, d_cs, d_d, d_ea,
         h, h2, sim_scale, visc_pair_coef, visc_amp, surf_amp,
@@ -415,17 +426,8 @@ int run_pair_forces_grid_bwd(int argc, char **argv) {
     const char *path_gp_out = argv[18];
     const char *path_gv_out = argv[19];
 
-    // Host-side amp scalars (identical to forward driver).
-    float h2 = h * h;
-    double h_scaled = (double)h * (double)sim_scale;
-    double h_s6 = std::pow(h_scaled, 6.0);
-    double h_s9 = std::pow(h_scaled, 9.0);
-    double divgradWvisco = 45.0 / (M_PI * h_s6);
-    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco *
-                             std::pow((double)sim_scale, 3.0));
-    double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
-    float surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si *
-                             (double)sim_scale / (double)mass);
+    float h2, visc_amp, surf_amp;
+    compute_pair_amps(h, sim_scale, mass, &h2, &visc_amp, &surf_amp);
 
     int n_cells = grid_dim_x * grid_dim_y * grid_dim_z;
     float *h_pos = read_floats_or_die(path_pa, (size_t)n_active * 3);
@@ -577,13 +579,10 @@ int run_visc_K_partial(int argc, char **argv) {
     const char *path_gea = argv[16];
     const char *path_out = argv[17];
 
-    // Host-side visc_amp (mirrors run_pair_forces_grid_fwd: lines 282-288).
-    float h2 = h * h;
-    double h_scaled = (double)h * (double)sim_scale;
-    double h_s6 = std::pow(h_scaled, 6.0);
-    double divgradWvisco = 45.0 / (M_PI * h_s6);
-    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco *
-                             std::pow((double)sim_scale, 3.0));
+    // visc_K_partial only needs visc_amp; surf_amp is computed and discarded.
+    float h2, visc_amp, surf_amp;
+    compute_pair_amps(h, sim_scale, mass, &h2, &visc_amp, &surf_amp);
+    (void)surf_amp;
 
     int n_cells = grid_dim_x * grid_dim_y * grid_dim_z;
     float *h_pos = read_floats_or_die(path_pa, (size_t)n_active * 3);
