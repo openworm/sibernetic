@@ -63,10 +63,13 @@ outputs in-process.
 * Membranes (M10) are out-of-scope per the spec scope rule. Orchestrators
   accept the membrane CLI args (matching Metal's positional contract)
   but no-op them and emit a stderr warning when `n_membranes > 0`.
-* Only sm_75 has been exercised. sm_70 / sm_86 / sm_89 should compile
-  but are untested.
-* Windows-first. Linux build/test scripts exist but are not validated
-  against a real Linux+NVIDIA box.
+* Only sm_75 has been exercised on real hardware (RTX 2070, both Windows
+  and Linux). sm_70 / sm_86 / sm_89 should compile but are untested.
+* Linux build + runtime verified on Ubuntu 24.04 + CUDA 12.6 via WSL2
+  against the same RTX 2070: `build.sh` produces a working ELF binary
+  and all 13 tests in `run_all_tests.sh` PASS with the same FD
+  tolerances as the Windows runs. Native (non-WSL) Linux is untested
+  but the WSL path exercises the same nvcc + glibc + driver stack.
 * `test_demo1_edge_cases.py` flags spring_K=1e5 as unstable at demo1's
   dt/sim_scale combination -- physics divergence, not a kernel bug. See
   the V5 commit message for details.
