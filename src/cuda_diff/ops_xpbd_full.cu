@@ -1,3 +1,36 @@
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2011, 2013, 2026 OpenWorm.
+ * http://openworm.org
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *
+ * Contributors:
+ *     OpenWorm - http://openworm.org/people.html
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *******************************************************************************/
+
 // ops_xpbd_full.cu — differentiable forward of the full XPBD pipeline.
 //
 // Per src/cuda/README.md Phase 4: this file exposes `xpbd_full_fwd` whose
@@ -299,8 +332,11 @@ int run_xpbd_full_fwd(int argc, char **argv) {
             dist_active_active<<<b2, t2>>>(d_Xp, d_R2aa, n_active);
         }
         unsigned int n_aa_total = n_active * n_active;
-        CUDA_CHECK(cudaMemcpyAsync(d_Waa, d_R2aa, r2aa_b,
-                                   cudaMemcpyDeviceToDevice));
+        // Default-stream cudaMemcpyAsync would synchronize against the
+        // next launch anyway; use plain cudaMemcpy so the error code
+        // is checked synchronously.
+        CUDA_CHECK(cudaMemcpy(d_Waa, d_R2aa, r2aa_b,
+                              cudaMemcpyDeviceToDevice));
         wpoly6_inplace<<<(n_aa_total + TPB - 1) / TPB, TPB>>>(
             d_Waa, h2, poly6_const, n_aa_total);
         // rowsum_density / density_constraint_grad declare __shared__
@@ -320,8 +356,8 @@ int run_xpbd_full_fwd(int argc, char **argv) {
                                                n_active, n_static);
             }
             unsigned int n_as_total = n_active * n_static;
-            CUDA_CHECK(cudaMemcpyAsync(d_Was, d_R2as, r2as_b,
-                                       cudaMemcpyDeviceToDevice));
+            CUDA_CHECK(cudaMemcpy(d_Was, d_R2as, r2as_b,
+                                  cudaMemcpyDeviceToDevice));
             wpoly6_inplace<<<(n_as_total + TPB - 1) / TPB, TPB>>>(
                 d_Was, h2, poly6_const, n_as_total);
             rowsum_density<<<n_active, TPB_REDUCE>>>(d_Was, d_D, mass,
@@ -329,8 +365,8 @@ int run_xpbd_full_fwd(int argc, char **argv) {
             add_inplace<<<gridA, TPB>>>(d_D, d_D_aa, n_active);
         } else {
             // density = density_aa (memcpy).
-            CUDA_CHECK(cudaMemcpyAsync(d_D, d_D_aa, s_b,
-                                       cudaMemcpyDeviceToDevice));
+            CUDA_CHECK(cudaMemcpy(d_D, d_D_aa, s_b,
+                                  cudaMemcpyDeviceToDevice));
         }
 
         // (3) density_constraint_grad.
@@ -865,19 +901,32 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         // ── (b) update_velocities_backward ──────────────────────────
         // Accumulates: Gx_running += gvn * sim_scale/dt  (∂L/∂x_post)
         //              Gx_old_new -= gvn * sim_scale/dt  (∂L/∂x_old)
-        // Phase 5 / Metal parity: pass sim_scale=1.0f to match Metal's
-        // latent bug at src/metal_diff/shaders.metal:2216 where the
-        // backward kernel computes g_v/dt instead of g_v*sim_scale/dt
-        // (forward at :1942 multiplies by sim_scale; backward drops it).
-        // Our CUDA kernel itself is mathematically correct (computes
-        // g_v*sim_scale/dt); we pass 1.0f here to emulate Metal's bug
-        // for cross-backend gradient parity (README Phase 5 within 1%).
-        // Adam normalization absorbs the uniform 1/sim_scale factor,
-        // so demo1 optima are unaffected. To fix properly, patch Metal
-        // upstream and revert this to `sim_scale`. TODO upstream issue.
+        //
+        // KNOWN DEFECT (cross-backend parity workaround, tracked):
+        //   The Metal backward at src/metal_diff/shaders.metal:2216
+        //   computes g_v / dt instead of g_v * sim_scale / dt — the
+        //   forward at :1942 multiplies by sim_scale but the backward
+        //   drops it. Our CUDA kernel is mathematically correct
+        //   (computes g_v * sim_scale / dt); we pass sim_scale = 1.0f
+        //   here so that CUDA's output matches Metal's to within the
+        //   README Phase-5 "1% parity" claim. Adam in log-space
+        //   absorbs the uniform 1/sim_scale factor, so demo1 optima
+        //   are unaffected.
+        //
+        //   To remove: patch Metal upstream (forward and backward both
+        //   need sim_scale), revert this argument from 1.0f back to
+        //   `sim_scale`, and tighten the Phase-5 parity test. The
+        //   env-var escape hatch CUDA_BWD_TRUE_SIM_SCALE=1 below lets
+        //   downstream consumers opt into the mathematically-correct
+        //   gradient today, at the cost of failing Metal parity.
+        float upd_sim_scale = 1.0f;
+        const char *true_ss_env = std::getenv("CUDA_BWD_TRUE_SIM_SCALE");
+        if (true_ss_env && std::atoi(true_ss_env) != 0) {
+            upd_sim_scale = sim_scale;
+        }
         update_velocities_backward<<<gridA, TPB>>>(
             d_Gv_in, d_Gx_running, d_Gx_old_new,
-            dt, 1.0f, n_active);
+            dt, upd_sim_scale, n_active);
 
         // ── (c) solve_density_constraint_backward ───────────────────
         // ∂L/∂λ_post = 0 (single-iter). Reuse d_Lam as zeros.

@@ -1,3 +1,36 @@
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2011, 2013, 2026 OpenWorm.
+ * http://openworm.org
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *
+ * Contributors:
+ *     OpenWorm - http://openworm.org/people.html
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *******************************************************************************/
+
 // ops_xpbd_step.cu — M7 imperative XPBD orchestrator (xpbd_step op).
 // Kernels in shaders.cu.
 
@@ -208,8 +241,12 @@ int run_xpbd_step(int argc, char **argv) {
                 unsigned int n_aa = n_active * n_active;
                 wpoly6_inplace<<<(n_aa + TPB - 1) / TPB, TPB>>>(
                     d_r2_aa, h2, poly6_const, n_aa);
-                cudaMemcpyAsync(d_W_aa, d_r2_aa, n_aa * sizeof(float),
-                                cudaMemcpyDeviceToDevice);
+                // Default stream: synchronous w.r.t. subsequent launches
+                // on the same stream. Plain cudaMemcpy is the honest
+                // spelling (cudaMemcpyAsync without a non-default stream
+                // is misleading and easy to miss the error code on).
+                CUDA_CHECK(cudaMemcpy(d_W_aa, d_r2_aa, n_aa * sizeof(float),
+                                      cudaMemcpyDeviceToDevice));
                 rowsum_density<<<n_active, TPB_REDUCE>>>(d_W_aa, d_density_aa,
                                                          mass,
                                                          n_active, n_active);
@@ -221,8 +258,9 @@ int run_xpbd_step(int argc, char **argv) {
                     unsigned int n_as = n_active * n_static;
                     wpoly6_inplace<<<(n_as + TPB - 1) / TPB, TPB>>>(
                         d_r2_as, h2, poly6_const, n_as);
-                    cudaMemcpyAsync(d_W_as, d_r2_as, n_as * sizeof(float),
-                                    cudaMemcpyDeviceToDevice);
+                    CUDA_CHECK(cudaMemcpy(d_W_as, d_r2_as,
+                                          n_as * sizeof(float),
+                                          cudaMemcpyDeviceToDevice));
                     rowsum_density<<<n_active, TPB_REDUCE>>>(d_W_as,
                                                              d_density_as,
                                                              mass,

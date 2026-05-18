@@ -325,7 +325,9 @@ loader produces, so all downstream tooling (`render_movie.py`,
 
 ### Linux / Windows — native CUDA substrate (NVIDIA)
 
-Requires CUDA Toolkit 12+ and an sm_75 (Turing) or newer GPU.
+Requires CUDA Toolkit 12.0+ (CI: 12.4; locally tested up to 13.2) and
+an sm_75 (Turing) or newer GPU. On Windows the build script auto-probes
+for any installed Visual Studio 2017/2019/2022 via `vswhere.exe`.
 
 Linux:
 

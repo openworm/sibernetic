@@ -3,7 +3,7 @@
 # Mirrors src/metal_diff/build.sh, swapping clang++ + Metal for nvcc.
 #
 # Requirements:
-#   - CUDA Toolkit 12.0+
+#   - CUDA Toolkit 12.0+ (CI: 12.4; locally tested up to 13.2)
 #   - A host C++17 compiler nvcc can drive (gcc/clang)
 #
 # Architecture: sm_75 (Turing) floor. Bump via:

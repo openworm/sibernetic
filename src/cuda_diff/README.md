@@ -32,9 +32,10 @@ src/cuda_diff/
 Windows (primary):  `cmd /c src\cuda_diff\build.bat`
 Linux (unverified): `./src/cuda_diff/build.sh`
 
-Requires nvcc (CUDA 13.x), VS Build Tools on Windows, and an sm_75
-(Turing) or newer GPU. Outputs `sib_cuda` / `sib_cuda.exe` next to the
-sources.
+Requires CUDA Toolkit 12.0+ (CI exercises 12.4; locally tested up to
+13.2), VS Build Tools 2017/2019/2022 on Windows (`build.bat` probes for
+them via `vswhere.exe`), and an sm_75 (Turing) or newer GPU. Outputs
+`sib_cuda` / `sib_cuda.exe` next to the sources.
 
 ## Run tests
 
