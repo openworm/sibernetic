@@ -1,6 +1,5 @@
-// AUTO-GENERATED from sib_cuda.cu via _split_sib_cuda.py
-// All __global__ kernel definitions. Drivers in ops_*.cu launch these
-// via the prototypes in shaders.h.
+// shaders.cu — all __global__ kernel definitions.
+// Forward declarations in shaders.h; launched from drivers in ops_*.cu.
 
 #include "cuda_common.h"
 #include "shaders.h"

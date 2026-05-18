@@ -1,7 +1,6 @@
-// AUTO-GENERATED from sib_cuda.cu via _split_sib_cuda.py
-// Part of the #15 refactor: separates kernel definitions, op drivers,
-// and the dispatcher into per-concern translation units linked via
-// nvcc -rdc=true.
+// ops_kernels_m6.cu — M6 op host drivers (wpoly6_inplace, rowsum_density,
+// density_constraint_grad, and dist_active_* helpers).
+// Kernels in shaders.cu; protos in shaders.h.
 
 #include "cuda_common.h"
 #include "shaders.h"

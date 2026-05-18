@@ -1,7 +1,5 @@
-// AUTO-GENERATED from sib_cuda.cu via _split_sib_cuda.py
-// Part of the #15 refactor: separates kernel definitions, op drivers,
-// and the dispatcher into per-concern translation units linked via
-// nvcc -rdc=true.
+// sib_cuda.cu — entry point + CLI dispatcher.
+// All op handlers live in ops_*.cu; kernels in shaders.cu.
 
 #include "cuda_common.h"
 #include "shaders.h"
