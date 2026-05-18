@@ -155,21 +155,14 @@ int run_xpbd_full_fwd(int argc, char **argv) {
         std::free(raw);
     }
 
-    float h2 = h * h;
     float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
     float spiky_const = -45.0f / ((float)M_PI * powf(h, 6.0f));
     float alpha_inv_dt2 = alpha_dens / (dt * dt);
 
-    // Pair-force amps in fp64 to dodge fp32 underflow at small sim_scale.
-    double h_scaled  = (double)h * (double)sim_scale;
-    double h_s6      = std::pow(h_scaled, 6.0);
-    double h_s9      = std::pow(h_scaled, 9.0);
-    double divgradWvisco = 45.0 / (M_PI * h_s6);
-    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco
-                              * std::pow((double)sim_scale, 3.0));
-    double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
-    float surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si
-                              * (double)sim_scale / (double)mass);
+    // Pair-force amps (fp64 internally to dodge fp32 underflow at small
+    // sim_scale). Shared with the standalone pair_forces/visc_K drivers.
+    float h2, visc_amp, surf_amp;
+    compute_pair_amps(h, sim_scale, mass, &h2, &visc_amp, &surf_amp);
 
     float *pos0 = read_floats_or_die(argv[11], (size_t)n_active * 3);
     float *vel0 = read_floats_or_die(argv[12], (size_t)n_active * 3);
@@ -597,20 +590,12 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         std::free(raw);
     }
 
-    float h2 = h * h;
     float poly6_const = 315.0f / (64.0f * (float)M_PI * powf(h, 9.0f));
     float spiky_const = -45.0f / ((float)M_PI * powf(h, 6.0f));
     float alpha_inv_dt2 = alpha_dens / (dt * dt);
-    // Pair-force amps (mirrors fwd).
-    double h_scaled  = (double)h * (double)sim_scale;
-    double h_s6      = std::pow(h_scaled, 6.0);
-    double h_s9      = std::pow(h_scaled, 9.0);
-    double divgradWvisco = 45.0 / (M_PI * h_s6);
-    float visc_amp = (float)(1.5 * (double)mass * divgradWvisco
-                              * std::pow((double)sim_scale, 3.0));
-    double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
-    float surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si
-                              * (double)sim_scale / (double)mass);
+    // Pair-force amps (shared with fwd via compute_pair_amps).
+    float h2, visc_amp, surf_amp;
+    compute_pair_amps(h, sim_scale, mass, &h2, &visc_amp, &surf_amp);
 
     // Tape layout (mirrors fwd writes — see ops_xpbd_full.cu fwd section).
     // Membranes intentionally absent from extra_per_step.

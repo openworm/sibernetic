@@ -70,6 +70,16 @@
 float *read_floats_or_die(const char *path, size_t n_floats);
 void   write_floats_or_die(const char *path, const float *buf, size_t n_floats);
 
+// Pair-force amplitude scalars used by pair_forces / visc_K / xpbd_full
+// drivers. Computed host-side in double, downcast to float, then passed
+// to the kernel. The forward, backward, and visc_K_partial drivers all
+// share this formula — any divergence shows up as analytic-vs-FD
+// gradient mismatch in the pair_forces / visc_K tests. Defined in
+// ops_pair_spring.cu.
+void compute_pair_amps(float h, float sim_scale, float mass,
+                       float *out_h2,
+                       float *out_visc_amp, float *out_surf_amp);
+
 // Spatial-grid types used by pair_forces_grid and its consumers.
 typedef struct {
     int x, y, z;

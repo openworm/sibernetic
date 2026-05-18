@@ -73,13 +73,12 @@ static void load_bonds(const char *path, unsigned int n_bonds,
 // Pair-force amplitude scalars (mirrors metal_diff/ops_pair_spring.mm:60-67).
 // Computed host-side in double, downcast to float, then passed to the
 // kernel. visc_amp drives the viscosity pair force; surf_amp drives the
-// surface-tension cohesion force. The forward driver, the backward
-// driver, and the visc_K_partial driver must all use the same formula —
-// any divergence shows up as analytic-vs-FD gradient mismatch in the
-// pair_forces / visc_K tests.
-static void compute_pair_amps(float h, float sim_scale, float mass,
-                              float *out_h2,
-                              float *out_visc_amp, float *out_surf_amp)
+// surface-tension cohesion force. Forward, backward, and visc_K_partial
+// drivers (plus the integrated xpbd_full pipeline) all share this
+// formula via the declaration in cuda_common.h.
+void compute_pair_amps(float h, float sim_scale, float mass,
+                       float *out_h2,
+                       float *out_visc_amp, float *out_surf_amp)
 {
     *out_h2 = h * h;
     double h_scaled = (double)h * (double)sim_scale;
