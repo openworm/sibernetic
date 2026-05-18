@@ -320,7 +320,12 @@ int run_pair_forces_grid_fwd(int argc, char **argv) {
                           cudaMemcpyHostToDevice));
 
     // 32 threads per particle, one block per particle (single warp).
-    pair_forces_grid_fwd<<<n_active, 32>>>(
+    // shaders.cu hardcodes a 5-round __shfl_down_sync (offsets 16/8/4/2/1)
+    // that sums exactly one warp; anything other than 32 silently miscomputes.
+    constexpr unsigned int TPB_PAIR = 32;
+    static_assert(TPB_PAIR == 32,
+                  "pair_forces_grid_fwd: TPB must be 32 (single warp)");
+    pair_forces_grid_fwd<<<n_active, TPB_PAIR>>>(
         d_pos, d_vel, d_ss, d_cs, d_d, d_ea,
         h, h2, sim_scale, visc_pair_coef, visc_amp, surf_amp,
         n_active,

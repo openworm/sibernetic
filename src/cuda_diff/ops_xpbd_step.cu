@@ -190,6 +190,15 @@ int run_xpbd_step(int argc, char **argv) {
 
         for (unsigned int it = 0; it < n_iters; it++) {
             if (!skip_density) {
+                // rowsum_density / density_constraint_grad declare
+                // __shared__ float partials[256] and tree-reduce with
+                // stride = T/2. TPB > 256 writes OOB; TPB not a power of 2
+                // <= 256 silently drops elements.
+                constexpr unsigned int TPB_REDUCE = 256;
+                static_assert(TPB_REDUCE == 256,
+                              "rowsum_density/density_constraint_grad: "
+                              "TPB must be 256 (shared partials[256] + "
+                              "power-of-2 tree reduce)");
                 // density chain
                 {
                     dim3 t2(16, 16);
@@ -201,8 +210,9 @@ int run_xpbd_step(int argc, char **argv) {
                     d_r2_aa, h2, poly6_const, n_aa);
                 cudaMemcpyAsync(d_W_aa, d_r2_aa, n_aa * sizeof(float),
                                 cudaMemcpyDeviceToDevice);
-                rowsum_density<<<n_active, 256>>>(d_W_aa, d_density_aa, mass,
-                                                  n_active, n_active);
+                rowsum_density<<<n_active, TPB_REDUCE>>>(d_W_aa, d_density_aa,
+                                                         mass,
+                                                         n_active, n_active);
                 if (n_static > 0) {
                     dim3 t2(16, 16);
                     dim3 b2((n_active + 15) / 16, (n_static + 15) / 16);
@@ -213,12 +223,15 @@ int run_xpbd_step(int argc, char **argv) {
                         d_r2_as, h2, poly6_const, n_as);
                     cudaMemcpyAsync(d_W_as, d_r2_as, n_as * sizeof(float),
                                     cudaMemcpyDeviceToDevice);
-                    rowsum_density<<<n_active, 256>>>(d_W_as, d_density_as, mass,
-                                                      n_static, n_active);
+                    rowsum_density<<<n_active, TPB_REDUCE>>>(d_W_as,
+                                                             d_density_as,
+                                                             mass,
+                                                             n_static,
+                                                             n_active);
                     add_inplace<<<gridA, TPB>>>(d_density_aa, d_density_as,
                                                 n_active);
                 }
-                density_constraint_grad<<<n_active, 256>>>(
+                density_constraint_grad<<<n_active, TPB_REDUCE>>>(
                     d_pos_pred, d_pos_s, d_r2_aa, d_r2_as,
                     d_grad_C, d_denom_helper,
                     h, spiky_const, mass, rho_rest, n_active, n_static);

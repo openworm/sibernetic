@@ -261,7 +261,13 @@ int run_xpbd_full_fwd(int argc, char **argv) {
         }
         if (use_pair) {
             // 32 threads per particle, one block per particle.
-            pair_forces_grid_fwd<<<n_active, 32>>>(
+            // shaders.cu hardcodes a 5-round __shfl_down_sync (offsets
+            // 16/8/4/2/1) that sums exactly one warp; anything other than
+            // 32 silently miscomputes.
+            constexpr unsigned int TPB_PAIR = 32;
+            static_assert(TPB_PAIR == 32,
+                          "pair_forces_grid_fwd: TPB must be 32 (single warp)");
+            pair_forces_grid_fwd<<<n_active, TPB_PAIR>>>(
                 d_X, d_V, d_SortedS, d_CellStart, d_D, d_ExtA,
                 h, h2, sim_scale, visc_pair_coef, visc_amp, surf_amp,
                 n_active,
@@ -297,8 +303,15 @@ int run_xpbd_full_fwd(int argc, char **argv) {
                                    cudaMemcpyDeviceToDevice));
         wpoly6_inplace<<<(n_aa_total + TPB - 1) / TPB, TPB>>>(
             d_Waa, h2, poly6_const, n_aa_total);
-        rowsum_density<<<n_active, 256>>>(d_Waa, d_D_aa, mass,
-                                          n_active, n_active);
+        // rowsum_density / density_constraint_grad declare __shared__
+        // float partials[256] and tree-reduce with stride = T/2. TPB > 256
+        // writes OOB; TPB not a power of 2 <= 256 silently drops elements.
+        constexpr unsigned int TPB_REDUCE = 256;
+        static_assert(TPB_REDUCE == 256,
+                      "rowsum_density/density_constraint_grad: TPB must be 256 "
+                      "(shared partials[256] + power-of-2 tree reduce)");
+        rowsum_density<<<n_active, TPB_REDUCE>>>(d_Waa, d_D_aa, mass,
+                                                 n_active, n_active);
         if (n_static > 0) {
             {
                 dim3 t2(16, 16);
@@ -311,8 +324,8 @@ int run_xpbd_full_fwd(int argc, char **argv) {
                                        cudaMemcpyDeviceToDevice));
             wpoly6_inplace<<<(n_as_total + TPB - 1) / TPB, TPB>>>(
                 d_Was, h2, poly6_const, n_as_total);
-            rowsum_density<<<n_active, 256>>>(d_Was, d_D, mass,
-                                              n_static, n_active);
+            rowsum_density<<<n_active, TPB_REDUCE>>>(d_Was, d_D, mass,
+                                                     n_static, n_active);
             add_inplace<<<gridA, TPB>>>(d_D, d_D_aa, n_active);
         } else {
             // density = density_aa (memcpy).
@@ -321,7 +334,7 @@ int run_xpbd_full_fwd(int argc, char **argv) {
         }
 
         // (3) density_constraint_grad.
-        density_constraint_grad<<<n_active, 256>>>(
+        density_constraint_grad<<<n_active, TPB_REDUCE>>>(
             d_Xp, d_Sp, d_R2aa, d_R2as,
             d_Gc, d_Dh, h, spiky_const, mass, rho_rest,
             n_active, n_static);
@@ -764,7 +777,11 @@ int run_xpbd_full_bwd(int argc, char **argv) {
             // step's density solve, mirroring fwd ordering).
             CUDA_CHECK(cudaMemcpy(d_D, h_paird.data(), s_b,
                                   cudaMemcpyHostToDevice));
-            pair_forces_grid_fwd<<<n_active, 32>>>(
+            // 32 threads per particle; single-warp __shfl_down_sync invariant.
+            constexpr unsigned int TPB_PAIR = 32;
+            static_assert(TPB_PAIR == 32,
+                          "pair_forces_grid_fwd: TPB must be 32 (single warp)");
+            pair_forces_grid_fwd<<<n_active, TPB_PAIR>>>(
                 d_X, d_V, d_SortedS, d_CellStart, d_D, d_ExtA,
                 h, h2, sim_scale, visc_pair_coef, visc_amp, surf_amp,
                 n_active,

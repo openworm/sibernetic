@@ -215,9 +215,17 @@ int run_rowsum_density(int argc, char **argv) {
     CUDA_CHECK(cudaMemcpy(d_W, W, n_W * sizeof(float),
                           cudaMemcpyHostToDevice));
 
+    // rowsum_density declares __shared__ float partials[256] and tree-reduces
+    // with stride = T/2. TPB > 256 writes OOB; TPB not a power of 2 <= 256
+    // silently drops elements.
+    constexpr unsigned int TPB_REDUCE = 256;
+    static_assert(TPB_REDUCE == 256,
+                  "rowsum_density: TPB must be 256 "
+                  "(shared partials[256] + power-of-2 tree reduce)");
     auto t0 = std::chrono::steady_clock::now();
     for (int it = 0; it < iters; it++) {
-        rowsum_density<<<n_rows, 256>>>(d_W, d_density, mass, n_cols, n_rows);
+        rowsum_density<<<n_rows, TPB_REDUCE>>>(d_W, d_density, mass,
+                                               n_cols, n_rows);
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
     }
@@ -294,9 +302,17 @@ int run_density_constraint_grad(int argc, char **argv) {
                           (size_t)n_active * n_static * sizeof(float),
                           cudaMemcpyHostToDevice));
 
+    // density_constraint_grad declares __shared__ float3 partials_grad[256]
+    // and __shared__ float partials_denom[256] and tree-reduces with stride
+    // = T/2. TPB > 256 writes OOB; TPB not a power of 2 <= 256 silently
+    // drops elements.
+    constexpr unsigned int TPB_REDUCE = 256;
+    static_assert(TPB_REDUCE == 256,
+                  "density_constraint_grad: TPB must be 256 "
+                  "(shared partials[256] + power-of-2 tree reduce)");
     auto t0 = std::chrono::steady_clock::now();
     for (int it = 0; it < iters; it++) {
-        density_constraint_grad<<<n_active, 256>>>(
+        density_constraint_grad<<<n_active, TPB_REDUCE>>>(
             d_active, d_static, d_r2aa, d_r2as, d_grad, d_denom,
             h, spiky_const, mass, rho_rest, n_active, n_static);
         CUDA_CHECK(cudaGetLastError());
