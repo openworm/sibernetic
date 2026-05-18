@@ -52,9 +52,11 @@ outputs in-process.
 * Phase 2 (M6 atomic ops)               complete
 * Phase 3 (imperative xpbd_step)        complete
 * Phase 4 (differentiable XPBD)         complete, FD-validated K=2..1000
-* Phase 5 (cross-backend regression)    partial: OpenCL forward parity on
-  demo1 verified; full Metal-vs-CUDA gradient parity blocked on absence
-  of Apple silicon hardware in this dev environment.
+* Phase 5 (cross-backend regression)    fwd parity scripted: CUDA and
+  metal-native substrates are wired into scripts/cross_backend_regression.py
+  via a paired --substrate flag, so demo1 can be driven OpenCL / Metal /
+  CUDA from one entry point. Metal-vs-CUDA gradient parity within 1 %
+  is still blocked on Apple-silicon hardware in this dev environment.
 
 ## Known limitations
 
