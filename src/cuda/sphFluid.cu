@@ -1,13 +1,16 @@
-// CUDA kernel scaffolding for Sibernetic's PCISPH solver.
+// CUDA kernel scaffolding — HISTORICAL placeholder.
 //
-// STATUS: skeleton only. Function signatures and a high-level work plan
-// are present; the actual kernel bodies are TODO. See ./README.md for
-// the implementation phases.
+// Preserved as part of the original OpenCL-mirroring work plan
+// (see ./README.md). The as-built native CUDA differentiable substrate
+// took a different architectural approach (XPBD constraints instead of
+// PCISPH; standalone sib_cuda binary instead of an owSolver-derived
+// backend) and lives in ../cuda_diff/. This file is NOT part of any
+// build target and contains no executable kernel bodies; it is kept
+// for context only.
 //
-// Each kernel here should be a literal port of its OpenCL counterpart in
-// src/sphFluid.cl. Algorithm-level changes are out of scope — the goal
-// is for `backend=cuda` to produce position/velocity output matching
-// `backend=opencl` within fp32 noise on the cross-backend regression.
+// The original plan was to literally port each PCISPH kernel in
+// src/sphFluid.cl. That plan was superseded; see ./README.md "Status"
+// header for the reasoning.
 
 #ifndef SIBERNETIC_CUDA_SPHFLUID_CU
 #define SIBERNETIC_CUDA_SPHFLUID_CU

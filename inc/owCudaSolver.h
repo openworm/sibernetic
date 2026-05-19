@@ -1,14 +1,18 @@
-// owCudaSolver — native CUDA backend for Sibernetic's PCISPH solver.
+// owCudaSolver — HISTORICAL placeholder for the originally-planned
+// integration of a native CUDA backend into the owSolver virtual
+// interface. NOT part of any current build target.
 //
-// STATUS: skeleton only. Public interface defined; method bodies are
-// declared but not implemented. See ../src/cuda/README.md for the
-// implementation plan.
+// The as-built native CUDA differentiable substrate took a different
+// architectural approach and lives in src/cuda_diff/ as a standalone
+// binary (sib_cuda), parallel to src/metal_diff/sib_metal. Integrating
+// either substrate into the main Release/Sibernetic binary via an
+// owSolver-derived class is a natural follow-up — the top-level README
+// "Next steps for closing the parity gap" #5 proposes this for Metal;
+// the CUDA analog would slot in the same way. Neither has been done;
+// this header is preserved as scaffolding for that future work.
 //
-// Mirrors owOpenCLSolver.h's interface exactly so owPhysicsFluidSimulator
-// can dispatch between OpenCL, Metal (PR #222), and CUDA via the same
-// base class. Once PR #222's owSolver.h lands, this should inherit from
-// owSolver and override the virtual methods rather than duplicating the
-// signatures.
+// See ../src/cuda/README.md for the original work plan and
+// ../src/cuda_diff/README.md for the as-built substrate.
 
 #ifndef OWCUDASOLVER_H_
 #define OWCUDASOLVER_H_
