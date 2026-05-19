@@ -31,7 +31,8 @@ for t in "$HERE"/test_*.py; do
         printf '[PASS] %s\n\n' "$name"
         n_pass=$((n_pass + 1))
     else
-        printf '[FAIL] %s (exit $?)\n\n' "$name"
+        rc=$?
+        printf '[FAIL] %s (exit %d)\n\n' "$name" "$rc"
         n_fail=$((n_fail + 1))
         failed+=("$name")
     fi

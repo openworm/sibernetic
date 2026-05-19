@@ -16,7 +16,7 @@ gained a "_grid" qualifier; see the **Op-name map** below. Membranes
 ```
 src/cuda_diff/
   build.sh / build.bat        nvcc -arch=sm_75 -rdc=true
-  cuda_common.{h,cu}          CudaCtx, allocate_pool, build_static_grid
+  cuda_common.{h,cu}          build_static_grid + fp32 file I/O helpers
   shaders.{h,cu}              all __global__ kernels (port of shaders.metal)
   ops.h                       op-dispatcher declarations
   ops_kernels_m6.cu           M6 host drivers (dist_*, wpoly6, density, ...)
@@ -85,6 +85,14 @@ outputs in-process.
 * `test_demo1_edge_cases.py` flags spring_K=1e5 as unstable at demo1's
   dt/sim_scale combination -- physics divergence, not a kernel bug. See
   the V5 commit message for details.
+* `xpbd_full_bwd`'s `update_velocities_backward` deliberately matches a
+  `sim_scale`-drop bug in the upstream Metal adjoint
+  (`src/metal_diff/shaders.metal:2216`) so the cross-backend gradients
+  agree. Our CUDA kernel is mathematically correct; downstream consumers
+  who need the strictly-correct gradient (e.g. for second-order methods)
+  can opt in via `CUDA_BWD_TRUE_SIM_SCALE=1`. See the in-source comment
+  block at `ops_xpbd_full.cu:921` for the full reasoning and how to
+  remove the workaround once Metal is patched upstream.
 
 ## Op-name map (CUDA ↔ Metal)
 

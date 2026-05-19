@@ -918,23 +918,27 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         // Accumulates: Gx_running += gvn * sim_scale/dt  (∂L/∂x_post)
         //              Gx_old_new -= gvn * sim_scale/dt  (∂L/∂x_old)
         //
-        // KNOWN DEFECT (cross-backend parity workaround, tracked):
+        // METAL PARITY WORKAROUND (Metal-upstream bug, tracked):
         //   The Metal backward at src/metal_diff/shaders.metal:2216
-        //   computes g_v / dt instead of g_v * sim_scale / dt — the
-        //   forward at :1942 multiplies by sim_scale but the backward
-        //   drops it. Our CUDA kernel is mathematically correct
-        //   (computes g_v * sim_scale / dt); we pass sim_scale = 1.0f
-        //   here so that CUDA's output matches Metal's to within the
-        //   README Phase-5 "1% parity" claim. Adam in log-space
-        //   absorbs the uniform 1/sim_scale factor, so demo1 optima
-        //   are unaffected.
+        //   computes g_v / dt — the forward at :1942 multiplies by
+        //   sim_scale but the backward drops it. That is an upstream
+        //   Metal bug. Our CUDA kernel is mathematically correct (it
+        //   computes g_v * sim_scale / dt); to maintain the README
+        //   Phase-5 "1% parity" target between CUDA and Metal we pass
+        //   sim_scale = 1.0f here, deliberately matching Metal's
+        //   incorrect output rather than the strictly-correct one.
+        //   Adam in log-space absorbs the uniform 1/sim_scale factor,
+        //   so demo1 optima are unaffected by the workaround.
         //
-        //   To remove: patch Metal upstream (forward and backward both
-        //   need sim_scale), revert this argument from 1.0f back to
-        //   `sim_scale`, and tighten the Phase-5 parity test. The
-        //   env-var escape hatch CUDA_BWD_TRUE_SIM_SCALE=1 below lets
-        //   downstream consumers opt into the mathematically-correct
-        //   gradient today, at the cost of failing Metal parity.
+        //   Downstream consumers who need the mathematically-correct
+        //   gradient (e.g. for second-order methods or non-Adam
+        //   optimisers) can opt in via the CUDA_BWD_TRUE_SIM_SCALE=1
+        //   env var below; the cost is failing the Metal parity test.
+        //
+        //   To remove the workaround entirely: patch Metal upstream
+        //   so its forward and backward both multiply by sim_scale,
+        //   then revert this argument from 1.0f back to `sim_scale`
+        //   and tighten the Phase-5 parity test.
         float upd_sim_scale = 1.0f;
         const char *true_ss_env = std::getenv("CUDA_BWD_TRUE_SIM_SCALE");
         if (true_ss_env && std::atoi(true_ss_env) != 0) {

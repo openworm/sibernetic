@@ -10,14 +10,14 @@
 #   CUDA_ARCH=sm_86 ./build.sh    # Ampere / RTX 30-series
 #   CUDA_ARCH=sm_89 ./build.sh    # Ada / RTX 40-series / L4
 #
-# Layout (post #15 refactor): six translation units linked via
-# nvcc -rdc=true. Device-link is performed by nvcc automatically in
-# the final invocation.
-#   cuda_common.cu         host I/O helpers
+# Layout: seven translation units linked via nvcc -rdc=true. Device-link
+# is performed by nvcc automatically in the final invocation.
+#   cuda_common.cu         host I/O helpers + build_static_grid
 #   shaders.cu             all __global__ kernel definitions
-#   ops_kernels_m6.cu      M6 fwd/bwd + M7.1 bwd standalone drivers
-#   ops_xpbd_step.cu       run_xpbd_step (all-in-one orchestrator)
-#   ops_xpbd_full.cu       xpbd_full / xpbd_step_diff / xpbd_step_full_diff
+#   ops_kernels_m6.cu      M6 fwd/bwd standalone drivers
+#   ops_xpbd_step.cu       run_xpbd_step (imperative multi-step driver)
+#   ops_xpbd_full.cu       run_xpbd_full_fwd / _bwd (differentiable)
+#   ops_pair_spring.cu     pair_forces / spring_bonds / *_K_partial drivers
 #   sib_cuda.cu            main() + CLI dispatcher
 
 set -euo pipefail

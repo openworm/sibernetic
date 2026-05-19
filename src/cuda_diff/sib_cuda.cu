@@ -41,10 +41,32 @@
 // ──────────────────────────────────────────────────────────────────────
 int main(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "usage: sib_cuda <op> [args...]\n"
-                        "ops: dist_active_static, dist_active_active, "
-                        "wpoly6_inplace, rowsum_density, "
-                        "density_constraint_grad, xpbd_step\n");
+        fprintf(stderr,
+            "usage: sib_cuda <op> [args...]\n"
+            "\n"
+            "Integrated XPBD ops (shared CLI with sib_metal):\n"
+            "  xpbd_step          imperative multi-step driver\n"
+            "  xpbd_full_fwd      differentiable forward (writes tape)\n"
+            "  xpbd_full_bwd      differentiable backward (reads tape)\n"
+            "\n"
+            "M6 / density-chain primitives (fwd):\n"
+            "  dist_active_static, dist_active_active,\n"
+            "  wpoly6_inplace, rowsum_density,\n"
+            "  density_constraint_grad\n"
+            "\n"
+            "M6 / density-chain primitives (bwd, FD-validated):\n"
+            "  dist_active_static_bwd, dist_active_active_bwd,\n"
+            "  wpoly6_inplace_bwd, rowsum_density_bwd,\n"
+            "  density_constraint_grad_bwd,\n"
+            "  solve_density_constraint_bwd\n"
+            "\n"
+            "Worm physics (pair forces, springs, external acceleration):\n"
+            "  pair_forces_grid_fwd, pair_forces_grid_bwd,\n"
+            "  spring_bonds_force, spring_bonds_force_bwd,\n"
+            "  apply_ext_accel, apply_ext_accel_bwd,\n"
+            "  visc_K_partial, spring_K_partial\n"
+            "\n"
+            "Run any op with no further args to see its argv layout.\n");
         return 1;
     }
     if (std::strcmp(argv[1], "dist_active_static") == 0)

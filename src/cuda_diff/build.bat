@@ -16,13 +16,14 @@ REM Architecture: sm_75 (Turing/RTX 20-series) as the floor. Bump via
 REM   set CUDA_ARCH=sm_86  (Ampere / RTX 30-series)
 REM   set CUDA_ARCH=sm_89  (Ada / RTX 40-series / L4)
 REM
-REM Layout: six translation units linked via nvcc -rdc=true. Device-link
+REM Layout: seven translation units linked via nvcc -rdc=true. Device-link
 REM is performed by nvcc automatically in the final invocation.
-REM     cuda_common.cu         host I/O helpers
+REM     cuda_common.cu         host I/O helpers + build_static_grid
 REM     shaders.cu             all __global__ kernel definitions
-REM     ops_kernels_m6.cu      M6 fwd/bwd + M7.1 bwd standalone drivers
-REM     ops_xpbd_step.cu       run_xpbd_step (all-in-one orchestrator)
-REM     ops_xpbd_full.cu       xpbd_full / xpbd_step_diff / xpbd_step_full_diff
+REM     ops_kernels_m6.cu      M6 fwd/bwd standalone drivers
+REM     ops_xpbd_step.cu       run_xpbd_step (imperative multi-step driver)
+REM     ops_xpbd_full.cu       run_xpbd_full_fwd / _bwd (differentiable)
+REM     ops_pair_spring.cu     pair_forces / spring_bonds / *_K_partial drivers
 REM     sib_cuda.cu            main() + CLI dispatcher
 
 setlocal

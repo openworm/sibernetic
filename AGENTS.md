@@ -32,6 +32,15 @@ separately via `cd src/metal_diff && ./build.sh`; the resulting
 `sib_metal` binary exposes the differentiable XPBD pipeline (see
 README.md "Differentiable physics with native Metal").
 
+For NVIDIA GPU simulation, build the native CUDA substrate separately
+via `./src/cuda_diff/build.sh` (Linux) or `cmd /c src\cuda_diff\build.bat`
+(Windows); the resulting `sib_cuda` binary exposes the same
+differentiable XPBD CLI as `sib_metal` (`xpbd_full_fwd` /
+`xpbd_full_bwd` / `xpbd_step`) so the shared Python harnesses
+(`sgd_true.py`, `dump_*_trajectory.py`) work against either substrate
+by swapping the binary path. Per-phase status, the FD-validated test
+suite, and op-name maps are in `src/cuda_diff/README.md`.
+
 ## Contributing Notes
 - Keep C++ headers and sources under `inc/` and `src/` respectively.
 - OpenCL kernels reside in `src/*.cl`.

@@ -88,6 +88,10 @@ void compute_pair_amps(float h, float sim_scale, float mass,
     *out_visc_amp = (float)(1.5 * (double)mass * divgradWvisco *
                             std::pow((double)sim_scale, 3.0));
     double wpoly6_si = 315.0 / (64.0 * M_PI * h_s9);
+    // mass cancels in surf_amp; kept as written to mirror the OpenCL /
+    // Metal formula bit-for-bit (sphFluid.cl computes ·mass on the inner
+    // sum and divides by ·mass when applying — preserving the same
+    // grouping here keeps fp64-rounded parity with the other backends).
     *out_surf_amp = (float)(-1.7e-9 * (double)mass * wpoly6_si *
                             (double)sim_scale / (double)mass);
 }
