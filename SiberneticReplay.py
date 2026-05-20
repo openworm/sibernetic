@@ -37,6 +37,11 @@ report_data = None
 downsample = 1  # only load every nth time point of 3d positions
 
 
+def print_(msg):
+    prefix = "SibReplay: "
+    print(prefix + msg.replace("\n", "\n" + prefix))
+
+
 class State(Enum):
     PAUSED = "Paused"
     RUNNING = "Running"
@@ -52,10 +57,10 @@ class ReplayController:
 
     def play(self, should_play, step=1):
         if should_play:
-            print(" > Starting replay playback.")
+            print_(" > Starting replay playback.")
 
             if self.current_time_index == len(self.times) - 1:
-                print(" > Replay at end of time, resetting to start.")
+                print_(" > Replay at end of time, resetting to start.")
                 self.set_to_time(0)
 
             self.state = State.RUNNING
@@ -65,14 +70,14 @@ class ReplayController:
                 self.current_time_index = min(
                     self.current_time_index + step, len(self.times) - 1
                 )
-                print(f" > Advancing to time index: {self.current_time_index}")
+                print_(f" > Advancing to time index: {self.current_time_index}")
                 self.render_all()
                 time.sleep(replay_speed)
-            print(" > Replay playback finished or paused.")
+            print_(" > Replay playback finished or paused.")
             self.state = State.PAUSED
 
         else:
-            print(" > Pausing replay playback.")
+            print_(" > Pausing replay playback.")
             self.state = State.PAUSED
 
     def step_forward(self):
@@ -80,11 +85,11 @@ class ReplayController:
             self.state = State.PAUSED
 
         if self.current_time_index + 1 >= len(self.times):
-            print(" > Replay at end of time, cannot step forward.")
+            print_(" > Replay at end of time, cannot step forward.")
             return
 
         self.current_time_index += 1
-        print(f" > Stepping forward one time step to index: {self.current_time_index}")
+        print_(f" > Stepping forward one time step to index: {self.current_time_index}")
         self.render_all()
 
     def step_backward(self):
@@ -92,11 +97,13 @@ class ReplayController:
             self.state = State.PAUSED
 
         if self.current_time_index == 0:
-            print(" > Replay at start of time, cannot step backward.")
+            print_(" > Replay at start of time, cannot step backward.")
             return
 
         self.current_time_index -= 1
-        print(f" > Stepping backward one time step to index: {self.current_time_index}")
+        print_(
+            f" > Stepping backward one time step to index: {self.current_time_index}"
+        )
         self.render_all()
 
     def set_to_time(self, time_value):
@@ -107,20 +114,20 @@ class ReplayController:
             if time_value in self.times:
                 closest_index = self.times.index(time_value)
                 closest_time = self.times[closest_index]
-                print(
+                print_(
                     f" > .Finding closest time to {time_value}, got index: {closest_index}"
                 )
             else:
                 closest = min(self.times, key=lambda x: abs(x - time_value))
                 closest_index = self.times.index(closest)
-                print(
+                print_(
                     f" > Finding closest time to {time_value}, got index: {closest_index} of {len(self.times)} times {self.times[0]}-{self.times[-1]}"
                 )
                 closest_time = self.times[closest_index]
 
         self.current_time_index = closest_index
 
-        print(
+        print_(
             " > Replay requested to be set to: %s; being set to time value %s (index: %d)."
             % (time_value, self.current_time_index, closest_time)
         )
@@ -128,8 +135,8 @@ class ReplayController:
         self.render_all()
 
     def render_all(self):
-        print(
-            " > Rendering replay at time index: %d (time: %s)"
+        print_(
+            "\n > Rendering replay at time index: %d (time: %s)"
             % (self.current_time_index, self.times[self.current_time_index])
         )
         if self.slider_view is not None:
@@ -220,7 +227,7 @@ def add_sibernetic_model(
     if report_file is not None:
         sim_dir = os.path.dirname(os.path.abspath(report_file))
         report_data = json.load(open(report_file, "r"))
-        print(report_data)
+        print_(f"Loaded report_data:\n{report_data}")
         position_file = os.path.join(sim_dir, "position_buffer.txt")
         dt = float(report_data.get("dt").split(" ")[0])
         duration = float(report_data.get("duration").split(" ")[0])
@@ -234,7 +241,7 @@ def add_sibernetic_model(
         )
         """replay_controller = ReplayController(times=sibernetic_time_points)"""
 
-        print(
+        print_(
             "Simulation dt: %s ms, duration: %s ms, times simulated (%i): %s; sibernetic logged times (%i): %s"
             % (
                 dt,
@@ -256,16 +263,16 @@ def add_sibernetic_model(
             rate_to_plot=1,
             plot=False,
         )
-        print("WCON file (re)generated at: %s" % wcon_output_file)
+        print_(f"WCON file (re)generated at: {wcon_output_file}")
 
         if "worm" in report_data["configuration"]:
             muscle_activation_file = os.path.join(
                 sim_dir, "muscles_activity_buffer.txt"
             )
-            print("Loading muscle activation file from: %s" % muscle_activation_file)
+            print_(f"Loading muscle activation file from: {muscle_activation_file}")
             musc_dat = np.loadtxt(muscle_activation_file, delimiter="\t").T
-            print(musc_dat)
-            print(musc_dat.shape)
+            # print(musc_dat)
+            # print(musc_dat.shape)
             # plt.imshow(musc_dat, interpolation="none", aspect="auto", cmap="YlOrRd")
 
             f_musc, ax_musc = plt.subplots(tight_layout=True)
@@ -362,7 +369,7 @@ def add_sibernetic_model(
             if pcount == numOfBoundaryP + numOfElasticP + numOfLiquidP:
                 first_pass_complete = True
                 sampled += 1
-                print(
+                print_(
                     "End of one batch of %i total points (%i types), at line %i, time point: %i%s"
                     % (
                         pcount,
@@ -374,12 +381,12 @@ def add_sibernetic_model(
                 )
 
                 if sampled < downsample:
-                    print(
+                    print_(
                         "  -- Skipping sample %i due to downsampling factor %i"
                         % (sampled, downsample)
                     )
                 else:
-                    print(
+                    print_(
                         "  -- Including sample %i, downsampling factor %i"
                         % (sampled, downsample)
                     )
@@ -390,7 +397,7 @@ def add_sibernetic_model(
                     if dt is not None:
                         time_calculated = time_count * logStep * dt
                         loaded_time_points.append(time_calculated)
-                        print("Time calculated as: %s" % time_calculated)
+                        print_(f"Time calculated as: {time_calculated}")
                     else:
                         loaded_time_points.append(time_count)
 
@@ -403,8 +410,8 @@ def add_sibernetic_model(
 
         line_count += 1
 
-    print(
-        "Loaded positions with %i elastic, %i liquid and %i boundary points (%i total), over %i lines"
+    print_(
+        "\nLoaded positions with %i elastic, %i liquid and %i boundary points (%i total), over %i lines"
         % (
             numOfElasticP,
             numOfLiquidP,
@@ -414,16 +421,14 @@ def add_sibernetic_model(
         )
     )
 
-    print(
-        "Num of time points loaded: %i (total: %i)" % (len(all_3D_points), time_count)
-    )
-    print("Loaded time points: %s" % loaded_time_points)
+    print_(f"Num of time points loaded: {len(all_3D_points)} (total: {time_count})")
+    print_(f"Loaded time points: {loaded_time_points}")
 
     if replay_controller is None:
         # time_points = np.arange(len(all_3D_points))
         replay_controller = ReplayController(times=loaded_time_points)
 
-    print("Count of point types found: %s" % dict(sorted(count_point_types.items())))
+    print_(f"Count of point types found: {dict(sorted(count_point_types.items()))}")
 
     create_mesh(0)
 
@@ -523,7 +528,7 @@ def add_sibernetic_model(
 
 def slider_updated(value):
     global replay_controller
-    print(
+    print_(
         f" > Slider updated to value: {value}, replay: {replay_controller.get_state()}"
     )
 
@@ -532,9 +537,9 @@ def slider_updated(value):
 
 def info_checkbox_pressed(value):
     global replay_controller
-    print(f" > Info checkbox pressed, value: {value}")
+    print_(f" > Info checkbox pressed, value: {value}")
     if value:
-        print(" > Showing sim info:")
+        print_(" > Showing sim info:")
 
         fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -568,25 +573,25 @@ def info_checkbox_pressed(value):
 
 def fwd_checkbox_pressed(value):
     global replay_controller
-    print(f" > Fwd checkbox pressed, value: {value}")
+    print_(f" > Fwd checkbox pressed, value: {value}")
     replay_controller.step_forward()
 
 
 def play_checkbox_pressed(value):
     global replay_controller
-    print(f" > Play checkbox pressed, value: {value}")
+    print_(f" > Play checkbox pressed, value: {value}")
     replay_controller.play(value, 1)
 
 
 def ff_checkbox_pressed(value):
     global replay_controller
-    print(f" > FF checkbox pressed, value: {value}")
+    print_(f" > FF checkbox pressed, value: {value}")
     replay_controller.play(value, 3)
 
 
 def back_checkbox_pressed(value):
     global replay_controller
-    print(f" > Back checkbox pressed, value: {value}")
+    print_(f" > Back checkbox pressed, value: {value}")
     replay_controller.step_backward()
 
 
@@ -594,19 +599,19 @@ def create_mesh(time_index):
     global all_3D_points, last_meshes, plotter, offset3d_, show_boundary
 
     if time_index >= len(all_3D_points):
-        print(
+        print_(
             "Index %i out of bounds for all_3D_points with length %i"
             % (time_index, len(all_3D_points))
         )
         return
 
-    print(
+    print_(
         "   -- Creating new mesh at time point index: %s/%s"
         % (time_index, len(all_3D_points))
     )
     curr_points_dict = all_3D_points[time_index]
 
-    print("      Plotting %i point types" % (len(curr_points_dict)))
+    print_("      Plotting %i point types" % (len(curr_points_dict)))
 
     for type_, curr_points in curr_points_dict.items():
         color, info, size = get_color_info_for_type(type_)
@@ -614,8 +619,8 @@ def create_mesh(time_index):
         if show_boundary is False and is_boundary:
             mx = max(curr_points)
             mn = min(curr_points)
-            print(mx)
-            print(mn)
+            # print_(mx)
+            # print(mn)
             a = [mn[0], mn[1], mn[2]]
             b = [mn[0], mx[1], mn[2]]
             c = [mn[0], mx[1], mx[2]]
@@ -627,7 +632,7 @@ def create_mesh(time_index):
             continue
 
         if verbose:
-            print(
+            print_(
                 "       - Plotting %i points of type '%s' (%s), color: %s, size: %i"
                 % (len(curr_points), type_, info, color, size)
             )
@@ -652,7 +657,7 @@ def create_mesh(time_index):
                     (offset3d_[0], offset3d_[1], offset3d_[2]), inplace=True
                 )
             else:
-                print("Boundary points not translated")
+                print_("Boundary points not translated")
 
     plotter.render()
     # time.sleep(0.1)
@@ -676,7 +681,7 @@ if __name__ == "__main__":
     if "-b" in sys.argv:
         include_boundary = True
     else:
-        print("Run with -b to display boundary box")
+        print_("Run with -b to display boundary box")
 
     if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
         if "json" in sys.argv[1]:
@@ -699,15 +704,15 @@ if __name__ == "__main__":
     plotter.camera_position = "zx"
     plotter.camera.roll = 90
     plotter.camera.elevation = 45
-    print(plotter.camera_position)
+    # print(plotter.camera_position)
 
     def on_close_callback(plotter):
         global replay_controller
-        print(
+        print_(
             f"Plotter window is closing. Performing actions now (replay: {replay_controller.get_state()})."
         )
         replay_controller.state = State.PAUSED
 
     if "-nogui" not in sys.argv:
         plotter.show(before_close_callback=on_close_callback, auto_close=True)
-        print("Done showing")
+        print_("Done showing")
