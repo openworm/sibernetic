@@ -22,6 +22,7 @@ replaying = False
 
 all_3D_points = []
 all_point_types = []
+all_vtp_files = []
 
 plotter = None
 offset3d_ = (0, 0, 0)
@@ -39,7 +40,7 @@ downsample = 1  # only load every nth time point of 3d positions
 
 def print_(msg):
     prefix = "SibReplay: "
-    print(prefix + msg.replace("\n", "\n" + prefix))
+    print(prefix + str(msg).replace("\n", "\n" + prefix))
 
 
 class State(Enum):
@@ -54,6 +55,7 @@ class ReplayController:
         self.times = list(times)
         self.state = State.PAUSED
         self.current_time_index = 0
+        self.vtk_actor = None
 
     def play(self, should_play, step=1):
         if should_play:
@@ -144,6 +146,15 @@ class ReplayController:
                 self.times[self.current_time_index]
             )
         create_mesh(self.current_time_index)
+
+        if len(all_vtp_files) > 0:
+            if self.vtk_actor is not None:
+                plotter.remove_actor(self.vtk_actor)
+
+            vtk_mesh = pv.read(all_vtp_files[self.current_time_index])
+
+            self.vtk_actor = plotter.add_mesh(vtk_mesh, color="grey", style="wireframe")
+
         plotter.render()
         try:
             plotter.update()
@@ -189,6 +200,7 @@ def add_sibernetic_model(
     pl,
     position_file="Sibernetic/position_buffer.txt",
     report_file=None,
+    vtp_files=[],
     swap_y_z=False,
     offset3d=(0, 0, 0),
     include_boundary=False,
@@ -203,11 +215,14 @@ def add_sibernetic_model(
         show_boundary, \
         max_time, \
         replay_controller, \
-        report_data
+        report_data, \
+        all_vtp_files
 
     offset3d_ = offset3d
     plotter = pl
     show_boundary = include_boundary
+
+    all_vtp_files = sorted(vtp_files)
 
     points = {}
     types = []
@@ -423,6 +438,10 @@ def add_sibernetic_model(
 
     print_(f"Num of time points loaded: {len(all_3D_points)} (total: {time_count})")
     print_(f"Loaded time points: {loaded_time_points}")
+    if all_vtp_files:
+        print_(
+            f"Found {len(all_vtp_files)} VTK *.vtp files: [{all_vtp_files[0]},..., {all_vtp_files[-1]}]"
+        )
 
     if replay_controller is None:
         # time_points = np.arange(len(all_3D_points))
@@ -616,18 +635,34 @@ def create_mesh(time_index):
     for type_, curr_points in curr_points_dict.items():
         color, info, size = get_color_info_for_type(type_)
         is_boundary = "boundary" in info
+
         if show_boundary is False and is_boundary:
             mx = max(curr_points)
             mn = min(curr_points)
-            # print_(mx)
-            # print(mn)
-            a = [mn[0], mn[1], mn[2]]
-            b = [mn[0], mx[1], mn[2]]
-            c = [mn[0], mx[1], mx[2]]
-            d = [mn[0], mn[1], mx[2]]
+            print_(mx)
+            print_(mn)
+            swap = False
+            if swap:
+                a = [mn[0], mn[1], mn[2]]
+                b = [mn[0], mx[1], mn[2]]
+                c = [mn[0], mx[1], mx[2]]
+                d = [mn[0], mn[1], mx[2]]
+            else:
+                a = [mn[0], mn[1], mn[2]]
+                b = [mx[0], mn[1], mn[2]]
+                c = [mx[0], mn[1], mx[2]]
+                d = [mn[0], mn[1], mx[2]]
 
+            print_(f"Boundary box points: {a}, {b}, {c}, {d}")
             points = np.array([a, b, b, c, c, d, d, a])
             plotter.add_lines(points, color="grey", width=2)
+            # add a pyvista sphere of radius 3 at point a
+            """
+            plotter.add_mesh(pv.Sphere(radius=3, center=a), color="pink")
+            plotter.add_mesh(pv.Sphere(radius=4, center=b), color="blue")
+            plotter.add_mesh(pv.Sphere(radius=5, center=c), color="red")
+            plotter.add_mesh(pv.Sphere(radius=6, center=d), color="purple")"""
+
             # quit()
             continue
 
@@ -687,23 +722,45 @@ if __name__ == "__main__":
         if "json" in sys.argv[1]:
             position_file = None
             report_file = sys.argv[1]
+            dir_name = os.path.dirname(report_file)
+            vtp_files = [
+                os.path.join(dir_name, f)
+                for f in os.listdir(dir_name)
+                if f.endswith(".vtp")
+            ]
         else:
             position_file = sys.argv[1]
+            dir_name = os.path.dirname(position_file)
+            vtp_files = [
+                os.path.join(dir_name, f)
+                for f in os.listdir(dir_name)
+                if f.endswith(".vtp")
+            ]
+
+    swap_y_z = False
 
     add_sibernetic_model(
         plotter,
         position_file,
         report_file,
-        swap_y_z=True,
+        vtp_files,
+        swap_y_z=swap_y_z,
         include_boundary=include_boundary,
     )
     plotter.window_size = [1600, 800]
 
     plotter.set_background("white")
     plotter.add_axes()
-    plotter.camera_position = "zx"
-    plotter.camera.roll = 90
-    plotter.camera.elevation = 45
+
+    if swap_y_z:
+        plotter.camera_position = "zx"
+        plotter.camera.roll = 90
+        plotter.camera.elevation = 45
+    else:
+        plotter.camera_position = "yz"
+        plotter.camera.roll = 0
+        plotter.camera.elevation = 25
+
     # print(plotter.camera_position)
 
     def on_close_callback(plotter):

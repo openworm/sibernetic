@@ -1,45 +1,52 @@
 #!/bin/bash
 set -ex
 
-#This script will run a number of tests in OpenCL mode, directly on the Sibernetic executable. 
+# This script will run a number of tests in OpenCL mode, directly on the Sibernetic executable.
 
 no_gui="-no_g"
 export_vtk="-export_vtk"
 
-# Falling cube 
+# Arguments passed to this script, used below to decide which example(s) to show
+script_args="$*"
 
-cube_dir=simulations/test_opencl_cube
+# Run (or show a previous run of) a single Sibernetic configuration.
+#   $1 - Sibernetic config to run (passed to -f)
+#   $2 - timelimit for the simulation
+#   $3 - timestep for the simulation
+#   $4 - logstep for the simulation
+run_test () {
+    local config="$1"
+    local timelimit="$2"
+    local timestep="$3"
+    local logstep="$4"
 
-if [ ! -d "$cube_dir" ]; then
-    mkdir -p "$cube_dir"
-fi
+    sim_dir="simulations/test_opencl_${config}"
+    show_flag="-show_${config}"
 
-if [[ "$@" == *"-show_cube"* ]]; then
-    ./Release/Sibernetic -l_from lpath=${cube_dir}
-else
-    if [[ "$@" != *"-show"* ]]; then # i.e. not showing any other example
-        rm -f ${cube_dir}/* # remove any previous simulation files
-        ./Release/Sibernetic -f demo1 -l_to lpath=${cube_dir} timelimit=0.02 logstep=10 device=ALL ${no_gui} -q ${export_vtk}
-        # Test reloading the simulation files with Python viewer
-        python SiberneticReplay.py ${cube_dir}/position_buffer.txt -nogui
+    if [ ! -d "$sim_dir" ]; then
+        mkdir -p "$sim_dir"
     fi
-fi
 
-# 2 elastic membranes example
-
-memb_dir=simulations/test_opencl_membranes
-
-if [ ! -d "$memb_dir" ]; then
-    mkdir -p "$memb_dir"
-fi
-
-if [[ "$@" == *"-show_membranes"* ]]; then
-    ./Release/Sibernetic -l_from lpath=${memb_dir}
-else
-    if [[ "$@" != *"-show"* ]]; then # i.e. not showing any other example
-        rm -f ${memb_dir}/* # remove any previous simulation files
-        ./Release/Sibernetic -f demo2 -l_to lpath=${memb_dir} timelimit=0.02 logstep=10 device=ALL ${no_gui} -q ${export_vtk}
-        # Test reloading the simulation files with Python viewer
-        python SiberneticReplay.py ${memb_dir}/position_buffer.txt -nogui
+    if [[ "$script_args" == *"$show_flag"* ]]; then
+        ./Release/Sibernetic -l_from lpath=${sim_dir}
+    else
+        if [[ "$script_args" != *"-show"* ]]; then # i.e. not showing any other example
+            rm -f ${sim_dir}/* # remove any previous simulation files
+            ./Release/Sibernetic -f ${config} -l_to lpath=${sim_dir} timelimit=${timelimit} timestep=${timestep} logstep=${logstep} device=ALL ${no_gui} -q ${export_vtk}
+            # Test reloading the simulation files with Python viewer
+            python SiberneticReplay.py ${sim_dir}/position_buffer.txt -nogui
+        fi
     fi
-fi
+}
+
+# Demo 1: Falling cube
+run_test demo1 0.03 2e-5 20
+
+# Demo 2: Elastic membranes
+run_test demo2 0.02 2e-5 20
+
+# Worm alone, half resolution (for faster testing)
+run_test worm_alone_half_resolution 0.02 2e-5 20
+
+# Full worm
+run_test worm 0.01 2e-5 20
