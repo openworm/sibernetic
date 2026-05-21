@@ -6,6 +6,8 @@ set -ex
 no_gui="-no_g"
 export_vtk="-export_vtk"
 
+export PYTHONPATH=$PYTHONPATH:.
+
 # Arguments passed to this script, used below to decide which example(s) to show
 script_args="$*"
 
