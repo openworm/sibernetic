@@ -23,10 +23,11 @@ DEFAULTS = {
     "device": "ALL",
     "configuration": "worm",
     "noc302": False,
+    "lems": None,
     "outDir": "simulations",
     "datareader": "SpreadsheetDataReader",
     "test": False,
-    "simName": None,  # This is set to None by default (will be generated from otehr info), but can be set explicitly
+    "simName": None,  # This is set to None by default (will be generated from other info), but can be set explicitly
     "q": False,
 }
 
@@ -150,8 +151,8 @@ def process_args():
         "-lems",
         type=str,
         metavar="<lems>",
-        default=None,
-        help="Parameter ..? ",
+        default=DEFAULTS["lems"],
+        help="Points to LEMS file. NOTE: Work in progress!!",
     )
 
     parser.add_argument(
@@ -341,7 +342,7 @@ def run(a=None, **kwargs):
         run_dir = os.environ["SIBERNETIC_HOME"]
 
     if not a.noc302:
-        if a.lems:
+        if a.lems is not None:
             lems_file = a.lems
 
         else:
