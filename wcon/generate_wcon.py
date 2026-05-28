@@ -8,26 +8,30 @@ import time
 def dist(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
+
 def print_(msg):
+    print("WCON gen >>> %s" % (msg))
 
-    print("WCON gen >>> %s"%(msg))
 
-def generate_wcon(pos_file_name,
-                  wcon_file_name,
-                  rate_to_plot=1,
-                  max_lines=1e12,
-                  max_time_s=1e12,
-                  plot=False,
-                  save_figure1_to=None,
-                  save_figure2_to=None,
-                  save_figure3_to=None):
-
-    print_("Generating WCON from %s to %s, with plotting rate %i"%(pos_file_name,wcon_file_name,rate_to_plot))
+def generate_wcon(
+    pos_file_name,
+    wcon_file_name,
+    rate_to_plot=1,
+    max_lines=1e12,
+    max_time_s=1e12,
+    plot=False,
+    save_figure1_to=None,
+    save_figure2_to=None,
+    save_figure3_to=None,
+):
+    print_(
+        "Generating WCON from %s to %s, with plotting rate %i"
+        % (pos_file_name, wcon_file_name, rate_to_plot)
+    )
 
     postions_file = open(pos_file_name)
 
     line_num = 0
-
 
     ts = []
     x = {}
@@ -35,6 +39,7 @@ def generate_wcon(pos_file_name,
     z = {}
 
     import matplotlib.pyplot as plt
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -51,12 +56,9 @@ def generate_wcon(pos_file_name,
 
     num_frames = 0
 
-    angles = {}
-
     xs0 = None
     ys0 = None
     for line in postions_file:
-
         line_num += 1
         if line_num > max_lines:
             print_("Finished parsing file, as max number of lines reached!")
@@ -73,12 +75,24 @@ def generate_wcon(pos_file_name,
             if t_s > max_time_s:
                 print_("Finished parsing file, as max time reached!")
                 break
-            x[t_s] = [float(w) for w in words[2:2 + int(points)]]
-            y[t_s] = [float(w) for w in words[3 + int(points):3 + 2 * int(points)]]
-            z[t_s] = [float(w) for w in words[4 + 2 * int(points):]]
+            x[t_s] = [float(w) for w in words[2 : 2 + int(points)]]
+            y[t_s] = [float(w) for w in words[3 + int(points) : 3 + 2 * int(points)]]
+            z[t_s] = [float(w) for w in words[4 + 2 * int(points) :]]
 
-            print_("L%i: at time: %s sec found %i points: [(%s,%s,%s),...,(%s,%s,%s)]" % (
-                line_num, t_s, points, x[t_s][0], y[t_s][0], z[t_s][0], x[t_s][int(points)-1], y[t_s][int(points)-1], z[t_s][int(points)-1]))
+            print_(
+                "L%i: at time: %s sec found %i points: [(%s,%s,%s),...,(%s,%s,%s)]"
+                % (
+                    line_num,
+                    t_s,
+                    points,
+                    x[t_s][0],
+                    y[t_s][0],
+                    z[t_s][0],
+                    x[t_s][int(points) - 1],
+                    y[t_s][int(points) - 1],
+                    z[t_s][int(points) - 1],
+                )
+            )
 
             spacing = 0.05
 
@@ -89,7 +103,6 @@ def generate_wcon(pos_file_name,
             offset = num_plotted_frames * spacing
 
             for i in range(len(x[t_s])):
-
                 # Swap x and y so worm moves "up"
                 xs.append(y[t_s][i] + offset)
                 ys.append(x[t_s][i])
@@ -98,9 +111,9 @@ def generate_wcon(pos_file_name,
                 avy += ys[-1]
                 points_plotted += 1
 
-            if xs0==None:
+            if xs0 is None:
                 xs0 = xs
-            if ys0==None:
+            if ys0 is None:
                 ys0 = ys
 
             avx = avx / points
@@ -109,82 +122,111 @@ def generate_wcon(pos_file_name,
             if len(middle_points) > 0:
                 dt = t_s - time_points[-1]
                 middle_point_speed_x.append(
-                    (xs[int(middle_point)] - offset -
-                     middle_points[-1][0]) / dt)
+                    (xs[int(middle_point)] - offset - middle_points[-1][0]) / dt
+                )
 
                 middle_point_speed_y.append(
-                    (ys[int(middle_point)] - middle_points[-1][1]) / dt)
-                dav = dist(avx, avy, ave_points[-1][0], ave_points[-1][1])
+                    (ys[int(middle_point)] - middle_points[-1][1]) / dt
+                )
+                # dav = dist(avx, avy, ave_points[-1][0], ave_points[-1][1])
 
                 ave_point_speed_x.append((avx - ave_points[-1][0]) / dt)
                 ave_point_speed_y.append((avy - ave_points[-1][1]) / dt)
 
-                print_("  Speed of point" +
-                      " %i: (%s,%s) -> (%s,%s): x %sum/s, y %sum/s" %
-                      (middle_point, middle_points[-1][0],
-                       middle_points[-1][1], xs[int(middle_point)],
-                       ys[int(middle_point)], middle_point_speed_x[-1],
-                       middle_point_speed_y[-1]))
+                print_(
+                    "  Speed of point"
+                    + " %i: (%s,%s) -> (%s,%s): x %sum/s, y %sum/s"
+                    % (
+                        middle_point,
+                        middle_points[-1][0],
+                        middle_points[-1][1],
+                        xs[int(middle_point)],
+                        ys[int(middle_point)],
+                        middle_point_speed_x[-1],
+                        middle_point_speed_y[-1],
+                    )
+                )
 
-                print_("  Speed of av point " +
-                      "(%s,%s) -> : (%s,%s): x %sum/s, y %sum/s" %
-                      (ave_points[-1][0], ave_points[-1][1], avx, avy,
-                       ave_point_speed_x[-1], ave_point_speed_y[-1]))
+                print_(
+                    "  Speed of av point "
+                    + "(%s,%s) -> : (%s,%s): x %sum/s, y %sum/s"
+                    % (
+                        ave_points[-1][0],
+                        ave_points[-1][1],
+                        avx,
+                        avy,
+                        ave_point_speed_x[-1],
+                        ave_point_speed_y[-1],
+                    )
+                )
 
             middle_points.append(
-                (xs[int(middle_point)] - offset, ys[int(middle_point)]))
+                (xs[int(middle_point)] - offset, ys[int(middle_point)])
+            )
             ave_points.append((avx, avy))
             time_points.append(t_s)
 
-            print_("  Plot frame %i at %s s; l %i: [(%s,%s),...#%i]" % (
-                num_plotted_frames, t_s, line_num, xs[0], ys[0], len(xs)))
+            print_(
+                "  Plot frame %i at %s s; l %i: [(%s,%s),...#%i]"
+                % (num_plotted_frames, t_s, line_num, xs[0], ys[0], len(xs))
+            )
 
             num_plotted_frames += 1
 
-            l = ax.plot(xs, ys, '-')
+            lines = ax.plot(xs, ys, "-")
             if num_plotted_frames % 5 == 1:
-                time_ = '%ss' % t_s if not t_s == int(t_s) \
-                    else '%ss' % int(t_s)
+                time_ = "%ss" % t_s if not t_s == int(t_s) else "%ss" % int(t_s)
 
-                ax.text(50 + ((num_plotted_frames - 1) * spacing),
-                        10, time_, fontsize=12)
-            ax.plot([xx+offset for xx in xs0], ys0,':',color=l[0].get_color(),linewidth=0.5)
+                ax.text(
+                    50 + ((num_plotted_frames - 1) * spacing), 10, time_, fontsize=12
+                )
+            ax.plot(
+                [xx + offset for xx in xs0],
+                ys0,
+                ":",
+                color=lines[0].get_color(),
+                linewidth=0.5,
+            )
 
-    data = np.zeros((len(ts),len(xs)-4))
+    body_curv_data = np.zeros((len(ts), len(xs) - 4))
 
-    print_('Finished parsing %i lines'%line_num)
+    print_("Finished parsing %i lines" % line_num)
 
     for ti in range(len(ts)):
-
         for i in range(len(y[0]))[2:-2]:
-
-            x1 = x[ts[ti]][i-2]
+            x1 = x[ts[ti]][i - 2]
             xc = x[ts[ti]][i]
-            x2 = x[ts[ti]][i+2]
+            x2 = x[ts[ti]][i + 2]
 
-            y1 = y[ts[ti]][i-2]
+            y1 = y[ts[ti]][i - 2]
             yc = y[ts[ti]][i]
-            y2 = y[ts[ti]][i+2]
+            y2 = y[ts[ti]][i + 2]
 
-            a1 = math.atan2(y1-yc,x1-xc)
-            a2 = math.atan2(y2-yc,x2-xc)
-            angle = a2-a1
-            if angle <0: angle+=2*math.pi
-            if angle >2*math.pi: angle= 2*math.pi-angle
+            a1 = math.atan2(y1 - yc, x1 - xc)
+            a2 = math.atan2(y2 - yc, x2 - xc)
+            angle = a2 - a1
+            if angle < 0:
+                angle += 2 * math.pi
+            if angle > 2 * math.pi:
+                angle = 2 * math.pi - angle
 
-            deg = 360*(angle/(2*math.pi))
+            deg = 360 * (angle / (2 * math.pi))
 
-            data[ti][i-2]= deg
+            body_curv_data[ti][i - 2] = deg
 
-            ###print("At t=%s, i=%s: angle from between (%s,%s) - (%s,%s) - (%s,%s) = %s, %sdeg"%(ts[ti], i, x1,y1,xc,yc,x2,y2,angle,deg))
+            # print("At t=%s, i=%s: angle from between (%s,%s) - (%s,%s) - (%s,%s) = %s, %sdeg"%(ts[ti], i, x1,y1,xc,yc,x2,y2,angle,deg))
 
     info = "Loaded: %s points from %s, saving %i frames" % (
-        line_num, pos_file_name, num_frames)
+        line_num,
+        pos_file_name,
+        num_frames,
+    )
     print_(info)
 
-    wcon = open(wcon_file_name, 'w')
+    wcon = open(wcon_file_name, "w")
 
-    wcon.write('''{
+    wcon.write(
+        """{
     "metadata":{
         "who":"sibernetic_c302",
         "timestamp":"%s",
@@ -195,40 +237,41 @@ def generate_wcon(pos_file_name,
               "y":"micrometers"},
     "comment":"Saved from Sibernetic data.",
     "note":"%s",
-    "data":[\n''' % (time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime()), info))
+    "data":[\n"""
+        % (time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime()), info)
+    )
 
-    wcon.write('''            {"id":"wormTest",
-             "t":[ ''')
+    wcon.write("""            {"id":"wormTest",
+             "t":[ """)
     for t in ts:
-        wcon.write('%s' % (t))
+        wcon.write("%s" % (t))
         if t != ts[-1]:
-            wcon.write(', ')
+            wcon.write(", ")
 
-    wcon.write('],\n')
+    wcon.write("],\n")
 
-    wcon.write('''             "x":[ ''')
+    wcon.write("""             "x":[ """)
     for t in ts:
-        wcon.write('%s' % (x[t]))
+        wcon.write("%s" % (x[t]))
         if t != ts[-1]:
-            wcon.write(',\n')
-    wcon.write('],\n')
+            wcon.write(",\n")
+    wcon.write("],\n")
 
-    wcon.write('''             "y":[ ''')
+    wcon.write("""             "y":[ """)
     for t in ts:
-        wcon.write('%s' % (y[t]))
+        wcon.write("%s" % (y[t]))
         if t != ts[-1]:
-            wcon.write(',\n')
-    wcon.write(']\n')
+            wcon.write(",\n")
+    wcon.write("]\n")
 
-
-    wcon.write('\n}\n')
-    wcon.write('\n]\n')
-    wcon.write('\n}\n')
+    wcon.write("\n}\n")
+    wcon.write("\n]\n")
+    wcon.write("\n}\n")
 
     wcon.close()
     postions_file.close()
 
-    info = "Midline of worm through time (to %s seconds)"%time_points[-1]
+    info = "Midline of worm through time (to %s seconds)" % time_points[-1]
 
     plt.xlabel("x direction")
     plt.ylabel("y direction")
@@ -245,62 +288,83 @@ def generate_wcon(pos_file_name,
     plt.xlabel("Time (s)")
     plt.ylabel("Speed")
 
-    plt.plot(time_points[1:], ave_point_speed_x, 'red',
-             label='Speed in x of average of %i points' % points)
-    plt.plot(time_points[1:], middle_point_speed_x, 'pink',
-             label='Speed in x dir of point %i/%i' % (middle_point,
-                                                      points), linestyle='--')
-    plt.plot(time_points[1:], ave_point_speed_y, 'blue',
-             label='Speed in y of average of %i points' % points)
-    plt.plot(time_points[1:], middle_point_speed_y, 'cyan',
-             label='Speed in y dir of point %i/%i' % (middle_point,
-                                                      points), linestyle='--')
+    plt.plot(
+        time_points[1:],
+        ave_point_speed_x,
+        "red",
+        label="Speed in x of average of %i points" % points,
+    )
+    plt.plot(
+        time_points[1:],
+        middle_point_speed_x,
+        "pink",
+        label="Speed in x dir of point %i/%i" % (middle_point, points),
+        linestyle="--",
+    )
+    plt.plot(
+        time_points[1:],
+        ave_point_speed_y,
+        "blue",
+        label="Speed in y of average of %i points" % points,
+    )
+    plt.plot(
+        time_points[1:],
+        middle_point_speed_y,
+        "cyan",
+        label="Speed in y dir of point %i/%i" % (middle_point, points),
+        linestyle="--",
+    )
 
+    plt.plot([0, time_points[-1]], [0, 0], "grey", linestyle=":")
 
-
-    plt.plot([0,time_points[-1]],[0,0], 'grey', linestyle=':')
-
-    plt.legend(loc=2, fontsize = 'x-small')
+    plt.legend(loc=2, fontsize="x-small")
 
     if save_figure2_to:
-        plt.savefig(save_figure2_to,bbox_inches='tight')
+        plt.savefig(save_figure2_to, bbox_inches="tight")
 
     fig = plt.figure()
 
     plt.xlabel("Time (s)")
     plt.ylabel("Percentage along worm")
 
-    plot0 = plt.imshow(data.transpose(), interpolation='nearest', aspect='auto')
-    ax = plt.gca();
-
+    plot0 = plt.imshow(
+        body_curv_data.transpose(), interpolation="nearest", aspect="auto"
+    )
+    ax = plt.gca()
     info = "Propagation of curvature along body of worm (180=straight)"
     fig.canvas.manager.set_window_title(info)
     plt.title(info)
 
     xt = ax.get_xticks()
-    #print(xt)
-    time_ticks = [time_points[int(ti)] if (ti>=0 and ti<len(time_points)) else 0 for ti in xt]
-    #print(time_ticks)
+    # print(xt)
+    time_ticks = [
+        time_points[int(ti)] if (ti >= 0 and ti < len(time_points)) else 0 for ti in xt
+    ]
+    # print(time_ticks)
     ax.set_xticklabels(time_ticks)
 
     fig.colorbar(plot0)
 
     if save_figure3_to:
-        plt.savefig(save_figure3_to,bbox_inches='tight')
+        plt.savefig(save_figure3_to, bbox_inches="tight")
 
     if plot:
         plt.show()
 
-    return x,y,z,ts
+    return x, y, z, ts, body_curv_data
 
 
 def validate(wcon_file):
-    import json, jsonschema
+    import json
+    import jsonschema
 
     wcon_schema = "wcon_schema.json"
 
     if not os.path.isfile("wcon_schema.json"):
-        print_("Cannot validate file: %s!! WCON schema %s not found!!"%(wcon_file, wcon_schema))
+        print_(
+            "Cannot validate file: %s!! WCON schema %s not found!!"
+            % (wcon_file, wcon_schema)
+        )
         return
 
     # The WCON schema
@@ -308,7 +372,7 @@ def validate(wcon_file):
         schema = json.loads(wcon_schema_file.read())
 
     # Our example WCON file
-    with open(wcon_file, 'r') as infile:
+    with open(wcon_file, "r") as infile:
         serialized_data = infile.read()
 
     # Load the whole JSON file into a nested dict.
@@ -317,42 +381,46 @@ def validate(wcon_file):
     # Validate the raw file against the WCON schema
     jsonschema.validate(w, schema)
 
-    print_("File %s is valid WCON!!"%wcon_file)
+    print_("File %s is valid WCON!!" % wcon_file)
 
-def transform(i,max_rad=0.03):
-    return 1+max_rad*math.sin((math.pi/4) * (i)/24.0)
+
+def transform(i, max_rad=0.03):
+    return 1 + max_rad * math.sin((math.pi / 4) * (i) / 24.0)
+
 
 def get_color_for_fract(fract):
+    if fract < 0:
+        fract = 0
+    if fract > 1:
+        fract = 1
+    minCol = [0.4, 0, 0.9]
+    maxCol = [1, 0.5, 0]
+    return (
+        minCol[0] + fract * (maxCol[0] - minCol[0]),
+        minCol[1] + fract * (maxCol[1] - minCol[1]),
+        minCol[2] + fract * (maxCol[2] - minCol[2]),
+    )
 
-    if fract<0: fract = 0
-    if fract>1: fract = 1
-    minCol = [.4,0,.9]
-    maxCol = [1,0.5,0]
-    return (minCol[0] + fract*(maxCol[0] - minCol[0]),\
-            minCol[1] + fract*(maxCol[1] - minCol[1]),\
-            minCol[2] + fract*(maxCol[2] - minCol[2]))
 
-'''
+"""
 def get_rainbow_color_for_volts(fract):
 
     if fract<0: fract = 0.0
     if fract>1: fract = 1.0
 
     hue = (270 * (1-fract))
-    return "pigment { color CHSL2RGB(<%f,1,0.5>) } // v = %f, fract = %f"%( hue , v, fract)'''
+    return "pigment { color CHSL2RGB(<%f,1,0.5>) } // v = %f, fract = %f"%( hue , v, fract)"""
 
-if __name__ == '__main__':
-
-    import matplotlib.pyplot as plt
-    import matplotlib
+if __name__ == "__main__":
     import math
+
     validate("test.wcon")
 
-    test_sim = 'C0_Muscles_2018-01-19_15-59-59'
-    #test_sim = 'Sibernetic_2018-01-17_21-10-11'
-    #test_sim = 'C0_TargetMuscle_2018-01-23_14-19-54'
+    test_sim = "C0_Muscles_2018-01-19_15-59-59"
+    # test_sim = 'Sibernetic_2018-01-17_21-10-11'
+    # test_sim = 'C0_TargetMuscle_2018-01-23_14-19-54'
 
-    '''
+    """
     test_sim = 'C2_FW_2018-01-27_14-52-26'
     test_sim="/home/padraig/git/OpenWorm/output/C2_FW_2018-01-28_13-35-36"
     pos_file_name = "%s/worm_motion_log.txt"%test_sim
@@ -456,23 +524,21 @@ if __name__ == '__main__':
         print("Writing frame %i: %s"%(ti,frame))
         plt.savefig("Calcium_%s.png"%frame,facecolor='black',transparent=True,bbox_inches='tight')
 
-    exit()'''
+    exit()"""
 
-
-    if len(sys.argv) >1:
+    if len(sys.argv) > 1:
         pos_file_name = sys.argv[1]
     else:
-        pos_file_name = '../buffers/worm_motion_log.txt'
+        pos_file_name = "../buffers/worm_motion_log.txt"
 
-    if len(sys.argv) >2:
+    if len(sys.argv) > 2:
         rate_to_plot = int(sys.argv[2])
     else:
-        rate_to_plot=1
+        rate_to_plot = 1
 
-    #generate_wcon(pos_file_name, "sibernetic_test_full.wcon", rate_to_plot=5)
-    #generate_wcon(pos_file_name, "sibernetic_test_small.wcon",
+    # generate_wcon(pos_file_name, "sibernetic_test_full.wcon", rate_to_plot=5)
+    # generate_wcon(pos_file_name, "sibernetic_test_small.wcon",
     #              rate_to_plot=20, max_time_s=20)
-
 
     small_file = "small.wcon"
     generate_wcon(pos_file_name, small_file, rate_to_plot=rate_to_plot, plot=True)

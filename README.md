@@ -1,13 +1,8 @@
 ![Sibernetic](http://i.imgur.com/Hbsw6Zs.png)
 
-Sibernetic is a physical simulator of biomechanical matter (membranes, elastic
-matter, contractile matter) and environments (liquids, solids, elastic matter
-with variable physical properties), developed for simulations of *C. elegans*
-physical body dynamics within the [OpenWorm project](http://www.openworm.org)
-by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python
-module for external muscle activating signals generation and input) as part of
-the [OpenWorm team](http://www.openworm.org/people.html). It is primarily
-written in C++ and OpenCL, with 3D visualization built on OpenGL.  We have now extended the implementation to Metal.
+<img width="1190" alt="sibernetic_in_overview" src="https://user-images.githubusercontent.com/1573896/44878157-1eef8e80-ac74-11e8-84a3-81f4a6707a3b.png">
+
+Sibernetic is physical simulator of biomechanical matter (membranes, elastic matter, contractile matter) and environments (liquids, solids and elastic matter with variable physical properties) developed for simulations of C. elegans physical body dynamics within the [OpenWorm project](http://www.openworm.org) by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python module for external muscle activating signals generation and input) as part of the [OpenWorm team](http://www.openworm.org/people.html). At its core, Sibernetic is built as an extension to Predictive-Corrective Incompressible Smoothed Particle Hydrodynamics (PCISPH). It is primarily written in  C++ and OpenCL, which makes possible to run simulations on CPUs or GPUs, and has 3D visualization support built on top of OpenGL.
 
 ## Demo previews — OpenCL gold standard vs native Metal substrate
 
@@ -24,6 +19,9 @@ written in C++ and OpenCL, with 3D visualization built on OpenGL.  We have now e
 Each demo has its own dedicated MP4 (link above) with quantitative
 parity metrics, the SGD-tuned Metal parameters used to match OpenCL,
 and a `Regenerate locally` block.
+
+## Linux
+Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. You can also try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues. The AMD drivers include samples in `/opt/AMDAPP/samples/opencl/bin` which you can use to verify your OpenCL support is working.
 
 ## Quickstart: run a demo comparison
 
@@ -271,7 +269,69 @@ Ubuntu); Intel and NVIDIA's drivers also work. The CI uses AMD on
 ```bash
 ./setup.sh    # installs OpenCL headers + numpy + pyneuroml
 make clean
-make
+make all
+```
+
+Also you  may need to set some enviromat variables like path to OpenCL lib or header for to do this
+you can fix your `LD_LIBRARY_PATH` as this:
+
+```bash
+export LD_LIBRARY_PATH=/path/to/opencl_lib/folder/:$LD_LIBRARY_PATH
+e.g.
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64/:$LD_LIBRARY_PATH
+```
+
+You can find OpenCL lib in CUDA folder if you're using NVIDIA (`/usr/local/cuda/lib64/`) or run this command.
+
+```bash
+ldconfig -p | grep opencl
+```
+
+Also you may need to give compiler path to OpenCL header files usually you can find them in `/usr/include/CL` if they there than you don't need do anything. In othe case you can edit makefile directly and add directory to OpenCL headers by adding options `-I/path/to/opencl_includes/` or you can copy folder with header into `/usr/include/` but you should have root permission for doing that.
+
+## Mac
+stay in the top-level folder. You need before run export several environment variables:
+
+```bash
+export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
+export PYTHONLIBDIR=/usr/local/lib/python2...
+export PYTHONFRAMEWORKDIR=/usr/local/Frameworks/
+```
+
+Then
+
+```bash
+make clean -f makefile.OSX
+make all -f makefile.OSX
+```
+
+You should see an output which looks something like this:
+
+```bash
+Building file: ../src/PyramidalSimulation.cpp
+Invoking: GCC C++ Compiler
+
+....
+more stuff...
+....
+
+Building target: Sibernetic
+Invoking: GCC C++ Linker
+g++ -L/usr/lib -L/usr/lib/python2.7 -o "Sibernetic"  ./src/PyramidalSimulation.o ./src/main.o ./src/owHelper.o ./src/owOpenCLSolver.o ./src/owPhysicsFluidSimulator.o ./src/owWorldSimulation.o   -lOpenCL -lpython2.7 -lrt -lglut -lGL -lGLU
+Finished building target:Sibernetic
+```
+
+Then navigate to the top-level folder in the hierarchy (e.g `Sibernetic`) and set your `PYTHONPATH`:
+
+```bash
+export PYTHONPATH=$PYTHONPATH:.
+```
+
+Finally, to run, run the command:
+
+**Linux**:
+
+```bash
 ./Release/Sibernetic
 ```
 
@@ -675,5 +735,77 @@ simulation in the background, and saves results to `simulations/`.
 
 If you have a question or hit a problem, contact us:
 
-- Email: skhayrulin@openworm.org or info@openworm.org
-- Or open an [issue on GitHub](https://github.com/openworm/sibernetic/issues)
+If you have Sibernetic and [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron)
+correctly installed, the following should be sufficient to get this running:
+
+    git clone https://github.com/openworm/sibernetic_NEURON.git
+    export PYTHONPATH=./sibernetic_NEURON:./src
+    ./Release/Sibernetic -nrn ./sibernetic_NEURON/models/celegans/_ria.hoc  -f worm
+
+
+Run with c302
+---------------------------------
+
+You can run Sibernetic with [c302](https://github.com/openworm/CElegansNeuroML/blob/master/CElegans/pythonScripts/c302/README.md)
+providing the input which will drive the contraction of the muscle cells.
+
+If you have Sibernetic, [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron)
+and [pyNeuroML](https://github.com/NeuroML/pyNeuroML) correctly installed, the following should be sufficient to get this running:
+
+    git clone https://github.com/openworm/CElegansNeuroML.git
+    export C302_HOME=./CElegansNeuroML/CElegans/pythonScripts/c302
+    export PYTHONPATH=$PYTHONPATH:$C302_HOME:./src
+    python sibernetic_c302.py
+
+This will generate the NEURON code for the c302 simulation (using pyNeuroML), run Sibernetic with the neuronal simulation of c302 running in
+Python Neuron in the background, and save the results to files in the *simulations* directory (no Sibernetic gui will be shown). The
+simulation can be rerun with:
+
+    ./Release/Sibernetic -l_from lpath=simulations/SimulationName_SimulationDate
+
+For more information on options type:
+
+    python sibernetic_c302.py -?
+
+
+
+Making videos (*nix)
+--------------------
+If you run a simulation you may be interested in recording the graphical output.
+You can either save the results to VTK files and use Paraview to create the video, or create the video using the default OpenGL visualisation.
+Making such videos is a bit tricky because they need to be speeded up, so far I have found the following two commands do a decent job (change folder names accordingly) after you have used a screen record program:
+
+
+If your video is in OGV format (if you used [recordmydesktop](http://recordmydesktop.sourceforge.net/about.php) for instance),
+use the following script to convert to avi:
+
+```
+#!/bin/bash
+ # ogv to avi
+ # Call this with multiple arguments
+ # for example : ls *.{ogv,OGV} | xargs ogv2avi
+ N=$#;
+ echo "Converting $N files !"
+ for ((i=0; i<=(N-1); i++))
+ do
+ echo "converting" $1
+ filename=${1%.*}
+ mencoder "$1" -ovc xvid -oac mp3lame -xvidencopts pass=1 -o $filename.avi
+ shift 1
+ done
+```
+
+```
+#make images from video
+ffmpeg -i crawley_6.avi -r 0.05 -f image2 ~/Documents/tmp/output-%06d.jpg
+```
+
+```
+#re-encode into video
+ffmpeg -r 100 -i output-%06d.jpg -r 100 -vb 60M speeded_worm.mp4
+```
+
+Troubleshooting
+--------------------
+If you have any question or have a problem with running Sibernetic please contact with us.
+Email me on skhayrulin@openworm.org or info@openworm.org. Or you can create an [issue on GitHub](https://github.com/openworm/sibernetic/issues).
