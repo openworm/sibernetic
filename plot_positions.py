@@ -2,7 +2,6 @@ import sys
 
 
 def print_(msg):
-
     print("c302 plot >>> %s" % (msg))
 
 
@@ -12,7 +11,6 @@ def print_(msg):
 
 
 def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=True):
-
     postions_file = open(pos_file_name)
 
     rate_to_plot = max(1, int(rate_to_plot))
@@ -61,9 +59,9 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
         elif index == 1:
             xmax = float(line)
         elif index == 2:
-            ymin = float(line)
+            ymin = float(line)  # noqa: F841
         elif index == 3:
-            ymax = float(line)
+            ymax = float(line)  # noqa: F841
         elif index == 4:
             zmin = float(line)
         elif index == 5:
@@ -101,7 +99,7 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
                 m = float(w[3])
                 if m > 2 and m < 3:
                     x = float(w[0])
-                    y = float(w[1])
+                    y = float(w[1])  # noqa: F841
                     z = float(w[2])
                     # plt.plot(x,z,'.',color=colors[m])
                     xs.append(x + num_plotted_frames * 30)
@@ -116,6 +114,7 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
                         % (num_plotted_frames, t_ms, index, line)
                     )
                     ax.plot(xs, ys, ".", markersize=1)
+                    ax.axis("equal")
                     num_plotted_frames += 1
                     if num_plotted_frames % 3 == 1:
                         time = (
@@ -195,12 +194,11 @@ def plot_muscle_activity(
         count += 1
 
     import matplotlib.pyplot as plt
-    import numpy as np
 
     fig, ax0 = plt.subplots(4, sharex=True, sharey=True)
 
     info = "Muscle activation values per quadrant"
-    fig.canvas.set_window_title(info)
+    fig.canvas.manager.set_window_title(info)
 
     ax0[0].set_title(
         "Muscle activation values per quadrant - " + quadrant0, size="small"

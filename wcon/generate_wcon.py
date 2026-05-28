@@ -10,7 +10,6 @@ def dist(x1, y1, x2, y2):
 
 
 def print_(msg):
-
     print("WCON gen >>> %s" % (msg))
 
 
@@ -25,7 +24,6 @@ def generate_wcon(
     save_figure2_to=None,
     save_figure3_to=None,
 ):
-
     print_(
         "Generating WCON from %s to %s, with plotting rate %i"
         % (pos_file_name, wcon_file_name, rate_to_plot)
@@ -57,8 +55,6 @@ def generate_wcon(
     time_points = []
 
     num_frames = 0
-
-    angles = {}
 
     xs0 = None
     ys0 = None
@@ -115,9 +111,9 @@ def generate_wcon(
                 avy += ys[-1]
                 points_plotted += 1
 
-            if xs0 == None:
+            if xs0 is None:
                 xs0 = xs
-            if ys0 == None:
+            if ys0 is None:
                 ys0 = ys
 
             avx = avx / points
@@ -132,7 +128,7 @@ def generate_wcon(
                 middle_point_speed_y.append(
                     (ys[int(middle_point)] - middle_points[-1][1]) / dt
                 )
-                dav = dist(avx, avy, ave_points[-1][0], ave_points[-1][1])
+                # dav = dist(avx, avy, ave_points[-1][0], ave_points[-1][1])
 
                 ave_point_speed_x.append((avx - ave_points[-1][0]) / dt)
                 ave_point_speed_y.append((avy - ave_points[-1][1]) / dt)
@@ -177,7 +173,7 @@ def generate_wcon(
 
             num_plotted_frames += 1
 
-            l = ax.plot(xs, ys, "-")
+            lines = ax.plot(xs, ys, "-")
             if num_plotted_frames % 5 == 1:
                 time_ = "%ss" % t_s if not t_s == int(t_s) else "%ss" % int(t_s)
 
@@ -188,11 +184,11 @@ def generate_wcon(
                 [xx + offset for xx in xs0],
                 ys0,
                 ":",
-                color=l[0].get_color(),
+                color=lines[0].get_color(),
                 linewidth=0.5,
             )
 
-    data = np.zeros((len(ts), len(xs) - 4))
+    body_curv_data = np.zeros((len(ts), len(xs) - 4))
 
     print_("Finished parsing %i lines" % line_num)
 
@@ -216,9 +212,9 @@ def generate_wcon(
 
             deg = 360 * (angle / (2 * math.pi))
 
-            data[ti][i - 2] = deg
+            body_curv_data[ti][i - 2] = deg
 
-            ###print("At t=%s, i=%s: angle from between (%s,%s) - (%s,%s) - (%s,%s) = %s, %sdeg"%(ts[ti], i, x1,y1,xc,yc,x2,y2,angle,deg))
+            # print("At t=%s, i=%s: angle from between (%s,%s) - (%s,%s) - (%s,%s) = %s, %sdeg"%(ts[ti], i, x1,y1,xc,yc,x2,y2,angle,deg))
 
     info = "Loaded: %s points from %s, saving %i frames" % (
         line_num,
@@ -279,7 +275,7 @@ def generate_wcon(
 
     plt.xlabel("x direction")
     plt.ylabel("y direction")
-    fig.canvas.set_window_title(info)
+    fig.canvas.manager.set_window_title(info)
     plt.title(info)
 
     if save_figure1_to:
@@ -287,7 +283,7 @@ def generate_wcon(
 
     fig = plt.figure()
     info = "Speed of worm in x (lateral) & y (along body) directions"
-    fig.canvas.set_window_title(info)
+    fig.canvas.manager.set_window_title(info)
     plt.title(info)
     plt.xlabel("Time (s)")
     plt.ylabel("Speed")
@@ -331,10 +327,12 @@ def generate_wcon(
     plt.xlabel("Time (s)")
     plt.ylabel("Percentage along worm")
 
-    plot0 = plt.imshow(data.transpose(), interpolation="nearest", aspect="auto")
+    plot0 = plt.imshow(
+        body_curv_data.transpose(), interpolation="nearest", aspect="auto"
+    )
     ax = plt.gca()
     info = "Propagation of curvature along body of worm (180=straight)"
-    fig.canvas.set_window_title(info)
+    fig.canvas.manager.set_window_title(info)
     plt.title(info)
 
     xt = ax.get_xticks()
@@ -353,11 +351,12 @@ def generate_wcon(
     if plot:
         plt.show()
 
-    return x, y, z, ts
+    return x, y, z, ts, body_curv_data
 
 
 def validate(wcon_file):
-    import json, jsonschema
+    import json
+    import jsonschema
 
     wcon_schema = "wcon_schema.json"
 
@@ -390,7 +389,6 @@ def transform(i, max_rad=0.03):
 
 
 def get_color_for_fract(fract):
-
     if fract < 0:
         fract = 0
     if fract > 1:
@@ -414,8 +412,6 @@ def get_rainbow_color_for_volts(fract):
     return "pigment { color CHSL2RGB(<%f,1,0.5>) } // v = %f, fract = %f"%( hue , v, fract)"""
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    import matplotlib
     import math
 
     validate("test.wcon")
@@ -444,7 +440,7 @@ if __name__ == "__main__":
 
         fig = plt.figure()
         info = "Pos at %sms"%t
-        fig.canvas.set_window_title(info)
+        fig.canvas.manager.set_window_title(info)
         plt.title(info)
 
         mx = y[t]
