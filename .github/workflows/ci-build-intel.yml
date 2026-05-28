@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ ubuntu-24.04, ubuntu-26.04 ]
+        runs-on: [ ubuntu-22.04, ubuntu-24.04 ]
 
     steps:
     - name: Set git to use LF
@@ -22,7 +22,7 @@ jobs:
         git config --global core.autocrlf false
         git config --global core.eol lf
         
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install Intel OpenCL libraries needed for Sibernetic
       run: |
@@ -31,18 +31,24 @@ jobs:
 
         echo "Installing OpenCL Drivers"
 
-        sudo apt-get update
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-              build-essential \
-              ocl-icd-libopencl1 \
-              ocl-icd-opencl-dev \
-              opencl-clhpp-headers \
-              pocl-opencl-icd \
-              mesa-opencl-icd \
-              clinfo \
-              python3-dev \
-              freeglut3-dev \
-              libglu1-mesa-dev
+        # Based on: https://github.com/openworm/OpenWorm/blob/master/Dockerfile
+
+        mkdir intel-opencl-tmp
+        cd intel-opencl-tmp
+        mkdir intel-opencl
+        wget https://github.com/openworm/OpenWorm/raw/dev_inte/SRB5.0_linux64.zip
+        unzip SRB5.0_linux64.zip
+        tar -C intel-opencl -Jxf intel-opencl-r5.0-63503.x86_64.tar.xz
+        tar -C intel-opencl -Jxf intel-opencl-devel-r5.0-63503.x86_64.tar.xz
+        tar -C intel-opencl -Jxf intel-opencl-cpu-r5.0-63503.x86_64.tar.xz
+        sudo cp -R intel-opencl/* /
+        sudo ldconfig
+        cd ..
+        sudo rm -r intel-opencl-tmp
+
+        sudo cp -R /opt/intel/opencl/include/CL /usr/include/
+        sudo apt-get update --fix-missing 
+        sudo apt install -y ocl-icd-opencl-dev vim
 
         echo "OpenCL Driver Installation Complete"
 
@@ -50,6 +56,8 @@ jobs:
     - name: Build Sibernetic
       run: |
 
+        sudo apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
+        #sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for some reason...
         python -V
         ls -alt /usr/bin/python*
         ls -alt
