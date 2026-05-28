@@ -33,10 +33,10 @@
 /*	owNeuronSimulator.cpp
  *	Implementation of owNeuronSimulator
  *  Created on: Jun 27, 2016
- *      Author: serg
+ *      Author: Sergey Khayrulin
  */
-#include <stdexcept>
 #include "owNeuronSimulator.h"
+#include <stdexcept>
 
 /** Constructor method for owNeuronSimulator.
  *
@@ -49,63 +49,92 @@
  *  from siberneti_NEURON and you don't need to change it actually
  *  You only need add path to sibenetic_NEURON folder into PYTHONPATH
  */
-owNeuronSimulator::owNeuronSimulator(int muscleNumber,float timeStep, const std::string & modelFileName, const std::string & simFileName) {
-	  // Initialize the Python interpreter
-	  Py_Initialize();
-	  PyObject* pName;
-	  // Convert the file name to a Python string.
-	  pName = PyString_FromString(simFileName.c_str());
-	  const char* s = PyString_AsString(pName);
-	  printf("[debug] pName = \"%s\"\n",s);
-	  const char* s2 = Py_GetPath();
-	  printf("[debug] PyPath = \"%s\"\n",s2);
-	  // Import the file as a Python module.
-	  pModule = PyImport_Import(pName);
-	  if( PyErr_Occurred() ) PyErr_Print();
-	  if (pModule == NULL){
-	    throw std::runtime_error("Module not loaded, have you set PYTHONPATH? If yes just check have you added path to sibenetic_NEURON");
-	  }
-	  PyObject* sectionNames = PyList_New(muscleNumber); // size should be equal to number of muscles in model
-	  for(int i=0; i<muscleNumber; ++i)
-		  PyList_SetItem(sectionNames, i, PyString_FromString("SMDDR_mus"));    // there you actually need put section names (from you'r .hoc file)
-	                                                                            // file with NEURON model
-                                                                                // from which you want read info about signal (Voltage)
-	                                                                            // Now it's hadrcoded for only one section SMDDR_mus it's a muscle section
-	                                                                            // from model file in sibernetic_NEURON you can find it in folder
-                                                                                // (path/to/sibewnretic_NEURON/model/c.elegans/ria_.hoc)
-	  PyObject* dt = PyFloat_FromDouble(timeStep);                              // Create time step argument
-	  PyObject* fileName = PyString_FromString(modelFileName.c_str());          // Create model file name argument
-	  PyObject * args = PyTuple_Pack(3,dt,fileName,sectionNames);               // Create tuple of arguments for initialization
-	  PyObject* myFunction = PyObject_GetAttrString(pModule,(char*)"run_init");
-	  PyObject_CallObject(myFunction, args);                                    // Run initialization method
-	  Py_DECREF(sectionNames);
-	  Py_DECREF(dt);
-	  Py_DECREF(fileName);
-	  Py_DECREF(args);
+owNeuronSimulator::owNeuronSimulator(int muscleNumber, float timeStep,
+                                     const std::string &modelFileName,
+                                     const std::string &simFileName) {
+  // Initialize the Python interpreter
+  Py_Initialize();
+
+  PyObject *pName;
+  // Convert the file name to a Python string.
+  pName = PyUnicode_FromString(simFileName.c_str());
+  PyObject * temp_bytes = PyUnicode_AsEncodedString(pName, "UTF-8", "strict");
+  const char * s = PyBytes_AS_STRING(temp_bytes);
+  s = strdup(s);
+  Py_DECREF(temp_bytes);
+
+  printf("[debug] pName = \"%s\"\n", s);
+
+  
+  #if PY_MAJOR_VERSION == 3
+    setlocale(LC_ALL, "en_US.utf8");
+    char s2[10000];
+    const wchar_t * s2_wide = Py_GetPath();
+    std::wcstombs(s2, s2_wide, 10000);
+  #else
+    const char *s2 = Py_GetPath();
+  #endif
+  
+
+  printf("[debug] PyPath = \"%s\"\n", s2);
+
+  // Import the file as a Python module.
+  pModule = PyImport_Import(pName);
+  if (PyErr_Occurred())
+    PyErr_Print();
+  if (pModule == nullptr) {
+    throw std::runtime_error("Module not loaded, have you set PYTHONPATH? If "
+                             "yes just check have you added path to "
+                             "sibenetic_NEURON");
+  }
+  PyObject *sectionNames = PyList_New(
+      muscleNumber); // size should be equal to number of muscles in model
+  for (int i = 0; i < muscleNumber; ++i)
+    PyList_SetItem(sectionNames, i,
+                   PyUnicode_FromString("SMDDR_mus")); // there you actually need
+                                                      // put section names (from
+                                                      // you'r .hoc file)
+                                                      // file with NEURON model
+  // from which you want read info about signal (Voltage)
+  // Now it's hadrcoded for only one section SMDDR_mus it's a muscle section
+  // from model file in sibernetic_NEURON you can find it in folder
+  // (path/to/sibewnretic_NEURON/model/c.elegans/ria_.hoc)
+  PyObject *dt = PyFloat_FromDouble(timeStep); // Create time step argument
+  PyObject *fileName = PyUnicode_FromString(
+      modelFileName.c_str()); // Create model file name argument
+  PyObject *args = PyTuple_Pack(
+      3, dt, fileName,
+      sectionNames); // Create tuple of arguments for initialization
+  PyObject *myFunction = PyObject_GetAttrString(pModule, (char *)"run_init");
+  PyObject_CallObject(myFunction, args); // Run initialization method
+  Py_DECREF(sectionNames);
+  Py_DECREF(dt);
+  Py_DECREF(fileName);
+  Py_DECREF(args);
 }
 
 /** Run one step of NEURON simulation and read the data
  *  @return vector with neuron activity
  */
-std::vector<float> owNeuronSimulator::run(){
-	// Call a method
-	PyObject* myFunction = PyObject_GetAttrString(pModule,(char*)"run_sim_one_step");
-	pValue = PyObject_CallObject(myFunction, NULL);
-	//pValue = PyObject_CallMethod(nrn_sim, const_cast<char *>("one_step"), NULL);
-	if(PyList_Check(pValue)){
-	  std::vector<float> value_array;
-	  value_array = unpackPythonList(pValue);
-	  return value_array;
+std::vector<float> owNeuronSimulator::run() {
+  // Call a method
+  PyObject *myFunction =
+      PyObject_GetAttrString(pModule, (char *)"run_sim_one_step");
+  pValue = PyObject_CallObject(myFunction, nullptr);
+  // pValue = PyObject_CallMethod(nrn_sim, const_cast<char *>("one_step"),
+  // nullptr);
+  if (PyList_Check(pValue)) {
+    std::vector<float> value_array;
+    value_array = unpackPythonList(pValue);
+    return value_array;
 
-	}
-	else {
-	  std::vector<float> single_element_array(0);
-	  single_element_array[0] = (float)PyFloat_AsDouble(pValue);
-	  return single_element_array;
-	}
+  } else {
+    std::vector<float> single_element_array(0);
+    single_element_array[0] = (float)PyFloat_AsDouble(pValue);
+    return single_element_array;
+  }
 }
 
 owNeuronSimulator::~owNeuronSimulator() {
-	// TODO Auto-generated destructor stub
+  // TODO Auto-generated destructor stub
 }
-
