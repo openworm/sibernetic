@@ -10,7 +10,7 @@ import pprint
 
 pp = pprint.PrettyPrinter(indent=4)
 
-script_version = "0.1.3"  # This will change at different rate to C++ code...
+script_version = "0.2.1"  # This will change at different rate to C++ code...
 
 DEFAULTS = {
     "duration": 2.0,
@@ -26,7 +26,11 @@ DEFAULTS = {
     "outDir": "simulations",
     "datareader": "SpreadsheetDataReader",
     "test": False,
+    "simName": None,  # This is set to None by default (will be generated from otehr info), but can be set explicitly
+    "q": False,
 }
+
+SUCCESS = "Completed successfully"
 
 
 """
@@ -38,8 +42,8 @@ def get_sibernetic_version():
     # TODO make separate file for version info...
     version = None
     with open("src/main.cpp", "r") as sib_main_file:
-        for l in sib_main_file:
-            ws = l.split()
+        for line in sib_main_file:
+            ws = line.split()
             if len(ws) >= 4 and ws[0] == "std::string" and ws[1] == "version":
                 version = ws[3][1:-2]
                 print_("Sibernetic v%s" % version)
@@ -69,7 +73,7 @@ def process_args():
         "-noc302",
         action="store_true",
         default=DEFAULTS["noc302"],
-        help="Use this flag to run Sibernetic with the inbuilt (Python based) sine wave generator, using specified duration/configuration etc. and saving in simulations directory, default: %s"
+        help="Use this flag to run Sibernetic with the inbuilt (Python based) sine wave generator, using specified duration/configuration etc. and saving in <outDir> directory, default: %s"
         % DEFAULTS["noc302"],
     )
 
@@ -143,6 +147,14 @@ def process_args():
     )
 
     parser.add_argument(
+        "-lems",
+        type=str,
+        metavar="<lems>",
+        default=None,
+        help="Parameter ..? ",
+    )
+
+    parser.add_argument(
         "-datareader",
         type=str,
         metavar="<datareader>",
@@ -158,6 +170,23 @@ def process_args():
         help="Output directory, default: %s" % DEFAULTS["outDir"],
     )
 
+    parser.add_argument(
+        "-simName",
+        type=str,
+        metavar="<simName>",
+        default=DEFAULTS["simName"],
+        help="Simulation name, default: %s, if not set, will be generated from other info incl date/time"
+        % DEFAULTS["simName"],
+    )
+
+    parser.add_argument(
+        "-q",
+        action="store_true",
+        default=DEFAULTS["q"],
+        help="Use this flag to run Sibernetic with less output to console per time step, default: %s"
+        % DEFAULTS["q"],
+    )
+
     return parser.parse_args()
 
 
@@ -169,7 +198,9 @@ def print_(msg):
 def main(args=None):
     if args is None:
         args = process_args()
-    run(a=args)
+    simdir, reportj = run(a=args)
+    if not reportj["completion_status"] == SUCCESS:
+        exit(-1)  # Exit with error if simulation not successful
 
 
 def build_namespace(a=None, **kwargs):
@@ -205,7 +236,6 @@ def convert_case(name):
 
 
 def announce(message):
-
     print_(
         "\n************************************************************************\n*"
     )
@@ -240,7 +270,6 @@ def check_file(file_name, dir, line_num=None):
 
 
 def dynamic_import(abs_module_path, class_name):
-
     from importlib import import_module
 
     module_object = import_module(abs_module_path)
@@ -251,11 +280,9 @@ def dynamic_import(abs_module_path, class_name):
 
 
 def run(a=None, **kwargs):
-
     try:
-        import neuroml
-        import pyneuroml
-        import xlrd
+        import neuroml  # noqa: F401
+        import pyneuroml  # noqa: F401
     except Exception as e:
         print_(
             "Cannot import one of the required packages. Please install!\n"
@@ -289,42 +316,52 @@ def run(a=None, **kwargs):
     if not os.path.isdir(a.out_dir):
         os.mkdir(a.out_dir)
 
-    current_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
+    current_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
 
-    if not a.noc302:
-        ref = a.reference
-        sim_ref = "%s_%s_%s" % (a.c302params, ref, current_time)
-
+    if a.sim_name is not None:
+        sim_ref = a.sim_name
     else:
-        sim_ref = "Sibernetic_%s" % (current_time)
+        if not a.noc302:
+            if a.lems:
+                sim_ref = "Sim_%s" % (a.lems.split("/")[-1])
+            else:
+                ref = a.reference
+                sim_ref = "%s_%s_%s" % (a.c302params, ref, current_time)
+
+        else:
+            sim_ref = "Sibernetic_%s" % (current_time)
 
     # sim_dir = "simulations/%s" % (sim_ref)
     sim_dir = os.path.join(a.out_dir, sim_ref)
 
-    os.mkdir(sim_dir)
+    os.makedirs(sim_dir, exist_ok=True)
 
     run_dir = "."
     if "SIBERNETIC_HOME" in os.environ:
         run_dir = os.environ["SIBERNETIC_HOME"]
 
     if not a.noc302:
-        id = "%s_%s" % (a.c302params, ref)
+        if a.lems:
+            lems_file = a.lems
 
-        setup = dynamic_import("c302.c302_%s" % ref, "setup")
+        else:
+            id = "%s_%s" % (a.c302params, a.reference)
 
-        setup(
-            a.c302params,
-            generate=True,
-            duration=a.duration,
-            dt=a.dt,
-            target_directory=sim_dir,
-            data_reader=a.datareader,
-        )
+            setup = dynamic_import("c302.c302_%s" % a.reference, "setup")
 
-        lems_file0 = os.path.join(sim_dir, "LEMS_c302_%s.xml" % id)
-        lems_file = os.path.join(sim_dir, "LEMS_c302.xml")
-        print_("Renaming %s -> %s" % (lems_file0, lems_file))
-        os.rename(lems_file0, lems_file)
+            setup(
+                a.c302params,
+                generate=True,
+                duration=a.duration,
+                dt=a.dt,
+                target_directory=sim_dir,
+                data_reader=a.datareader,
+            )
+
+            lems_file0 = os.path.join(sim_dir, "LEMS_c302_%s.xml" % id)
+            lems_file = os.path.join(sim_dir, "LEMS_c302.xml")
+            print_("Renaming %s -> %s" % (lems_file0, lems_file))
+            os.rename(lems_file0, lems_file)
 
         announce("Generating NEURON files from: %s..." % lems_file)
 
@@ -372,16 +409,17 @@ def run(a=None, **kwargs):
         announce("Compiling NMODL files for NEURON...")
         try:
             pynml.execute_command_in_dir_with_realtime_output(
-                command, run_dir, prefix="nrnivmodl: "
+                command, run_dir, prefix="nrnivmodl >> "
             )
         except KeyboardInterrupt:
             print_("\nCaught CTRL+C\n")
             sys.exit()
 
     command = (
-        "./Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s"
+        "./Release/Sibernetic %s %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s"
         % (
             "" if a.noc302 else "-c302",
+            "-q" if a.q else "",
             a.configuration,
             sim_dir,
             a.duration / 1000.0,
@@ -392,26 +430,33 @@ def run(a=None, **kwargs):
     )
 
     env = {
-        "DISPLAY": os.environ.get("DISPLAY"),
+        "DISPLAY": os.environ.get("DISPLAY")
+        if os.environ.get("DISPLAY") is not None
+        else "",
         "XAUTHORITY": os.environ.get("XAUTHORITY")
         if os.environ.get("XAUTHORITY") is not None
         else "",
         "PYTHONPATH": ".:%s:%s"
         % (os.environ.get("PYTHONPATH", "."), os.path.abspath(sim_dir)),
+        "NEURON_MODULE_OPTIONS": "-nogui",
     }
 
     sim_start = time.time()
 
     reportj = {}
 
-    completion_status = "Completed successfully"
+    completion_status = "Not completed"
+
     announce(
         "Executing main Sibernetic simulation of %sms using: \n\n    %s \n\n  in %s with %s"
         % (a.duration, command, run_dir, env)
     )
     try:
-        pynml.execute_command_in_dir_with_realtime_output(
-            command, run_dir, prefix="Sibernetic: ", env=env, verbose=True
+        pynml_success = pynml.execute_command_in_dir_with_realtime_output(
+            command, run_dir, prefix="Sibernetic >> ", env=env, verbose=True
+        )
+        completion_status = (
+            SUCCESS if pynml_success else "Failure running command: %s" % command
         )
     except KeyboardInterrupt:
         print_("\nCaught CTRL+C. Continue...\n")
@@ -421,6 +466,9 @@ def run(a=None, **kwargs):
         completion_status = "Error during simulation"
 
     reportj["completion_status"] = completion_status
+
+    successful = completion_status == SUCCESS
+
     sim_end = time.time()
 
     reportj["duration"] = "%s ms" % a.duration
@@ -432,17 +480,20 @@ def run(a=None, **kwargs):
     reportj["python_args"] = "python " + " ".join(sys.argv)
     reportj["sibernetic_version"] = get_sibernetic_version()
     reportj["sibernetic_c302_version"] = script_version
+    import platform
+
+    reportj["python_version"] = platform.python_version()
+    reportj["os_version"] = ", ".join(platform.uname())
 
     if not a.noc302:
-        reportj["reference"] = a.reference
-        reportj["c302params"] = a.c302params
+        if a.lems:
+            reportj["lems"] = a.lems
+        else:
+            reportj["reference"] = a.reference
+            reportj["c302params"] = a.c302params
         reportj["c302_version"] = c302.__version__
 
-        import platform
-
-        reportj["python_version"] = platform.python_version()
-
-        for m in ["pyneuroml", "neuroml", "matplotlib", "numpy"]:
+        for m in ["pyneuroml", "neuroml", "matplotlib", "numpy", "cect"]:
             if m == "neuroml":
                 m_ = "libneuroml"
             else:
@@ -451,7 +502,7 @@ def run(a=None, **kwargs):
                 exec("import %s" % m)
                 installed_ver = "%s" % eval("%s.__version__" % m)
                 reportj["%s_version" % m_] = installed_ver
-            except:
+            except Exception:
                 reportj["%s_version" % m_] = "-- Not found! --"
 
         from neuron import h
@@ -462,11 +513,12 @@ def run(a=None, **kwargs):
             import PyOpenWorm as P
 
             reportj["pyopenworm_version"] = P.__version__
-        except:
+        except Exception:
             pass  # Not currently required for sims
 
     reportj["generation_time"] = "%s s" % (sim_start - gen_start)
     reportj["run_time"] = "%s s" % (sim_end - sim_start)
+    reportj["run_time_hr"] = "%s hr" % ((sim_end - sim_start) / 3600.0)
     reportj["device"] = "%s" % (a.device)
     reportj["configuration"] = "%s" % (a.configuration)
     reportj["run_command"] = command
@@ -479,8 +531,11 @@ def run(a=None, **kwargs):
         s = json.dumps(reportj, indent=4, sort_keys=True)
         report_file.write(s)
 
-    if not a.noc302:
-        announce("Generating images for neuronal activity...")
+    if not a.noc302 and successful:
+        announce(
+            "Generating images for neuronal activity (via %s in %s)..."
+            % (lems_file, sim_dir)
+        )
 
         results = pynml.reload_saved_data(
             lems_file,
@@ -508,33 +563,43 @@ def run(a=None, **kwargs):
     #    time.sleep(2)
     # plot_positions(pos_file_name,rate_to_plot = int(a.duration/5), show_plot=False)
 
-    from plot_positions import plot_muscle_activity
+    if successful:
+        from plot_positions import plot_muscle_activity
 
-    musc_act_file = os.path.join(sim_dir, "muscles_activity_buffer.txt")
-    plot_muscle_activity(musc_act_file, a.dt, a.logstep, show_plot=False)
+        musc_act_file = os.path.join(sim_dir, "muscles_activity_buffer.txt")
+        plot_muscle_activity(musc_act_file, a.dt, a.logstep, show_plot=False)
 
-    from wcon.generate_wcon import generate_wcon
+        from wcon.generate_wcon import generate_wcon
 
-    num_steps = int(a.duration / a.dt)
-    num_steps_logged = num_steps / a.logstep
-    rate = max(1, int(num_steps_logged / 20.0))
-    # print("%s, %s"%(num_steps, rate))
-    generate_wcon(
-        os.path.join(sim_dir, "worm_motion_log.txt"),
-        os.path.join(sim_dir, "worm_motion_log.wcon"),
-        rate_to_plot=rate,
-        plot=False,
-        save_figure1_to=os.path.join(sim_dir, "worm_motion_1.png"),
-        save_figure2_to=os.path.join(sim_dir, "worm_motion_2.png"),
-        save_figure3_to=os.path.join(sim_dir, "worm_motion_3.png"),
-    )
+        num_steps = int(a.duration / a.dt)
+        num_steps_logged = num_steps / a.logstep
+        rate = max(1, int(num_steps_logged / 20.0))
+        # print("%s, %s"%(num_steps, rate))
+        generate_wcon(
+            os.path.join(sim_dir, "worm_motion_log.txt"),
+            os.path.join(sim_dir, "worm_motion_log.wcon"),
+            rate_to_plot=rate,
+            plot=False,
+            save_figure1_to=os.path.join(sim_dir, "worm_motion_1.png"),
+            save_figure2_to=os.path.join(sim_dir, "worm_motion_2.png"),
+            save_figure3_to=os.path.join(sim_dir, "worm_motion_3.png"),
+        )
+
     run_dur_sec = sim_end - sim_start
     announce(
-        "Finished run in %s sec (%s hours)!\n\nSimulation saved in: %s\n\n"
-        % (run_dur_sec, run_dur_sec / 3600.0, sim_dir)
+        "Finished run in %s sec (%s hours)!\n\n" % (run_dur_sec, run_dur_sec / 3600.0)
+        + (
+            "Simulation output saved in: %s\n\n" % (sim_dir)
+            if successful
+            else "SIMULATION UNSUCCESSFUL!\n\n"
+        )
         + "Report of simulation at: %s/report.json\n\n" % (sim_dir)
-        + "Replay recorded simulation with: ./Release/Sibernetic -l_from lpath=%s\n"
-        % (sim_dir)
+        + (
+            "Replay recorded simulation with: ./Release/Sibernetic -l_from lpath=%s\n"
+            % (sim_dir)
+            if successful
+            else ""
+        )
     )
 
     if a.test:
@@ -567,9 +632,11 @@ def run(a=None, **kwargs):
 
         if not passed:
             announce("Failed tests!!")
-            exit(-1)
+            reportj["completion_status"] += " (Failed tests)"
         else:
             announce("Passed all tests!!")
+
+    return sim_dir, reportj
 
 
 if __name__ == "__main__":

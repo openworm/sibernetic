@@ -22,7 +22,7 @@ colours[quadrant3] = "#ff0000"
 
 
 def print_(msg):
-    pre = "Python >> "
+    pre = "Sib_main >>> "
     print("%s %s" % (pre, msg.replace("\n", "\n" + pre)))
 
 
@@ -104,7 +104,7 @@ def parallel_waves(
     wave_1 = map(math.sin, (row_positions - velocity * step))
     wave_2 = map(math.sin, (row_positions - velocity * step + (math.pi)))
 
-    normalize_sine = lambda x: abs(x * (x > 0))  # (x + 1)/2
+    normalize_sine = lambda x: abs(x * (x > 0))  # (x + 1)/2   # noqa: E731
     wave_1 = map(normalize_sine, wave_1)
     wave_2 = map(normalize_sine, wave_2)
 
@@ -117,7 +117,7 @@ def parallel_waves(
     wave_2 = map(lambda x, y: max_muscle_force_coeff * x * y, wave_2, wave_m)
     ###### smooth start###################################################
     if step < (10000 / 4):
-        normalize_sine = lambda x: x * step / (10000 / 4)
+        normalize_sine = lambda x: x * step / (10000 / 4)  # noqa: E731
         wave_1 = map(normalize_sine, wave_1)
         wave_2 = map(normalize_sine, wave_2)
     ######################################################################
@@ -144,7 +144,6 @@ class MuscleSimulation:
         pass
 
     def run(self, skip_to_time=0, do_plot=True):
-
         self.contraction_array = parallel_waves(step=self.step)
         self.step += self.increment
         # if (self.step>1000000):
@@ -164,7 +163,6 @@ class MuscleSimulation:
         )
 
     def save_results(self):
-
         print_("MuscleSimulation does NOT save results")
 
 
@@ -172,13 +170,11 @@ class C302NRNSimulation:
     max_ca = 4e-7
     max_ca_found = -1
 
-    def __init__(self, tstop=100, dt=0.005, activity_file=None, verbose=True):
-
+    def __init__(self, tstop=100, dt=0.005, activity_file=None, verbose=False):
         # from LEMS_c302_C1_Full_nrn import NeuronSimulation
         # from LEMS_c302_nrn import NeuronSimulation
 
-        # import neuron
-        # self.h = neuron.h
+        print_("Initialising C302NRNSimulation...")
 
         self.tstop = tstop
         self.verbose = verbose
@@ -187,11 +183,17 @@ class C302NRNSimulation:
         # print_("Initialised C302NRNSimulation of length %s ms and dt = %s ms..."%(tstop,dt))
 
     def set_timestep(self, dt):
-        dt = float("{:0.1e}".format(dt)) * 1000.0  # memory issue fix
-        from LEMS_c302_nrn import NeuronSimulation
-        import neuron
+        print_("Setting timestep to %s..." % dt)
 
-        self.h = neuron.h
+        dt = float("{:0.1e}".format(dt)) * 1000.0  # memory issue fix
+
+        try:
+            from LEMS_c302_nrn import NeuronSimulation
+            import neuron
+
+            self.h = neuron.h
+        except Exception as e:
+            raise Exception("Python import error in C302NRNSimulation: %s.." % e)
 
         self.ns = NeuronSimulation(self.tstop, dt)
         print_(
@@ -200,18 +202,37 @@ class C302NRNSimulation:
         )
 
     def save_results(self):
-
         print_("> Saving results at time: %s" % self.h.t)
 
         self.ns.save_results()
 
     def run(self, skip_to_time=-1):
-
-        print_("> Current NEURON time: %s ms" % self.h.t)
+        print_("> Current NEURON time pre advance: %s ms" % self.h.t)
 
         self.ns.advance()
 
-        print_("< Current NEURON time: %s ms" % self.h.t)
+        if self.verbose:
+            print_("< Current NEURON time: %s ms" % self.h.t)
+
+        """if hasattr(self.h, "a_MDR01"):
+            var_pre = "a_M"
+            var_template = "a_M{0}{1}{2}{3}"
+            var_name = "cai"
+            scale_it = True
+            print_it = False
+
+        elif hasattr(self.h, "m_GenericMuscleCell_MDR01"):
+            var_pre = "m_GenericMuscleCell_M"
+            var_template = "m_GenericMuscleCell_M{0}{1}{2}{3}"
+            var_name = "output"
+            scale_it = False
+            print_it = False
+        else:
+            var_pre = "m_GenericMuscleCell_M"
+            var_template = "m_M{0}1_PopM{0}1"
+            var_name = "state"
+            scale_it = False
+            print_it = False"""
 
         values = []
         vars_read = []
@@ -220,8 +241,12 @@ class C302NRNSimulation:
             try:
                 val = getattr(self.h, var)[0].soma.cai
             except AttributeError as e:
-                print(e)
+                print(
+                    "Problem passing neuronal output of %s to muscle in Sibernetic: %s"
+                    % (var, e)
+                )
                 continue
+                val = 0
             scaled_val = self._scale(val)
             values.append(scaled_val)
             vars_read.append(var)
@@ -232,7 +257,11 @@ class C302NRNSimulation:
             try:
                 val = getattr(self.h, var)[0].soma.cai
             except AttributeError as e:
-                print(e)
+                print(
+                    "Problem passing neuronal output of %s to muscle in Sibernetic: %s"
+                    % (var, e)
+                )
+                val = 0
                 continue
             scaled_val = self._scale(val)
             values.append(scaled_val)
@@ -242,7 +271,18 @@ class C302NRNSimulation:
             try:
                 val = getattr(self.h, var)[0].soma.cai
             except AttributeError as e:
-                print(e)
+                if var == "a_MVL24":
+                    extra = (
+                        "Note: not an issue as no muscle MVL24 in the real C. elegans"
+                    )
+                else:
+                    extra = ""
+                print(
+                    "Problem passing output of %s to muscle in Sibernetic: %s %s"
+                    % (var, e, extra)
+                )
+
+                val = 0
                 continue
             scaled_val = self._scale(val)
             values.append(scaled_val)
@@ -252,20 +292,36 @@ class C302NRNSimulation:
             try:
                 val = getattr(self.h, var)[0].soma.cai
             except AttributeError as e:
-                print(e)
+                print(
+                    "Problem passing neuronal output of %s to muscle in Sibernetic: %s"
+                    % (var, e)
+                )
+                val = 0
                 continue
             scaled_val = self._scale(val)
             values.append(scaled_val)
             vars_read.append(var)
 
         if self.verbose:
-            print_("Returning %s values: %s; %s" % (len(values), values, vars_read))
+            print_(
+                "Returning %s values: %s; %s"
+                % (
+                    len(values),
+                    values[:3] + ["<truncated...>"],
+                    vars_read[:3] + ["<truncated...>"],
+                )
+            )
         return values
 
-    def _scale(self, ca, print_it=False):
+    def _scale(self, ca, print_it=False, scale_it=True):
+        if not scale_it:
+            if print_it:
+                print_("- Not scaling value: %s" % (ca))
+            return ca
 
         self.max_ca_found = max(ca, self.max_ca_found)
         scaled = min(1, (ca / self.max_ca))
+
         if print_it:
             print_(
                 "- Scaling %s to %s (max found: %s)" % (ca, scaled, self.max_ca_found)
@@ -297,10 +353,10 @@ if __name__ == "__main__":
 
     if try_c302:
         # ms = C302Simulation('configuration/test/c302/c302_B_Muscles.muscles.activity.dat', scale_to_max=True)
-        ms = C302Simulation(
-            "configuration/test/c302/c302_C1_Muscles.muscles.activity.dat",
-            scale_to_max=True,
-        )
+        ms = C302NRNSimulation(  # noqa
+            "configuration/test/c302/c302_C1_Muscles.muscles.activity.dat",  # noqa
+            scale_to_max=True,  # noqa
+        )  # noqa
         # ms = C302Simulation('../../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/TestMuscles.activity.dat')
         # ms = C302Simulation('../../neuroConstruct/osb/invertebrate/celegans/CElegansNeuroML/CElegans/pythonScripts/c302/c302_B_Oscillator.muscles.activity.dat')
         skip_to_time = 0.05
@@ -308,13 +364,14 @@ if __name__ == "__main__":
 
     elif try_c302_nrn or testnrn:
         dt = 0.1  # ms
-        max_time = 0.5  # s
+        max_time = 0.05  # s
         maxt = max_time * 1000
 
         time_per_step = dt / 1000  #  s
         increment = time_per_step / default_time_per_step
 
         ms = C302NRNSimulation(tstop=maxt, dt=dt, verbose=False)
+        ms.set_timestep(dt)
 
     activation = {}
     row = "11"
@@ -344,17 +401,17 @@ if __name__ == "__main__":
     for step in range(num_steps):
         t = step * time_per_step
 
-        l = ms.run(skip_to_time=skip_to_time)
+        output = ms.run(skip_to_time=skip_to_time)
 
         for i in range(muscle_row_count):
             mq0 = get_muscle_name(quadrant0, i)
-            activation[mq0].append(l[i])
+            activation[mq0].append(output[i])
             mq1 = get_muscle_name(quadrant1, i)
-            activation[mq1].append(l[i + muscle_row_count])
+            activation[mq1].append(output[i + muscle_row_count])
             mq2 = get_muscle_name(quadrant2, i)
-            activation[mq2].append(l[i + muscle_row_count * 2])
+            activation[mq2].append(output[i + muscle_row_count * 2])
             mq3 = get_muscle_name(quadrant3, i)
-            activation[mq3].append(l[i + muscle_row_count * 3])
+            activation[mq3].append(output[i + muscle_row_count * 3])
 
         times.append(t)
 
@@ -366,27 +423,27 @@ if __name__ == "__main__":
                 plV = figV.add_subplot(111, autoscale_on=True)
 
                 plV.plot(
-                    l[0:muscle_row_count],
+                    output[0:muscle_row_count],
                     label="%s*" % quadrant0,
                     color=colours[quadrant0],
                     linestyle="-",
                     marker="o",
                 )
                 plV.plot(
-                    l[muscle_row_count : 2 * muscle_row_count],
+                    output[muscle_row_count : 2 * muscle_row_count],
                     label="%s*" % quadrant1,
                     color=colours[quadrant1],
                     linestyle="-",
                     marker="o",
                 )
                 plV.plot(
-                    l[2 * muscle_row_count : 3 * muscle_row_count],
+                    output[2 * muscle_row_count : 3 * muscle_row_count],
                     label="%s*" % quadrant2,
                     color=colours[quadrant2],
                     linestyle="-",
                 )
                 plV.plot(
-                    l[3 * muscle_row_count : 4 * muscle_row_count],
+                    output[3 * muscle_row_count : 4 * muscle_row_count],
                     label="%s*" % quadrant3,
                     color=colours[quadrant3],
                     linestyle="-",
