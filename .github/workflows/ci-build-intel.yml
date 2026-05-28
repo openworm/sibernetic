@@ -2,9 +2,9 @@ name: Build using Intel drivers
 
 on:
   push:
-    branches: [ master, dev*, ow* ]
+    branches: [ master, dev*, ow*, test* ]
   pull_request:
-    branches: [ master, dev, ow* ]
+    branches: [ master, dev*, ow*, test* ]
 
 jobs:
 
@@ -63,6 +63,9 @@ jobs:
     - name: Print info on executable
       run: |
         ldd ./Release/Sibernetic
+
+    - name: Run a quick simulation
+      run: |
 
         ./Release/Sibernetic -no_g timelimit=0.001
 
