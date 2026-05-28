@@ -7,5 +7,6 @@ ruff check *.py wcon/*.py tests/*.py
 make clean
 make
 
+time ./run_opencl_tests.sh $@
 time ./run_all_tests.sh $@
 

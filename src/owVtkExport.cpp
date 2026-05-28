@@ -201,13 +201,14 @@ namespace owVtkExport {
 					 float * connections, float * velocity, int * membranes,
 					 float * muscleActivationSignal) {
 
-		std::string filename = config->getLoadPath() + std::string("state_")
+		std::string filename = config->getLoadPath() + "/" + std::string("state_")
 			+ to_string(iteration, 8, '0') + std::string(".vtp");
 
 		std::ofstream outFile(filename.c_str());
 		if (!outFile) {
 			throw std::runtime_error("Cannot create VTK file.");
 		}
+		std::cout << "\n   Exporting current state to VTK file: " << filename << "\n";
 
 		if (numConns == -1) {
 			/* Initialization of variables */

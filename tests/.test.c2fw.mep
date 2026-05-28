@@ -1,0 +1,9 @@
+system: Testing 
+
+experiments:
+    m1:
+        expected:
+            spike times: [0.04855]
+    m10:
+        expected:
+            spike times: [0.03565]
