@@ -36,7 +36,7 @@ run_test () {
             rm -f ${sim_dir}/* # remove any previous simulation files
             ./Release/Sibernetic -f ${config} -l_to lpath=${sim_dir} timelimit=${timelimit} timestep=${timestep} logstep=${logstep} device=ALL ${no_gui} -q ${export_vtk}
             # Test reloading the simulation files with Python viewer
-            python SiberneticReplay.py ${sim_dir}/position_buffer.txt -nogui
+            python3 SiberneticReplay.py ${sim_dir}/position_buffer.txt -nogui
         fi
     fi
 }
@@ -49,6 +49,12 @@ run_test demo2 0.02 2e-5 20
 
 # Worm alone, half resolution (for faster testing)
 run_test worm_alone_half_resolution 0.02 2e-5 20
+
+# Worm swimming, half resolution (for faster testing)
+run_test worm_swim_half_resolution 0.05 2e-5 50
+
+# Worm crawling, half resolution (for faster testing)
+run_test worm_crawl_half_resolution 0.05 2e-5 50
 
 # Full worm
 run_test worm 0.01 2e-5 20
