@@ -333,7 +333,26 @@ def write_configuration_file(
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) == 2 and sys.argv[1] == "-g":
+    if len(sys.argv) == 2 and sys.argv[1] == "-g1":
+        config_file = "configuration/demo1"
+        out_file = "configuration/gravity_test1"
+        conf = load_configuration_file(
+            config_file,
+        )
+        write_configuration_file(
+            out_file,
+            conf,
+            verbose=True,
+            include_liquid=False,
+            include_elastics=True,
+            include_boundary=True,
+        )
+        print("Configuration loaded for gravity test: %s" % conf)
+
+        print("================================")
+        conf3 = load_configuration_file(out_file)
+        print("Configuration reloaded from output file: %s" % conf3)
+    elif len(sys.argv) == 2 and sys.argv[1] == "-g":
         config_file = "configuration/demo2"
         out_file = "configuration/gravity_test"
         conf = load_configuration_file(
