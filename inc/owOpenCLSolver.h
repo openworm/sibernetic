@@ -50,9 +50,10 @@
 #include "owConfigProperty.h"
 #include "owOpenCLConstant.h"
 #include "owPhysicsConstant.h"
+#include "owSolver.h"
 
 // OpenCL solver class
-class owOpenCLSolver {
+class owOpenCLSolver : public owSolver {
 public:
   owOpenCLSolver(const float *position_cpp, const float *velocity_cpp,
                  owConfigProperty *config,
@@ -60,65 +61,65 @@ public:
                  const int *membraneData_cpp = nullptr,
                  const int *particleMembranesList_cpp = nullptr);
   owOpenCLSolver(void);
-  ~owOpenCLSolver(void);
+  ~owOpenCLSolver(void) override;
   // Kernels functions definition for neighbor search algorithm
-  unsigned int _runClearBuffers(owConfigProperty *config);
-  unsigned int _runHashParticles(owConfigProperty *config);
-  void _runSort(owConfigProperty *config);
-  unsigned int _runSortPostPass(owConfigProperty *config);
-  unsigned int _runIndexx(owConfigProperty *config);
-  void _runIndexPostPass(owConfigProperty *config);
-  unsigned int _runFindNeighbors(owConfigProperty *config);
+  unsigned int _runClearBuffers(owConfigProperty *config) override;
+  unsigned int _runHashParticles(owConfigProperty *config) override;
+  void _runSort(owConfigProperty *config) override;
+  unsigned int _runSortPostPass(owConfigProperty *config) override;
+  unsigned int _runIndexx(owConfigProperty *config) override;
+  void _runIndexPostPass(owConfigProperty *config) override;
+  unsigned int _runFindNeighbors(owConfigProperty *config) override;
   // PCISPH kernels for physics-related calculations
-  unsigned int _run_pcisph_computeDensity(owConfigProperty *config);
+  unsigned int _run_pcisph_computeDensity(owConfigProperty *config) override;
   unsigned int
-  _run_pcisph_computeForcesAndInitPressure(owConfigProperty *config);
-  unsigned int _run_pcisph_computeElasticForces(owConfigProperty *config);
-  unsigned int _run_pcisph_predictPositions(owConfigProperty *config);
-  unsigned int _run_pcisph_predictDensity(owConfigProperty *config);
-  unsigned int _run_pcisph_correctPressure(owConfigProperty *config);
+  _run_pcisph_computeForcesAndInitPressure(owConfigProperty *config) override;
+  unsigned int _run_pcisph_computeElasticForces(owConfigProperty *config) override;
+  unsigned int _run_pcisph_predictPositions(owConfigProperty *config) override;
+  unsigned int _run_pcisph_predictDensity(owConfigProperty *config) override;
+  unsigned int _run_pcisph_correctPressure(owConfigProperty *config) override;
   unsigned int
-  _run_pcisph_computePressureForceAcceleration(owConfigProperty *config);
+  _run_pcisph_computePressureForceAcceleration(owConfigProperty *config) override;
   unsigned int _run_pcisph_integrate(int iterationCount,
                                      int pcisph_integrate_mode,
-                                     owConfigProperty *config);
+                                     owConfigProperty *config) override;
   // Kernels for membrane handling interaction
-  unsigned int _run_clearMembraneBuffers(owConfigProperty *config);
-  unsigned int _run_computeInteractionWithMembranes(owConfigProperty *config);
+  unsigned int _run_clearMembraneBuffers(owConfigProperty *config) override;
+  unsigned int _run_computeInteractionWithMembranes(owConfigProperty *config) override;
   unsigned int
-  _run_computeInteractionWithMembranes_finalize(owConfigProperty *config);
+  _run_computeInteractionWithMembranes_finalize(owConfigProperty *config) override;
   //
   void updateMuscleActivityData(float *_muscle_activation_signal_cpp,
-                                owConfigProperty *config);
+                                owConfigProperty *config) override;
 
-  void read_position_buffer(float *position_cpp, owConfigProperty *config) {
+  void read_position_buffer(float *position_cpp, owConfigProperty *config) override {
     copy_buffer_from_device(position_cpp, position,
                             config->getParticleCount() * sizeof(float) * 4);
   };
-  void read_velocity_buffer(float *velocity_cpp, owConfigProperty *config) {
+  void read_velocity_buffer(float *velocity_cpp, owConfigProperty *config) override {
     copy_buffer_from_device(velocity_cpp, velocity,
                             config->getParticleCount() * sizeof(float) * 4);
   };
-  void read_density_buffer(float *density_cpp, owConfigProperty *config) {
+  void read_density_buffer(float *density_cpp, owConfigProperty *config) override {
     copy_buffer_from_device(density_cpp, rho,
                             config->getParticleCount() * sizeof(float) * 1);
   }; // This need only for visualization current density of particle (graphic
      // effect)
   void read_particleIndex_buffer(unsigned int *particleIndexBuffer,
-                                 owConfigProperty *config) {
+                                 owConfigProperty *config) override {
     copy_buffer_from_device(particleIndexBuffer, particleIndex,
                             config->getParticleCount() * sizeof(unsigned int) *
                                 2);
   }; // This need only for visualization current density of particle (graphic
      // effect)
-  void read_pressure_buffer(float * pressure_host, owConfigProperty * config){
+  void read_pressure_buffer(float * pressure_host, owConfigProperty * config) override {
     copy_buffer_from_device(pressure_host, pressure, (config->getParticleCount() * sizeof(float) * 1));
   }
   void reset(const float *position_cpp, const float *velocity_cpp,
              owConfigProperty *config,
              const float *elasticConnectionsData_cpp = nullptr,
              const int *membraneData_cpp = nullptr,
-             const int *particleMembranesList_cpp = nullptr);
+             const int *particleMembranesList_cpp = nullptr) override;
 
 private:
   void create_ocl_kernel(const char *name, cl::Kernel &k);

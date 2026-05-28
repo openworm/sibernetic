@@ -35,10 +35,17 @@
 #include <iostream>
 #include <stdexcept>
 #include <iomanip>
+#include <sys/time.h>
 
 #include "owPhysicsFluidSimulator.h"
 #include "owSignalSimulator.h"
 #include "owVtkExport.h"
+
+#ifdef SIBERNETIC_USE_METAL
+#include "owMetalSolver.h"
+#else
+#include "owOpenCLSolver.h"
+#endif
 
 /** Constructor method for owPhysicsFluidSimulator.
  *
@@ -91,14 +98,24 @@ owPhysicsFluidSimulator::owPhysicsFluidSimulator(owHelper *helper, int argc,
 
     this->helper = helper;
     if (config->numOfElasticP != 0) {
+#ifdef SIBERNETIC_USE_METAL
+      ocl_solver = new owMetalSolver(
+          position_cpp, velocity_cpp, config, elasticConnectionsData_cpp,
+          membraneData_cpp, particleMembranesList_cpp);
+#else
       ocl_solver = new owOpenCLSolver(
           position_cpp, velocity_cpp, config, elasticConnectionsData_cpp,
           membraneData_cpp,
           particleMembranesList_cpp); // Create new openCLsolver instance
+#endif
     } else
+#ifdef SIBERNETIC_USE_METAL
+      ocl_solver = new owMetalSolver(position_cpp, velocity_cpp, config);
+#else
       ocl_solver =
           new owOpenCLSolver(position_cpp, velocity_cpp,
                              config); // Create new openCLsolver instance
+#endif
     this->genShellPaticlesList();
   } catch (std::runtime_error &ex) {
     /* Clearing all allocated buffers and created object only not ocl_solver

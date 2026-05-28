@@ -53,6 +53,13 @@ build
 /debug
 /Release
 
+# Metal
+*.metallib
+
+# Python virtual environment
+venv/
+__pycache__/
+
 x86_64
 /*.dat
 src/*.dat
@@ -73,3 +80,4 @@ simulations
 /report.txt
 /cube.sh
 /install_drivers.sh
+.cache/

@@ -5,6 +5,7 @@ on:
     branches: [ master, dev*, ow* ]
   pull_request:
     branches: [ master, dev, ow* ]
+  workflow_dispatch:
 
 jobs:
 
@@ -108,3 +109,27 @@ jobs:
         python -V
         omv list -V 
         pip list
+
+
+  build-macos:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Build Sibernetic on macOS
+      run: |
+        sw_vers
+        uname -m
+        python3 -V
+        make -f makefile.OSX
+
+    - name: Print Sibernetic help
+      run: |
+        ./Release/Sibernetic -h
+
+    - name: Run quick Sibernetic test
+      run: |
+        otool -L ./Release/Sibernetic
+        ./Release/Sibernetic -no_g timelimit=0.001
