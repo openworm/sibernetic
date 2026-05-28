@@ -1,5 +1,7 @@
 ![Sibernetic](http://i.imgur.com/Hbsw6Zs.png)
 
+<img width="1190" alt="sibernetic_in_overview" src="https://user-images.githubusercontent.com/1573896/44878157-1eef8e80-ac74-11e8-84a3-81f4a6707a3b.png">
+
 Sibernetic is physical simulator of biomechanical matter (membranes, elastic matter, contractile matter) and environments (liquids, solids and elastic matter with variable physical properties) developed for simulations of C. elegans physical body dynamics within the [OpenWorm project](http://www.openworm.org) by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python module for external muscle activating signals generation and input) as part of the [OpenWorm team](http://www.openworm.org/people.html). At its core, Sibernetic is built as an extension to Predictive-Corrective Incompressible Smoothed Particle Hydrodynamics (PCISPH). It is primarily written in  C++ and OpenCL, which makes possible to run simulations on CPUs or GPUs, and has 3D visualization support built on top of OpenGL.
 
 There is a separate effort lead by [Giovanni Idili](https://github.com/gidili) and [Sergey Khayrulin](https://github.com/skhayrulin) to port this code to Java, as part of the [Geppetto simulation framework](http://www.geppetto.org/).
@@ -9,7 +11,7 @@ Compiling / running (Linux/mac)
 
 [![Join the chat at https://gitter.im/openworm/sibernetic](https://badges.gitter.im/openworm/sibernetic.svg)](https://gitter.im/openworm/sibernetic?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-**Linux**
+## Linux
 Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. You can also try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues. The AMD drivers include samples in `/opt/AMDAPP/samples/opencl/bin` which you can use to verify your OpenCL support is working.
 
 You'll also need a variety of libraries. In ubuntu, install the dependencies with:
@@ -42,7 +44,8 @@ ldconfig -p | grep opencl
 
 Also you may need to give compiler path to OpenCL header files usually you can find them in `/usr/include/CL` if they there than you don't need do anything. In othe case you can edit makefile directly and add directory to OpenCL headers by adding options `-I/path/to/opencl_includes/` or you can copy folder with header into `/usr/include/` but you should have root permission for doing that.
 
-**Mac**: stay in the top-level folder. You need before run export several environment variables:
+## Mac
+stay in the top-level folder. You need before run export several environment variables:
 
 ```bash
 export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
@@ -302,7 +305,7 @@ it actually works in test mode list of segments is [hardcoded](https://github.co
 so if you'd like to work with another list of segments you need rewrite this part of code and 
 recompile Sibernetic.
 
-If you have Sibernetic and [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron) 
+If you have Sibernetic and [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron)
 correctly installed, the following should be sufficient to get this running:
 
     git clone https://github.com/openworm/sibernetic_NEURON.git
@@ -313,10 +316,10 @@ correctly installed, the following should be sufficient to get this running:
 Run with c302
 ---------------------------------
 
-You can run Sibernetic with [c302](https://github.com/openworm/CElegansNeuroML/blob/master/CElegans/pythonScripts/c302/README.md) 
+You can run Sibernetic with [c302](https://github.com/openworm/CElegansNeuroML/blob/master/CElegans/pythonScripts/c302/README.md)
 providing the input which will drive the contraction of the muscle cells.
 
-If you have Sibernetic, [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron) 
+If you have Sibernetic, [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron)
 and [pyNeuroML](https://github.com/NeuroML/pyNeuroML) correctly installed, the following should be sufficient to get this running:
 
     git clone https://github.com/openworm/CElegansNeuroML.git
@@ -324,8 +327,8 @@ and [pyNeuroML](https://github.com/NeuroML/pyNeuroML) correctly installed, the f
     export PYTHONPATH=$PYTHONPATH:$C302_HOME:./src
     python sibernetic_c302.py
 
-This will generate the NEURON code for the c302 simulation (using pyNeuroML), run Sibernetic with the neuronal simulation of c302 running in 
-Python Neuron in the background, and save the results to files in the *simulations* directory (no Sibernetic gui will be shown). The 
+This will generate the NEURON code for the c302 simulation (using pyNeuroML), run Sibernetic with the neuronal simulation of c302 running in
+Python Neuron in the background, and save the results to files in the *simulations* directory (no Sibernetic gui will be shown). The
 simulation can be rerun with:
 
     ./Release/Sibernetic -l_from lpath=simulations/SimulationName_SimulationDate
