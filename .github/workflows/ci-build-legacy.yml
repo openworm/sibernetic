@@ -1,10 +1,10 @@
-name: Build using AMD drivers
+name: Build AMD-APP-SDKInstaller for ubuntu-22.04
 
 on:
   push:
-    branches: [ master, dev*, ow*, test* ]
+    branches: [ master, dev*, ow* ]
   pull_request:
-    branches: [ master, dev*, ow*, test* ]
+    branches: [ master, dev*, ow* ]
 
 jobs:
 
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ ubuntu-24.04 ]
+        runs-on: [ ubuntu-22.04 ]
 
     steps:
     - name: Set git to use LF
@@ -29,22 +29,17 @@ jobs:
 
         lscpu
 
-        echo "Installing OpenCL Drivers and Java (for jNeuroML)"
+        echo "Installing OpenCL Drivers"
 
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-          build-essential \
-          git \
-          python3-dev \
-          default-jre-headless \
-          libopengl0 \
-          freeglut3-dev \
-          libglu1-mesa-dev \
-          clinfo \
-          ocl-icd-libopencl1 \
-          ocl-icd-opencl-dev \
-          opencl-clhpp-headers \
-          pocl-opencl-icd \
-          mesa-opencl-icd
+        # Install AMD's OpenCL Drivers (AMD-APP-SDK 3.0):
+        wget https://master.dl.sourceforge.net/project/nicehashsgminerv5viptools/APP%20SDK%20A%20Complete%20Development%20Platform/AMD%20APP%20SDK%203.0%20for%2064-bit%20Linux/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
+        tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
+        printf 'Y\n\n' | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
+        
+        sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libOpenCL.so.1 /usr/lib/libOpenCL.so.1
+        sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libamdocl64.so /usr/lib/libamdocl64.so
+
+        sudo apt install -y ocl-icd-opencl-dev
 
         echo "OpenCL Driver Installation Complete"
 
@@ -54,6 +49,8 @@ jobs:
     - name: Build Sibernetic
       run: |
 
+        sudo apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
+        #sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for some reason...
         python -V
         ls -alt /usr/bin/python*
         ls -alt
@@ -78,7 +75,11 @@ jobs:
         pip list
         which nrniv
         export NEURON_HOME=/home/runner/.local
-        ./run_all_tests.sh -all
+
+        ./test.sh -all
+
+        omv find 
+        omv all -V 
 
     - name: Generated file info
       run: |
