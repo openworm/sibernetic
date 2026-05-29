@@ -33,4 +33,7 @@ if [[ ($# -eq 1) && ($1 == '-all') ]]; then
 
 fi
 
+# c302 + C2 FW 
+python sibernetic_c302.py -test -duration 15 -c302params C2 -reference FW -configuration worm_crawl_half_resolution -logstep 100
+
 
