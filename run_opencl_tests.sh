@@ -58,3 +58,6 @@ run_test worm_crawl_half_resolution 0.05 2e-5 50
 
 # Full worm
 run_test worm 0.01 2e-5 20
+
+# Crawling worm
+run_test worm_crawling 0.01 2e-5 20
