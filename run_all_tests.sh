@@ -16,4 +16,7 @@ python sibernetic_c302.py -test  -duration 1  -c302params C0 -configuration worm
 # c302 + TestMuscle 
 python sibernetic_c302.py -test -duration 20 -c302params C0 -reference TargetMuscle -configuration worm_alone_half_resolution -logstep 500
 
+# c302 + C2 FW 
+python sibernetic_c302.py -test -duration 15 -c302params C2 -reference FW -configuration worm_crawl_half_resolution -logstep 100
+
 
