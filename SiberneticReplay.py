@@ -196,6 +196,91 @@ def get_color_info_for_type(type_):
         return "orange", "unknown", 5
 
 
+def add_muscle_activation_chart(sim_dir, pl, duration=None):
+
+    muscle_activation_file = os.path.join(sim_dir, "muscles_activity_buffer.txt")
+    print_(f"Loading muscle activation file from: {muscle_activation_file}")
+    musc_dat = np.loadtxt(muscle_activation_file, delimiter="\t").T
+    # print(musc_dat)
+    # print(musc_dat.shape)
+    # plt.imshow(musc_dat, interpolation="none", aspect="auto", cmap="YlOrRd")
+
+    f_musc, ax_musc = plt.subplots(tight_layout=True)
+
+    im = ax_musc.imshow(musc_dat, interpolation="none", aspect="auto", cmap="YlOrRd")
+    f_musc.canvas.manager.set_window_title("Muscle Activation Heatmap")
+
+    f_musc.colorbar(im)
+
+    if duration is not None:
+        num_ticks = 5
+        ax_musc.set_xticks(np.linspace(0, musc_dat.shape[1], num_ticks))
+        ax_musc.set_xticklabels(np.linspace(0, duration, num_ticks))
+
+        ax_musc.set_xlabel("Time (ms)")
+    else:
+        ax_musc.set_xlabel("Time point")
+
+    _ = ax_musc.set_ylabel("Muscle")
+
+    musc_chart = pv.ChartMPL(f_musc, size=(0.35, 0.35), loc=(0.02, 0.06))
+    musc_chart.title = None
+    musc_chart.border_color = "white"
+    musc_chart.background_color = (1.0, 1.0, 1.0, 0.4)
+
+    pl.add_chart(
+        musc_chart,
+    )
+
+
+def add_body_curvature_chart(sim_dir, pl, duration=None):
+
+    from wcon.generate_wcon import generate_wcon
+
+    sib_position_file = os.path.join(sim_dir, "worm_motion_log.txt")
+    wcon_output_file = "/tmp/worm_motion_log.wcon"
+
+    x, y, z, ts, body_curv_data = generate_wcon(
+        sib_position_file,
+        wcon_file_name=wcon_output_file,
+        rate_to_plot=1,
+        plot=False,
+    )
+    print_(f"Temporary WCON file (re)generated at: {wcon_output_file}")
+
+    f_curv, ax_curv = plt.subplots(tight_layout=True)
+    im = ax_curv.imshow(
+        body_curv_data.transpose(),
+        interpolation="none",
+        aspect="auto",
+        cmap="bwr",
+        vmin=170,
+        vmax=190,
+    )
+    f_curv.colorbar(im)
+    f_curv.canvas.manager.set_window_title("Body Curvature")
+
+    if duration is not None:
+        ax_curv.set_xlabel("Time (ms)")
+
+        num_ticks = 5
+        ax_curv.set_xticks(np.linspace(0, body_curv_data.shape[0], num_ticks))
+        ax_curv.set_xticklabels(np.linspace(0, duration, num_ticks))
+    else:
+        ax_curv.set_xlabel("Time point")
+
+    _ = ax_curv.set_ylabel("Body curv.")
+    ax_curv.set_in_layout(False)
+
+    curv_chart = pv.ChartMPL(f_curv, size=(0.35, 0.35), loc=(0.62, 0.06))
+    curv_chart.title = None
+    curv_chart.border_color = "white"
+    curv_chart.background_color = (1.0, 1.0, 1.0, 0.4)
+    pl.add_chart(
+        curv_chart,
+    )
+
+
 def add_sibernetic_model(
     pl,
     position_file="Sibernetic/position_buffer.txt",
@@ -267,80 +352,23 @@ def add_sibernetic_model(
                 sibernetic_time_points,
             )
         )
-        from wcon.generate_wcon import generate_wcon
-
-        sib_position_file = os.path.join(sim_dir, "worm_motion_log.txt")
-        wcon_output_file = "/tmp/worm_motion_log.wcon"
-
-        x, y, z, ts, body_curv_data = generate_wcon(
-            sib_position_file,
-            wcon_file_name=wcon_output_file,
-            rate_to_plot=1,
-            plot=False,
-        )
-        print_(f"WCON file (re)generated at: {wcon_output_file}")
 
         if "worm" in report_data["configuration"]:
-            muscle_activation_file = os.path.join(
-                sim_dir, "muscles_activity_buffer.txt"
+            add_muscle_activation_chart(sim_dir, pl, duration)
+            add_body_curvature_chart(sim_dir, pl, duration)
+    else:
+        sim_dir = os.path.dirname(os.path.abspath(position_file))
+
+        muscle_activation_file = os.path.join(sim_dir, "muscles_activity_buffer.txt")
+        if os.path.isfile(muscle_activation_file):
+            print_(
+                f"Found muscle activation file at: {muscle_activation_file}, adding muscle activation chart."
             )
-            print_(f"Loading muscle activation file from: {muscle_activation_file}")
-            musc_dat = np.loadtxt(muscle_activation_file, delimiter="\t").T
-            # print(musc_dat)
-            # print(musc_dat.shape)
-            # plt.imshow(musc_dat, interpolation="none", aspect="auto", cmap="YlOrRd")
-
-            f_musc, ax_musc = plt.subplots(tight_layout=True)
-            im = ax_musc.imshow(
-                musc_dat, interpolation="none", aspect="auto", cmap="YlOrRd"
-            )
-            f_musc.canvas.manager.set_window_title("Muscle Activation Heatmap")
-
-            f_musc.colorbar(im)
-
-            num_ticks = 5
-            ax_musc.set_xticks(np.linspace(0, musc_dat.shape[1], num_ticks))
-            ax_musc.set_xticklabels(np.linspace(0, duration, num_ticks))
-            # quit()
-
-            # ax.set_ylim([-1, 1])
-            ax_musc.set_xlabel("Time (ms)")
-            _ = ax_musc.set_ylabel("Muscle")
-
-            musc_chart = pv.ChartMPL(f_musc, size=(0.35, 0.35), loc=(0.02, 0.06))
-            musc_chart.title = None
-            musc_chart.border_color = "white"
-            musc_chart.background_color = (1.0, 1.0, 1.0, 0.4)
-
-            pl.add_chart(
-                musc_chart,
-            )
-
-            f_curv, ax_curv = plt.subplots(tight_layout=True)
-            im = ax_curv.imshow(
-                body_curv_data.transpose(),
-                interpolation="none",
-                aspect="auto",
-                cmap="bwr",
-                vmin=170,
-                vmax=190,
-            )
-            f_curv.colorbar(im)
-            f_curv.canvas.manager.set_window_title("Body Curvature")
-
-            ax_curv.set_xlabel("Time (ms)")
-            _ = ax_curv.set_ylabel("Body curv.")
-            ax_curv.set_in_layout(False)
-
-            ax_curv.set_xticks(np.linspace(0, body_curv_data.shape[0], num_ticks))
-            ax_curv.set_xticklabels(np.linspace(0, duration, num_ticks))
-
-            curv_chart = pv.ChartMPL(f_curv, size=(0.35, 0.35), loc=(0.62, 0.06))
-            curv_chart.title = None
-            curv_chart.border_color = "white"
-            curv_chart.background_color = (1.0, 1.0, 1.0, 0.4)
-            pl.add_chart(
-                curv_chart,
+            add_muscle_activation_chart(sim_dir, pl)
+            add_body_curvature_chart(sim_dir, pl)
+        else:
+            print_(
+                "No report file provided and no muscle activation file found, skipping muscle activation chart."
             )
 
     first_pass_complete = False
