@@ -85,14 +85,15 @@ outputs in-process.
 * `test_demo1_edge_cases.py` flags spring_K=1e5 as unstable at demo1's
   dt/sim_scale combination -- physics divergence, not a kernel bug. See
   the V5 commit message for details.
-* `xpbd_full_bwd`'s `update_velocities_backward` deliberately matches a
-  `sim_scale`-drop bug in the upstream Metal adjoint
-  (`src/metal_diff/shaders.metal:2216`) so the cross-backend gradients
-  agree. Our CUDA kernel is mathematically correct; downstream consumers
-  who need the strictly-correct gradient (e.g. for second-order methods)
-  can opt in via `CUDA_BWD_TRUE_SIM_SCALE=1`. See the in-source comment
-  block at `ops_xpbd_full.cu:921` for the full reasoning and how to
-  remove the workaround once Metal is patched upstream.
+* `xpbd_full_bwd`'s `update_velocities_backward` uses the
+  mathematically-correct `sim_scale` factor **by default**. The upstream
+  Metal adjoint (`src/metal_diff/shaders.metal:2216`) drops that factor —
+  an upstream Metal bug — so to reproduce Metal's gradient bit-for-bit for
+  a cross-backend comparison, set `CUDA_BWD_METAL_COMPAT=1`. The long-term
+  fix is to patch the Metal backward and drop the env var. See the
+  in-source comment block in `ops_xpbd_full.cu` (update_velocities_backward
+  call site). Every in-tree FD test runs at `sim_scale = 1.0`, where the
+  two paths coincide.
 
 ## Op-name map (CUDA ↔ Metal)
 

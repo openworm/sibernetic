@@ -749,11 +749,15 @@ int run_xpbd_full_bwd(int argc, char **argv) {
     float total_grad_alpha_inv_dt2 = 0.0f;
 
     // BWD_CLIP_NORM: per-step L2 clip on grad_x and grad_v INDEPENDENTLY.
-    // Defaults to 1e3 (always on) — matches Metal at
-    // src/metal_diff/ops_xpbd_full.mm:996-997. Required for chaotic SPH
-    // dynamics: per-step amplification ~3x means K=50000 unrolled gradient
-    // overflows fp32 within ~30 steps without clipping. NaN/Inf scrubbing
-    // runs whenever the clip is on. Set BWD_CLIP_NORM=0 to disable.
+    // Defaults to 1e3 (always on). NOTE: this INTENTIONALLY DIVERGES from
+    // Metal. Metal's 1e3 at src/metal_diff/ops_xpbd_full.mm:996-997 is just
+    // a variable default; the clip is gated behind `if (clip_env)` at :1385,
+    // so on Metal an UNSET env var means NO clipping at all. CUDA defaults
+    // the clip ON because it is required for chaotic SPH dynamics: per-step
+    // amplification ~3x means a K=50000 unrolled gradient overflows fp32
+    // within ~30 steps without clipping (Metal NaNs there). In the unclipped
+    // small/moderate-K regime the two backends agree. NaN/Inf scrubbing runs
+    // whenever the clip is on. Set BWD_CLIP_NORM=0 to disable.
     float clip_norm_x = 1e3f;
     float clip_norm_v = 1e3f;
     bool clip_on = true;
@@ -887,8 +891,10 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         // (not a precomputed mask). It computes the mask internally via
         // `xp.y < floor_y`. We synthesize positions from the saved mask:
         // clamped → y = floor_y - 1 (true), non-clamped → y = floor_y + 1.
-        // The kernel WRITES (not accumulates) to its grad_pos_pred output,
-        // and atomicAdd's to floor_y/restitution grad scalars (discarded).
+        // The kernel ACCUMULATES into its grad_pos_pred output (Metal
+        // parity); d_Gx_pred is memset to 0 at the top of this step, so
+        // the accumulate-into-zero yields exactly the floor contribution.
+        // It also atomicAdd's to floor_y/restitution grad scalars (discarded).
         if (use_floor) {
             for (uint32_t i = 0; i < n_active; i++) {
                 h_pos_synth[3 * i + 0] = 0.0f;
@@ -918,31 +924,24 @@ int run_xpbd_full_bwd(int argc, char **argv) {
         // Accumulates: Gx_running += gvn * sim_scale/dt  (∂L/∂x_post)
         //              Gx_old_new -= gvn * sim_scale/dt  (∂L/∂x_old)
         //
-        // METAL PARITY WORKAROUND (Metal-upstream bug, tracked):
-        //   The Metal backward at src/metal_diff/shaders.metal:2216
-        //   computes g_v / dt — the forward at :1942 multiplies by
-        //   sim_scale but the backward drops it. That is an upstream
-        //   Metal bug. Our CUDA kernel is mathematically correct (it
-        //   computes g_v * sim_scale / dt); to maintain the README
-        //   Phase-5 "1% parity" target between CUDA and Metal we pass
-        //   sim_scale = 1.0f here, deliberately matching Metal's
-        //   incorrect output rather than the strictly-correct one.
-        //   Adam in log-space absorbs the uniform 1/sim_scale factor,
-        //   so demo1 optima are unaffected by the workaround.
+        // Uses the mathematically-correct sim_scale by default: the
+        // forward (update_velocities, shaders.metal:1942) computes
+        // v_new = dx * sim_scale / dt, so ∂v_new/∂x carries sim_scale.
         //
-        //   Downstream consumers who need the mathematically-correct
-        //   gradient (e.g. for second-order methods or non-Adam
-        //   optimisers) can opt in via the CUDA_BWD_TRUE_SIM_SCALE=1
-        //   env var below; the cost is failing the Metal parity test.
-        //
-        //   To remove the workaround entirely: patch Metal upstream
-        //   so its forward and backward both multiply by sim_scale,
-        //   then revert this argument from 1.0f back to `sim_scale`
-        //   and tighten the Phase-5 parity test.
-        float upd_sim_scale = 1.0f;
-        const char *true_ss_env = std::getenv("CUDA_BWD_TRUE_SIM_SCALE");
-        if (true_ss_env && std::atoi(true_ss_env) != 0) {
-            upd_sim_scale = sim_scale;
+        // METAL PARITY NOTE (opt-in):
+        //   The upstream Metal adjoint (src/metal_diff/shaders.metal:2216)
+        //   computes g_v / dt — it DROPS the sim_scale factor its own
+        //   forward applies. That is an upstream Metal bug. To reproduce
+        //   Metal's (incorrect) gradient bit-for-bit for a cross-backend
+        //   comparison, set CUDA_BWD_METAL_COMPAT=1, which passes
+        //   sim_scale = 1.0f here. The long-term fix is to patch the Metal
+        //   backward to multiply by sim_scale and drop this env var.
+        //   (Every in-tree FD test runs at sim_scale = 1.0, where the two
+        //   paths coincide, so the test suite is unaffected either way.)
+        float upd_sim_scale = sim_scale;
+        const char *compat_env = std::getenv("CUDA_BWD_METAL_COMPAT");
+        if (compat_env && std::atoi(compat_env) != 0) {
+            upd_sim_scale = 1.0f;
         }
         update_velocities_backward<<<gridA, TPB>>>(
             d_Gv_in, d_Gx_running, d_Gx_old_new,

@@ -419,8 +419,8 @@ __global__ void predict_positions_backward(const float3 *grad_pos_pred,
 //   x_post.z = x_pred.z
 //
 // Given grad_pos_post:
-//   grad_pos_pred.y = m ? grad_pos_post.y * (-r) : grad_pos_post.y
-//   grad_pos_pred.{x,z} = grad_pos_post.{x,z}
+//   grad_pos_pred.y += m ? grad_pos_post.y * (-r) : grad_pos_post.y
+//   grad_pos_pred.{x,z} += grad_pos_post.{x,z}
 //   grad_floor_y += m ? grad_pos_post.y * (1+r) : 0
 //   grad_restitution += m ? grad_pos_post.y * (floor_y - x_pred.y) : 0
 __global__ void solve_floor_constraint_backward(const float3 *grad_pos_post,
@@ -438,7 +438,13 @@ __global__ void solve_floor_constraint_backward(const float3 *grad_pos_post,
     float3 xp = pos_pred_saved[gid];
     bool m = xp.y < floor_y;
     float gy = m ? (-restitution) * gpp.y : gpp.y;
-    grad_pos_pred[gid] = make_float3(gpp.x, gy, gpp.z);
+    // Accumulate, matching Metal's grad_pos_pre += contract
+    // (src/metal_diff/shaders.metal:2189/2195). The integrated chain
+    // pre-zeros this buffer so the net result is unchanged, but the +=
+    // keeps the kernel contract identical to Metal for any caller that
+    // shares the gradient buffer.
+    float3 prev = grad_pos_pred[gid];
+    grad_pos_pred[gid] = make_float3(prev.x + gpp.x, prev.y + gy, prev.z + gpp.z);
     if (m) {
         atomicAdd(grad_floor_y, gpp.y * (1.0f + restitution));
         atomicAdd(grad_restitution, gpp.y * (floor_y - xp.y));
