@@ -1,0 +1,9 @@
+sib_cuda
+sib_cuda.exe
+*.obj
+*.o
+*.lib
+*.exp
+*.pdb
+__pycache__/
+*.pyc

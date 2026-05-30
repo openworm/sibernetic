@@ -169,3 +169,56 @@ jobs:
         assert np.all((out[:, 1] >= -10) & (out[:, 1] <= 100)), 'cube escaped box'
         print(f'Native Metal smoke test PASSED ({info["n_active"]} active particles, 50 steps)')
         PY
+
+
+  build-cuda:
+    # Native CUDA substrate compile-only check. GitHub Actions does not
+    # provide a free NVIDIA GPU runner, so we cannot execute sib_cuda --
+    # but we CAN install the CUDA Toolkit on Linux and drive the full
+    # nvcc compile + device-link pipeline over the 7 .cu translation
+    # units. This catches the things that would break a Linux user:
+    # missing headers, host-compiler incompatibilities, std::pow / M_PI
+    # surface differences vs Windows, and the -rdc=true device-link
+    # step. Mirrors the build-macos job's "build the native substrate"
+    # half, minus the runtime smoke test.
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Environment info
+      run: |
+        lsb_release -a || cat /etc/os-release
+        uname -m
+        gcc --version
+        g++ --version
+
+    - name: Install CUDA Toolkit (minimal nvcc + cudart-dev)
+      run: |
+        # NVIDIA's canonical apt repo for ubuntu22.04. We pin to CUDA
+        # 12.4 and install only the compiler + runtime headers so the
+        # job stays well under the full toolkit's ~3GB footprint. nvcc
+        # drives the system g++ as the host compiler.
+        wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+        sudo dpkg -i cuda-keyring_1.1-1_all.deb
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          cuda-nvcc-12-4 \
+          cuda-cudart-dev-12-4
+        echo "/usr/local/cuda-12.4/bin" >> $GITHUB_PATH
+
+    - name: Print nvcc version
+      run: |
+        export PATH=/usr/local/cuda-12.4/bin:$PATH
+        nvcc --version
+
+    - name: Build native CUDA substrate (sib_cuda)
+      run: |
+        export PATH=/usr/local/cuda-12.4/bin:$PATH
+        cd src/cuda_diff
+        ./build.sh
+
+    - name: Verify output binary
+      run: |
+        ls -la src/cuda_diff/sib_cuda
+        file src/cuda_diff/sib_cuda

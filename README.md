@@ -7,7 +7,7 @@ physical body dynamics within the [OpenWorm project](http://www.openworm.org)
 by Andrey Palyanov, Sergey Khayrulin and Mike Vella (development of a Python
 module for external muscle activating signals generation and input) as part of
 the [OpenWorm team](http://www.openworm.org/people.html). It is primarily
-written in C++ and OpenCL, with 3D visualization built on OpenGL.  We have now extended the implementation to Metal.
+written in C++ and OpenCL, with 3D visualization built on OpenGL.  We have now extended the implementation to Metal (Apple Silicon) and native CUDA (NVIDIA).
 
 ## Demo previews — OpenCL gold standard vs native Metal substrate
 
@@ -62,20 +62,24 @@ Per-demo parameter recipes and rendering commands live in
 [`docs/demos.md`](docs/demos.md). The substrate's CLI flags are
 documented in `src/metal_diff/dump_metal_trajectory.py --help`.
 
-## Two solver paths
+## Solver paths
 
-Sibernetic ships with two physically-equivalent simulation paths. They use
+Sibernetic ships with three physically-equivalent simulation paths. They use
 different algorithms with different strengths.
 
 | Path | Algorithm | Hardware | Build target | Differentiable? |
 |---|---|---|---|---|
 | **OpenCL** (legacy, gold standard) | PCISPH | NVIDIA / AMD GPUs, CPU OpenCL | `./Release/Sibernetic` (via `make`) | No |
-| **Native Metal** (new) | XPBD | Apple Silicon GPU (M-series) | `./src/metal_diff/sib_metal` (via `cd src/metal_diff && ./build.sh`) | **Yes** |
+| **Native Metal** | XPBD | Apple Silicon GPU (M-series) | `./src/metal_diff/sib_metal` (via `cd src/metal_diff && ./build.sh`) | **Yes** |
+| **Native CUDA** | XPBD | NVIDIA GPU, sm_75 (Turing) or newer | `./src/cuda_diff/sib_cuda` (via `src/cuda_diff/build.sh` or `build.bat`) | **Yes** |
 
-The two paths share configuration files (`configuration/demo1`,
+The three paths share configuration files (`configuration/demo1`,
 `configuration/worm`, etc.) and produce visually equivalent results on the
-demo1 cube-drop scenario; they are tested for trajectory parity by
-`tests/test_demo1_backend_parity.py`.
+demo1 cube-drop scenario; the OpenCL/Metal pair is tested for trajectory
+parity by `tests/test_demo1_backend_parity.py`, and the CUDA substrate is
+wired into `scripts/cross_backend_regression.py` alongside the other two.
+Per-phase CUDA status and the FD-validated test suite are documented in
+[`src/cuda_diff/README.md`](src/cuda_diff/README.md).
 
 ### From PCISPH to XPBD: why two algorithms?
 
@@ -319,6 +323,29 @@ The output is in the same `position_buffer.txt` format the legacy OpenCL
 loader produces, so all downstream tooling (`render_movie.py`,
 `replay.py`) works unchanged.
 
+### Linux / Windows — native CUDA substrate (NVIDIA)
+
+Requires CUDA Toolkit 12.0+ (CI: 12.4; locally tested up to 13.2) and
+an sm_75 (Turing) or newer GPU. On Windows the build script auto-probes
+for any installed Visual Studio 2017/2019/2022 via `vswhere.exe`.
+
+Linux:
+
+```bash
+./src/cuda_diff/build.sh
+python3 src/cuda_diff/test_wpoly6_cuda.py  # smoke test
+```
+
+Windows (Visual Studio Build Tools required):
+
+```cmd
+cmd /c src\cuda_diff\build.bat
+python src\cuda_diff\test_wpoly6_cuda.py
+```
+
+See [`src/cuda_diff/README.md`](src/cuda_diff/README.md) for the full
+per-phase status and test suite documentation.
+
 ## Common command options
 
 ```
@@ -479,78 +506,7 @@ Listed in rough order of effort, lowest first:
 See `DEVELOPMENT_LOG.md` for the full chronology of how each parity
 finding was reached.
 
-## Path to a native CUDA backend
-
-The same XPBD substrate that runs on Apple Metal would run unchanged on
-NVIDIA GPUs via a parallel CUDA implementation. A scaffolded plan
-already exists at [`src/cuda/README.md`](src/cuda/README.md), but the
-target architecture has shifted: instead of mirroring the legacy
-`owSolver` abstract base, a CUDA substrate should mirror the
-**`src/metal_diff/` differentiable substrate** module-for-module.
-
-Suggested layout (~2 weeks of focused CUDA work):
-
-```
-src/cuda_diff/
-├── build.sh                    # nvcc compile + link (cuRAND optional)
-├── cuda_common.{h,cu}          # CudaCtx, allocate-pool, build_static_grid (port of metal_common)
-├── ops_kernels_m6.cu           # M6 kernels: dist_*, wpoly6, rowsum, density_grad
-├── ops_xpbd_step.cu            # M7 imperative pipeline (port of ops_xpbd_step.mm)
-├── ops_xpbd_full.cu            # differentiable forward + backward
-├── ops_pair_spring.cu          # pair forces + spring bonds
-├── shaders.cu                  # all __global__ kernels (port of shaders.metal)
-├── load_config.py              # already-shared config loader
-├── dump_cuda_trajectory.py     # ports dump_metal_trajectory.py
-├── sgd_true.py                 # already-shared optimizer (just changes binary path)
-└── test_*.py                   # FD-validated per-kernel tests, mirroring metal_diff
-```
-
-**Why mirror the Metal substrate** rather than the OpenCL one:
-- The metal_diff substrate already has the *differentiable* contract
-  worked out — every forward kernel pairs with a backward kernel,
-  shared types live in a header, and the dispatcher pattern is clean.
-- OpenCL's `owOpenCLSolver` predates that and is forward-only.
-- A CUDA port that follows the metal_diff pattern gets analytic
-  gradients on NVIDIA hardware essentially for free (and with the
-  much-larger CUDA core counts on H100/B200, gradient-based learning at
-  whole-worm scale becomes practical).
-
-**Per-kernel translation rules** (mostly mechanical):
-
-| MSL (Metal Shading Language) | CUDA C++ |
-|---|---|
-| `kernel void foo(...)` | `__global__ void foo(...)` |
-| `device float *buf [[buffer(0)]]` | `float *buf` (positional arg) |
-| `[[thread_position_in_grid]]` | `blockIdx.x * blockDim.x + threadIdx.x` |
-| `threadgroup float partials[256]` | `__shared__ float partials[256]` |
-| `threadgroup_barrier(mem_flags::mem_threadgroup)` | `__syncthreads()` |
-| `dispatchThreads:MTLSizeMake(N,1,1)` | `<<<(N+255)/256, 256>>>` |
-| `MTLBuffer` | `cudaMalloc` + raw pointer |
-
-The math doesn't change; XPBD's constraint formulation, the kernel
-signatures, and the tested backward derivations all carry over directly.
-
-### Build + test plan
-1. **Phase 1 — single-kernel parity**: pick `wpoly6_inplace` (the
-   simplest M6 kernel), port to CUDA, run against an FD reference, and
-   verify bit-equality with the Metal output. Get the build (CMake or
-   plain nvcc) working before any further kernels.
-2. **Phase 2 — atomic ops**: port the rest of M6 (`dist_*`, `rowsum`,
-   `density_grad`). Each gets an FD test mirroring `test_dist.py` /
-   `test_dens_grad.py`.
-3. **Phase 3 — `xpbd_step`**: port the imperative pipeline. Cube-drop
-   smoke test (`test_xpbd.py` analog) should produce the same output as
-   the Metal version within float32 noise.
-4. **Phase 4 — differentiable pipeline**: port `xpbd_full_fwd` /
-   `xpbd_full_bwd`, add the per-step gradient-clip env var, rerun
-   `sgd_true.py` on demo1 (it should converge to the same optima as on
-   Metal).
-5. **Phase 5 — parity sweep**: add the CUDA backend to
-   `scripts/cross_backend_regression.py` and run all three substrates
-   (OpenCL, Metal, CUDA) against demo1; gradients should agree across
-   Metal and CUDA to within 1 % (the OpenCL path stays forward-only).
-
-### Why not simply use OpenCL on NVIDIA?
+## Why not just use OpenCL on NVIDIA?
 
 It works (~1.6 ms/step on a representative datacenter GPU, identical
 physics to Metal), but:
@@ -566,8 +522,12 @@ physics to Metal), but:
   backward by 2–3× over OpenCL on the same hardware.
 
 OpenCL on NVIDIA stays as the **parity baseline** in
-`scripts/cross_backend_regression.py`: when the native CUDA backend
-lands, its outputs must match OpenCL within tolerance.
+`scripts/cross_backend_regression.py`: native CUDA outputs must match
+OpenCL within tolerance. Per-phase native-CUDA status, the FD-validated
+test suite, and the build instructions live in
+[`src/cuda_diff/README.md`](src/cuda_diff/README.md); the original
+scaffolding plan that motivated the layout is preserved at
+[`src/cuda/README.md`](src/cuda/README.md) for context.
 
 ## References
 
