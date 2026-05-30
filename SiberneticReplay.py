@@ -201,7 +201,11 @@ def add_muscle_activation_chart(sim_dir, pl, duration=None):
     muscle_activation_file = os.path.join(sim_dir, "muscles_activity_buffer.txt")
     print_(f"Loading muscle activation file from: {muscle_activation_file}")
     musc_dat = np.loadtxt(muscle_activation_file, delimiter="\t").T
-    # print(musc_dat)
+
+    if np.sum(musc_dat) == 0:
+        print_("No muscle data, not plotting")
+        return
+
     # print(musc_dat.shape)
     # plt.imshow(musc_dat, interpolation="none", aspect="auto", cmap="YlOrRd")
 
@@ -246,6 +250,11 @@ def add_body_curvature_chart(sim_dir, pl, duration=None):
         rate_to_plot=1,
         plot=False,
     )
+
+    if np.sum(x[ts[-1]]) + np.sum(y[ts[-1]]) == 0:
+        print_("No worm body data, not plotting")
+        return
+
     print_(f"Temporary WCON file (re)generated at: {wcon_output_file}")
 
     f_curv, ax_curv = plt.subplots(tight_layout=True)
@@ -662,11 +671,15 @@ def create_mesh(time_index):
 
     for type_, curr_points in curr_points_dict.items():
         color, info, size = get_color_info_for_type(type_)
+        print_(
+            f"Current points: {info}, {type_}, {size}, {color}: {len(curr_points)} points"
+        )
         is_boundary = "boundary" in info
 
-        if show_boundary is False and is_boundary:
-            mx = max(curr_points)
-            mn = min(curr_points)
+        if show_boundary is False and is_boundary and time_index == 0:
+            # print (curr_points)
+            mx = np.max(curr_points, axis=0)
+            mn = np.min(curr_points, axis=0)
             print_(mx)
             print_(mn)
             swap = False
@@ -681,10 +694,9 @@ def create_mesh(time_index):
                 c = [mx[0], mn[1], mx[2]]
                 d = [mn[0], mn[1], mx[2]]
 
-            print_(f"Boundary box points: {a}, {b}, {c}, {d}")
+            print_(f"        >>>>>>>>>>   Boundary box points: {a}, {b}, {c}, {d}")
             points = np.array([a, b, b, c, c, d, d, a])
             plotter.add_lines(points, color="grey", width=2)
-            # add a pyvista sphere of radius 3 at point a
             """
             plotter.add_mesh(pv.Sphere(radius=3, center=a), color="pink")
             plotter.add_mesh(pv.Sphere(radius=4, center=b), color="blue")
@@ -731,11 +743,11 @@ def create_mesh(time_index):
 if __name__ == "__main__":
     plotter = pv.Plotter()
 
-    position_file = "buffers/position_buffer.txt"  # can be overwritten by arg
+    default_position_file = "buffers/position_buffer.txt"  # can be overwritten by arg
     report_file = None
 
-    if not os.path.isfile(position_file):
-        position_file = (
+    if not os.path.isfile(default_position_file):
+        default_position_file = (
             "Sibernetic/position_buffer.txt"  # example location in Worm3DViewer repo
         )
 
@@ -746,24 +758,38 @@ if __name__ == "__main__":
     else:
         print_("Run with -b to display boundary box")
 
-    if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
-        if "json" in sys.argv[1]:
+    if len(sys.argv) > 1:
+        if os.path.isdir(sys.argv[1]):
+            if os.path.isfile(os.path.join(sys.argv[1], "report.json")):
+                position_file = None
+                report_file = os.path.join(sys.argv[1], "report.json")
+                dir_name = os.path.dirname(report_file)
+
+            elif os.path.isfile(os.path.join(sys.argv[1], "position_buffer.txt")):
+                position_file = os.path.join(sys.argv[1], "position_buffer.txt")
+                dir_name = os.path.dirname(position_file)
+            else:
+                raise ValueError(
+                    f"Provided argument is a directory but no report.json or position_buffer.txt file found in it: {sys.argv[1]}"
+                )
+
+        elif "json" in sys.argv[1] and os.path.isfile(sys.argv[1]):
             position_file = None
             report_file = sys.argv[1]
             dir_name = os.path.dirname(report_file)
-            vtp_files = [
-                os.path.join(dir_name, f)
-                for f in os.listdir(dir_name)
-                if f.endswith(".vtp")
-            ]
+
         else:
+            os.path.isfile(sys.argv[1])
             position_file = sys.argv[1]
-            dir_name = os.path.dirname(position_file)
-            vtp_files = [
-                os.path.join(dir_name, f)
-                for f in os.listdir(dir_name)
-                if f.endswith(".vtp")
-            ]
+
+    else:
+        position_file = default_position_file
+        dir_name = os.path.dirname(position_file)
+        vtp_files = []
+
+    vtp_files = [
+        os.path.join(dir_name, f) for f in os.listdir(dir_name) if f.endswith(".vtp")
+    ]
 
     swap_y_z = False
 
