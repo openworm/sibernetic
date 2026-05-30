@@ -781,6 +781,7 @@ if __name__ == "__main__":
         else:
             os.path.isfile(sys.argv[1])
             position_file = sys.argv[1]
+            dir_name = os.path.dirname(position_file)
 
     else:
         position_file = default_position_file
