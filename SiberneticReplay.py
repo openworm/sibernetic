@@ -775,7 +775,8 @@ if __name__ == "__main__":
             dir_name = os.path.dirname(report_file)
 
         else:
-            os.path.isfile(sys.argv[1])
+            if not os.path.isfile(sys.argv[1]):
+                raise ValueError(f"Provided argument is not a valid file or directory: {sys.argv[1]}")
             position_file = sys.argv[1]
             dir_name = os.path.dirname(position_file)
 
