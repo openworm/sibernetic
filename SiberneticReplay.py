@@ -671,17 +671,13 @@ def create_mesh(time_index):
 
     for type_, curr_points in curr_points_dict.items():
         color, info, size = get_color_info_for_type(type_)
-        print_(
-            f"Current points: {info}, {type_}, {size}, {color}: {len(curr_points)} points"
-        )
+    
         is_boundary = "boundary" in info
 
         if show_boundary is False and is_boundary and time_index == 0:
             # print (curr_points)
             mx = np.max(curr_points, axis=0)
             mn = np.min(curr_points, axis=0)
-            print_(mx)
-            print_(mn)
             swap = False
             if swap:
                 a = [mn[0], mn[1], mn[2]]
