@@ -9,9 +9,10 @@ import pyvista as pv
 import sys
 import os
 import time
-import json
 import numpy as np
 import matplotlib.pyplot as plt
+
+from SibSimulation import SibSimulation
 
 from enum import Enum
 
@@ -20,9 +21,7 @@ last_meshes = {}
 replay_speed = 0.02  # seconds between frames
 replaying = False
 
-all_3D_points = []
-all_point_types = []
-all_vtp_files = []
+sim_positions = None
 
 plotter = None
 offset3d_ = (0, 0, 0)
@@ -32,8 +31,6 @@ show_boundary = False
 max_time = None
 
 verbose = False
-
-report_data = None
 
 downsample = 1  # only load every nth time point of 3d positions
 
@@ -51,10 +48,11 @@ class State(Enum):
 class ReplayController:
     slider_view = None
 
-    def __init__(self, times=None):
+    def __init__(self, times=None, show_vtk_mesh=False):
         self.times = list(times)
         self.state = State.PAUSED
         self.current_time_index = 0
+        self.show_vtk_mesh = show_vtk_mesh
         self.vtk_actor = None
 
     def play(self, should_play, step=1):
@@ -147,11 +145,11 @@ class ReplayController:
             )
         create_mesh(self.current_time_index)
 
-        if len(all_vtp_files) > 0:
+        if len(sim_positions.vtp_files) > 0 and self.show_vtk_mesh:
             if self.vtk_actor is not None:
                 plotter.remove_actor(self.vtk_actor)
 
-            vtk_mesh = pv.read(all_vtp_files[self.current_time_index])
+            vtk_mesh = pv.read(sim_positions.vtp_files[self.current_time_index])
 
             self.vtk_actor = plotter.add_mesh(vtk_mesh, color="grey", style="wireframe")
 
@@ -294,206 +292,59 @@ def add_sibernetic_model(
     pl,
     position_file="Sibernetic/position_buffer.txt",
     report_file=None,
-    vtp_files=[],
     swap_y_z=False,
     offset3d=(0, 0, 0),
     include_boundary=False,
 ):
     global \
-        all_3D_points, \
-        all_point_types, \
+        sim_positions, \
         last_meshes, \
         plotter, \
         offset3d_, \
         slider, \
         show_boundary, \
         max_time, \
-        replay_controller, \
-        report_data, \
-        all_vtp_files
+        replay_controller
 
     offset3d_ = offset3d
     plotter = pl
     show_boundary = include_boundary
 
-    all_vtp_files = sorted(vtp_files)
-
-    points = {}
-    types = []
-
-    line_count = 0
-    pcount = 0
-    time_count = 0
-    logStep = None
-
-    dt = None
-
-    report_data = None
-    count_point_types = {}
-
-    loaded_time_points = []
-
-    if report_file is not None:
-        sim_dir = os.path.dirname(os.path.abspath(report_file))
-        report_data = json.load(open(report_file, "r"))
-        print_(f"Loaded report_data:\n{report_data}")
-        position_file = os.path.join(sim_dir, "position_buffer.txt")
-        dt = float(report_data.get("dt").split(" ")[0])
-        duration = float(report_data.get("duration").split(" ")[0])
-        log_step = int(report_data.get("logstep"))
-
-        max_time = duration
-        neuron_time_points = np.linspace(0, duration, int(duration / dt) + 1)
-
-        sibernetic_time_points = np.linspace(
-            0, duration, int((duration / dt) / log_step)
-        )
-        """replay_controller = ReplayController(times=sibernetic_time_points)"""
-
-        print_(
-            "Simulation dt: %s ms, duration: %s ms, times simulated (%i): %s; sibernetic logged times (%i): %s"
-            % (
-                dt,
-                duration,
-                len(neuron_time_points),
-                neuron_time_points,
-                len(sibernetic_time_points),
-                sibernetic_time_points,
-            )
-        )
-
-        if "worm" in report_data["configuration"]:
-            add_muscle_activation_chart(sim_dir, pl, duration)
-            add_body_curvature_chart(sim_dir, pl, duration)
-    else:
-        sim_dir = os.path.dirname(os.path.abspath(position_file))
-
-        muscle_activation_file = os.path.join(sim_dir, "muscles_activity_buffer.txt")
-        if os.path.isfile(muscle_activation_file):
-            print_(
-                f"Found muscle activation file at: {muscle_activation_file}, adding muscle activation chart."
-            )
-            add_muscle_activation_chart(sim_dir, pl)
-            add_body_curvature_chart(sim_dir, pl)
-        else:
-            print_(
-                "No report file provided and no muscle activation file found, skipping muscle activation chart."
-            )
-
-    first_pass_complete = False
-
-    sampled = 1e6  # force first sample to be included
-
-    for line in open(position_file):
-        ws = line.split()
-        # print(ws)
-        if line_count == 6:
-            numOfElasticP = int(ws[0])
-        if line_count == 7:
-            numOfLiquidP = int(ws[0])
-        if line_count == 8:
-            numOfBoundaryP = int(ws[0])
-        if line_count == 9:
-            timeStep = float(ws[0])  # noqa: F841
-        if line_count == 10:
-            logStep = int(ws[0])
-
-        if len(ws) == 4:
-            type_ = float(ws[3])
-            if type_ not in points:
-                points[type_] = []
-
-            if not first_pass_complete:
-                if type_ not in count_point_types:
-                    count_point_types[type_] = 0
-                count_point_types[type_] += 1
-
-            if swap_y_z:
-                points[type_].append([float(ws[1]), 1 * float(ws[0]), float(ws[2])])
-            else:
-                points[type_].append([float(ws[0]), float(ws[1]), float(ws[2])])
-
-            types.append(type_)
-
-        if logStep is not None:
-            pcount += 1
-
-            if pcount == numOfBoundaryP + numOfElasticP + numOfLiquidP:
-                first_pass_complete = True
-                sampled += 1
-                print_(
-                    "End of one batch of %i total points (%i types), at line %i, time point: %i%s"
-                    % (
-                        pcount,
-                        len(points),
-                        line_count,
-                        time_count,
-                        "",
-                    )
-                )
-
-                if sampled < downsample:
-                    print_(
-                        "  -- Skipping sample %i due to downsampling factor %i"
-                        % (sampled, downsample)
-                    )
-                else:
-                    print_(
-                        "  -- Including sample %i, downsampling factor %i"
-                        % (sampled, downsample)
-                    )
-                    all_3D_points.append(points)
-                    all_point_types.append(types)
-
-                    sampled = 0
-                    if dt is not None:
-                        time_calculated = time_count * logStep * dt
-                        loaded_time_points.append(time_calculated)
-                        print_(f"Time calculated as: {time_calculated}")
-                    else:
-                        loaded_time_points.append(time_count)
-
-                points = {}
-                types = []
-                numOfBoundaryP = 0
-                pcount = 0
-
-                time_count += 1
-
-        line_count += 1
-
-    print_(
-        "\nLoaded positions with %i elastic, %i liquid and %i boundary points (%i total), over %i lines"
-        % (
-            numOfElasticP,
-            numOfLiquidP,
-            numOfBoundaryP,
-            numOfElasticP + numOfLiquidP + numOfBoundaryP,
-            line_count,
-        )
+    sim_positions = SibSimulation(
+        position_file=position_file,
+        report_file=report_file,
+        downsample=downsample,
+        swap_y_z=swap_y_z,
     )
 
-    print_(f"Num of time points loaded: {len(all_3D_points)} (total: {time_count})")
-    print_(f"Loaded time points: {loaded_time_points}")
-    if all_vtp_files:
+    if sim_positions.has_worm_data():
+        add_muscle_activation_chart(sim_positions.sim_dir, pl, sim_positions.duration)
+        add_body_curvature_chart(sim_positions.sim_dir, pl, sim_positions.duration)
+    elif (
+        sim_positions.report_data is None and sim_positions.has_muscle_activation_data()
+    ):
         print_(
-            f"Found {len(all_vtp_files)} VTK *.vtp files: [{all_vtp_files[0]},..., {all_vtp_files[-1]}]"
+            f"Found muscle activation file at: {sim_positions.sim_dir}/muscles_activity_buffer.txt, adding muscle activation chart."
+        )
+        add_muscle_activation_chart(sim_positions.sim_dir, pl)
+        add_body_curvature_chart(sim_positions.sim_dir, pl)
+    else:
+        print_(
+            "No report file provided and no muscle activation file found, skipping muscle activation chart."
         )
 
     if replay_controller is None:
-        # time_points = np.arange(len(all_3D_points))
-        replay_controller = ReplayController(times=loaded_time_points)
-
-    print_(f"Count of point types found: {dict(sorted(count_point_types.items()))}")
+        replay_controller = ReplayController(times=sim_positions.loaded_time_points)
 
     create_mesh(0)
 
     slider_text = "Time point"
 
-    if max_time is None:
-        max_time = len(all_3D_points) - 1
-    else:
+    if sim_positions.duration is not None:
+        max_time = sim_positions.duration
         slider_text = "Time (ms)"
+    else:
+        max_time = sim_positions.num_time_points() - 1
 
     slider = pl.add_slider_widget(
         slider_updated, rng=[0, max_time], value=0, title=slider_text, style="modern"
@@ -601,11 +452,11 @@ def info_checkbox_pressed(value):
 
         fig.suptitle("Sibernetic Replay Info")
         info_lines = [
-            f"Total time points loaded: {len(all_3D_points)}",
-            f"Total points per time point: {len(all_point_types[0])}",
+            f"Total time points loaded: {sim_positions.num_time_points()}",
+            f"Total points per time point: {len(sim_positions.all_point_types[0])}",
         ]
-        if report_data is not None:
-            for key, val in report_data.items():
+        if sim_positions.report_data is not None:
+            for key, val in sim_positions.report_data.items():
                 info_lines.append(f"{key}:  {val}")
 
         # Remove the axes
@@ -652,26 +503,26 @@ def back_checkbox_pressed(value):
 
 
 def create_mesh(time_index):
-    global all_3D_points, last_meshes, plotter, offset3d_, show_boundary
+    global sim_positions, last_meshes, plotter, offset3d_, show_boundary
 
-    if time_index >= len(all_3D_points):
+    if time_index >= sim_positions.num_time_points():
         print_(
-            "Index %i out of bounds for all_3D_points with length %i"
-            % (time_index, len(all_3D_points))
+            "Index %i out of bounds for loaded time points with length %i"
+            % (time_index, sim_positions.num_time_points())
         )
         return
 
     print_(
         "   -- Creating new mesh at time point index: %s/%s"
-        % (time_index, len(all_3D_points))
+        % (time_index, sim_positions.num_time_points())
     )
-    curr_points_dict = all_3D_points[time_index]
+    curr_points_dict = sim_positions.get_points_at(time_index)
 
     print_("      Plotting %i point types" % (len(curr_points_dict)))
 
     for type_, curr_points in curr_points_dict.items():
         color, info, size = get_color_info_for_type(type_)
-    
+
         is_boundary = "boundary" in info
 
         if show_boundary is False and is_boundary and time_index == 0:
@@ -776,18 +627,14 @@ if __name__ == "__main__":
 
         else:
             if not os.path.isfile(sys.argv[1]):
-                raise ValueError(f"Provided argument is not a valid file or directory: {sys.argv[1]}")
+                raise ValueError(
+                    f"Provided argument is not a valid file or directory: {sys.argv[1]}"
+                )
             position_file = sys.argv[1]
             dir_name = os.path.dirname(position_file)
 
     else:
         position_file = default_position_file
-        dir_name = os.path.dirname(position_file)
-        vtp_files = []
-
-    vtp_files = [
-        os.path.join(dir_name, f) for f in os.listdir(dir_name) if f.endswith(".vtp")
-    ]
 
     swap_y_z = False
 
@@ -795,7 +642,6 @@ if __name__ == "__main__":
         plotter,
         position_file,
         report_file,
-        vtp_files,
         swap_y_z=swap_y_z,
         include_boundary=include_boundary,
     )
