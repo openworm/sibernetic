@@ -10,16 +10,18 @@ sys.path.append(".")
 
 from sibernetic_c302 import run
 
-duration = 10
+duration = 50
 dt = 0.005  # Simulation time step
 
 sim_dir, reportj = run(
-    noc302=True,
+    noc302=False,
     duration=duration,
     dt=dt,
-    logstep=1,
+    logstep=10,
     configuration="worm_alone_half_resolution",
-    simName="test_worm_alone_half",  # Explicitly set simulation name
+    reference="FW",
+    c302params="C2",
+    simName="test_C2_FW_short",  # Explicitly set simulation name
 )
 
 print("TEST: Saved simulation to: %s" % sim_dir)

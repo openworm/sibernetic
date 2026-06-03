@@ -1,4 +1,5 @@
 c302>=0.10.1
-neuron
+neuron<9.0
 
 ruff
+pyvista

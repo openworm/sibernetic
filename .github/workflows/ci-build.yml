@@ -93,7 +93,11 @@ jobs:
         pip list
         which nrniv
         export NEURON_HOME=/home/runner/.local
-        ./run_all_tests.sh -all
+
+        ./test.sh -all
+
+        omv find 
+        omv all -V 
 
     - name: Generated file info
       run: |
