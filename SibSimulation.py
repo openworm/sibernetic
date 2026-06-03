@@ -9,9 +9,10 @@ import json
 import numpy as np
 
 
-def print_(msg):
+def print_(msg, print_it=True):
     prefix = "SibSim: "
-    print(prefix + str(msg).replace("\n", "\n" + prefix))
+    if print_it:
+        print(prefix + str(msg).replace("\n", "\n" + prefix))
 
 
 class SibSimulation:
@@ -47,6 +48,7 @@ class SibSimulation:
         report_file=None,
         downsample=1,
         swap_y_z=False,
+        verbose=False,
     ):
         """
         Parameters
@@ -81,6 +83,7 @@ class SibSimulation:
         self.all_point_types = []
         self.loaded_time_points = []
         self.vtp_files = []
+        self.verbose = verbose
 
         if report_file is not None:
             self._load_report(report_file)
@@ -169,20 +172,23 @@ class SibSimulation:
                 if pcount == num_boundary + num_elastic + num_liquid:
                     first_pass_complete = True
                     sampled += 1
-                    print_(
-                        "End of one batch of %i total points (%i types), at line %i, time point: %i"
-                        % (pcount, len(points), line_count, time_count)
-                    )
+                    if self.verbose:
+                        print_(
+                            "End of one batch of %i total points (%i types), at line %i, time point: %i"
+                            % (pcount, len(points), line_count, time_count)
+                        )
 
                     if sampled < self.downsample:
                         print_(
                             "  -- Skipping sample %i due to downsampling factor %i"
-                            % (sampled, self.downsample)
+                            % (sampled, self.downsample),
+                            self.verbose,
                         )
                     else:
                         print_(
                             "  -- Including sample %i, downsampling factor %i"
-                            % (sampled, self.downsample)
+                            % (sampled, self.downsample),
+                            self.verbose,
                         )
                         self.all_3D_points.append(points)
                         self.all_point_types.append(types)
@@ -191,7 +197,9 @@ class SibSimulation:
                         if self.dt is not None:
                             time_calculated = time_count * log_step * self.dt
                             self.loaded_time_points.append(time_calculated)
-                            print_(f"Time calculated as: {time_calculated}")
+                            print_(
+                                f"Time calculated as: {time_calculated}", self.verbose
+                            )
                         else:
                             self.loaded_time_points.append(time_count)
 
@@ -257,3 +265,23 @@ class SibSimulation:
     def get_points_at(self, time_index):
         """Return the points dict {type_: [[x,y,z], ...]} at time_index."""
         return self.all_3D_points[time_index]
+
+    # Method to get the t, x, y, z positions of a single particle of a given type
+    def get_particle_position(self, particle_type, particle_index=0):
+        """
+        Get the time series of positions for a single particle of a given type.
+
+        Parameters
+        ----------
+        particle_type : float
+            The type of particle to track (e.g., 2.1 for elastic).
+        particle_index : int
+            The index of the particle of the given type to track (default 0).
+        """
+        positions = []
+        times = []
+        for time_idx, points in enumerate(self.all_3D_points):
+            if particle_type in points and len(points[particle_type]) > particle_index:
+                positions.append(points[particle_type][particle_index])
+                times.append(self.loaded_time_points[time_idx])
+        return times, np.array(positions)
