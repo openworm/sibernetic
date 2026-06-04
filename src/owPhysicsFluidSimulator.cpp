@@ -35,6 +35,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <iomanip>
+#include <sys/time.h>
 
 #include "owPhysicsFluidSimulator.h"
 #include "owSignalSimulator.h"
