@@ -30,7 +30,8 @@ jobs:
         lscpu
 
         echo "Installing OpenCL Drivers and Java (for jNeuroML)"
-
+        
+        sudo apt-get update --fix-missing
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
           build-essential \
           git \
