@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-./setup.sh
+#./setup.sh  # Run this outside test.sh
 
 ruff format *.py wcon/*.py tests/*.py
 ruff check *.py wcon/*.py tests/*.py
