@@ -35,6 +35,14 @@ run_test () {
         if [[ "$script_args" != *"-show"* ]]; then # i.e. not showing any other example
             rm -f ${sim_dir}/* # remove any previous simulation files
             ./Release/Sibernetic -f ${config} -l_to lpath=${sim_dir} timelimit=${timelimit} timestep=${timestep} logstep=${logstep} device=ALL ${no_gui} -q ${export_vtk}
+            
+            # check if there is an OMV test 
+            if [ -f "tests/.test.${config}.omt" ]; then
+                omv test -V tests/.test.${config}.omt
+            else
+                echo "No OMV test foundat tests/.test.${config}.omt, skipping that part of the test"
+            fi
+            
             # Test reloading the simulation files with Python viewer
             python3 SiberneticReplay.py ${sim_dir}/position_buffer.txt -nogui
         fi
