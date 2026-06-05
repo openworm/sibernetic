@@ -5,8 +5,8 @@ import os
 
 def test_cube1():
 
-    sim_ref = "test_opencl_demo1"
-    types_to_plot = {1.1: [0, 60, 124], 2.1: [0, 60, 124]}
+    sim_ref = "test_opencl_worm"
+    types_to_plot = {1.1: [0, 100, 200, 300], 2.1: [0, 2]}
     plot_and_save_positions(
         sim_ref,
         sim_dir=os.path.abspath(f"simulations/{sim_ref}"),
