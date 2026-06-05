@@ -65,7 +65,10 @@ def test_engine_against_reference(tmp_path):
     try:
         result = subprocess.run(
             [binary_path, "-no_g", "timelimit=0.0001"],
-            check=False, capture_output=True, text=True, timeout=5
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if "Failed to load" in result.stdout or "Error" in result.stderr:
             pytest.skip(f"Sibernetic binary has runtime errors: {result.stdout[:200]}")

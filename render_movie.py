@@ -3,12 +3,19 @@
 
 import pyvista as pv
 import sys
-import os
+
 import numpy as np
 
-def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30,
-                    frame_skip=10, max_frames=500, include_boundary=False,
-                    camera="side"):
+
+def render_to_movie(
+    position_file,
+    output_file="worm_simulation.mp4",
+    fps=30,
+    frame_skip=10,
+    max_frames=500,
+    include_boundary=False,
+    camera="side",
+):
     """Load position buffer and render to MP4.
 
     Args:
@@ -19,7 +26,7 @@ def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30,
             above-front-side so the floor plane is visible).
     """
 
-    colours = {1.1: "blue", 2.1: "green", 2.2: "turquoise", 3: "#cccccc"}
+    # colours = {1.1: "blue", 2.1: "green", 2.2: "turquoise", 3: "#cccccc"}
 
     points_per_frame = []
     types_per_frame = []
@@ -108,18 +115,18 @@ def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30,
         # 3/4 view: camera above and to one side, looking down so the floor
         # plane (low Y) and the descending cube are both visible.
         plotter.camera_position = [
-            (center[0] + max_extent * 1.4,
-             maxs[1] + max_extent * 0.6,
-             center[2] + max_extent * 1.4),
+            (
+                center[0] + max_extent * 1.4,
+                maxs[1] + max_extent * 0.6,
+                center[2] + max_extent * 1.4,
+            ),
             center,
             (0, 1, 0),
         ]
     else:
         # Original side view, framed on the simulation bounds.
         plotter.camera_position = [
-            (center[0] + max_extent * 1.5,
-             center[1] + max_extent * 0.5,
-             center[2]),
+            (center[0] + max_extent * 1.5, center[1] + max_extent * 0.5, center[2]),
             center,
             (0, 1, 0),
         ]
@@ -152,26 +159,31 @@ def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30,
     else:
         boundary_mesh = None
 
-    body_pts0 = points_per_frame[0][~is_boundary_per_frame[0]] if include_boundary else points_per_frame[0]
-    body_types0 = types_per_frame[0][~is_boundary_per_frame[0]] if include_boundary else types_per_frame[0]
+    body_pts0 = (
+        points_per_frame[0][~is_boundary_per_frame[0]]
+        if include_boundary
+        else points_per_frame[0]
+    )
+    body_types0 = (
+        types_per_frame[0][~is_boundary_per_frame[0]]
+        if include_boundary
+        else types_per_frame[0]
+    )
     mesh = pv.PolyData(body_pts0)
     mesh["types"] = body_types0
 
-    actor = plotter.add_mesh(
+    plotter.add_mesh(
         mesh,
         render_points_as_spheres=True,
         scalars="types",
         cmap=["blue", "green", "turquoise", "lightgray"],
         point_size=8,
-        show_scalar_bar=False
+        show_scalar_bar=False,
     )
 
     # Add time annotation
     time_text = plotter.add_text(
-        "Time: 0.000 s",
-        position="upper_left",
-        font_size=14,
-        color="black"
+        "Time: 0.000 s", position="upper_left", font_size=14, color="black"
     )
 
     # Render each frame
@@ -196,7 +208,7 @@ def render_to_movie(position_file, output_file="worm_simulation.mp4", fps=30,
             f"Time: {sim_time:.3f} s",
             position="upper_left",
             font_size=14,
-            color="black"
+            color="black",
         )
 
         plotter.write_frame()
