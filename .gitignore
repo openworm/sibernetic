@@ -79,3 +79,4 @@ simulations
 /report.txt
 /cube.sh
 /install_drivers.sh
+/tests/*.dat

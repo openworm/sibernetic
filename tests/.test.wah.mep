@@ -1,0 +1,6 @@
+system: Testing 
+
+experiments:
+    Test:
+        expected:
+            spike times: [0.000365]

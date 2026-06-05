@@ -80,3 +80,4 @@ jobs:
 
         python -V
         pip list
+        env
