@@ -4,10 +4,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-if os.getcwd().endswith("tests"):
-    os.chdir("..")
-
-sys.path.append(".")
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from SibSimulation import SibSimulation
 
@@ -81,7 +78,9 @@ def plot_and_save_positions(sim_ref, sim_dir, show_plot=False, types_to_plot={})
             times, positions = sim.get_particle_position(tp, i)
             if i == 0:
                 # Save to file
-                file_name = f"tests/positions_{sim_ref}_type_{tp}_index_{i}.dat"
+                file_name = os.path.join(
+                    sim_dir, f"positions_{sim_ref}_type_{tp}_index_{i}.dat"
+                )
                 with open(file_name, "w") as f:
                     for t, pos in zip(times, positions):
                         f.write(f"{t}\t{pos[0]}\t{pos[1]}\t{pos[2]}\n")

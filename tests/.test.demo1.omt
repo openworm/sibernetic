@@ -9,7 +9,7 @@ experiments:
     observables:
       spike times:
         file: 
-          path: positions_test_opencl_demo1_type_2.1_index_0.dat
+          path: ../simulations/test_opencl_demo1/positions_test_opencl_demo1_type_2.1_index_0.dat
           columns: [0, 2]
           scaling: [1, 1]
         spike detection: 

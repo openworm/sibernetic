@@ -9,7 +9,7 @@ experiments:
     observables:
       spike times:
         file: 
-          path: positions_test_cube_type_2.1_index_0.dat
+          path: ../simulations/test_cube/positions_test_cube_type_2.1_index_0.dat
           columns: [0, 2]
           scaling: [2.5, 1]
         spike detection: 
