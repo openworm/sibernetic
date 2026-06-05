@@ -1,0 +1,18 @@
+# Framework for running automated tests on Open Source Brain
+# See https://github.com/OpenSourceBrain/osb-model-validation for more details
+ 
+target: test_cube.py
+engine: Brian2  # This installs Brian2, but all we really need is a Python environment to run the script in
+mep: .test.cubefalling.mep
+experiments:
+  Test:
+    observables:
+      spike times:
+        file: 
+          path: positions_test_cube_type_2.1_index_0.dat
+          columns: [0, 2]
+          scaling: [2.5, 1]
+        spike detection: 
+          method: threshold
+          threshold: 3
+        tolerance: 0.021739130434782608

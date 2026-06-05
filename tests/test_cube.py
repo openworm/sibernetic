@@ -3,9 +3,9 @@ import sys
 import os
 
 
-def test_cube1():
+def test_cube():
 
-    sim_ref = "test_opencl_demo1"
+    sim_ref = "test_cube"
     types_to_plot = {1.1: [0, 60, 124], 2.1: [0, 60, 124]}
     plot_and_save_positions(
         sim_ref,
@@ -17,4 +17,4 @@ def test_cube1():
 
 # main
 if __name__ == "__main__":
-    test_cube1()
+    test_cube()

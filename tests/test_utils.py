@@ -74,6 +74,9 @@ def plot_and_save_positions(sim_ref, sim_dir, show_plot=False, types_to_plot={})
     for tp in types_to_plot:
         plt.figure()
         plt.title(f"Position of particles of type {tp} over time")
+        plt.gcf().canvas.manager.set_window_title(
+            f"Position of particles of type {tp} in: {sim_ref}"
+        )
         for i in types_to_plot[tp]:
             times, positions = sim.get_particle_position(tp, i)
             if i == 0:

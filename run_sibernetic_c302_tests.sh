@@ -4,7 +4,7 @@ set -ex
 #This script will run a number of tests using sibernetic_c302.py & check the files produced
 
 # Cube only
-python3 sibernetic_c302.py -test -noc302 -duration 30 -dt 0.005 -configuration demo1 -simName test_cube -logstep 10 -q
+python3 sibernetic_c302.py -test -noc302 -duration 30 -dt 0.02 -configuration demo1 -simName test_cube -logstep 10 -q
 
 # No c302 but with the worm body 
 python3 sibernetic_c302.py -test -noc302 -duration 0.1 -simName test_noc302 

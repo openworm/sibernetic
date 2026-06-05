@@ -1,9 +1,9 @@
 # Framework for running automated tests on Open Source Brain
 # See https://github.com/OpenSourceBrain/osb-model-validation for more details
  
-target: test_cube1.py
+target: test_demo1.py
 engine: Brian2  # This installs Brian2, but all we really need is a Python environment to run the script in
-mep: .test.cube1.mep
+mep: .test.cubefalling.mep
 experiments:
   Test:
     observables:
