@@ -56,5 +56,6 @@ python3 -m pytest -q tests/test_energy.py tests/test_solver_logs.py
 rc=$?
 if [ "$rc" -ne 0 ] && [ "$rc" -ne 5 ]; then
     exit $rc
+fi
 
 
