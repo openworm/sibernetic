@@ -55,20 +55,25 @@ run_test demo1 0.03 2e-5 20
 # Demo 2: Elastic membranes
 run_test demo2 0.02 2e-5 20
 
-# Worm alone, half resolution (for faster testing)
-run_test worm_alone_half_resolution 0.02 2e-5 20
+if [[ "$script_args" != *"-quick"* ]]; then 
 
-# Worm swimming, half resolution (for faster testing)
-run_test worm_swim_half_resolution 0.05 2e-5 50
 
-# Worm crawling, half resolution (for faster testing)
-run_test worm_crawl_half_resolution 0.05 2e-5 50
+    # Worm alone, half resolution (for faster testing)
+    run_test worm_alone_half_resolution 0.02 2e-5 20
 
-# Full worm
-run_test worm 0.01 2e-5 20
+    # Worm swimming, half resolution (for faster testing)
+    run_test worm_swim_half_resolution 0.05 2e-5 50
 
-# Crawling worm
-run_test worm_crawling 0.01 2e-5 20
+    # Worm crawling, half resolution (for faster testing)
+    run_test worm_crawl_half_resolution 0.05 2e-5 50
 
-# Worm no water
-run_test worm_no_water 0.1 2e-5 20
+    # Full worm
+    run_test worm 0.01 2e-5 20
+
+    # Crawling worm
+    run_test worm_crawling 0.01 2e-5 20
+
+    # Worm no water
+    run_test worm_no_water 0.1 2e-5 20
+
+fi
