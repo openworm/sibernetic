@@ -3,13 +3,19 @@ set -ex
 
 # This script will run a number of tests in OpenCL mode, directly on the Sibernetic executable.
 
+# Arguments passed to this script, used below to decide which example(s) to show
+script_args="$*"
+
 no_gui="-no_g"
-export_vtk="-export_vtk"
+
+if [[ "$script_args" == *"-vtk"* ]]; then
+    export_vtk="-export_vtk"
+else
+    export_vtk=""
+fi
 
 export PYTHONPATH=$PYTHONPATH:.
 
-# Arguments passed to this script, used below to decide which example(s) to show
-script_args="$*"
 
 # Run (or show a previous run of) a single Sibernetic configuration.
 #   $1 - Sibernetic config to run (passed to -f)
@@ -22,8 +28,9 @@ run_test () {
     local timestep="$3"
     local logstep="$4"
 
-    sim_dir="simulations/test_opencl_${config}"
-    show_flag="-show_${config}"
+    local config_basename="${config##*/}"
+    sim_dir="simulations/test_opencl_${config_basename}"
+    show_flag="-show_${config_basename}"
 
     if [ ! -d "$sim_dir" ]; then
         mkdir -p "$sim_dir"
@@ -55,6 +62,7 @@ run_test demo1 0.03 2e-5 20
 # Demo 2: Elastic membranes
 run_test demo2 0.02 2e-5 20
 
+
 if [[ "$script_args" != *"-quick"* ]]; then 
 
 
@@ -76,4 +84,6 @@ if [[ "$script_args" != *"-quick"* ]]; then
     # Worm no water
     run_test worm_no_water 0.1 2e-5 20
 
+    # Test configuration: falling liquid
+    run_test configuration/test/v_test_liquid 0.05 2.5e-5 20
 fi
