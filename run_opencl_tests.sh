@@ -65,7 +65,6 @@ run_test demo2 0.02 2e-5 20
 
 if [[ "$script_args" != *"-quick"* ]]; then 
 
-
     # Worm alone, half resolution (for faster testing)
     run_test worm_alone_half_resolution 0.02 2e-5 20
 
@@ -84,6 +83,13 @@ if [[ "$script_args" != *"-quick"* ]]; then
     # Worm no water
     run_test worm_no_water 0.1 2e-5 20
 
-    # Test configuration: falling liquid
+    # Test configuration: liquid cube falling into liquid
     run_test configuration/test/v_test_liquid 0.05 2.5e-5 20
+
+    # Test configuration: one elastic particle falling under gravity, i.e. on a spring
+    run_test configuration/test/one_spring_test 0.005 1e-5 1
+
+    # Test configuration: falling liquid
+    run_test configuration/test/test_energy 0.03 2e-5 20
+
 fi
