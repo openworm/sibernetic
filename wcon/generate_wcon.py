@@ -529,7 +529,9 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         pos_file_name = sys.argv[1]
     else:
-        pos_file_name = "../simulations/test_opencl_worm_alone_half_resolution/worm_motion_log.txt"
+        pos_file_name = (
+            "../simulations/test_opencl_worm_alone_half_resolution/worm_motion_log.txt"
+        )
 
     if len(sys.argv) > 2:
         rate_to_plot = int(sys.argv[2])
