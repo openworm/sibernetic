@@ -628,7 +628,7 @@ def run(a=None, **kwargs):
         passed = passed and check_file(
             "muscles_activity_buffer.txt", sim_dir, line_num=sib_recorded_steps
         )
-        passed = passed and check_file("position_buffer.txt", sim_dir)
+        passed = passed and check_file("position_buffer.npy", sim_dir)
         passed = passed and check_file("report.json", sim_dir)
 
         if not passed:

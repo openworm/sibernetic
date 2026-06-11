@@ -590,9 +590,13 @@ def create_mesh(time_index):
 if __name__ == "__main__":
     plotter = pv.Plotter()
 
-    default_position_file = "buffers/position_buffer.txt"  # can be overwritten by arg
+    default_position_file = "buffers/position_buffer.npy"  # can be overwritten by arg
     report_file = None
 
+    if not os.path.isfile(default_position_file):
+        default_position_file = "buffers/position_buffer.txt"
+    if not os.path.isfile(default_position_file):
+        default_position_file = "Sibernetic/position_buffer.npy"
     if not os.path.isfile(default_position_file):
         default_position_file = (
             "Sibernetic/position_buffer.txt"  # example location in Worm3DViewer repo
@@ -612,12 +616,15 @@ if __name__ == "__main__":
                 report_file = os.path.join(sys.argv[1], "report.json")
                 dir_name = os.path.dirname(report_file)
 
+            elif os.path.isfile(os.path.join(sys.argv[1], "position_buffer.npy")):
+                position_file = os.path.join(sys.argv[1], "position_buffer.npy")
+                dir_name = os.path.dirname(position_file)
             elif os.path.isfile(os.path.join(sys.argv[1], "position_buffer.txt")):
                 position_file = os.path.join(sys.argv[1], "position_buffer.txt")
                 dir_name = os.path.dirname(position_file)
             else:
                 raise ValueError(
-                    f"Provided argument is a directory but no report.json or position_buffer.txt file found in it: {sys.argv[1]}"
+                    f"Provided argument is a directory but no report.json or position_buffer.npy/.txt file found in it: {sys.argv[1]}"
                 )
 
         elif "json" in sys.argv[1] and os.path.isfile(sys.argv[1]):

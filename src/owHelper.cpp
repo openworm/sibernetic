@@ -32,6 +32,7 @@
  *******************************************************************************/
 
 #include <algorithm>
+#include <cstring>
 #include <regex>
 #include <sstream>
 #include <stdio.h>
@@ -45,6 +46,13 @@
 
 #include "owHelper.h"
 #include "owPhysicsConstant.h"
+
+// .npy v1.0 binary format constants for position_buffer.npy / position_buffer_meta.npy
+// Header layout: 8-byte magic+version, 2-byte HEADER_LEN, 118-byte dict string = 128 bytes total.
+// The row count in position_buffer.npy is a 10-char space-padded field at byte offset 61.
+static const int NPY_HDR_LEN    = 118;
+static const int NPY_HDR_TOTAL  = 128;
+static const int NPY_NROW_OFFSET = 61;
 
 /** owHelpre class constructor
  */
@@ -389,56 +397,93 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp,
  *  @param size
  *  size of filter_p array
  */
+// Write a 128-byte .npy v1.0 header to f.
+// shape_str is the Python shape literal, e.g. "(11,)" or "(%10ld, 4)"-formatted.
+static void write_npy_header(FILE *f, const char *shape_str) {
+  const unsigned char magic[8] = {0x93,'N','U','M','P','Y',0x01,0x00};
+  fwrite(magic, 1, 8, f);
+  unsigned short hlen = (unsigned short)NPY_HDR_LEN;
+  fwrite(&hlen, 2, 1, f);
+  char hdr[119] = {};
+  int n = snprintf(hdr, sizeof(hdr),
+      "{'descr': '<f4', 'fortran_order': False, 'shape': %s, }", shape_str);
+  memset(hdr + n, ' ', 117 - n);
+  hdr[117] = '\n';
+  fwrite(hdr, 1, NPY_HDR_LEN, f);
+}
+
 void owHelper::loadConfigurationToFile(float *position,
                                        owConfigProperty *config,
                                        float *connections, int *membranes,
                                        bool firstIteration, int *filter_p,
                                        int size) {
-  std::ofstream positionFile;
-  std::string positionFileName =
-      config->getLoadPath() + std::string("/position_buffer.txt");
+  std::string basePath = config->getLoadPath();
+
   if (firstIteration) {
-    positionFile.open(positionFileName.c_str(), std::ofstream::trunc);
-    if (!positionFile)
-      throw std::runtime_error("There was a problem with creation of position "
-                               "file for logging check the path.");
-    positionFile << config->xmin << "\n";
-    positionFile << config->xmax << "\n";
-    positionFile << config->ymin << "\n";
-    positionFile << config->ymax << "\n";
-    positionFile << config->zmin << "\n";
-    positionFile << config->zmax << "\n";
-    positionFile << config->numOfElasticP << "\n";
-    positionFile << config->numOfLiquidP << "\n";
-    positionFile << config->numOfBoundaryP << "\n";
-    positionFile << config->getTimeStep() << "\n";
-    positionFile << config->getLogStep() << "\n";
-  } else {
-    positionFile.open(positionFileName.c_str(), std::ofstream::app);
-    if (!positionFile)
-      throw std::runtime_error("There was a problem with creation of position "
-                               "file for logging Check the path.");
+    // position_buffer_meta.npy — shape (11,) float32
+    // [xmin xmax ymin ymax zmin zmax numElastic numLiquid numBoundary timeStep logStep]
+    std::string metaFileName = basePath + "/position_buffer_meta.npy";
+    FILE *metaFile = fopen(metaFileName.c_str(), "wb");
+    if (!metaFile)
+      throw std::runtime_error("Cannot create position_buffer_meta.npy");
+    write_npy_header(metaFile, "(11,)");
+    float meta[11] = {
+        config->xmin,                   config->xmax,
+        config->ymin,                   config->ymax,
+        config->zmin,                   config->zmax,
+        (float)config->numOfElasticP,   (float)config->numOfLiquidP,
+        (float)config->numOfBoundaryP,  config->getTimeStep(),
+        (float)config->getLogStep()
+    };
+    fwrite(meta, sizeof(float), 11, metaFile);
+    fclose(metaFile);
+
+    // position_buffer.npy — shape (N, 4) float32, row count updated in-place each frame.
+    // Row count stored as space-padded 10-char field at byte offset NPY_NROW_OFFSET.
+    std::string posFileName = basePath + "/position_buffer.npy";
+    FILE *posFile = fopen(posFileName.c_str(), "wb");
+    if (!posFile)
+      throw std::runtime_error("Cannot create position_buffer.npy");
+    char shape[32];
+    snprintf(shape, sizeof(shape), "(%10ld, 4)", 0L);
+    write_npy_header(posFile, shape);
+    fclose(posFile);
   }
+
+  // Open for read+write, seek to end, append rows, then update row count.
+  std::string posFileName = basePath + "/position_buffer.npy";
+  FILE *posFile = fopen(posFileName.c_str(), "r+b");
+  if (!posFile)
+    throw std::runtime_error("Cannot open position_buffer.npy for update");
+
+  char rowBuf[11] = {0};
+  fseek(posFile, NPY_NROW_OFFSET, SEEK_SET);
+  fread(rowBuf, 1, 10, posFile);
+  long currentRows = atol(rowBuf);
+
+  long newRows = 0;
+  fseek(posFile, 0, SEEK_END);
   if (size == 0) {
     for (int i = 0; i < config->getParticleCount(); i++) {
       if ((int)position[4 * i + 3] != BOUNDARY_PARTICLE || firstIteration) {
-        positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1]
-                     << "\t" << position[i * 4 + 2] << "\t"
-                     << position[i * 4 + 3] << "\n";
+        fwrite(&position[i * 4], sizeof(float), 4, posFile);
+        newRows++;
       }
     }
   } else {
-    int i = 0;
-    int index = 0;
-    while (index != size) {
-      i = filter_p[index];
-      positionFile << position[i * 4 + 0] << "\t" << position[i * 4 + 1] << "\t"
-                   << position[i * 4 + 2] << "\t" << position[i * 4 + 3]
-                   << "\n";
-      index++;
+    for (int index = 0; index < size; index++) {
+      int i = filter_p[index];
+      fwrite(&position[i * 4], sizeof(float), 4, posFile);
     }
+    newRows = size;
   }
-  positionFile.close();
+
+  char newRowBuf[11];
+  snprintf(newRowBuf, sizeof(newRowBuf), "%10ld", currentRows + newRows);
+  fseek(posFile, NPY_NROW_OFFSET, SEEK_SET);
+  fwrite(newRowBuf, 1, 10, posFile);
+  fclose(posFile);
+
   if (firstIteration) {
     std::string connectionFileName =
         config->getLoadPath() + std::string("/connection_buffer.txt");
@@ -558,7 +603,7 @@ void owHelper::loadConfigurationToFile(float *position, float *velocity,
 }
 // This function needed for visualiazation buffered data
 long position_index = 0;
-std::ifstream positionFile;
+FILE *positionFile_bin = nullptr;
 
 /** Load configuration from file to simulation
  *
@@ -586,60 +631,62 @@ bool owHelper::loadConfigurationFromFile(float *&position, float *&connections,
                                          owConfigProperty *config,
                                          int iteration) {
   if (iteration == 0) {
-    std::string positionFileName =
-        config->getLoadPath() + std::string("/position_buffer.txt");
-    positionFile.open(positionFileName.c_str());
+    // Read metadata from position_buffer_meta.npy
+    std::string metaFileName =
+        config->getLoadPath() + std::string("/position_buffer_meta.npy");
+    FILE *metaFile = fopen(metaFileName.c_str(), "rb");
+    if (!metaFile)
+      throw std::runtime_error("Cannot open position_buffer_meta.npy");
+    fseek(metaFile, NPY_HDR_TOTAL, SEEK_SET);
+    float meta[11];
+    fread(meta, sizeof(float), 11, metaFile);
+    fclose(metaFile);
+    config->xmin           = meta[0];  config->xmax           = meta[1];
+    config->ymin           = meta[2];  config->ymax           = meta[3];
+    config->zmin           = meta[4];  config->zmax           = meta[5];
+    config->numOfElasticP  = (int)meta[6];
+    config->numOfLiquidP   = (int)meta[7];
+    config->numOfBoundaryP = (int)meta[8];
+    config->setTimeStep(meta[9]);
+    config->setLogStep((int)meta[10]);
+    config->setParticleCount(config->numOfElasticP + config->numOfLiquidP +
+                             config->numOfBoundaryP);
+    position = new float[4 * config->getParticleCount()];
+
+    std::string posFileName =
+        config->getLoadPath() + std::string("/position_buffer.npy");
+    positionFile_bin = fopen(posFileName.c_str(), "rb");
+    if (!positionFile_bin)
+      throw std::runtime_error("Cannot open position_buffer.npy");
+    fseek(positionFile_bin, NPY_HDR_TOTAL, SEEK_SET);
   }
-  unsigned int i = 0;
-  float x, y, z, p_type;
-  if (positionFile.is_open()) {
-    if (iteration == 0) {
-      float valueF;
-      int valueI;
-      positionFile >> config->xmin;
-      positionFile >> config->xmax;
-      positionFile >> config->ymin;
-      positionFile >> config->ymax;
-      positionFile >> config->zmin;
-      positionFile >> config->zmax;
-      positionFile >> config->numOfElasticP;
-      positionFile >> config->numOfLiquidP;
-      positionFile >> config->numOfBoundaryP;
-      positionFile >> valueF;
-      positionFile >> valueI;
-      config->setTimeStep(valueF);
-      config->setLogStep(valueI);
-      config->setParticleCount(config->numOfElasticP + config->numOfLiquidP +
-                               config->numOfBoundaryP);
-      position = new float[4 * config->getParticleCount()];
-    }
-    while (positionFile.good() && (int)i < config->getParticleCount()) {
-      if (static_cast<int>(p_type) != BOUNDARY_PARTICLE || iteration == 0) {
-        positionFile >> x >> y >> z >> p_type;
-        position[i * 4 + 0] = x;
-        position[i * 4 + 1] = y;
-        position[i * 4 + 2] = z;
-        position[i * 4 + 3] = p_type;
-      }
-      i++;
-    }
-    if (iteration == 0)
-      config->setParticleCount(config->numOfElasticP + config->numOfLiquidP);
-  }
-  if (!positionFile.good()) {
-    positionFile.close();
+
+  if (!positionFile_bin)
+    return false;
+
+  // Frame 0 includes boundary particles; subsequent frames do not.
+  int N = (iteration == 0)
+      ? config->getParticleCount()
+      : (config->numOfElasticP + config->numOfLiquidP);
+
+  size_t nread = fread(position, sizeof(float), 4 * N, positionFile_bin);
+  if (nread < (size_t)(4 * N)) {
+    fclose(positionFile_bin);
+    positionFile_bin = nullptr;
     return false;
   }
+
   if (iteration == 0) {
+    config->setParticleCount(config->numOfElasticP + config->numOfLiquidP);
+    unsigned int i = 0;
     std::string connectionFileName =
         config->getLoadPath() + std::string("/connection_buffer.txt");
     std::ifstream connectionFile(connectionFileName.c_str());
     connections = new float[MAX_NEIGHBOR_COUNT * config->numOfElasticP * 4];
     if (connectionFile.is_open()) {
-      i = 0;
       float jd, rij0, val1, val2;
       while (connectionFile.good() &&
-             i < MAX_NEIGHBOR_COUNT * config->numOfElasticP) {
+             i < MAX_NEIGHBOR_COUNT * (unsigned)config->numOfElasticP) {
         connectionFile >> jd >> rij0 >> val1 >> val2;
         connections[4 * i + 0] = jd;
         connections[4 * i + 1] = rij0;
@@ -655,13 +702,13 @@ bool owHelper::loadConfigurationFromFile(float *&position, float *&connections,
     if (membranesFile.is_open()) {
       int m_count = 0;
       membranesFile >> m_count;
-      int i = 0;
+      int mi = 0;
       membranes = new int[3 * m_count];
       /* TODO: skip first two membranes? */
-      while (membranesFile.good() && i < m_count) {
-        membranesFile >> membranes[3 * i + 0] >> membranes[3 * i + 1] >>
-            membranes[3 * i + 2];
-        i++;
+      while (membranesFile.good() && mi < m_count) {
+        membranesFile >> membranes[3 * mi + 0] >> membranes[3 * mi + 1] >>
+            membranes[3 * mi + 2];
+        mi++;
       }
     }
     membranesFile.close();

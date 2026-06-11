@@ -89,7 +89,9 @@ class SibSimulation:
             self._load_report(report_file)
             self.sim_dir = os.path.dirname(os.path.abspath(report_file))
             if position_file is None:
-                position_file = os.path.join(self.sim_dir, "position_buffer.txt")
+                npy = os.path.join(self.sim_dir, "position_buffer.npy")
+                txt = os.path.join(self.sim_dir, "position_buffer.txt")
+                position_file = npy if os.path.isfile(npy) else txt
         else:
             self.sim_dir = os.path.dirname(os.path.abspath(position_file))
 
@@ -123,6 +125,9 @@ class SibSimulation:
         )
 
     def _load_positions(self, position_file):
+        if position_file.endswith(".npy"):
+            self._load_positions_npy(position_file)
+            return
         points = {}
         types = []
         line_count = 0
@@ -226,6 +231,101 @@ class SibSimulation:
                 num_boundary,
                 num_elastic + num_liquid + num_boundary,
                 line_count,
+            )
+        )
+        print_(
+            f"Num of time points loaded: {len(self.all_3D_points)} (total: {time_count})"
+        )
+        print_(f"Loaded time points: {self.loaded_time_points}")
+        print_(f"Count of point types found: {dict(sorted(count_point_types.items()))}")
+
+    def _load_positions_npy(self, position_file):
+        meta_file = os.path.join(
+            os.path.dirname(os.path.abspath(position_file)),
+            "position_buffer_meta.npy",
+        )
+        meta = np.load(meta_file)
+        self.time_step = float(meta[9])
+        log_step = int(meta[10])
+        num_elastic = int(meta[6])
+        num_liquid = int(meta[7])
+        num_boundary = int(meta[8])
+        n_first = num_elastic + num_liquid + num_boundary
+        n_per_frame = num_elastic + num_liquid
+
+        if self.log_step is None:
+            self.log_step = log_step
+
+        data = np.load(position_file)  # shape (N_rows, 4), float32
+
+        if data.ndim != 2 or data.shape[1] != 4:
+            raise RuntimeError(
+                f"Unexpected shape {data.shape} in {position_file}, expected (N, 4)"
+            )
+
+        total_rows = len(data)
+        sampled = 1e6  # force first frame included
+        time_count = 0
+        offset = 0
+        count_point_types = {}
+
+        while offset < total_rows:
+            n_this = n_first if offset == 0 else n_per_frame
+            if offset + n_this > total_rows:
+                break
+            frame = data[offset : offset + n_this]
+            offset += n_this
+
+            sampled += 1
+            if sampled < self.downsample:
+                print_(
+                    f"  -- Skipping sample {sampled} due to downsampling factor {self.downsample}",
+                    self.verbose,
+                )
+            else:
+                points = {}
+                types = []
+                for row in frame:
+                    x, y, z, t = (
+                        float(row[0]),
+                        float(row[1]),
+                        float(row[2]),
+                        float(row[3]),
+                    )
+                    if t not in points:
+                        points[t] = []
+                    if time_count == 0:
+                        count_point_types[t] = count_point_types.get(t, 0) + 1
+                    if self.swap_y_z:
+                        points[t].append([y, x, z])
+                    else:
+                        points[t].append([x, y, z])
+                    types.append(t)
+
+                self.all_3D_points.append(points)
+                self.all_point_types.append(types)
+                sampled = 0
+
+                if self.dt is not None:
+                    self.loaded_time_points.append(time_count * log_step * self.dt)
+                else:
+                    self.loaded_time_points.append(time_count)
+
+            time_count += 1
+
+        self.num_elastic = num_elastic
+        self.num_liquid = num_liquid
+        self.num_boundary = num_boundary
+
+        print_(
+            "\nLoaded positions (binary) with %i elastic, %i liquid and %i boundary "
+            "points (%i total), %i frames"
+            % (
+                num_elastic,
+                num_liquid,
+                num_boundary,
+                num_elastic + num_liquid + num_boundary,
+                time_count,
             )
         )
         print_(
