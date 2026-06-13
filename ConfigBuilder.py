@@ -1,13 +1,18 @@
-import pprint
 import os
 import copy
+import re
 
 SIMULATION_BOX = "simulation box"
+PHYSICAL_PARAMETERS = "physical parameters"
 POSITION = "position"
 VELOCITY = "velocity"
 CONNECTION = "connection"
 MEMBRANES = "membranes"
 PARTICLE_MEM_INDEX = "particleMemIndex"
+
+MAX_NEIGHBOR_COUNT = 32  # must match MAX_NEIGHBOR_COUNT in owOpenCLConstant.h
+
+_PHYS_PARAM_RE = re.compile(r"^\s*(\w+)\s*:\s*([^\s/]+)")
 
 
 class Configuration:
@@ -17,51 +22,34 @@ class Configuration:
 
     def __init__(self):
         self.simulation_box = []
+        self.physical_parameters = {}
         self.particles = {}
         self.connections = []
         self.membranes = []
         self.particle_mem_index = []
 
     def is_liquid_type(self, particle_type):
-        """
-        Check if a particle type is liquid.
-        """
         return int(particle_type) == 1
 
     def is_elastic_type(self, particle_type):
-        """
-        Check if a particle type is elastic.
-        """
         return int(particle_type) == 2
 
     def is_boundary_type(self, particle_type):
-        """
-        Check if a particle type is a boundary particle.
-        """
         return int(particle_type) == 3
 
     def is_liquid(self, particle_id):
-        """
-        Check if a particle is liquid based on its type.
-        """
         if particle_id in self.particles:
             particle_type = self.particles[particle_id].get(POSITION)[3]
             return self.is_liquid_type(particle_type)
         return False
 
     def is_elastic(self, particle_id):
-        """
-        Check if a particle is elastic based on its type.
-        """
         if particle_id in self.particles:
             particle_type = self.particles[particle_id].get(POSITION)[3]
             return self.is_elastic_type(particle_type)
         return False
 
     def is_boundary(self, particle_id):
-        """
-        Check if a particle is a boundary particle based on its type.
-        """
         if particle_id in self.particles:
             particle_type = self.particles[particle_id].get(POSITION)[3]
             return self.is_boundary_type(particle_type)
@@ -74,9 +62,6 @@ class Configuration:
         include_elastic=True,
         include_boundary=True,
     ):
-        """
-        Get a list of particles with their positions and velocities.
-        """
         particles = []
 
         for i in self.particles:
@@ -121,8 +106,12 @@ class Configuration:
                 VELOCITY: (p[4][0], p[4][1], p[4][2], p[4][3]),
             }
         for c in connections:
-            # print (f"Adding connection: {c}")
-            if c[0] > 0:
+            # Connection IDs encode extra info in the fractional part (e.g. 1.3
+            # means particle 1, sub-type .3).  NO_PARTICLE_ID is -1; any
+            # non-negative integer part is a real particle reference that must
+            # be offset.  Using int() handles 0.0 and 0.3 correctly; the old
+            # `c[0] > 0` check incorrectly skipped particle 0.
+            if int(c[0]) >= 0:
                 c[0] = c[0] + elast_count
 
         self.connections += connections
@@ -158,8 +147,6 @@ class Configuration:
                     f"Unknown particle type for particle {i}: {self.particles[i]}"
                 )
 
-            # print(f"Particle {i}: {self.particles[i]}: Positions: {pos_count}, Velocities: {vel_count}")
-
         assert pos_count == vel_count, "Position and velocity counts do not match."
         assert pos_count == liquid_count + elastic_count + boundary_count, (
             "Particle counts do not match: "
@@ -172,6 +159,8 @@ class Configuration:
         )
         info += f"\n    Simulation box: x: {self.simulation_box[0]}->{self.simulation_box[1]}, y: {self.simulation_box[2]}->{self.simulation_box[3]}, z: {self.simulation_box[4]}->{self.simulation_box[5]} "
         info += "\n    Type counts: %s" % dict(sorted(type_counts.items()))
+        if self.physical_parameters:
+            info += "\n    Physical parameters: %s" % self.physical_parameters
 
         return info
 
@@ -180,9 +169,6 @@ class Configuration:
 
 
 def load_configuration_file(filename, verbose=False):
-    """
-    Load a configuration file
-    """
     configuration = Configuration()
     current_section = None
 
@@ -198,11 +184,23 @@ def load_configuration_file(filename, verbose=False):
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            if "[" in line:
-                current_section = line.strip("[]")
 
-            elif current_section == SIMULATION_BOX:
+            # Section headers are exactly "[name]".  Using startswith/endswith
+            # avoids false-positives on data lines that happen to contain "[".
+            if line.startswith("[") and line.endswith("]"):
+                section_name = line[1:-1]
+                if section_name == "end":
+                    break
+                current_section = section_name
+                continue
+
+            if current_section == SIMULATION_BOX:
                 configuration.simulation_box.append(float(line))
+
+            elif current_section == PHYSICAL_PARAMETERS:
+                m = _PHYS_PARAM_RE.match(line)
+                if m:
+                    configuration.physical_parameters[m.group(1)] = float(m.group(2))
 
             elif current_section == POSITION:
                 if verbose:
@@ -227,9 +225,8 @@ def load_configuration_file(filename, verbose=False):
                     print(
                         f" Particle {vel_count} - pos: {configuration.particles[vel_count][POSITION]}; vel: {configuration.particles[vel_count][VELOCITY]}"
                     )
-                # assert(configuration.particles[vel_count][POSITION][3] == float(particle_type))
-
                 vel_count += 1
+
             elif current_section == CONNECTION:
                 a, b, c, d = line.split()
                 configuration.connections.append(
@@ -247,11 +244,6 @@ def load_configuration_file(filename, verbose=False):
                     print("Checking particle membrane index line: %s" % line)
                 configuration.particle_mem_index.append(int(line))
 
-            else:
-                pass
-
-    pprint.pprint(configuration)
-
     return configuration
 
 
@@ -264,10 +256,12 @@ def write_configuration_file(
     include_boundary=True,
     verbose=False,
 ):
-    """
-    Write a configuration file
-    """
     with open(filename, "w") as file:
+        if configuration.physical_parameters:
+            file.write(f"[{PHYSICAL_PARAMETERS}]\n")
+            for key, value in configuration.physical_parameters.items():
+                file.write(f"{key}: {value}\n")
+
         file.write(f"[{SIMULATION_BOX}]\n")
         for value in configuration.simulation_box:
             file.write(f"{value}\n")
@@ -305,17 +299,28 @@ def write_configuration_file(
         file.write(elast)
         file.write(liquid)
         file.write(boundary)
-        file.write(f"[{VELOCITY}]\n")
+
+        # Omit the [velocity] section entirely when include_velocity=False.
+        # Writing the header with no entries would cause the C++ loader to read
+        # the wrong number of velocity records.
         if include_velocity:
+            file.write(f"[{VELOCITY}]\n")
             file.write(elast_velocity)
             file.write(liquid_velocity)
             file.write(boundary_velocity)
 
         file.write(f"[{CONNECTION}]\n")
         if include_elastics:
+            # C++ allocates exactly numElasticP * MAX_NEIGHBOR_COUNT slots.
+            assert len(configuration.connections) == elastic_count * MAX_NEIGHBOR_COUNT, (
+                f"Expected {elastic_count * MAX_NEIGHBOR_COUNT} connections "
+                f"({elastic_count} elastic × {MAX_NEIGHBOR_COUNT} slots), "
+                f"got {len(configuration.connections)}."
+            )
             for conn in configuration.connections:
-                assert int(conn[0] < elastic_count), (
-                    f"Connection: {conn} exceeds elastic count {elastic_count}."
+                assert int(conn[0]) < elastic_count, (
+                    f"Connection {conn} references particle {int(conn[0])} "
+                    f"which meets or exceeds elastic count {elastic_count}."
                 )
                 file.write(f"{conn[0]}\t{conn[1]}\t{conn[2]}\t{conn[3]}\n")
 
@@ -419,3 +424,4 @@ if __name__ == "__main__":
             conf = load_configuration_file(
                 config_file,
             )
+            print("Configuration loaded: %s" % conf)
