@@ -32,6 +32,9 @@ max_time = None
 
 verbose = False
 
+musc_chart = None
+curv_chart = None
+
 downsample = 1  # only load every nth time point of 3d positions
 
 
@@ -195,6 +198,7 @@ def get_color_info_for_type(type_):
 
 
 def add_muscle_activation_chart(sim_dir, pl, duration=None):
+    global musc_chart
 
     muscle_activation_file = os.path.join(sim_dir, "muscles_activity_buffer.txt")
     print_(f"Loading muscle activation file from: {muscle_activation_file}")
@@ -236,6 +240,7 @@ def add_muscle_activation_chart(sim_dir, pl, duration=None):
 
 
 def add_body_curvature_chart(sim_dir, pl, duration=None):
+    global curv_chart
 
     from wcon.generate_wcon import generate_wcon
 
@@ -432,6 +437,24 @@ def add_sibernetic_model(
         color="black",
     )
 
+    if musc_chart is not None:
+        pl.add_checkbox_button_widget(
+            toggle_musc_chart,
+            value=True,
+            position=(1470, button_height),
+            color_on="green",
+            color_off="darkgrey",
+        )
+
+    if curv_chart is not None:
+        pl.add_checkbox_button_widget(
+            toggle_curv_chart,
+            value=True,
+            position=(1540, button_height),
+            color_on="green",
+            color_off="darkgrey",
+        )
+
 
 def slider_updated(value):
     global replay_controller
@@ -500,6 +523,22 @@ def back_checkbox_pressed(value):
     global replay_controller
     print_(f" > Back checkbox pressed, value: {value}")
     replay_controller.step_backward()
+
+
+def toggle_musc_chart(value):
+    global musc_chart, plotter
+    print_(f" > Muscle activation chart toggle, value: {value}")
+    if musc_chart is not None:
+        musc_chart.visible = value
+        plotter.render()
+
+
+def toggle_curv_chart(value):
+    global curv_chart, plotter
+    print_(f" > Body curvature chart toggle, value: {value}")
+    if curv_chart is not None:
+        curv_chart.visible = value
+        plotter.render()
 
 
 def create_mesh(time_index):
