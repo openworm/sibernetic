@@ -312,7 +312,9 @@ def write_configuration_file(
         file.write(f"[{CONNECTION}]\n")
         if include_elastics:
             # C++ allocates exactly numElasticP * MAX_NEIGHBOR_COUNT slots.
-            assert len(configuration.connections) == elastic_count * MAX_NEIGHBOR_COUNT, (
+            assert (
+                len(configuration.connections) == elastic_count * MAX_NEIGHBOR_COUNT
+            ), (
                 f"Expected {elastic_count * MAX_NEIGHBOR_COUNT} connections "
                 f"({elastic_count} elastic × {MAX_NEIGHBOR_COUNT} slots), "
                 f"got {len(configuration.connections)}."
@@ -338,25 +340,112 @@ def write_configuration_file(
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) == 2 and sys.argv[1] == "-g1":
-        config_file = "configuration/demo1"
-        out_file = "configuration/gravity_test1"
+    if len(sys.argv) == 2 and sys.argv[1] == "-w2":
+        config_file = "configuration/worm_alone_half_resolution"
+        config_file = "configuration/worm_swim_half_resolution"
+
+        out_file = "configuration/multiworm"
         conf = load_configuration_file(
             config_file,
         )
+        conf2 = load_configuration_file(
+            config_file,
+        )
+
+        print("-----")
+        positions = [(25, 20, 5)]
+        positions = [
+            (25, 20, 5),
+            (5, 30, 25),
+            (5, 20, 65),
+            (-15, 30, 65),
+            (-5, 20, 5),
+            (-25, 20, 65),
+        ]
+        positions = [
+            (25, 20, 5),
+            (5, 30, 25),
+            (5, 20, 65),
+        ]
+
+        adds = []
+        for p in positions:
+            particles, connections = conf.get_particles(
+                translate=p,
+                include_liquid=False,
+                include_elastic=True,
+                include_boundary=False,
+            )
+            print(
+                " Adding %s particles with %s connections to configuration."
+                % (len(particles), len(connections))
+            )
+            conf2.add_particles(particles, connections)
+
         write_configuration_file(
             out_file,
-            conf,
+            conf2,
             verbose=True,
-            include_liquid=False,
+            include_liquid=True,
             include_elastics=True,
             include_boundary=True,
         )
-        print("Configuration loaded for gravity test: %s" % conf)
+        print("Configuration loaded for test: %s" % conf)
 
         print("================================")
         conf3 = load_configuration_file(out_file)
         print("Configuration reloaded from output file: %s" % conf3)
+
+    elif len(sys.argv) == 2 and sys.argv[1] == "-w":
+        config_file_box = "configuration/demo1"
+        config_file_worm = "configuration/worm_alone_half_resolution"
+        out_file = "configuration/worm_box"
+
+        conf_box = load_configuration_file(
+            config_file_box,
+        )
+        conf_worm = load_configuration_file(
+            config_file_worm,
+        )
+
+        print("-----")
+        positions = []
+
+        space = 20
+        for x in range(-20, 60, space):
+            for y in range(20, 120, space):
+                for z in range(-20, 200, space):
+                    print("Adding box at position: ", x, y, z)
+                    positions.append((x, y, z))
+
+        adds = []
+        for p in positions:
+            particles, connections = conf_box.get_particles(
+                translate=p,
+                include_liquid=True,
+                include_elastic=False,
+                include_boundary=False,
+            )
+            print(
+                " Adding %s particles with %s connections to configuration."
+                % (len(particles), len(connections))
+            )
+            conf_worm.add_particles(particles, connections)
+
+        write_configuration_file(
+            out_file,
+            conf_worm,
+            verbose=True,
+            include_liquid=True,
+            include_elastics=True,
+            include_boundary=True,
+        )
+        print("Configuration written for worm test: %s" % conf_worm)
+
+        print("================================")
+        conf3 = load_configuration_file(out_file)
+        print("Configuration reloaded from output file: %s" % conf3)
+
     elif len(sys.argv) == 2 and sys.argv[1] == "-g":
         config_file = "configuration/demo2"
         out_file = "configuration/gravity_test"
