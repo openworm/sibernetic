@@ -16,6 +16,10 @@ import os
 import time
 import math
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 import pprint
 
 pp = pprint.PrettyPrinter(indent=4)
