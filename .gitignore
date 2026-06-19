@@ -74,3 +74,12 @@ simulations
 
 # Project-local Python venv created by setup.sh
 /.venv/
+
+/*.mod
+/report.txt
+/cube.sh
+/install_drivers.sh
+/tests/*.dat
+/configuration/gravity_test
+/configuration/multiworm
+/tests/test_one_sprig_test.py

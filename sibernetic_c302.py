@@ -16,11 +16,15 @@ import os
 import time
 import math
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 import pprint
 
 pp = pprint.PrettyPrinter(indent=4)
 
-script_version = "0.1.8"  # This will change at different rate to C++ code...
+script_version = "0.2.1"  # This will change at different rate to C++ code...
 
 DEFAULTS = {
     "duration": 2.0,
@@ -33,10 +37,15 @@ DEFAULTS = {
     "device": "ALL",
     "configuration": "worm",
     "noc302": False,
+    "lems": None,
     "outDir": "simulations",
     "datareader": "SpreadsheetDataReader",
     "test": False,
+    "simName": None,  # This is set to None by default (will be generated from other info), but can be set explicitly
+    "q": False,
 }
+
+SUCCESS = "Completed successfully"
 
 
 """
@@ -79,7 +88,7 @@ def process_args():
         "-noc302",
         action="store_true",
         default=DEFAULTS["noc302"],
-        help="Use this flag to run Sibernetic with the inbuilt (Python based) sine wave generator, using specified duration/configuration etc. and saving in simulations directory, default: %s"
+        help="Use this flag to run Sibernetic with the inbuilt (Python based) sine wave generator, using specified duration/configuration etc. and saving in <outDir> directory, default: %s"
         % DEFAULTS["noc302"],
     )
 
@@ -153,6 +162,14 @@ def process_args():
     )
 
     parser.add_argument(
+        "-lems",
+        type=str,
+        metavar="<lems>",
+        default=DEFAULTS["lems"],
+        help="Points to LEMS file. NOTE: Work in progress!!",
+    )
+
+    parser.add_argument(
         "-datareader",
         type=str,
         metavar="<datareader>",
@@ -168,6 +185,23 @@ def process_args():
         help="Output directory, default: %s" % DEFAULTS["outDir"],
     )
 
+    parser.add_argument(
+        "-simName",
+        type=str,
+        metavar="<simName>",
+        default=DEFAULTS["simName"],
+        help="Simulation name, default: %s, if not set, will be generated from other info incl date/time"
+        % DEFAULTS["simName"],
+    )
+
+    parser.add_argument(
+        "-q",
+        action="store_true",
+        default=DEFAULTS["q"],
+        help="Use this flag to run Sibernetic with less output to console per time step, default: %s"
+        % DEFAULTS["q"],
+    )
+
     return parser.parse_args()
 
 
@@ -179,7 +213,9 @@ def print_(msg):
 def main(args=None):
     if args is None:
         args = process_args()
-    run(a=args)
+    simdir, reportj = run(a=args)
+    if not reportj["completion_status"] == SUCCESS:
+        exit(-1)  # Exit with error if simulation not successful
 
 
 def build_namespace(a=None, **kwargs):
@@ -259,18 +295,16 @@ def dynamic_import(abs_module_path, class_name):
 
 
 def run(a=None, **kwargs):
-    a = build_namespace(a, **kwargs)
+    try:
+        import neuroml  # noqa: F401
+        import pyneuroml  # noqa: F401
+    except Exception as e:
+        print_(
+            "Cannot import one of the required packages. Please install!\n"
+            "Exception: %s\n" % e
+        )
 
-    if not a.noc302:
-        try:
-            import neuroml  # noqa: F401
-            import pyneuroml  # noqa: F401
-            import xlrd  # noqa: F401
-        except Exception as e:
-            print_(
-                "Cannot import one of the required packages. Please install!\n"
-                "Exception: %s\n" % e
-            )
+    a = build_namespace(a, **kwargs)
 
     if not a.noc302:
         try:
@@ -297,14 +331,20 @@ def run(a=None, **kwargs):
     if not os.path.isdir(a.out_dir):
         os.mkdir(a.out_dir)
 
-    current_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
+    current_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
 
-    if not a.noc302:
-        ref = a.reference
-        sim_ref = "%s_%s_%s" % (a.c302params, ref, current_time)
-
+    if a.sim_name is not None:
+        sim_ref = a.sim_name
     else:
-        sim_ref = "Sibernetic_%s" % (current_time)
+        if not a.noc302:
+            if a.lems:
+                sim_ref = "Sim_%s" % (a.lems.split("/")[-1])
+            else:
+                ref = a.reference
+                sim_ref = "%s_%s_%s" % (a.c302params, ref, current_time)
+
+        else:
+            sim_ref = "Sibernetic_%s" % (current_time)
 
     # sim_dir = "simulations/%s" % (sim_ref)
     sim_dir = os.path.join(a.out_dir, sim_ref)
@@ -316,23 +356,27 @@ def run(a=None, **kwargs):
         run_dir = os.environ["SIBERNETIC_HOME"]
 
     if not a.noc302:
-        id = "%s_%s" % (a.c302params, ref)
+        if a.lems is not None:
+            lems_file = a.lems
 
-        setup = dynamic_import("c302.c302_%s" % ref, "setup")
+        else:
+            id = "%s_%s" % (a.c302params, a.reference)
 
-        setup(
-            a.c302params,
-            generate=True,
-            duration=a.duration,
-            dt=a.dt,
-            target_directory=sim_dir,
-            data_reader=a.datareader,
-        )
+            setup = dynamic_import("c302.c302_%s" % a.reference, "setup")
 
-        lems_file0 = os.path.join(sim_dir, "LEMS_c302_%s.xml" % id)
-        lems_file = os.path.join(sim_dir, "LEMS_c302.xml")
-        print_("Renaming %s -> %s" % (lems_file0, lems_file))
-        os.rename(lems_file0, lems_file)
+            setup(
+                a.c302params,
+                generate=True,
+                duration=a.duration,
+                dt=a.dt,
+                target_directory=sim_dir,
+                data_reader=a.datareader,
+            )
+
+            lems_file0 = os.path.join(sim_dir, "LEMS_c302_%s.xml" % id)
+            lems_file = os.path.join(sim_dir, "LEMS_c302.xml")
+            print_("Renaming %s -> %s" % (lems_file0, lems_file))
+            os.rename(lems_file0, lems_file)
 
         announce("Generating NEURON files from: %s..." % lems_file)
 
@@ -387,9 +431,10 @@ def run(a=None, **kwargs):
             sys.exit()
 
     command = (
-        "./Release/Sibernetic %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s"
+        "./Release/Sibernetic %s %s -f %s -no_g -l_to lpath=%s timelimit=%s timestep=%s logstep=%s device=%s"
         % (
             "" if a.noc302 else "-c302",
+            "-q" if a.q else "",
             a.configuration,
             sim_dir,
             a.duration / 1000.0,
@@ -400,9 +445,11 @@ def run(a=None, **kwargs):
     )
 
     env = {
-        "DISPLAY": os.environ.get("DISPLAY") if os.environ.get("DISPLAY") else "",
+        "DISPLAY": os.environ.get("DISPLAY")
+        if os.environ.get("DISPLAY") is not None
+        else "",
         "XAUTHORITY": os.environ.get("XAUTHORITY")
-        if os.environ.get("XAUTHORITY")
+        if os.environ.get("XAUTHORITY") is not None
         else "",
         "PYTHONPATH": ".:%s:%s"
         % (os.environ.get("PYTHONPATH", "."), os.path.abspath(sim_dir)),
@@ -414,7 +461,6 @@ def run(a=None, **kwargs):
 
     reportj = {}
 
-    SUCCESS = "Completed successfully"
     completion_status = "Not completed"
 
     announce(
@@ -422,25 +468,12 @@ def run(a=None, **kwargs):
         % (a.duration, command, run_dir, env)
     )
     try:
-        if pynml is not None:
-            pynml_success = pynml.execute_command_in_dir_with_realtime_output(
-                command, run_dir, prefix="Sibernetic >> ", env=env, verbose=True
-            )
-            completion_status = (
-                SUCCESS if pynml_success else "Failure running command: %s" % command
-            )
-        else:
-            import subprocess
-            import shlex
-
-            res = subprocess.run(
-                shlex.split(command), cwd=run_dir, env=env, capture_output=True
-            )
-            if res.returncode == 0:
-                completion_status = SUCCESS
-            else:
-                sys.stderr.write(res.stderr.decode())
-                completion_status = f"Failure running command: {command}"
+        pynml_success = pynml.execute_command_in_dir_with_realtime_output(
+            command, run_dir, prefix="Sibernetic >> ", env=env, verbose=True
+        )
+        completion_status = (
+            SUCCESS if pynml_success else "Failure running command: %s" % command
+        )
     except KeyboardInterrupt:
         print_("\nCaught CTRL+C. Continue...\n")
         completion_status = "Caught CTRL+C"
@@ -469,8 +502,11 @@ def run(a=None, **kwargs):
     reportj["os_version"] = ", ".join(platform.uname())
 
     if not a.noc302:
-        reportj["reference"] = a.reference
-        reportj["c302params"] = a.c302params
+        if a.lems:
+            reportj["lems"] = a.lems
+        else:
+            reportj["reference"] = a.reference
+            reportj["c302params"] = a.c302params
         reportj["c302_version"] = c302.__version__
 
         for m in ["pyneuroml", "neuroml", "matplotlib", "numpy", "cect"]:
@@ -498,6 +534,7 @@ def run(a=None, **kwargs):
 
     reportj["generation_time"] = "%s s" % (sim_start - gen_start)
     reportj["run_time"] = "%s s" % (sim_end - sim_start)
+    reportj["run_time_hr"] = "%s hr" % ((sim_end - sim_start) / 3600.0)
     reportj["device"] = "%s" % (a.device)
     reportj["configuration"] = "%s" % (a.configuration)
     reportj["run_command"] = command
@@ -611,9 +648,11 @@ def run(a=None, **kwargs):
 
         if not passed:
             announce("Failed tests!!")
-            exit(-1)
+            reportj["completion_status"] += " (Failed tests)"
         else:
             announce("Passed all tests!!")
+
+    return sim_dir, reportj
 
 
 if __name__ == "__main__":

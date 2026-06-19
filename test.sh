@@ -1,13 +1,18 @@
 #!/bin/bash
 set -ex
 
-./setup.sh
+#./setup.sh  # Run this outside test.sh
 
-ruff format *.py
-ruff check *.py
+ruff format *.py wcon/*.py tests/*.py
+ruff check *.py wcon/*.py tests/*.py
 
 make clean
-make
+make -j4
 
-./run_all_tests.sh
+# Run tests using native ./Release/Sibernetic executable with OpenCL
+time ./run_opencl_tests.sh $@
+
+# Run tests using sibernetic_c302.py
+time ./run_sibernetic_c302_tests.sh $@ 
+
 

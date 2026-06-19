@@ -22,11 +22,12 @@ jobs:
       run: |
         git config --global core.autocrlf false
         git config --global core.eol lf
-
-    - uses: actions/checkout@v4
+        
+    - uses: actions/checkout@v6
 
     - name: Install AMD OpenCL libraries needed for Sibernetic
       run: |
+
         lscpu
 
         echo "Installing OpenCL Drivers"
@@ -36,6 +37,8 @@ jobs:
         tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
         printf 'Y\n\n' | sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
 
+        sudo apt update
+        
         sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libOpenCL.so.1 /usr/lib/libOpenCL.so.1
         sudo ln -s /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libamdocl64.so /usr/lib/libamdocl64.so
 
@@ -48,7 +51,9 @@ jobs:
 
     - name: Build Sibernetic
       run: |
-        sudo apt install -y python3-dev python3-numpy freeglut3-dev libglu1-mesa-dev
+
+        sudo apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
+        #sudo apt install -y  --allow-downgrades libc-bin=2.27-3ubuntu1.5 # Fails with 2.27-3ubuntu1.6 for some reason...
         python -V
         ls -alt /usr/bin/python*
         ls -alt
@@ -59,27 +64,44 @@ jobs:
       run: |
         ./Release/Sibernetic -h
 
-    - name: Run quick Sibernetic OpenCL test
+    - name: Run quick Sibernetic test
       run: |
         ldd ./Release/Sibernetic
+
         ./Release/Sibernetic -no_g timelimit=0.001
 
-    - name: Run tests
+    - name: Install Python dependencies
       run: |
-        pip install c302 neuron pytest pyneuroml
-        pip list
+        pip install -r requirements.txt
+      
         which nrniv
+
+        pip list
+
+    - name: Run tests
+      env:
+        MPLBACKEND: Agg
+      run: |
+
         export NEURON_HOME=/home/runner/.local
-        ./run_all_tests.sh
+
+        ./test.sh -all
+
+        omv find 
+        omv all -V 
 
     - name: Generated file info
       run: |
-        ls -alt simulations/*
-        more simulations/C1_*/report.json
+        
+        ls -alth simulations/*
+        more simulations/test_*/report.json
+
 
     - name: Final version info
       run: |
+        
         python -V
+        omv list -V 
         pip list
 
 

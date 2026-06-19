@@ -36,6 +36,7 @@
 #include <stdexcept>
 #include <iomanip>
 #include <cstring>  // for memcpy
+#include <sys/time.h>
 
 #include "owPhysicsFluidSimulator.h"
 #include "owSignalSimulator.h"

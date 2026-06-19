@@ -1,0 +1,8 @@
+c302>=0.10.1
+neuron<9.0
+
+ruff
+pyvista
+pytest
+
+OSBModelValidation # For the OMV tests
