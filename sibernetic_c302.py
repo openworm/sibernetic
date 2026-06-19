@@ -32,7 +32,7 @@ DEFAULTS = {
     "datareader": "SpreadsheetDataReader",
     "test": False,
     "simName": None,  # This is set to None by default (will be generated from other info), but can be set explicitly
-    "q": False,
+    "q": True,  # Less output to console per time step
 }
 
 SUCCESS = "Completed successfully"
