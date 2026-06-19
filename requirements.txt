@@ -3,4 +3,3 @@ neuron<9.0
 
 ruff
 pyvista
-
