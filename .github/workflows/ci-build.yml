@@ -78,6 +78,8 @@ jobs:
         pip list
 
     - name: Run tests
+      env:
+        MPLBACKEND: Agg
       run: |
 
         export NEURON_HOME=/home/runner/.local
