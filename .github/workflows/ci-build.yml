@@ -85,13 +85,18 @@ jobs:
 
         ./Release/Sibernetic -no_g timelimit=0.001
 
-    - name: Run tests
+    - name: Install Python dependencies
       run: |
         pip install -r requirements.txt
       
         pip install OSBModelValidation # For the OMV tests
-        pip list
         which nrniv
+
+        pip list
+
+    - name: Run tests
+      run: |
+
         export NEURON_HOME=/home/runner/.local
 
         ./test.sh -all
