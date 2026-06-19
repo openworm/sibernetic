@@ -74,3 +74,6 @@ simulations
 /cube.sh
 /install_drivers.sh
 /tests/*.dat
+/configuration/gravity_test
+/configuration/multiworm
+/tests/test_one_sprig_test.py
