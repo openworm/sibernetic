@@ -5,7 +5,7 @@ ruff format *.py wcon/*.py tests/*.py
 ruff check *.py wcon/*.py tests/*.py
 
 make clean
-make
+make -j4
 
 # Run tests using native ./Release/Sibernetic executable with OpenCL
 time ./run_opencl_tests.sh $@
