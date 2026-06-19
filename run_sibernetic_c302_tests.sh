@@ -22,7 +22,7 @@ python3 sibernetic_c302.py -test -noc302 -duration 0.054 -logstep 3 -simName tes
 python3 sibernetic_c302.py -test  -duration 1.1  -c302params C1 -simName test_c302 -q
 
 # c302 + half_resolution
-python3 sibernetic_c302.py -test  -duration 1 -c302params C0 -configuration worm_alone_half_resolution -simName test_c302_half_resolution -q
+python3 sibernetic_c302.py -test  -duration 10 -c302params C0 -configuration worm_alone_half_resolution -simName test_c302_half_resolution -q
 
 # c302 + TestMuscle 
 python3 sibernetic_c302.py -test -duration 20 -c302params C0 -reference TargetMuscle -configuration worm_alone_half_resolution -logstep 500 -simName test_c302_half_resolution_target_muscle -q
