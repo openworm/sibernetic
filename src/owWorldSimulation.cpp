@@ -43,6 +43,8 @@ extern bool load_to;
 extern bool skip_display_particles;
 extern bool skip_display_membranes;
 extern bool skip_display_connections;
+extern int start_timestep;
+extern int stop_timestep;
 
 int old_x = 0, old_y = 0; // Used for mouse event
 float camera_trans[] = {0, 0, -8.0};
@@ -198,6 +200,15 @@ void display(void) {
       }
     }
     helper->refreshTime();
+  }
+
+  if (iteration < start_timestep) {
+    return;
+  }
+  if (stop_timestep > 0 && iteration >= stop_timestep) {
+    std::cout << "Simulation has reached the time limit..." << std::endl;
+    cleanupSimulation();
+    exit(EXIT_SUCCESS);
   }
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
