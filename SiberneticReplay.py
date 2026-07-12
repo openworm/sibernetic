@@ -22,6 +22,7 @@ last_actors = {}
 show_liquid = True
 show_elastic = True
 show_boundary_particles = True
+show_footprint_outline = True
 
 replay_speed = 0.02  # seconds between frames
 replaying = False
@@ -306,6 +307,7 @@ def add_sibernetic_model(
     swap_y_z=False,
     offset3d=(0, 0, 0),
     include_boundary=False,
+    show_footprint=True,
 ):
     global \
         sim_positions, \
@@ -316,7 +318,8 @@ def add_sibernetic_model(
         show_boundary, \
         show_boundary_particles, \
         max_time, \
-        replay_controller
+        replay_controller, \
+        show_footprint_outline
 
     print_(
         f"Adding Sibernetic model from position file: {position_file}, report file: {report_file}"
@@ -329,6 +332,7 @@ def add_sibernetic_model(
     plotter = pl
     show_boundary = include_boundary
     show_boundary_particles = include_boundary
+    show_footprint_outline = show_footprint
 
     sim_positions = SibSimulation(
         position_file=position_file,
@@ -682,8 +686,9 @@ def create_mesh(time_index):
 
             print_(f"        >>>>>>>>>>   Boundary box points: {a}, {b}, {c}, {d}")
             points = np.array([a, b, b, c, c, d, d, a])
-            plotter.add_lines(points, color="grey", width=2)
-            # fall through so boundary particles are still added to last_actors (hidden)
+            if show_footprint_outline:
+                plotter.add_lines(points, color="grey", width=2)
+                # fall through so boundary particles are still added to last_actors (hidden)
 
         if verbose:
             print_(
