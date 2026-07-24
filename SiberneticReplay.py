@@ -568,7 +568,7 @@ def play_checkbox_pressed(value):
 def ff_checkbox_pressed(value):
     global replay_controller
     print_(f" > FF checkbox pressed, value: {value}")
-    replay_controller.play(value, 3)
+    replay_controller.play(value, 10)
 
 
 def back_checkbox_pressed(value):
