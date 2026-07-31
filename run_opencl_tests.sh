@@ -43,11 +43,14 @@ run_test () {
             rm -f ${sim_dir}/* # remove any previous simulation files
             ./Release/Sibernetic -f ${config} -l_to lpath=${sim_dir} timelimit=${timelimit} timestep=${timestep} logstep=${logstep} device=ALL ${no_gui} -q ${export_vtk}
             
-            # check if there is an OMV test 
+            # check if there is an OMV test
             if [ -f "tests/.test.${config}.omt" ]; then
-                omv test -V tests/.test.${config}.omt
+
+                if ! omv test -V tests/.test.${config}.omt; then
+                    echo "OMV test failed: tests/.test.${config}.omt\n" >> omv_errors
+                fi
             else
-                echo "No OMV test foundat tests/.test.${config}.omt, skipping that part of the test"
+                echo "No OMV test found at tests/.test.${config}.omt, skipping that part of the test"
             fi
             
             # Test reloading the simulation files with Python viewer
