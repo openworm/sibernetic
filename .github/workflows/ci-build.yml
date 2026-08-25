@@ -92,6 +92,8 @@ jobs:
         
         ls -alth simulations/*
         more simulations/test_*/report.json
+        echo "------  OMV report:"
+        more omv_*
 
 
     - name: Final version info

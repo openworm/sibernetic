@@ -4,14 +4,40 @@ set -ex
 # This script will run a number of tests in OpenCL mode, directly on the Sibernetic executable.
 
 # Arguments passed to this script, used below to decide which example(s) to show
-script_args="$*"
+script_args=("$@")
 
 no_gui="-no_g"
 
-if [[ "$script_args" == *"-vtk"* ]]; then
+# Check if a given exact argument was passed to this script
+has_arg () {
+    local target="$1"
+    local a
+    for a in "${script_args[@]}"; do
+        [[ "$a" == "$target" ]] && return 0
+    done
+    return 1
+}
+
+# Check if any argument passed to this script starts with the given prefix
+has_arg_prefix () {
+    local prefix="$1"
+    local a
+    for a in "${script_args[@]}"; do
+        [[ "$a" == "$prefix"* ]] && return 0
+    done
+    return 1
+}
+
+if has_arg "-vtk"; then
     export_vtk="-export_vtk"
 else
     export_vtk=""
+fi
+
+if has_arg "-q" || has_arg "-quick"; then
+    quick_run=true
+else
+    quick_run=false
 fi
 
 export PYTHONPATH=$PYTHONPATH:.
@@ -36,10 +62,10 @@ run_test () {
         mkdir -p "$sim_dir"
     fi
 
-    if [[ "$script_args" == *"$show_flag"* ]]; then
+    if has_arg "$show_flag"; then
         ./Release/Sibernetic -l_from lpath=${sim_dir}
     else
-        if [[ "$script_args" != *"-show"* ]]; then # i.e. not showing any other example
+        if ! has_arg_prefix "-show"; then # i.e. not showing any other example
             rm -f ${sim_dir}/* # remove any previous simulation files
             ./Release/Sibernetic -f ${config} -l_to lpath=${sim_dir} timelimit=${timelimit} timestep=${timestep} logstep=${logstep} device=ALL ${no_gui} -q ${export_vtk}
             
@@ -47,10 +73,12 @@ run_test () {
             if [ -f "tests/.test.${config}.omt" ]; then
 
                 if ! omv test -V tests/.test.${config}.omt; then
-                    echo "OMV test failed: tests/.test.${config}.omt\n" >> omv_errors
+                    echo "OMV test failed: tests/.test.${config}.omt" >> omv_report
+                else
+                    echo "OMV test passed: tests/.test.${config}.omt" >> omv_report
                 fi
             else
-                echo "No OMV test found at tests/.test.${config}.omt, skipping that part of the test"
+                echo "No OMV test found at tests/.test.${config}.omt, skipping that part of the test" >> omv_report
             fi
             
             # Test reloading the simulation files with Python viewer
@@ -66,7 +94,7 @@ run_test demo1 0.03 2e-5 20
 run_test demo2 0.02 2e-5 20
 
 
-if [[ "$script_args" != *"-quick"* ]]; then 
+if [ "$quick_run" = false ]; then
 
     # Worm alone, half resolution (for faster testing)
     run_test worm_alone_half_resolution 0.02 2e-5 20
