@@ -214,12 +214,13 @@ class C302NRNSimulation:
             self.var_name = "output"
             self.scale_it = False
             self.print_it = False
+        """
         else:
             self.var_pre = "m_GenericMuscleCell_M"
             self.var_template = "m_M{0}1_PopM{0}1"
             self.var_name = "state"
             self.scale_it = False
-            self.print_it = False
+            self.print_it = False """
 
     def save_results(self):
         print_("> Saving results at time: %s" % self.h.t)
@@ -285,8 +286,6 @@ class C302NRNSimulation:
 
             var = self.var_template.format(DV, RL, zero, index)
 
-            if i == 23:
-                var = self.var_template.format(DV, RL, "", 23)
             try:
                 h_obj = getattr(self.h, var)[0 if "{3}" in self.var_template else i]
                 val = (
@@ -312,6 +311,9 @@ class C302NRNSimulation:
 
             var = self.var_template.format(DV, RL, zero, index)
 
+            if i == 23:
+                var = self.var_template.format(DV, RL, "", 23)
+
             # var = "%sVL%s" % (var_pre, (i + 1 if i > 8 else ("0%i" % (i + 1))))
             try:
                 h_obj = getattr(self.h, var)[0 if "{3}" in self.var_template else i]
@@ -321,21 +323,10 @@ class C302NRNSimulation:
                     else getattr(h_obj, self.var_name)
                 )
             except AttributeError as e:
-                if var == "%sVL24" % self.var_pre:
-                    if self.verbose:
-                        print_(
-                            "Problem passing neuronal output of %s to muscle in Sibernetic: %s"
-                            % (var, e)
-                        )
-                        print_(
-                            "Note: not an issue as no muscle MVL24 in the real C. elegans"
-                        )
-                    val = 0
-                else:
-                    raise Exception(
-                        "Problem passing neuronal output of %s to muscle in Sibernetic: %s"
-                        % (var, e)
-                    )
+                raise Exception(
+                    "Problem passing neuronal output of %s to muscle in Sibernetic: %s"
+                    % (var, e)
+                )
             scaled_val = self._scale(
                 val, print_it=self.print_it, scale_it=self.scale_it
             )
