@@ -201,6 +201,27 @@ class C302NRNSimulation:
             % (self.tstop, dt)
         )
 
+        if hasattr(self.h, "a_MDR01"):
+            self.var_pre = "a_M"
+            self.var_template = "a_M{0}{1}{2}{3}"
+            self.var_name = "cai"
+            self.scale_it = True
+            self.print_it = False
+
+        elif hasattr(self.h, "m_GenericMuscleCell_MDR01"):
+            self.var_pre = "m_GenericMuscleCell_M"
+            self.var_template = "m_GenericMuscleCell_M{0}{1}{2}{3}"
+            self.var_name = "output"
+            self.scale_it = False
+            self.print_it = False
+        """
+        else:
+            self.var_pre = "m_GenericMuscleCell_M"
+            self.var_template = "m_M{0}1_PopM{0}1"
+            self.var_name = "state"
+            self.scale_it = False
+            self.print_it = False """
+
     def save_results(self):
         print_("> Saving results at time: %s" % self.h.t)
 
@@ -214,29 +235,9 @@ class C302NRNSimulation:
         if self.verbose:
             print_("< Current NEURON time: %s ms" % self.h.t)
 
-        """if hasattr(self.h, "a_MDR01"):
-            var_pre = "a_M"
-            var_template = "a_M{0}{1}{2}{3}"
-            var_name = "cai"
-            scale_it = True
-            print_it = False
-
-        elif hasattr(self.h, "m_GenericMuscleCell_MDR01"):
-            var_pre = "m_GenericMuscleCell_M"
-            var_template = "m_GenericMuscleCell_M{0}{1}{2}{3}"
-            var_name = "output"
-            scale_it = False
-            print_it = False
-        else:
-            var_pre = "m_GenericMuscleCell_M"
-            var_template = "m_M{0}1_PopM{0}1"
-            var_name = "state"
-            scale_it = False
-            print_it = False"""
-
         values = []
         vars_read = []
-        for i in range(24):
+        for i in range(24): # DR muscles
             var = "a_MDR%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             try:
                 val = getattr(self.h, var)[0].soma.cai
@@ -250,7 +251,7 @@ class C302NRNSimulation:
             scaled_val = self._scale(val)
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24):
+        for i in range(24): # VR muscles
             var = "a_MVR%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             if i == 23:
                 var = "a_MVR23"
@@ -266,7 +267,7 @@ class C302NRNSimulation:
             scaled_val = self._scale(val)
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24):
+        for i in range(24): # VL muscles
             var = "a_MVL%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             try:
                 val = getattr(self.h, var)[0].soma.cai
@@ -287,7 +288,7 @@ class C302NRNSimulation:
             scaled_val = self._scale(val)
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24):
+        for i in range(24): # DL muscles
             var = "a_MDL%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             try:
                 val = getattr(self.h, var)[0].soma.cai
