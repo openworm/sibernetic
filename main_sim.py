@@ -238,7 +238,7 @@ class C302NRNSimulation:
         values = []
         vars_read = []
 
-        for i in range(24):
+        for i in range(24): # DR muscles
             """
             var = "a_MDR%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             try:
@@ -278,7 +278,7 @@ class C302NRNSimulation:
             )
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24):
+        for i in range(24): # VR muscles
             DV = "V"
             RL = "R"
             index = i + 1
@@ -303,7 +303,7 @@ class C302NRNSimulation:
             )
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24):
+        for i in range(24): # VL muscles
             DV = "V"
             RL = "L"
             index = i + 1
@@ -332,7 +332,7 @@ class C302NRNSimulation:
             )
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24):
+        for i in range(24): # DL muscles
             DV = "D"
             RL = "L"
             index = i + 1
