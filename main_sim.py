@@ -272,9 +272,8 @@ class C302NRNSimulation:
             values.append(scaled_val)
             vars_read.append(var)
         for i in range(24):
-            var = "a_MVR%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
-            if i == 23:
-                var = "a_MVR23"
+            """
+            var = "a_MDR%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             try:
                 val = getattr(self.h, var)[0].soma.cai
             except AttributeError as e:
@@ -282,9 +281,34 @@ class C302NRNSimulation:
                     "Problem passing neuronal output of %s to muscle in Sibernetic: %s"
                     % (var, e)
                 )
-                val = 0
                 continue
+                val = 0
             scaled_val = self._scale(val)
+            values.append(scaled_val)
+            vars_read.append(var)"""
+
+            DV = "D"
+            RL = "R"
+            index = i + 1
+            zero = "0" if index <= 9 else ""
+
+            var = self.var_template.format(DV, RL, zero, index)
+
+            try:
+                h_obj = getattr(self.h, var)[0 if "{3}" in self.var_template else i]
+                val = (
+                    getattr(h_obj.soma, self.var_name)
+                    if hasattr(h_obj, "soma")
+                    else getattr(h_obj, self.var_name)
+                )
+            except AttributeError as e:
+                raise Exception(
+                    "Problem passing neuronal output of %s to muscle in Sibernetic (i=%i): %s"
+                    % (var, i, e)
+                )
+            scaled_val = self._scale(
+                val, print_it=self.print_it, scale_it=self.scale_it
+            )
             values.append(scaled_val)
             vars_read.append(var)
         for i in range(24):
