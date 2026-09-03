@@ -28,7 +28,10 @@ python3 sibernetic_c302.py -test  -duration 10 -c302params C0 -configuration wor
 python3 sibernetic_c302.py -test -duration 20 -c302params C0 -reference TargetMuscle -configuration worm_alone_half_resolution -logstep 500 -simName test_c302_half_resolution_target_muscle -q
 
 # c302 + C2 FW 
-python sibernetic_c302.py -test -duration 15 -c302params C2 -reference FW -configuration worm_crawl_half_resolution -logstep 100 -q
+python sibernetic_c302.py -test -duration 15 -c302params C2 -reference FW -configuration worm_crawl_half_resolution -logstep 100 -simName test_c302_C2_FW_short -q
+
+# c302 + W2D FW 
+python sibernetic_c302.py -test -duration 15 -c302params W2D -reference FW -configuration worm_alone_half_resolution -logstep 100 -simName test_c302_W2D_FW_short -q
 
 if $TEST_ALL; then
 
