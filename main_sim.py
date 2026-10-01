@@ -237,7 +237,7 @@ class C302NRNSimulation:
 
         values = []
         vars_read = []
-        for i in range(24): # DR muscles
+        for i in range(24):  # DR muscles
             var = "a_MDR%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             try:
                 val = getattr(self.h, var)[0].soma.cai
@@ -251,7 +251,7 @@ class C302NRNSimulation:
             scaled_val = self._scale(val)
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24): # VR muscles
+        for i in range(24):  # VR muscles
             var = "a_MVR%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             if i == 23:
                 var = "a_MVR23"
@@ -267,7 +267,7 @@ class C302NRNSimulation:
             scaled_val = self._scale(val)
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24): # VL muscles
+        for i in range(24):  # VL muscles
             var = "a_MVL%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             try:
                 val = getattr(self.h, var)[0].soma.cai
@@ -288,7 +288,7 @@ class C302NRNSimulation:
             scaled_val = self._scale(val)
             values.append(scaled_val)
             vars_read.append(var)
-        for i in range(24): # DL muscles
+        for i in range(24):  # DL muscles
             var = "a_MDL%s" % (i + 1 if i > 8 else ("0%i" % (i + 1)))
             try:
                 val = getattr(self.h, var)[0].soma.cai
