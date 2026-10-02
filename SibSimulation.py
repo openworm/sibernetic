@@ -49,6 +49,7 @@ class SibSimulation:
         downsample=1,
         swap_y_z=False,
         verbose=False,
+        load_positions=True,
     ):
         """
         Parameters
@@ -69,6 +70,7 @@ class SibSimulation:
         self.swap_y_z = swap_y_z
 
         self.report_data = None
+        self.report_file = report_file
         self.dt = None
         self.duration = None
         self.log_step = None
@@ -93,8 +95,12 @@ class SibSimulation:
         else:
             self.sim_dir = os.path.dirname(os.path.abspath(position_file))
 
-        self._load_positions(position_file)
-        self._find_vtp_files()
+        if load_positions:
+            self._load_positions(position_file)
+            self._find_vtp_files()
+
+    def __repr__(self):
+        return f"SibSimulation(sim_dir={self.sim_dir}"
 
     def _load_report(self, report_file):
         self.report_data = json.load(open(report_file))
