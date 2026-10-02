@@ -2,7 +2,7 @@ import sys
 
 
 def print_(msg):
-    print("c302 plot >>> %s" % (msg))
+    print(f"c302 plot >>> {msg}")
 
 
 """
@@ -26,7 +26,7 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
 
     import matplotlib.pyplot as plt
 
-    print_("Loading: %s" % pos_file_name)
+    print_(f"Loading: {pos_file_name}")
 
     fig = plt.figure()
 
@@ -87,7 +87,7 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
 
             if t_ms > max_time_ms:
                 print_(
-                    "Finished parsing file, as max time (%s ms) reached!" % max_time_ms
+                    f"Finished parsing file, as max time ({max_time_ms} ms) reached!"
                 )
 
                 break
@@ -110,17 +110,14 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
             if in_frame == a + b + c - 1:
                 if plot_frame:
                     print_(
-                        " >> Plotting frame %i at %s ms; line %i: %s...\n"
-                        % (num_plotted_frames, t_ms, index, line)
+                        f" >> Plotting frame {num_plotted_frames} at {t_ms} ms; line {index}: {line}...\n"
                     )
                     ax.plot(xs, ys, ".", markersize=1)
                     ax.axis("equal")
                     num_plotted_frames += 1
                     if num_plotted_frames % 3 == 1:
                         time = (
-                            "%sms" % t_ms
-                            if not t_ms == int(t_ms)
-                            else "%sms" % int(t_ms)
+                            "%sms" % t_ms if t_ms != int(t_ms) else "%sms" % int(t_ms)
                         )
                         ax.text(
                             50 + ((num_plotted_frames - 1) * 30), 510, time, fontsize=12
@@ -129,8 +126,7 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
                 frame += 1
                 in_frame = 0
                 print_(
-                    "New positions (#%i) at time %s ms; line %i: %s"
-                    % (frame, t_ms, index, line)
+                    f"New positions (#{frame}) at time {t_ms} ms; line {index}: {line}"
                 )
                 xs = []
                 ys = []
@@ -138,8 +134,7 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
         index += 1
 
     print_(
-        "Loaded: %s points from %s, showing %s points in %i plots"
-        % (index, pos_file_name, points_plotted, num_plotted_frames)
+        f"Loaded: {index} points from {pos_file_name}, showing {points_plotted} points in {num_plotted_frames} plots"
     )
 
     if save_figure:
@@ -177,8 +172,7 @@ def plot_muscle_activity(
         acts = [float(w) for w in line.split()]
 
         print_(
-            "Found %s activation values (%s,...,%s) at line %s"
-            % (len(acts), acts[0], acts[-1], count)
+            f"Found {len(acts)} activation values ({acts[0]},...,{acts[-1]}) at line {count}"
         )
         a.append(acts)
 
