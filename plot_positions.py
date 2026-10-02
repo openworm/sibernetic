@@ -1,4 +1,5 @@
 import sys
+import matplotlib.pyplot as plt
 
 
 def print_(msg):
@@ -23,8 +24,6 @@ def plot_positions(pos_file_name, rate_to_plot=100, save_figure=True, show_plot=
     ymax = -1
     zmin = -1
     zmax = -1
-
-    import matplotlib.pyplot as plt
 
     print_(f"Loading: {pos_file_name}")
 
@@ -186,8 +185,6 @@ def plot_muscle_activity(
         times.append(count * dt * logstep / 1000)
 
         count += 1
-
-    import matplotlib.pyplot as plt
 
     fig, ax0 = plt.subplots(4, sharex=True, sharey=True)
 
