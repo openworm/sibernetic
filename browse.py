@@ -18,14 +18,21 @@ def main(sims_dir=None):
             ss = SibSimulation(report_file=report, load_positions=False)
             simulations.append(ss)
 
+    if len(simulations) == 0:
+        print("No simulations found in directory: " + sims_dir)
+        sys.exit(1)
+
     rows = []
     for s in simulations:
         print(s)
         duration = float(s.report_data.get("duration").split()[0])
         run_time = round(float(s.report_data.get("run_time").split()[0]), 5)
+        # when the simulation was run based on last modified date of s.report_file
+        timestamp = os.path.getmtime(s.report_file)
         rows.append(
             {
                 "name": s.report_data.get("sim_ref", "???"),
+                "timestamp": timestamp,
                 "duration": duration,
                 "run_time": run_time,
                 "report_file": s.report_file,
@@ -35,6 +42,14 @@ def main(sims_dir=None):
     table = ui.table(
         columns=[
             {"name": "name", "label": "Name", "field": "name", "sortable": True},
+            {
+                "name": "timestamp",
+                "label": "Timestamp",
+                "field": "timestamp",
+                "sortable": True,
+                # sort on the raw epoch value, but display it as a readable date/time
+                ":format": "val => new Date(val * 1000).toLocaleString()",
+            },
             {
                 "name": "duration",
                 "label": "Duration (ms)",
@@ -52,6 +67,8 @@ def main(sims_dir=None):
         ],
         rows=rows,
         row_key="name",
+        # newest first, so the most recently run simulation is in the top row
+        pagination={"sortBy": "timestamp", "descending": True, "rowsPerPage": 25},
     )
 
     table.add_slot(
@@ -121,8 +138,20 @@ def load_sim(e):
 
 
 def load_sim_2d(e):
+
+    from wconviewer.WormView import show_worm_view
+
     sim_name = e.args
+    wcon_file = os.path.join(os.path.dirname(sim_name), "worm_motion_log.wcon")
     print(f"Loading 2D simulation: {sim_name}")
+
+    show_worm_view(
+        wcon_file,
+        show_head=False,
+        zoom_to_worm=False,
+        show_grid=False,
+        nogui=False,
+    )
 
     # Here you can add code to load the 2D simulation based on sim_name
 
