@@ -46,6 +46,15 @@ def get_muscle_names():
     return names
 
 
+def get_muscle_names_by_quadrant():
+    names = []
+    for i in [quadrant0, quadrant1, quadrant2, quadrant3]:
+        for j in range(muscle_row_count):
+            names.append(get_muscle_name(i, j))
+
+    return names
+
+
 def get_muscle_name(quadrant, index):
     return "%s%s" % (quadrant, index + 1 if index > 8 else ("0%i" % (index + 1)))
 
@@ -214,13 +223,13 @@ class C302NRNSimulation:
             self.var_name = "output"
             self.scale_it = False
             self.print_it = False
-        
+
         else:
             self.var_pre = "m_GenericMuscleCell_M"
             self.var_template = "m_M{0}1_PopM{0}1"
             self.var_name = "state"
             self.scale_it = False
-            self.print_it = False 
+            self.print_it = False
 
     def save_results(self):
         print_("> Saving results at time: %s" % self.h.t)

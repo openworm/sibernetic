@@ -1,5 +1,6 @@
 c302>=0.10.1
 neuron<9.0
+pyneuroml
 
 ruff
 pyvista

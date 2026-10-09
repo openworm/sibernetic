@@ -7,6 +7,10 @@ simulation data, independent of any GUI or visualisation layer.
 import os
 import json
 import numpy as np
+import sys
+from pyneuroml.pynml import reload_saved_data
+
+import matplotlib.pyplot as plt
 
 
 def print_(msg, print_it=True):
@@ -50,6 +54,7 @@ class SibSimulation:
         swap_y_z=False,
         verbose=False,
         load_positions=True,
+        load_traces=True,
     ):
         """
         Parameters
@@ -64,7 +69,15 @@ class SibSimulation:
             Load every nth time point (1 = load all).
         swap_y_z : bool
             If True, swap the x and y coordinates on load (matches the
-            swap_y_z behaviour in SiberneticReplay).
+            swap_y_z behaviour in SiberneticReplay). This is needed to match
+            the orientation of the worm in NeuroML
+        verbose: bool
+            If True, print detailed loading information.
+        load_positions : bool
+            If True, load the position_buffer.txt file. If False, only load
+            report.json and find .vtp files.
+        load_traces : bool
+            If True, load the muscles/neuron activity files if they exist.
         """
         self.downsample = downsample
         self.swap_y_z = swap_y_z
@@ -99,6 +112,9 @@ class SibSimulation:
             self._load_positions(position_file)
             self._find_vtp_files()
 
+        if load_traces:
+            self._load_traces()
+
     def __repr__(self):
         return f"SibSimulation(sim_dir={self.sim_dir}"
 
@@ -116,8 +132,8 @@ class SibSimulation:
             0, self.duration, int((self.duration / self.dt) / self.log_step)
         )
         print_(
-            "Simulation dt: %s ms, duration: %s ms, times simulated (%i): %s; "
-            "sibernetic logged times (%i): %s"
+            "Simulation dt: %s ms, duration: %s ms\n  Times simulated (%i): %s; "
+            "\n  Sibernetic logged times (%i): %s"
             % (
                 self.dt,
                 self.duration,
@@ -127,6 +143,65 @@ class SibSimulation:
                 sibernetic_time_points,
             )
         )
+
+    def _load_traces(self):
+        self.muscle_activity_to_sibernetic = {}
+        self.muscle_memb_potentials = {}
+        self.neuron_memb_potentials = {}
+        self.muscle_ca_conc = {}
+        self.neuron_ca_conc = {}
+
+        from main_sim import get_muscle_names_by_quadrant
+
+        muscle_names = get_muscle_names_by_quadrant()
+
+        muscle_file = os.path.join(self.sim_dir, "muscles_activity_buffer.txt")
+
+        if os.path.isfile(muscle_file):
+            ma = np.loadtxt(muscle_file)
+            print_(f"Loaded muscle activity from {muscle_file}: shape {ma.shape}")
+            if len(ma.shape) == 2:
+                for m in range(ma.shape[1]):
+                    muscle_name = muscle_names[m]
+                    print_(
+                        f"  Muscle {m} ({muscle_name}):  - min {ma[:, m].min()}, max {ma[:, m].max()}"
+                    )
+
+                    self.muscle_activity_to_sibernetic[muscle_name] = ma[:, m]
+            else:
+                print_(
+                    f"  Muscle activity data is 1D, shape {ma.shape}, skipping per-muscle assignment."
+                )
+
+        lems_file = os.path.join(self.sim_dir, "LEMS_c302.xml")
+        if os.path.isfile(lems_file):
+            print_(f"Loading LEMS file: {lems_file}")
+            results = reload_saved_data(lems_file)
+            print(f"Result keys: {results.keys()}")
+            for k, v in results.items():
+                if k == "t":
+                    self.muscle_memb_potentials[k] = v
+                    self.neuron_memb_potentials[k] = v
+                    self.muscle_ca_conc[k] = v
+                    self.neuron_ca_conc[k] = v
+                elif k.startswith("M") and k.endswith("/v"):
+                    m = k.split("/")[0]
+                    self.muscle_memb_potentials[m] = v
+                    print_(f"  Muscle {m} v:\tmin {min(v)}, max {max(v)}")
+                elif k.startswith("M") and k.endswith("/caConc"):
+                    m = k.split("/")[0]
+                    self.muscle_ca_conc[m] = v
+                    print_(f"  Muscle {m} caConc:\tmin {min(v)}, max {max(v)}")
+                elif k.endswith("/v"):
+                    n = k.split("/")[0]
+                    self.neuron_memb_potentials[n] = v
+                    print_(f"  Neuron {n} v:\tmin {min(v)}, max {max(v)}")
+                elif k.endswith("/caConc"):
+                    n = k.split("/")[0]
+                    self.neuron_ca_conc[n] = v
+                    print_(f"  Neuron {n} caConc:\tmin {min(v)}, max {max(v)}")
+                else:
+                    raise Exception(f"Unhandled result key: {k} in {lems_file}")
 
     def _load_positions(self, position_file):
         points = {}
@@ -238,7 +313,10 @@ class SibSimulation:
             f"Num of time points loaded: {len(self.all_3D_points)} (total: {time_count})"
         )
         print_(f"Loaded time points: {self.loaded_time_points}")
-        print_(f"Count of point types found: {dict(sorted(count_point_types.items()))}")
+        if self.verbose:
+            print_(
+                f"Count of point types found: {dict(sorted(count_point_types.items()))}"
+            )
 
     def _find_vtp_files(self):
         self.vtp_files = sorted(
@@ -291,3 +369,60 @@ class SibSimulation:
                 positions.append(points[particle_type][particle_index])
                 times.append(self.loaded_time_points[time_idx])
         return times, np.array(positions)
+
+
+def plot_muscle_activity(muscles, label="activation"):
+
+    f, a = plt.subplots(4, sharex=True, sharey=True)
+
+    from main_sim import quadrant0, quadrant1, quadrant2, quadrant3
+
+    a[0].set_title(quadrant0)
+    a[0].set_ylabel(label)
+    a[1].set_title(quadrant1)
+    a[1].set_ylabel(label)
+    a[2].set_title(quadrant2)
+    a[2].set_ylabel(label)
+    a[3].set_title(quadrant3)
+    a[3].set_ylabel(label)
+    a[3].set_xlabel("time step (%s s -> %s s)" % (0, "??"))
+
+    for k, v in muscles.items():
+        if k != "t":
+            if quadrant0 in k:
+                quad_ax = a[0]
+            elif quadrant1 in k:
+                quad_ax = a[1]
+            elif quadrant2 in k:
+                quad_ax = a[2]
+            elif quadrant3 in k:
+                quad_ax = a[3]
+            else:
+                raise Exception("Unknown quadrant for muscle: %s" % k)
+
+            index = int(k[3:])  # get the index part of the muscle name
+
+            color = "red" if index == 12 else "gray" if index < 12 else "green"
+
+            quad_ax.plot(
+                v,
+                label="%s" % k,
+                linestyle="-" if "R" in k else "--",
+                linewidth=2 if "12" in k else 0.5,
+                color=color,
+                marker=None,
+            )
+
+
+if __name__ == "__main__":
+    filename = sys.argv[1] if len(sys.argv) > 1 else "report.json"
+
+    ss = SibSimulation(report_file=filename)
+
+    plot_muscle_activity(ss.muscle_activity_to_sibernetic, label="activation")
+
+    plot_muscle_activity(ss.muscle_memb_potentials, label="Memb. pot. (V)")
+
+    plot_muscle_activity(ss.muscle_ca_conc, label="Ca++ conc. (mM)")
+
+    plt.show()
