@@ -177,7 +177,8 @@ class MuscleSimulation:
 
 class C302NRNSimulation:
     max_ca = 4e-7
-    max_ca_found = -1
+    max_activity_found = 2
+    min_activity_found = 0
 
     def __init__(self, tstop=100, dt=0.005, activity_file=None, verbose=False):
         # from LEMS_c302_C1_Full_nrn import NeuronSimulation
@@ -216,20 +217,22 @@ class C302NRNSimulation:
             self.var_name = "cai"
             self.scale_it = True
             self.print_it = False
+            self.assume_ca = True
 
         elif hasattr(self.h, "m_GenericMuscleCell_MDR01"):
             self.var_pre = "m_GenericMuscleCell_M"
             self.var_template = "m_GenericMuscleCell_M{0}{1}{2}{3}"
             self.var_name = "output"
-            self.scale_it = False
-            self.print_it = False
+            self.scale_it = True
+            self.print_it = True
 
         else:
             self.var_pre = "m_GenericMuscleCell_M"
             self.var_template = "m_M{0}1_PopM{0}1"
             self.var_name = "state"
-            self.scale_it = False
+            self.scale_it = True
             self.print_it = False
+            self.assume_ca = False
 
     def save_results(self):
         print_("> Saving results at time: %s" % self.h.t)
@@ -283,7 +286,10 @@ class C302NRNSimulation:
                     % (var, i, e)
                 )
             scaled_val = self._scale(
-                val, print_it=self.print_it, scale_it=self.scale_it
+                val,
+                print_it=self.print_it,
+                scale_it=self.scale_it,
+                assume_ca=self.assume_ca,
             )
             values.append(scaled_val)
             vars_read.append(var)
@@ -308,7 +314,10 @@ class C302NRNSimulation:
                     % (var, e)
                 )
             scaled_val = self._scale(
-                val, print_it=self.print_it, scale_it=self.scale_it
+                val,
+                print_it=self.print_it,
+                scale_it=self.scale_it,
+                assume_ca=self.assume_ca,
             )
             values.append(scaled_val)
             vars_read.append(var)
@@ -342,7 +351,10 @@ class C302NRNSimulation:
                 val = 0
                 continue
             scaled_val = self._scale(
-                val, print_it=self.print_it, scale_it=self.scale_it
+                val,
+                print_it=self.print_it,
+                scale_it=self.scale_it,
+                assume_ca=self.assume_ca,
             )
             values.append(scaled_val)
             vars_read.append(var)
@@ -367,7 +379,10 @@ class C302NRNSimulation:
                     % (var, e)
                 )
             scaled_val = self._scale(
-                val, print_it=self.print_it, scale_it=self.scale_it
+                val,
+                print_it=self.print_it,
+                scale_it=self.scale_it,
+                assume_ca=self.assume_ca,
             )
             values.append(scaled_val)
             vars_read.append(var)
@@ -383,18 +398,40 @@ class C302NRNSimulation:
             )
         return values
 
-    def _scale(self, ca, print_it=False, scale_it=True):
+    def _scale(self, ca, print_it=False, scale_it=True, assume_ca=False):
+
         if not scale_it:
             if print_it:
                 print_("- Not scaling value: %s" % (ca))
             return ca
 
-        self.max_ca_found = max(ca, self.max_ca_found)
-        scaled = min(1, (ca / self.max_ca))
+        if assume_ca:
+            scaled = min(1, (ca / self.max_ca))
+
+            if print_it:
+                print_(
+                    "- Scaling ca %s to %s (max ca assumed: %s)"
+                    % (ca, scaled, self.max_ca)
+                )
+            return scaled
+
+        self.max_activity_found = max(ca, self.max_activity_found)
+        self.min_activity_found = min(ca, self.min_activity_found)
+
+        scaled = (ca - self.min_activity_found) / (
+            self.max_activity_found - self.min_activity_found
+        )
 
         if print_it:
             print_(
-                "- Scaling %s to %s (max found: %s)" % (ca, scaled, self.max_ca_found)
+                "- Scaling %s to %s (max found: %s, min found: %s), at time %s ms"
+                % (
+                    ca,
+                    scaled,
+                    self.max_activity_found,
+                    self.min_activity_found,
+                    self.h.t,
+                )
             )
         return scaled
 

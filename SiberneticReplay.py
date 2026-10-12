@@ -12,7 +12,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-from SibSimulation import SibSimulation
+from SibSimulation import SibSimulation, plot_muscle_activity
 
 from enum import Enum
 
@@ -36,9 +36,10 @@ slider = None
 show_boundary = False
 max_time = None
 
-verbose = False
+verbose = True
 
 musc_chart = None
+musc_trace_chart = None
 curv_chart = None
 
 downsample = 1  # only load every nth time point of 3d positions
@@ -203,6 +204,29 @@ def get_color_info_for_type(type_):
         return "orange", "unknown", 5
 
 
+def add_muscle_trace_chart(sib_sim, pl, duration=None):
+    global musc_trace_chart
+
+    if not sib_sim.has_worm_data() or not hasattr(sib_sim, "muscle_memb_potentials"):
+        print_("No worm data, not plotting muscle traces")
+        return
+
+    f_musc_traces = plot_muscle_activity(
+        sib_sim.muscle_memb_potentials,
+        label="",
+        title="Muscle activity (Sibernetic)",
+    )
+
+    musc_trace_chart = pv.ChartMPL(f_musc_traces, size=(0.35, 0.35), loc=(0.02, 0.66))
+    musc_trace_chart.title = None
+    musc_trace_chart.border_color = "white"
+    musc_trace_chart.background_color = (1.0, 1.0, 1.0, 0.4)
+
+    pl.add_chart(
+        musc_trace_chart,
+    )
+
+
 def add_muscle_activation_chart(sim_dir, pl, duration=None):
     global musc_chart
 
@@ -339,11 +363,14 @@ def add_sibernetic_model(
         report_file=report_file,
         downsample=downsample,
         swap_y_z=swap_y_z,
+        load_traces=False,
     )
 
     if sim_positions.has_worm_data():
         add_muscle_activation_chart(sim_positions.sim_dir, pl, sim_positions.duration)
+        add_muscle_trace_chart(sim_positions, pl, sim_positions.duration)
         add_body_curvature_chart(sim_positions.sim_dir, pl, sim_positions.duration)
+
     elif (
         sim_positions.report_data is None and sim_positions.has_muscle_activation_data()
     ):
@@ -351,6 +378,7 @@ def add_sibernetic_model(
             f"Found muscle activation file at: {sim_positions.sim_dir}/muscles_activity_buffer.txt, adding muscle activation chart."
         )
         add_muscle_activation_chart(sim_positions.sim_dir, pl)
+        add_muscle_trace_chart(sim_positions, pl)
         add_body_curvature_chart(sim_positions.sim_dir, pl)
     else:
         print_(

@@ -54,7 +54,7 @@ class SibSimulation:
         swap_y_z=False,
         verbose=False,
         load_positions=True,
-        load_traces=True,
+        load_traces=False,
     ):
         """
         Parameters
@@ -112,7 +112,7 @@ class SibSimulation:
             self._load_positions(position_file)
             self._find_vtp_files()
 
-        if load_traces:
+        if load_traces and self.has_worm_data():
             self._load_traces()
 
     def __repr__(self):
@@ -145,6 +145,7 @@ class SibSimulation:
         )
 
     def _load_traces(self):
+
         self.muscle_activity_to_sibernetic = {}
         self.muscle_memb_potentials = {}
         self.neuron_memb_potentials = {}
@@ -156,6 +157,12 @@ class SibSimulation:
         muscle_names = get_muscle_names_by_quadrant()
 
         muscle_file = os.path.join(self.sim_dir, "muscles_activity_buffer.txt")
+
+        sibernetic_time_points = np.linspace(
+            0, self.duration, int((self.duration / self.dt) / self.log_step)
+        )
+
+        self.muscle_activity_to_sibernetic["t"] = sibernetic_time_points
 
         if os.path.isfile(muscle_file):
             ma = np.loadtxt(muscle_file)
@@ -178,15 +185,18 @@ class SibSimulation:
             print_(f"Loading LEMS file: {lems_file}")
             results = reload_saved_data(lems_file)
             print(f"Result keys: {results.keys()}")
+
             for k, v in results.items():
                 if k == "t":
-                    self.muscle_memb_potentials[k] = v
-                    self.neuron_memb_potentials[k] = v
-                    self.muscle_ca_conc[k] = v
-                    self.neuron_ca_conc[k] = v
+                    times_ms = np.array(v) * 1000.0
+                    self.muscle_memb_potentials[k] = times_ms
+                    self.neuron_memb_potentials[k] = times_ms
+                    self.muscle_ca_conc[k] = times_ms
+                    self.neuron_ca_conc[k] = times_ms
+
                 elif k.startswith("M") and k.endswith("/v"):
                     m = k.split("/")[0]
-                    self.muscle_memb_potentials[m] = v
+                    self.muscle_memb_potentials[m] = np.array(v) * 1000.0
                     print_(f"  Muscle {m} v:\tmin {min(v)}, max {max(v)}")
                 elif k.startswith("M") and k.endswith("/caConc"):
                     m = k.split("/")[0]
@@ -371,21 +381,74 @@ class SibSimulation:
         return times, np.array(positions)
 
 
-def plot_muscle_activity(muscles, label="activation"):
+def plot_neuron_activity(neurons, label, title):
+
+    pops = ["DD", "DB", "DA", "VB", "VD", "VA", "Others"]
+
+    f, a = plt.subplots(len(pops), sharex=True, sharey=True)
+
+    f.suptitle(title)
+    # set window title also
+    f.canvas.manager.set_window_title(title)
+
+    for i in range(len(pops)):
+        a[i].set_ylabel(pops[i] + label)
+
+    a[-1].set_xlabel("Time step (ms)")
+
+    for k, v in neurons.items():
+        if k != "t":
+            pop_ax = None
+
+            for i in range(len(pops) - 1):
+                if k.startswith(pops[i]):
+                    pop_ax = a[i]
+
+                    index = int(k[2:])  # get the index part of the neuron name
+
+                    color = "red" if index == 5 else "gray" if index < 5 else "green"
+                    linewidth = (
+                        2 if index == 5 else 1 if index == 1 or index == 24 else 0.5
+                    )
+
+                    break
+
+            if pop_ax is None:
+                pop_ax = a[-1]  # "Others" axis
+                color = "blue"
+                linewidth = 0.5
+
+            print_(
+                f"Plotting neuron {k} with {len(v)} points on axis {pop_ax.get_ylabel()}"
+            )
+
+            pop_ax.plot(
+                neurons["t"],
+                v,
+                label="%s" % k,
+                linestyle="-",
+                linewidth=linewidth,
+                color=color,
+                marker=None,
+            )
+    return f
+
+
+def plot_muscle_activity(muscles, label=" act.", title="Muscle activity"):
 
     f, a = plt.subplots(4, sharex=True, sharey=True)
 
+    f.suptitle(title)
+    # set window title also
+    f.canvas.manager.set_window_title(title)
+
     from main_sim import quadrant0, quadrant1, quadrant2, quadrant3
 
-    a[0].set_title(quadrant0)
-    a[0].set_ylabel(label)
-    a[1].set_title(quadrant1)
-    a[1].set_ylabel(label)
-    a[2].set_title(quadrant2)
-    a[2].set_ylabel(label)
-    a[3].set_title(quadrant3)
-    a[3].set_ylabel(label)
-    a[3].set_xlabel("time step (%s s -> %s s)" % (0, "??"))
+    a[0].set_ylabel(quadrant0 + label)
+    a[1].set_ylabel(quadrant1 + label)
+    a[2].set_ylabel(quadrant2 + label)
+    a[3].set_ylabel(quadrant3 + label)
+    a[3].set_xlabel("Time step (ms)")
 
     for k, v in muscles.items():
         if k != "t":
@@ -403,26 +466,54 @@ def plot_muscle_activity(muscles, label="activation"):
             index = int(k[3:])  # get the index part of the muscle name
 
             color = "red" if index == 12 else "gray" if index < 12 else "green"
+            linewidth = 2 if index == 12 else 1 if index == 1 or index == 24 else 0.5
 
             quad_ax.plot(
+                muscles["t"],
                 v,
                 label="%s" % k,
                 linestyle="-" if "R" in k else "--",
-                linewidth=2 if "12" in k else 0.5,
+                linewidth=linewidth,
                 color=color,
                 marker=None,
             )
+    return f
 
 
 if __name__ == "__main__":
     filename = sys.argv[1] if len(sys.argv) > 1 else "report.json"
 
-    ss = SibSimulation(report_file=filename)
+    ss = SibSimulation(
+        report_file=filename, load_traces=True, load_positions=False, verbose=True
+    )
 
-    plot_muscle_activity(ss.muscle_activity_to_sibernetic, label="activation")
+    """
+    plot_neuron_activity(
+        ss.neuron_memb_potentials,
+        label=" (mV)",
+        title="Neuronal membrane potentials (NEURON)",
+    )
 
-    plot_muscle_activity(ss.muscle_memb_potentials, label="Memb. pot. (V)")
+    plot_neuron_activity(
+        ss.neuron_ca_conc,
+        label=" (mM)",
+        title="Neuronal calcium concentrations (NEURON)",
+    )"""
 
-    plot_muscle_activity(ss.muscle_ca_conc, label="Ca++ conc. (mM)")
+    plot_muscle_activity(
+        ss.muscle_activity_to_sibernetic,
+        label=" act.",
+        title="Muscle activity (Sibernetic)",
+    )
+
+    """plot_muscle_activity(
+        ss.muscle_memb_potentials,
+        label=" (mV)",
+        title="Muscle membrane potentials (NEURON)",
+    )
+
+    plot_muscle_activity(
+        ss.muscle_ca_conc, label="(mM)", title="Muscle calcium concentrations (NEURON)"
+    )"""
 
     plt.show()

@@ -14,9 +14,14 @@ SOURCES = $(wildcard $(SRCDIR)/*.$(SRCEXT))
 BINARYTESTDIR = $(BINARYDIR)/test
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BINARYDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
+CONDA_PY312_CONFIG := $(HOME)/miniconda3/envs/py312/bin/python3.12-config
+ifneq (,$(wildcard $(CONDA_PY312_CONFIG)))
+PYTHON_CONFIG ?= $(CONDA_PY312_CONFIG)
+else
 PYTHON_VER_MAIN = $(shell python3 -c 'import sys; vv=sys.version_info[:];print(str(vv[0])+str(1.0)[1]+str(vv[1]))')
 #PYTHON_VER_MAIN = 3.8 # Hardcode if necessary
 PYTHON_CONFIG ?= /usr/bin/python$(PYTHON_VER_MAIN)-config
+endif
 
 CPP_DEPS = $(OBJECTS:.o=.d)
 
@@ -53,7 +58,7 @@ $(TARGET):$(OBJECTS)
 	@echo ' '
 
 $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
-	@echo 'Assuming Python: $(PYTHON_VER_MAIN)'
+	@echo 'Assuming Python config: $(PYTHON_CONFIG)'
 	@mkdir -p $(BINARYDIR)
 	@mkdir -p $(BINARYTESTDIR)
 	@echo 'Building file: $<'
@@ -63,7 +68,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo ' '
 
 clean :
-	@echo 'Assuming Python: $(PYTHON_VER_MAIN)'
+	@echo 'Assuming Python config: $(PYTHON_CONFIG)'
 	-$(RM) $(OBJECTS)$(CPP_DEPS) $(BUILDDIR)/$(TARGET)
 	-@echo ' '
 
