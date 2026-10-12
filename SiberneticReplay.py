@@ -207,12 +207,14 @@ def get_color_info_for_type(type_):
 def add_muscle_trace_chart(sib_sim, pl, duration=None):
     global musc_trace_chart
 
-    if not sib_sim.has_worm_data() or not hasattr(sib_sim, "muscle_memb_potentials"):
+    if not sib_sim.has_worm_data() or not hasattr(
+        sib_sim, "muscle_activity_to_sibernetic"
+    ):
         print_("No worm data, not plotting muscle traces")
         return
 
     f_musc_traces = plot_muscle_activity(
-        sib_sim.muscle_memb_potentials,
+        sib_sim.muscle_activity_to_sibernetic,
         label="",
         title="Muscle activity (Sibernetic)",
     )
@@ -363,7 +365,7 @@ def add_sibernetic_model(
         report_file=report_file,
         downsample=downsample,
         swap_y_z=swap_y_z,
-        load_traces=False,
+        load_traces=True,
     )
 
     if sim_positions.has_worm_data():

@@ -116,7 +116,18 @@ class SibSimulation:
             self._load_traces()
 
     def __repr__(self):
-        return f"SibSimulation(sim_dir={self.sim_dir}"
+        return f"SibSimulation(sim_dir={self.sim_dir}, duration={self.get_duration_ms()} ms)"
+
+    def get_duration_ms(self):
+        return float(self.report_data.get("duration").split()[0])
+
+    def get_run_time_s(self):
+        return round(float(self.report_data.get("run_time").split()[0]), 5)
+
+    def get_timestamp(self):
+        # when the simulation was run based on last modified date of s.report_file
+        timestamp = os.path.getmtime(self.report_file)
+        return timestamp
 
     def _load_report(self, report_file):
         self.report_data = json.load(open(report_file))
@@ -380,6 +391,41 @@ class SibSimulation:
                 times.append(self.loaded_time_points[time_idx])
         return times, np.array(positions)
 
+    def display_traces(self, show=True):
+
+        plot_neuron_activity(
+            self.neuron_memb_potentials,
+            label=" (mV)",
+            title="Neuronal membrane potentials (NEURON)",
+        )
+
+        plot_neuron_activity(
+            self.neuron_ca_conc,
+            label=" (mM)",
+            title="Neuronal calcium concentrations (NEURON)",
+        )
+
+        plot_muscle_activity(
+            self.muscle_activity_to_sibernetic,
+            label=" act.",
+            title="Muscle activity (Sibernetic)",
+        )
+
+        plot_muscle_activity(
+            self.muscle_memb_potentials,
+            label=" (mV)",
+            title="Muscle membrane potentials (NEURON)",
+        )
+
+        plot_muscle_activity(
+            self.muscle_ca_conc,
+            label="(mM)",
+            title="Muscle calcium concentrations (NEURON)",
+        )
+
+        if show:
+            plt.show()
+
 
 def plot_neuron_activity(neurons, label, title):
 
@@ -487,33 +533,4 @@ if __name__ == "__main__":
         report_file=filename, load_traces=True, load_positions=False, verbose=True
     )
 
-    """
-    plot_neuron_activity(
-        ss.neuron_memb_potentials,
-        label=" (mV)",
-        title="Neuronal membrane potentials (NEURON)",
-    )
-
-    plot_neuron_activity(
-        ss.neuron_ca_conc,
-        label=" (mM)",
-        title="Neuronal calcium concentrations (NEURON)",
-    )"""
-
-    plot_muscle_activity(
-        ss.muscle_activity_to_sibernetic,
-        label=" act.",
-        title="Muscle activity (Sibernetic)",
-    )
-
-    """plot_muscle_activity(
-        ss.muscle_memb_potentials,
-        label=" (mV)",
-        title="Muscle membrane potentials (NEURON)",
-    )
-
-    plot_muscle_activity(
-        ss.muscle_ca_conc, label="(mM)", title="Muscle calcium concentrations (NEURON)"
-    )"""
-
-    plt.show()
+    ss.display_traces()
