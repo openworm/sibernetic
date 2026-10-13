@@ -182,7 +182,7 @@ def load_sim_2d(e):
         zoom_to_worm=False,
         show_grid=False,
         nogui=False,
-        start_play=True,
+        start_play=False,
     )
 
 

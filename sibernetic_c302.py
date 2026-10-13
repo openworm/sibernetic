@@ -156,7 +156,7 @@ def process_args():
         type=str,
         metavar="<lems>",
         default=DEFAULTS["lems"],
-        help="Points to LEMS file. NOTE: Work in progress!!",
+        help="Points to LEMS file specifying the network to use. NOTE: Work in progress!!",
     )
 
     parser.add_argument(
@@ -348,6 +348,7 @@ def run(a=None, **kwargs):
     if not a.noc302:
         if a.lems is not None:
             lems_file = a.lems
+            lems_file_abs = os.path.abspath(a.lems)
 
         else:
             id = "%s_%s" % (a.c302params, a.reference)
@@ -365,6 +366,7 @@ def run(a=None, **kwargs):
 
             lems_file0 = os.path.join(sim_dir, "LEMS_c302_%s.xml" % id)
             lems_file = os.path.join(sim_dir, "LEMS_c302.xml")
+            lems_file_abs = os.path.abspath(lems_file)
             print_("Renaming %s -> %s" % (lems_file0, lems_file))
             os.rename(lems_file0, lems_file)
 
@@ -538,13 +540,11 @@ def run(a=None, **kwargs):
 
     if not a.noc302 and successful:
         announce(
-            "Generating images for neuronal activity (via %s in %s)..."
-            % (lems_file, sim_dir)
+            "Generating images for neuronal activity (via %s)..." % (lems_file_abs)
         )
 
         results = pynml.reload_saved_data(
-            lems_file,
-            base_dir=sim_dir,
+            lems_file_abs,
             plot=False,
             show_plot_already=False,
             simulator=None,

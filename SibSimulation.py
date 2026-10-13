@@ -222,7 +222,7 @@ class SibSimulation:
                     self.neuron_ca_conc[n] = v
                     print_(f"  Neuron {n} caConc:\tmin {min(v)}, max {max(v)}")
                 else:
-                    raise Exception(f"Unhandled result key: {k} in {lems_file}")
+                    print_(f"Unhandled result key: {k} in {lems_file}")
 
     def _load_positions(self, position_file):
         points = {}
