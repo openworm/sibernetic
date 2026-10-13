@@ -111,17 +111,19 @@ class W2DSimulation:
 
     def display_traces(self, show=True):
 
-        plot_neuron_activity(
-            self.neuron_states,
-            label="",
-            title="Neuronal activation (Worm2D)",
-        )
+        if self.neuron_states != None:
+            plot_neuron_activity(
+                self.neuron_states,
+                label="",
+                title="Neuronal activation (Worm2D)",
+            )
 
-        plot_muscle_activity(
-            self.muscle_states,
-            label="",
-            title="Muscle activation (Worm2D)",
-        )
+        if self.muscle_states != None:
+            plot_muscle_activity(
+                self.muscle_states,
+                label="",
+                title="Muscle activation (Worm2D)",
+            )
 
         if show:
             plt.show()
