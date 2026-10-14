@@ -516,7 +516,7 @@ def plot_neuron_activity(neurons, label, title):
 
                     index = int(k[2:])  # get the index part of the neuron name
 
-                    color = "red" if index == 5 else "gray" if index < 5 else "green"
+                    color = _get_color_for_index(index, 5, 10)
                     linewidth = (
                         2 if index == 5 else 1 if index == 1 or index == 24 else 0.5
                     )
@@ -544,6 +544,16 @@ def plot_neuron_activity(neurons, label, title):
     return f
 
 
+def _get_color_for_index(index, mid, total):
+    """
+    Returns a color from the 'viridis' colormap based on the index and total number of items.
+    """
+    if index == mid:
+        return "black"  # Highlight the middle index in black
+    cmap = plt.get_cmap("Spectral")
+    return cmap(index / total)
+
+
 def plot_muscle_activity(muscles, label=" act.", title="Muscle activity"):
 
     f, a = plt.subplots(4, sharex=True, sharey=True)
@@ -552,37 +562,41 @@ def plot_muscle_activity(muscles, label=" act.", title="Muscle activity"):
     # set window title also
     f.canvas.manager.set_window_title(title)
 
-    from main_sim import quadrant0, quadrant1, quadrant2, quadrant3
+    quadrant_mdr = "MDR"
+    quadrant_mvr = "MVR"
+    quadrant_mvl = "MVL"
+    quadrant_mdl = "MDL"
 
-    a[0].set_ylabel(quadrant0 + label)
-    a[1].set_ylabel(quadrant1 + label)
-    a[2].set_ylabel(quadrant2 + label)
-    a[3].set_ylabel(quadrant3 + label)
+    a[0].set_ylabel(quadrant_mdr + label)
+    a[1].set_ylabel(quadrant_mdl + label)
+    a[2].set_ylabel(quadrant_mvl + label)
+    a[3].set_ylabel(quadrant_mvr + label)
+
     a[3].set_xlabel("Time step (ms)")
 
     for k, v in muscles.items():
         if k != "t":
-            if quadrant0 in k:
+            if quadrant_mdr in k:
                 quad_ax = a[0]
-            elif quadrant1 in k:
+            elif quadrant_mdl in k:
                 quad_ax = a[1]
-            elif quadrant2 in k:
+            elif quadrant_mvl in k:
                 quad_ax = a[2]
-            elif quadrant3 in k:
+            elif quadrant_mvr in k:
                 quad_ax = a[3]
             else:
                 raise Exception("Unknown quadrant for muscle: %s" % k)
 
             index = int(k[3:])  # get the index part of the muscle name
 
-            color = "red" if index == 12 else "gray" if index < 12 else "green"
+            color = _get_color_for_index(index, 12, 24)  # 24 muscles per quadrant
             linewidth = 2 if index == 12 else 1 if index == 1 or index == 24 else 0.5
 
             quad_ax.plot(
                 muscles["t"],
                 v,
                 label="%s" % k,
-                linestyle="-" if "R" in k else "--",
+                linestyle="-" if "L" in k else "--",
                 linewidth=linewidth,
                 color=color,
                 marker=None,

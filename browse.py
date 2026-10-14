@@ -63,8 +63,9 @@ def main(sims_dir=None):
         )
 
     # set the title of the nicegui window to "Sibernetic Simulation Browser"
-    ui.label("OpenWorm Simulation Browser").style("font-size: 18px; font-weight: bold; margin-bottom: 20px;")
-    
+    ui.label("OpenWorm Simulation Browser").style(
+        "font-size: 18px; font-weight: bold; margin-bottom: 20px;"
+    )
 
     table = ui.table(
         columns=[
@@ -119,9 +120,9 @@ def main(sims_dir=None):
     table.on("load", lambda e: load_sim(e))
     table.on("load2", lambda e: load_sim_2d(e))
 
-
-
-    ui.run(native=True, window_size=(900, 600))  # remove native=True to serve it as a web app
+    ui.run(
+        native=True, window_size=(900, 600)
+    )  # remove native=True to serve it as a web app
 
 
 def load_sim(e):
