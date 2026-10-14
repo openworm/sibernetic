@@ -62,6 +62,10 @@ def main(sims_dir=None):
             }
         )
 
+    # set the title of the nicegui window to "Sibernetic Simulation Browser"
+    ui.label("OpenWorm Simulation Browser").style("font-size: 18px; font-weight: bold; margin-bottom: 20px;")
+    
+
     table = ui.table(
         columns=[
             {"name": "name", "label": "Name", "field": "name", "sortable": True},
@@ -81,9 +85,11 @@ def main(sims_dir=None):
             },
             {
                 "name": "run_time",
-                "label": "Run Time (s)",
+                "label": "Run Time",
                 "field": "run_time",
                 "sortable": True,
+                # if the time in seconds is greater than 60, display it in minutes, otherwise in seconds, or if greater than 3600, display in hours
+                ":format": "val => val > 3600 ? (val / 3600).toFixed(2) + ' hr' : val > 60 ? (val / 60).toFixed(2) + ' min' : val.toFixed(2) + ' s'",
             },
             {"name": "action", "label": "Replay 3D", "align": "center"},
             {"name": "action2", "label": "Replay 2D", "align": "center"},
@@ -113,7 +119,9 @@ def main(sims_dir=None):
     table.on("load", lambda e: load_sim(e))
     table.on("load2", lambda e: load_sim_2d(e))
 
-    ui.run(native=True)  # remove native=True to serve it as a web app
+
+
+    ui.run(native=True, window_size=(900, 600))  # remove native=True to serve it as a web app
 
 
 def load_sim(e):

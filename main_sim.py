@@ -225,6 +225,7 @@ class C302NRNSimulation:
             self.var_name = "output"
             self.scale_it = True
             self.print_it = True
+            self.assume_ca = False
 
         else:
             self.var_pre = "m_GenericMuscleCell_M"
