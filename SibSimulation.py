@@ -158,6 +158,8 @@ class SibSimulation:
     def _load_traces(self):
 
         self.muscle_activity_to_sibernetic = {}
+        self.muscle_states = {}
+        self.neuron_states = {}
         self.muscle_memb_potentials = {}
         self.neuron_memb_potentials = {}
         self.muscle_ca_conc = {}
@@ -191,38 +193,81 @@ class SibSimulation:
                     f"  Muscle activity data is 1D, shape {ma.shape}, skipping per-muscle assignment."
                 )
 
-        lems_file = os.path.join(self.sim_dir, "LEMS_c302.xml")
-        if os.path.isfile(lems_file):
-            print_(f"Loading LEMS file: {lems_file}")
-            results = reload_saved_data(lems_file)
-            print(f"Result keys: {results.keys()}")
+        try:
+            lems_file = os.path.join(self.sim_dir, "LEMS_c302.xml")
+            if os.path.isfile(lems_file):
+                print_(f"Loading LEMS file: {lems_file}")
+                results = reload_saved_data(lems_file, verbose=True)
+                print(f"Result keys: {results.keys()}")
 
-            for k, v in results.items():
-                if k == "t":
-                    times_ms = np.array(v) * 1000.0
-                    self.muscle_memb_potentials[k] = times_ms
-                    self.neuron_memb_potentials[k] = times_ms
-                    self.muscle_ca_conc[k] = times_ms
-                    self.neuron_ca_conc[k] = times_ms
+                for k, v in results.items():
+                    cell_ref = k.split("/")[0]
+                    if cell_ref.startswith("PopM"):
+                        index_cell = str(int(k.split("/")[1]) + 1)
+                        cell_ref = cell_ref[3:]
+                        print(cell_ref, index_cell)
 
-                elif k.startswith("M") and k.endswith("/v"):
-                    m = k.split("/")[0]
-                    self.muscle_memb_potentials[m] = np.array(v) * 1000.0
-                    print_(f"  Muscle {m} v:\tmin {min(v)}, max {max(v)}")
-                elif k.startswith("M") and k.endswith("/caConc"):
-                    m = k.split("/")[0]
-                    self.muscle_ca_conc[m] = v
-                    print_(f"  Muscle {m} caConc:\tmin {min(v)}, max {max(v)}")
-                elif k.endswith("/v"):
-                    n = k.split("/")[0]
-                    self.neuron_memb_potentials[n] = v
-                    print_(f"  Neuron {n} v:\tmin {min(v)}, max {max(v)}")
-                elif k.endswith("/caConc"):
-                    n = k.split("/")[0]
-                    self.neuron_ca_conc[n] = v
-                    print_(f"  Neuron {n} caConc:\tmin {min(v)}, max {max(v)}")
-                else:
-                    print_(f"Unhandled result key: {k} in {lems_file}")
+                        if "MV1" in cell_ref:
+                            cell_ref = cell_ref.replace("MV1", "MVL") + index_cell
+                        if "MD1" in cell_ref:
+                            cell_ref = cell_ref.replace("MD1", "MDL") + index_cell
+                    elif cell_ref.startswith("Pop"):
+                        index_cell = str(int(k.split("/")[1]) + 1)
+                        cell_ref = cell_ref[3:]
+                        cell_ref = cell_ref + index_cell
+
+                    variable = k.split("/")[-1]
+
+                    print_(f"--- Processing: {k}: {cell_ref}->{variable}")
+
+                    if cell_ref == "t":
+                        times_ms = np.array(v) * 1000.0
+                        self.muscle_memb_potentials["t"] = times_ms
+                        self.neuron_memb_potentials["t"] = times_ms
+                        self.muscle_ca_conc["t"] = times_ms
+                        self.neuron_ca_conc["t"] = times_ms
+                        self.muscle_states["t"] = times_ms
+                        self.neuron_states["t"] = times_ms
+
+                    elif cell_ref.startswith("M") and variable == "v":
+                        self.muscle_memb_potentials[cell_ref] = np.array(v) * 1000.0
+                        print_(f"  Muscle {cell_ref} v:\tmin {min(v)}, max {max(v)}")
+
+                    elif cell_ref.startswith("M") and variable == "caConc":
+                        self.muscle_ca_conc[cell_ref] = v
+                        print_(
+                            f"  Muscle {cell_ref} caConc:\tmin {min(v)}, max {max(v)}"
+                        )
+
+                    elif cell_ref.startswith("M") and variable == "state":
+                        self.muscle_states[cell_ref] = v
+                        print_(
+                            f"  Muscle {cell_ref} state:\tmin {min(v)}, max {max(v)}"
+                        )
+
+                    elif variable == "v":
+                        self.neuron_memb_potentials[cell_ref] = v
+                        print_(f"  Neuron {cell_ref} v:\tmin {min(v)}, max {max(v)}")
+
+                    elif variable == "caConc":
+                        self.neuron_ca_conc[cell_ref] = v
+                        print_(
+                            f"  Neuron {cell_ref} caConc:\tmin {min(v)}, max {max(v)}"
+                        )
+
+                    elif variable == "state":
+                        self.neuron_states[cell_ref] = v
+                        print_(
+                            f"  Neuron {cell_ref} state:\tmin {min(v)}, max {max(v)}"
+                        )
+
+                    else:
+                        print_(
+                            f"Unhandled result key: {k}: {cell_ref}->{variable} in {lems_file}"
+                        )
+
+        except Exception as e:
+            raise Exception(f"Error loading LEMS file: {e}")
 
     def _load_positions(self, position_file):
         points = {}
@@ -393,35 +438,54 @@ class SibSimulation:
 
     def display_traces(self, show=True):
 
-        plot_neuron_activity(
-            self.neuron_memb_potentials,
-            label=" (mV)",
-            title="Neuronal membrane potentials (NEURON)",
-        )
-
-        plot_neuron_activity(
-            self.neuron_ca_conc,
-            label=" (mM)",
-            title="Neuronal calcium concentrations (NEURON)",
-        )
-
+        # This needs to be present
         plot_muscle_activity(
             self.muscle_activity_to_sibernetic,
             label=" act.",
             title="Muscle activity (Sibernetic)",
         )
 
-        plot_muscle_activity(
-            self.muscle_memb_potentials,
-            label=" (mV)",
-            title="Muscle membrane potentials (NEURON)",
-        )
+        if len(self.muscle_memb_potentials) > 1:  # as 't' will be present
+            plot_muscle_activity(
+                self.muscle_memb_potentials,
+                label=" (mV)",
+                title="Muscle membrane potentials (NEURON)",
+            )
 
-        plot_muscle_activity(
-            self.muscle_ca_conc,
-            label="(mM)",
-            title="Muscle calcium concentrations (NEURON)",
-        )
+        if len(self.muscle_ca_conc) > 1:  # as 't' will be present
+            plot_muscle_activity(
+                self.muscle_ca_conc,
+                label=" (mM)",
+                title="Muscle calcium concentrations (NEURON)",
+            )
+
+        if len(self.muscle_states) > 1:  # as 't' will be present
+            plot_muscle_activity(
+                self.muscle_states,
+                label=" (a.u.)",
+                title="Muscle states (NEURON)",
+            )
+
+        if len(self.neuron_memb_potentials) > 1:  # as 't' will be present
+            plot_neuron_activity(
+                self.neuron_memb_potentials,
+                label=" (mV)",
+                title="Neuronal membrane potentials (NEURON)",
+            )
+
+        if len(self.neuron_ca_conc) > 1:  # as 't' will be present
+            plot_neuron_activity(
+                self.neuron_ca_conc,
+                label=" (mM)",
+                title="Neuronal calcium concentrations (NEURON)",
+            )
+
+        if len(self.neuron_states) > 1:  # as 't' will be present
+            plot_neuron_activity(
+                self.neuron_states,
+                label=" (a.u.)",
+                title="Neuronal states (NEURON)",
+            )
 
         if show:
             plt.show()
