@@ -8,6 +8,7 @@ import os
 import json
 import numpy as np
 import sys
+import math
 from pyneuroml.pynml import reload_saved_data
 
 import matplotlib.pyplot as plt
@@ -501,8 +502,19 @@ def plot_neuron_activity(neurons, label, title):
     # set window title also
     f.canvas.manager.set_window_title(title)
 
+    maxes = {p: 0 for p in pops}
+    mids = {}
     for i in range(len(pops)):
-        a[i].set_ylabel(pops[i] + label)
+        pop = pops[i]
+        a[i].set_ylabel(pop + label)
+
+    for k, v in neurons.items():
+        for pop in pops:
+            if k.startswith(pop):
+                maxes[pop] += 1
+
+    for p, m in maxes.items():
+        mids[p] = math.ceil(m / 2)
 
     a[-1].set_xlabel("Time step (ms)")
 
@@ -511,14 +523,22 @@ def plot_neuron_activity(neurons, label, title):
             pop_ax = None
 
             for i in range(len(pops) - 1):
-                if k.startswith(pops[i]):
+                pop = pops[i]
+                if k.startswith(pop):
                     pop_ax = a[i]
 
                     index = int(k[2:])  # get the index part of the neuron name
 
-                    color = _get_color_for_index(index, 5, 10)
+                    max = maxes[pop]
+                    mid = mids[pop]
+
+                    color = _get_color_for_index(index, mid, max)
                     linewidth = (
-                        2 if index == 5 else 1 if index == 1 or index == 24 else 0.5
+                        2
+                        if index == mid
+                        else 1.5
+                        if index == 1 or index == max
+                        else 0.5
                     )
 
                     break
@@ -529,18 +549,27 @@ def plot_neuron_activity(neurons, label, title):
                 linewidth = 0.5
 
             print_(
-                f"Plotting neuron {k} with {len(v)} points on axis {pop_ax.get_ylabel()}"
+                f"Plotting neuron {k} in {color} with {len(v)} points on axis {pop_ax.get_ylabel()}"
             )
 
             pop_ax.plot(
                 neurons["t"],
                 v,
-                label="%s" % k,
+                label="%s" % (k),
                 linestyle="-",
                 linewidth=linewidth,
                 color=color,
                 marker=None,
             )
+
+    print(maxes)
+    print(mids)
+
+    # display the labels in the plots
+    for ax in a:
+        if ax.get_legend_handles_labels()[0]:
+            ax.legend(loc="upper right", fontsize="x-small", ncol=4)
+
     return f
 
 
