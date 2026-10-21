@@ -130,6 +130,18 @@ class SibSimulation:
         timestamp = os.path.getmtime(self.report_file)
         return timestamp
 
+    def get_metadata(self):
+        if self.report_data is not None:
+            metadata = self.report_data.copy()
+        else:
+            metadata = {
+                "sim_dir": self.sim_dir,
+                "duration_ms": self.get_duration_ms(),
+                "run_time_s": self.get_run_time_s(),
+                "timestamp": self.get_timestamp(),
+            }
+        return metadata
+
     def _load_report(self, report_file):
         self.report_data = json.load(open(report_file))
         print_(f"Loaded report_data:\n{self.report_data}")
@@ -492,6 +504,27 @@ class SibSimulation:
             plt.show()
 
 
+def _remove_empty_axes(f, a, xlabel="Time step (ms)"):
+
+    # iterate over the axes, and if any of them contain no plots, remove them from the figure
+    remaining = []
+    for ax in a:
+        if ax.get_lines():
+            remaining.append(ax)
+        else:
+            f.delaxes(ax)
+
+    # restructure the figure to accommodate the subplots based on the new number of axes after removing empty ones
+    if remaining and len(remaining) < len(a):
+        gs = f.add_gridspec(len(remaining), 1)
+        for i, ax in enumerate(remaining):
+            ax.set_subplotspec(gs[i])
+            # only the bottom plot shows x axis labels
+            last = i == len(remaining) - 1
+            ax.tick_params(labelbottom=last)
+            ax.set_xlabel(xlabel if last else "")
+
+
 def plot_neuron_activity(neurons, label, title):
 
     pops = ["DD", "DB", "DA", "VB", "VD", "VA", "Others"]
@@ -508,17 +541,18 @@ def plot_neuron_activity(neurons, label, title):
         pop = pops[i]
         a[i].set_ylabel(pop + label)
 
-    for k, v in neurons.items():
-        for pop in pops:
-            if k.startswith(pop):
-                maxes[pop] += 1
+    for k in sorted(neurons.keys()):
+        if k != "t":
+            for pop in pops:
+                if k.startswith(pop):
+                    maxes[pop] += 1
 
     for p, m in maxes.items():
         mids[p] = math.ceil(m / 2)
 
     a[-1].set_xlabel("Time step (ms)")
 
-    for k, v in neurons.items():
+    for k in sorted(neurons.keys()):
         if k != "t":
             pop_ax = None
 
@@ -548,6 +582,8 @@ def plot_neuron_activity(neurons, label, title):
                 color = "blue"
                 linewidth = 0.5
 
+            v = neurons[k]
+
             print_(
                 f"Plotting neuron {k} in {color} with {len(v)} points on axis {pop_ax.get_ylabel()}"
             )
@@ -568,7 +604,9 @@ def plot_neuron_activity(neurons, label, title):
     # display the labels in the plots
     for ax in a:
         if ax.get_legend_handles_labels()[0]:
-            ax.legend(loc="upper right", fontsize="x-small", ncol=4)
+            ax.legend(loc="upper right", fontsize="x-small", ncol=6)
+
+    _remove_empty_axes(f, a, xlabel="Time step (ms)")
 
     return f
 
@@ -603,8 +641,9 @@ def plot_muscle_activity(muscles, label=" act.", title="Muscle activity"):
 
     a[3].set_xlabel("Time step (ms)")
 
-    for k, v in muscles.items():
+    for k in sorted(muscles.keys()):
         if k != "t":
+            v = muscles[k]
             if quadrant_mdr in k:
                 quad_ax = a[0]
             elif quadrant_mdl in k:
@@ -630,6 +669,14 @@ def plot_muscle_activity(muscles, label=" act.", title="Muscle activity"):
                 color=color,
                 marker=None,
             )
+
+    # display the labels in the plots
+    for ax in a:
+        if ax.get_legend_handles_labels()[0]:
+            ax.legend(loc="upper right", fontsize="x-small", ncol=6)
+
+    _remove_empty_axes(f, a)
+
     return f
 
 

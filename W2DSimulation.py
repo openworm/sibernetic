@@ -39,8 +39,6 @@ class W2DSimulation:
         self.sim_dir = sim_dir
         self.verbose = verbose
 
-        self.sim_json_file = os.path.join(self.sim_dir, "simulation_pars.json")
-
         self._load_json_files()
 
         if load_traces:
@@ -74,9 +72,32 @@ class W2DSimulation:
             self.neuron_states["t"] = ma[:, 0]
             self.muscle_states["t"] = ma[:, 0]
 
-        cell_ids_file = os.path.join(self.sim_dir, "cell_Ids.json")
+        cell_ids_file = os.path.join(self.sim_dir, "cell_Ids.json")  # older form
 
-        if os.path.isfile(cell_ids_file):
+        if (
+            os.path.isfile(self.worm_json_file)
+            and "cell_names" in self.worm_data["nervous_system"]
+        ):
+            cell_ids = self.worm_data["nervous_system"]["cell_names"]
+            infos = cell_ids["value"]
+            print_(f"Loaded {len(infos)} cell ID infos from {self.worm_json_file}")
+
+            for i, cell_info in enumerate(infos):
+                cell_index = cell_info.split("_")[-1]
+                cell_type = cell_info.split("_")[0]
+                cell_name = f"{cell_type}{cell_index}"
+                print(f"Handling cell {i}: {cell_name}")
+                self.neuron_states[cell_name] = ma[:, i + 1]
+
+            for i in range(24):
+                for dv in ["D", "V"]:
+                    muscle_name = f"M{dv}L{i + 1}"
+                    offset = 0 if dv == "D" else 1
+                    self.muscle_states[muscle_name] = ma[
+                        :, len(infos) + i * 2 + 1 + offset
+                    ]
+
+        elif os.path.isfile(cell_ids_file):
             cell_ids = json.load(open(cell_ids_file))
             infos = cell_ids["Nervous System"]
             print_(f"Loaded {len(infos)} cell ID infos from {cell_ids_file}")
@@ -95,19 +116,33 @@ class W2DSimulation:
                     self.muscle_states[muscle_name] = ma[
                         :, len(infos) + i * 2 + 1 + offset
                     ]
+
         else:
             print_(
-                f"Cell IDs file not found: {cell_ids_file}. Cannot load neuron and muscle states."
+                f"Cell IDs file not found: {self.worm_json_file}. Cannot load neuron and muscle states."
             )
             self.neuron_states = None
             self.muscle_states = None
 
     def _load_json_files(self):
 
+        self.sim_json_file = os.path.join(self.sim_dir, "simulation_pars.json")
         self.sim_data = json.load(open(self.sim_json_file))
+
         print_(f"Loaded simulation data:\n{self.sim_data}")
+
         self.duration = float(self.sim_data["Duration"])
         self.transient = float(self.sim_data["Transient"])
+
+        self.worm_json_file = os.path.join(self.sim_dir, "worm_data_worm.json")
+        self.worm_data = json.load(open(self.worm_json_file))
+
+    def get_metadata(self):
+        metadata = {}
+        if self.sim_data is not None:
+            for k in sorted(self.sim_data.keys()):
+                metadata[k] = self.sim_data[k]
+        return metadata
 
     def display_traces(self, show=True):
 

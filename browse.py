@@ -70,6 +70,7 @@ def main(sims_dir=None):
     table = ui.table(
         columns=[
             {"name": "name", "label": "Name", "field": "name", "sortable": True},
+            {"name": "action0", "label": "Info", "align": "center"},
             {
                 "name": "timestamp",
                 "label": "Timestamp",
@@ -102,6 +103,14 @@ def main(sims_dir=None):
     )
 
     table.add_slot(
+        "body-cell-action0",
+        """
+        <q-td :props="props">
+            <q-btn flat label="ℹ️" @click="() => $parent.$emit('info', props.row.sim_dir)" />
+        </q-td>
+    """,
+    )
+    table.add_slot(
         "body-cell-action",
         """
         <q-td :props="props">
@@ -119,6 +128,7 @@ def main(sims_dir=None):
     )
     table.on("load", lambda e: load_sim(e))
     table.on("load2", lambda e: load_sim_2d(e))
+    table.on("info", lambda e: info_sim(e))
 
     ui.run(
         native=True, window_size=(900, 600)
@@ -179,6 +189,10 @@ def load_sim_2d(e):
     if not os.path.isfile(wcon_file):
         wcon_file = os.path.join(sim_dir, "output.wcon")
 
+        if not os.path.isfile(wcon_file):
+            print(f"  - No WCON file found in {sim_dir}!.")
+            return
+
     sim = load_simulation(sim_dir, full_load=True)
 
     sim.display_traces(show=False)
@@ -193,6 +207,31 @@ def load_sim_2d(e):
         nogui=False,
         start_play=False,
     )
+
+
+def info_sim(e):
+    sim_dir = e.args
+
+    print(f"Giving info on simulation: {sim_dir}...")
+
+    sim = load_simulation(sim_dir, full_load=False)
+
+    with ui.dialog() as dialog, ui.card():
+        ui.label(f"Simulation in: {sim_dir}").style(
+            "font-size: 14px; margin-bottom: 20px;"
+        )
+        table_html = '<table style="width: 100%; border-collapse: collapse;">'
+
+        for key in sorted(sim.get_metadata().keys()):
+            value = sim.get_metadata()[key]
+            table_html += f"<tr><td width='50%'><i>{key}&nbsp;&nbsp;</i></td><td><b>{value}</b></td></tr>"
+
+        table_html += "</table>"
+        ui.html(table_html).style("font-size: 14px;")
+
+        ui.button("Close", on_click=dialog.close)
+
+    dialog.open()
 
 
 if __name__ in {"__main__", "__mp_main__"}:
