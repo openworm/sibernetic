@@ -134,6 +134,11 @@ class W2DSimulation:
         self.duration = float(self.sim_data["Duration"])
         self.transient = float(self.sim_data["Transient"])
 
+        self.evol_json__file = os.path.join(self.sim_dir, "evolution_pars.json")
+        self.evol_data = json.load(open(self.evol_json__file))
+
+        print_(f"Loaded evolution data:\n{self.evol_data}")
+
         self.worm_json_file = os.path.join(self.sim_dir, "worm_data_worm.json")
         self.worm_data = json.load(open(self.worm_json_file))
 
@@ -142,6 +147,9 @@ class W2DSimulation:
         if self.sim_data is not None:
             for k in sorted(self.sim_data.keys()):
                 metadata[k] = self.sim_data[k]
+        if self.evol_data is not None:
+            for k in sorted(self.evol_data.keys()):
+                metadata[k] = self.evol_data[k]
         return metadata
 
     def display_traces(self, show=True):
