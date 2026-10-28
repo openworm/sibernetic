@@ -525,9 +525,9 @@ def _remove_empty_axes(f, a, xlabel="Time step (ms)"):
             ax.set_xlabel(xlabel if last else "")
 
 
-def plot_neuron_activity(neurons, label, title):
+def plot_neuron_activity(neurons, label, title, show_labels=False):
 
-    pops = ["DD", "DB", "DA", "VB", "VD", "VA", "Others"]
+    pops = ["DD", "DA", "DB", "VB", "VA", "VD", "Others"]
 
     f, a = plt.subplots(len(pops), sharex=True, sharey=True)
 
@@ -601,10 +601,11 @@ def plot_neuron_activity(neurons, label, title):
     print(maxes)
     print(mids)
 
-    # display the labels in the plots
-    for ax in a:
-        if ax.get_legend_handles_labels()[0]:
-            ax.legend(loc="upper right", fontsize="x-small", ncol=6)
+    if show_labels:
+        # display the labels in the plots
+        for ax in a:
+            if ax.get_legend_handles_labels()[0]:
+                ax.legend(loc="upper right", fontsize="x-small", ncol=6)
 
     _remove_empty_axes(f, a, xlabel="Time step (ms)")
 
@@ -621,7 +622,9 @@ def _get_color_for_index(index, mid, total):
     return cmap(index / total)
 
 
-def plot_muscle_activity(muscles, label=" act.", title="Muscle activity"):
+def plot_muscle_activity(
+    muscles, label=" act.", title="Muscle activity", show_labels=False
+):
 
     f, a = plt.subplots(4, sharex=True, sharey=True)
 
@@ -670,10 +673,11 @@ def plot_muscle_activity(muscles, label=" act.", title="Muscle activity"):
                 marker=None,
             )
 
-    # display the labels in the plots
-    for ax in a:
-        if ax.get_legend_handles_labels()[0]:
-            ax.legend(loc="upper right", fontsize="x-small", ncol=6)
+    if show_labels:
+        # display the labels in the plots
+        for ax in a:
+            if ax.get_legend_handles_labels()[0]:
+                ax.legend(loc="upper right", fontsize="x-small", ncol=6)
 
     _remove_empty_axes(f, a)
 

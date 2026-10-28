@@ -4,6 +4,7 @@ import os
 from SibSimulation import SibSimulation
 from W2DSimulation import W2DSimulation
 from SiberneticReplay import add_sibernetic_model
+import matplotlib.pyplot as plt
 
 import pyvista as pv
 
@@ -206,7 +207,20 @@ def load_sim_2d(e):
         show_grid=False,
         nogui=False,
         start_play=False,
+        show_plots_already=False,
+        show_curvature=True,
     )
+    from wconviewer.Utils import analyse_wcon_file
+
+    analyse_wcon_file(
+        wcon_file,
+        rate_to_plot=1,
+        plot_midlines=False,
+        plot_speeds=True,
+        plot_body_curvature=False,
+        show_plots_already=False,
+    )
+    plt.show()
 
 
 def info_sim(e):

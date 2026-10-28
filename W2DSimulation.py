@@ -76,6 +76,7 @@ class W2DSimulation:
 
         if (
             os.path.isfile(self.worm_json_file)
+            and "nervous_system" in self.worm_data
             and "cell_names" in self.worm_data["nervous_system"]
         ):
             cell_ids = self.worm_data["nervous_system"]["cell_names"]
@@ -135,7 +136,12 @@ class W2DSimulation:
         self.transient = float(self.sim_data["Transient"])
 
         self.worm_json_file = os.path.join(self.sim_dir, "worm_data_worm.json")
-        self.worm_data = json.load(open(self.worm_json_file))
+        if not os.path.isfile(self.worm_json_file):
+            self.worm_json_file = os.path.join(self.sim_dir, "worm_data.json")
+        try:
+            self.worm_data = json.load(open(self.worm_json_file))
+        except Exception as e:
+            print_(f"Error loading worm data from {self.worm_json_file}: {e}")
 
     def get_metadata(self):
         metadata = {}
