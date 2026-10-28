@@ -68,6 +68,9 @@ def main(sims_dir=None):
         "font-size: 18px; font-weight: bold; margin-bottom: 20px;"
     )
 
+    # create the search box first so it appears above the table
+    search = ui.input("Search")
+
     table = ui.table(
         columns=[
             {"name": "name", "label": "Name", "field": "name", "sortable": True},
@@ -102,6 +105,7 @@ def main(sims_dir=None):
         # newest first, so the most recently run simulation is in the top row
         pagination={"sortBy": "timestamp", "descending": True, "rowsPerPage": 25},
     )
+    search.bind_value(table, "filter")
 
     table.add_slot(
         "body-cell-action0",
@@ -132,7 +136,7 @@ def main(sims_dir=None):
     table.on("info", lambda e: info_sim(e))
 
     ui.run(
-        native=True, window_size=(900, 600)
+        native=True, window_size=(1000, 700)
     )  # remove native=True to serve it as a web app
 
 
