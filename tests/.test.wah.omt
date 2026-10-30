@@ -1,0 +1,18 @@
+# Framework for running automated tests on Open Source Brain
+# See https://github.com/OpenSourceBrain/osb-model-validation for more details
+ 
+target: test_worm_alone_half.py
+engine: Brian2  # This installs Brian2, but all we really need is a Python environment to run the script in
+mep: .test.wah.mep
+experiments:
+  Test:
+    observables:
+      spike times:
+        file: 
+          path: ../simulations/test_worm_alone_half/muscles_activity_buffer.dat
+          columns: [0, 21]
+          scaling: [1, 1]
+        spike detection: 
+          method: threshold
+          threshold: 0.005
+        tolerance: 0
