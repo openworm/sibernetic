@@ -54,12 +54,12 @@ namespace owVtkExport {
 	}
 
 	void setEndianness() {
-		union {
-			uint32_t i;
+		/*union {
+			//uint32_t i;
 			char c[4];
 		} bint = {0x01020304};
-
-		isBigEndian = (bint.c[0] == 1);
+		*/
+		isBigEndian = true; // (bint.c[0] == 1); // TODO figure it out why it wont to compile 
 	}
 
 	void printParticles(std::ofstream & outFile, float * position,

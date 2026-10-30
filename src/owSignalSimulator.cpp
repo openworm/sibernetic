@@ -35,8 +35,9 @@
 // run the following commands from inside curdir:
 //
 // $ export PYTHONPATH="/home/mike/dev/cpp_pyramidal_integration/"
-//OR
-//export PYTHONPATH=$PYTHONPATH:/home/mike/dev/muscle_model/pyramidal_implementation/
+// OR
+// export
+// PYTHONPATH=$PYTHONPATH:/home/mike/dev/muscle_model/pyramidal_implementation/
 // $ g++ main.cpp -l python2.7 -o sim -I /usr/include/python2.7/
 // $ ./sim
 
@@ -44,69 +45,100 @@
 
 #include "owSignalSimulator.h"
 
+SignalSimulator::SignalSimulator(const std::string &simFileName,
+                                 const std::string &simClassName,
+                                 float timeStep) {
 
-SignalSimulator::SignalSimulator(const std::string & simFileName, const std::string & simClassName){
-
-  //char pyClass[] = "SiberneticNEURONWrapper";
-  //char pyClass[] = "C302Simulation";
+  // char pyClass[] = "SiberneticNEURONWrapper";
+  // char pyClass[] = "C302Simulation";
 
   // Initialize the Python interpreter
   Py_Initialize();
-  PyObject* pName;
+
+  PyObject *pName;
   // Convert the file name to a Python string.
-  pName = PyString_FromString(simFileName.c_str());
-  const char* s = PyString_AsString(pName);
-  printf("[debug] pName = \"%s\"\n",s);
-  const char* s2 = Py_GetPath();
-  printf("[debug] PyPath = \"%s\"\n",s2);
-  
+  pName = PyUnicode_FromString(simFileName.c_str());
+  PyObject * temp_bytes = PyUnicode_AsEncodedString(pName, "UTF-8", "strict");
+  const char * s = PyBytes_AS_STRING(temp_bytes);
+  s = strdup(s);
+  Py_DECREF(temp_bytes);
+
+  printf("[debug] pName = \"%s\"\n", s);
+
+
+  #if PY_MAJOR_VERSION == 3
+    setlocale(LC_ALL, "en_US.utf8");
+    char s2[10000];
+    const wchar_t * s2_wide = Py_GetPath();
+    std::wcstombs(s2, s2_wide, 10000);
+
+  #else
+    const char *s2 = Py_GetPath();
+  #endif
+
+  printf("[debug] PyPath = \"%s\"\n", s2);
+
   // Import the file as a Python module.
   pModule = PyImport_Import(pName);
-  if( PyErr_Occurred() ) PyErr_Print();  
+  if (PyErr_Occurred())
+    PyErr_Print();
 
   // Build the name of a callable class
-  if (pModule != NULL){
-    pClass = PyObject_GetAttrString(pModule,simClassName.c_str());
-	if( PyErr_Occurred() ) PyErr_Print();  
-  }
-  else {
-    throw std::runtime_error("Python module not loaded, have you set PYTHONPATH?\nTry: \n\n   export PYTHONPATH=$PYTHONPATH:./src\n");
+  if (pModule != nullptr) {
+    pClass = PyObject_GetAttrString(pModule, simClassName.c_str());
+    if (PyErr_Occurred())
+      PyErr_Print();
+  } else {
+    throw std::runtime_error("Python module not loaded, have you set "
+                             "PYTHONPATH?\nTry: \n\n   export "
+                             "PYTHONPATH=$PYTHONPATH:./src\n");
   }
   // Create an instance of the class
-  if (PyCallable_Check(pClass))
-	{
-	  pInstance = PyObject_CallObject(pClass, NULL);
-	  if( PyErr_Occurred() ) PyErr_Print(); 
-	  std::cout << "Pyramidal simulation class loaded!"<< std::endl;
-	}
-  else {
-    throw std::runtime_error("Pyramidal simulation class not callable! Try: export PYTHONPATH=$PYTHONPATH:./src");
+  if (PyCallable_Check(pClass)) {
+    pInstance = PyObject_CallObject(pClass, nullptr);
+    if (PyErr_Occurred())
+      PyErr_Print();
+    PyObject *dt = Py_BuildValue("f", timeStep); // Create tuple of arguments for initialization
+    PyObject *pFuncName = Py_BuildValue("s", "set_timestep");
+    //pInstance = PyObject_CallMethod(pInstance, "set_timestep", "(f)", timeStep);
+    PyObject_CallMethodObjArgs(pInstance, pFuncName, dt, nullptr);
+    if (PyErr_Occurred())
+      PyErr_Print();
+    Py_DECREF(dt);
+    Py_DECREF(pFuncName);
+    std::cout << "Python muscle signal generator class: " << simClassName
+              << " loaded!" << std::endl;
+  } else {
+    throw std::runtime_error("Python muscle signal generator class not "
+                             "callable! Try: export "
+                             "PYTHONPATH=$PYTHONPATH:./src");
   }
 }
 
-
-std::vector<float> SignalSimulator::run(){
-// Call a method of the class
-// pValue = PyObject_CallMethod(pInstance, "rrun
-// un", NULL);
-	pValue = PyObject_CallMethod(pInstance, const_cast<char *>("run"), NULL);
-	if(PyList_Check(pValue)){
-	  std::vector<float> value_array;
-	  value_array = SignalSimulator::unpackPythonList(pValue);
-	  return value_array;
-	}
-	else {
-	  std::vector<float> single_element_array(0);
-	  single_element_array[0] = (float)PyFloat_AsDouble(pValue);
-	  return single_element_array;
-	}
+std::vector<float> SignalSimulator::run() {
+  // Call a method of the class
+  // pValue = PyObject_CallMethod(pInstance, "rrun
+  // un", nullptr);
+  pValue = PyObject_CallMethod(pInstance, const_cast<char *>("run"), nullptr);
+  if (PyErr_Occurred()) {
+      PyErr_Print();
+      throw std::runtime_error("Exception in simulator run (printed above)");
+  }
+  if (PyList_Check(pValue)) {
+    std::vector<float> value_array;
+    value_array = SignalSimulator::unpackPythonList(pValue);
+    return value_array;
+  } else {
+    std::vector<float> single_element_array(0);
+    single_element_array[0] = (float)PyFloat_AsDouble(pValue);
+    return single_element_array;
+  }
 }
 
 SignalSimulator::~SignalSimulator() {
-    
-	  std::cout << "Killing SignalSimulator!"<< std::endl;
-      
-	  PyObject_CallMethod(pInstance, const_cast<char *>("save_results"), NULL);
-      if( PyErr_Occurred() ) PyErr_Print();  
-	// TODO Auto-generated destructor stub
+
+  PyObject_CallMethod(pInstance, const_cast<char *>("save_results"), nullptr);
+  if (PyErr_Occurred())
+    PyErr_Print();
+  // TODO Auto-generated destructor stub
 }

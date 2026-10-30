@@ -11,39 +11,58 @@ Compiling / running (Linux/mac)
 
 [![Join the chat at https://gitter.im/openworm/sibernetic](https://badges.gitter.im/openworm/sibernetic.svg)](https://gitter.im/openworm/sibernetic?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-**Linux**
-
-Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. You can also try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues. The AMD drivers include samples in /opt/AMDAPP/samples/opencl/bin which you can use to verify your OpenCL support is working.
+## Linux
+Install OpenCL on Ubuntu. We suggest you initially go with [AMD OpenCL drivers](http://developer.amd.com/tools-and-sdks/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/downloads/) as we have found these to be the most stable and complete. You can also try [Intel's drivers](http://develnoter.blogspot.co.uk/2012/05/installing-opencl-in-ubuntu-1204.html). This step often causes problems, contact the [openworm-discuss](https://groups.google.com/forum/#!forum/openworm-discuss) mailing list if you encounter issues. The AMD drivers include samples in `/opt/AMDAPP/samples/opencl/bin` which you can use to verify your OpenCL support is working.
 
 You'll also need a variety of libraries. In ubuntu, install the dependencies with:
 
-```
+```bash
 sudo apt-get install g++ python-dev freeglut3-dev nvidia-opencl-dev libglu1-mesa-dev libglew-dev python-numpy
 ```
 
-Next, navigate to the `Release` folder and run:
+Next, from the `sibernetic/` directory run:
 
-```
+```bash
 make clean
 make all
 ```
 
-**Mac**: stay in the top-level folder. You need before run export several environment variables:
+Also you  may need to set some enviromat variables like path to OpenCL lib or header for to do this
+you can fix your `LD_LIBRARY_PATH` as this:
 
+```bash
+export LD_LIBRARY_PATH=/path/to/opencl_lib/folder/:$LD_LIBRARY_PATH
+e.g.
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64/:$LD_LIBRARY_PATH
 ```
+
+You can find OpenCL lib in CUDA folder if you're using NVIDIA (`/usr/local/cuda/lib64/`) or run this command.
+
+```bash
+ldconfig -p | grep opencl
+```
+
+Also you may need to give compiler path to OpenCL header files usually you can find them in `/usr/include/CL` if they there than you don't need do anything. In othe case you can edit makefile directly and add directory to OpenCL headers by adding options `-I/path/to/opencl_includes/` or you can copy folder with header into `/usr/include/` but you should have root permission for doing that.
+
+## Mac
+stay in the top-level folder. You need before run export several environment variables:
+
+```bash
 export PYTHONHEADERDIR=/usr/local/Cellar/python/<version_of_installed_pythonFramework>/Python.framework/Headers/
 export PYTHONLIBDIR=/usr/local/lib/python2...
 export PYTHONFRAMEWORKDIR=/usr/local/Frameworks/
 ```
+
 Then
-```
+
+```bash
 make clean -f makefile.OSX
 make all -f makefile.OSX
 ```
 
 You should see an output which looks something like this:
 
-```
+```bash
 Building file: ../src/PyramidalSimulation.cpp
 Invoking: GCC C++ Compiler
 
@@ -59,36 +78,38 @@ Finished building target:Sibernetic
 
 Then navigate to the top-level folder in the hierarchy (e.g `Sibernetic`) and set your `PYTHONPATH`:
 
-```
-export PYTHONPATH=$PYTHONPATH:'./src'
+```bash
+export PYTHONPATH=$PYTHONPATH:.
 ```
 
 Finally, to run, run the command:
 
 **Linux**:
-```
+
+```bash
 ./Release/Sibernetic
 ```
+
 **Mac**:
-```
+
+```bash
 ./Release/Sibernetic
 ```
 
 You may need to make `./Release/Sibernetic` executable like so:
 
-```
+```bash
 chmod +x ./Release/Sibernetic
 ```
 
 If you do not run from the top-level folder you will see an error which looks something like this:
 
-```
+```bash
 Compilation failed:
 "/tmp/OCLQ1BaOw.cl", line 8: catastrophic error: cannot open source file
 "src//owOpenCLConstant.h"
 #include "src//owOpenCLConstant.h"
 ```
-
 
 What's inside
 -------------
@@ -101,9 +122,7 @@ Physical Algorithms:
 - Boundary handling [2]
 - Surface tension [3]
 
-There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to boundary (one of it has a liquid-impermeable membranes covering and another one hasn't such).
-
-The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).
+There are two demo scenes generated for Sibernetic. The first one contains an elastic cube covered with liquid-impermeable membranes and liquid inside. The second one contains two elastic membranes attached to a boundary (one of them has liquid-impermeable membranes covering them and the other one doesn't).
 
 To switch between demos you need to press the 1 or 2 keys respectively. To pause simulation you may press space bar.
 
@@ -115,7 +134,7 @@ References
 
 Main command options
 --------------
-To start Sibernetic with argument print in command prompt next ./Release/Sibernetic -whatever
+To start Sibernetic with argument print in command prompt next `./Release/Sibernetic -whatever
 Available options:
 ```
  -no_g                 Run without graphics
@@ -123,7 +142,7 @@ Available options:
  -export_vtk           Save simulation results to VTK files.
      logstep=<value>   Log every <value> steps
  -l_from               Load simulation results from disk.
-     lpath=<value>     Indicates path where result of simulation will be stored.
+     lpath=<value>     Indicates path to the directory (not the file) where result of simulation will be stored.  
                        This option work only for -l_to and -l_from options
  -test                 Run some physical tests.
  -f <filename>         Load configuration from file <filename>.
@@ -183,8 +202,19 @@ than (./Release/Sibernetic -f ./configuration/snapshot/configuration_default).
 Configuration file format
 ---------------
 The configuration file consists of:
+First block is an optional if you didn't indicate this block then sibernetic will init consts by default value which you can find in [owPhysicsConstant.h ](./inc/owPhysicsConstant.h).
 ```
-First 6 lines is a spatial description of boundary box
+[physical parameters]
+mass: 5.4e-14
+timeStep: 5.0e-06
+simulationScale: 2.46e-06
+viscosity: 5.0e-05
+surfTensCoeff: 1.21948e+27
+elasticityCoefficient: 5.55556e+08
+```
+Next 6 lines is a spatial description of boundary box
+```
+[simulation box]
 xmin
 xmax
 ymin
@@ -200,7 +230,7 @@ zmax
 0 0 0 1
 ...
 [connection] - contains information about elastic connection of all elastic particles e.g.
-1	1.58649939377	1.1	0.0
+1	1.58649939377	1.1	0.0 
 7	1.58649939377	1.1	0.0
 ...
 [membranes] - contains information about membranes e.g.
@@ -214,7 +244,13 @@ zmax
 -1
 ...
 ```
-
+Position and velocity are represented as 4D vectors which contains information about x, y, z of particle in space and information about particle's type (it could be liquid - 1, elastic - 2 or boundary - 3). Each elastic particle has 32 places allocated in connections buffer. Each connection is represented like a 4D vector 
+ID of particle to connected to 
+stedy-state lenght of connection 
+id of muscle if this connection is a muscle fiber
+and unused data - need for vectorization.
+Connections buffer stored in memory like 1D vector: length of each is equal to `NUM_OF_ELASTIC_PARTICLES * 32 * 4`. So for each particular elastic particle you can find information for elastic its connections simply get sub-buffer of connection from `INTRESTING_PARTICLE_ID * 32 * 4` to `INTRESTING_PARTICLE_ID * 32 * 4 + 32 * 4`. 
+Each membrane is defined by 3 elastic particles and contains 3 IDs of this particles. particleMemIndex - contains IDs of membrane in which each elastic particle is included we suppose that max numbers of membrane for one particle is 7 so particleMemIndex contains `7 * NUM_OF_ELASTIC_PARTICLES` and you can get interesting information from this buffer just get sub-buffer from indexes `INTRESTING_PARTICLE_ID * 7` to `INTRESTING_PARTICLE_ID * 7 + 7`.
 
 Saving to disk
 --------------
@@ -230,10 +266,11 @@ To record configurations to file you need to run simulation with key -l_to:
 ./Release/Sibernetic -l_to
 ```
 
-This create 3 new files in the folder ./buffers:
+This create 3 new files in the folder `./buffers`:
 - connection_buffers.txt - stores information about connection among the elastic particles
 - membranes_buffer.txt   - stores information about membranes
 - position_buffer.txt    - stores information about current position of all of the non boundary particles it save information to this file every 10 steps of simulation. You should remember that the more info you
+- pressure_buffer.txt    - stores information oabout pressure for all shell particles.
 want to store than bigger output file is.
 
 For view result you should run simulation with:
@@ -256,16 +293,16 @@ For each saved timestep number N a file `state_N.vtp` is created in the director
 Run with Sibernetic-NEURON bridge
 ---------------------------------
 
-Now it's possible to run the physical and neuronal simulations together. For this you need
-[sibernetic_NEURON](https://github.com/openworm/sibernetic_NEURON) also.  Don't forget to
-add the path of sibernetic_NEURON into your PYTHONPATH. You just need to run Sibernetic with
-command argument '-nrn <value>' where value is the path to NEURON simulation file (*.hoc e.g.).
-After that Sibernetic will initialise sibernetic_NEURON with the appropriate simulation file and
-same timeStep also. You should indicate from what segments of NEURON's model you'd like to read
-data (currently Voltage). After each step of the Sibernetic simulation it will run one step of
-the NEURON simulation and read data from it and update the signal array in Sibernetic. For now,
-it actually works in test mode list of segments is [hardcoded](https://github.com/openworm/sibernetic/blob/development/src/owNeuronSimulator.cpp#L70)
-so if you'd like to work with another list of segments you need rewrite this part of code and
+Now it's possible to run the physical and neuronal simulations together. For this you need 
+[sibernetic_NEURON](https://github.com/openworm/sibernetic_NEURON) also.  Don't forget to 
+add the path of sibernetic_NEURON into your `PYTHONPATH`. You just need to run Sibernetic with 
+command argument '-nrn <value>' where value is the path to NEURON simulation file (*.hoc e.g.). 
+After that Sibernetic will initialise sibernetic_NEURON with the appropriate simulation file and 
+same timeStep also. You should indicate from what segments of NEURON's model you'd like to read 
+data (currently Voltage). After each step of the Sibernetic simulation it will run one step of 
+the NEURON simulation and read data from it and update the signal array in Sibernetic. For now, 
+it actually works in test mode list of segments is [hardcoded](https://github.com/openworm/sibernetic/blob/development/src/owNeuronSimulator.cpp#L70) 
+so if you'd like to work with another list of segments you need rewrite this part of code and 
 recompile Sibernetic.
 
 If you have Sibernetic and [NEURON (with Python support)](http://neuralensemble.org/docs/PyNN/installation.html#installing-neuron)

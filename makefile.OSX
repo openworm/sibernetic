@@ -9,7 +9,8 @@ src/owHelper.cpp \
 src/owOpenCLSolver.cpp \
 src/owPhysicsFluidSimulator.cpp \
 src/owWorldSimulation.cpp \
-src/owNeuronSimulator.cpp
+src/owNeuronSimulator.cpp \
+src/owConfigProperty.cpp
 
 TEST_SOURCES = src/test/owPhysicTest.cpp
 
@@ -25,9 +26,9 @@ OBJECTS += $(BINARYTESTDIR)/owPhysicTest.o
 CPP_DEPS = $(OBJECTS:.o=.d)
 
 # Change these to set the different python directories
-#PYTHONHEADERDIR = /usr/local/Cellar/python/2.7.6/Frameworks/Python.framework/Headers/
-#PYTHONLIBDIR = /usr/local/lib/python2.7
-#PYTHONFRAMEWORKDIR = /usr/local/Library/Frameworks
+PYTHONHEADERDIR = /opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7/
+PYTHONLIBDIR = /opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/
+PYTHONFRAMEWORKDIR = /Library/Frameworks/
 
 LIBS := -framework Python -framework OpenGL -framework GLUT -framework OpenCL
 
@@ -39,7 +40,7 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: clang C++ Linker'
-	g++ -L/usr/lib -F$(PYTHONFRAMEWORKDIR) -L$(PYTHONLIBDIR) -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
+	g++ -std=c++14 -L/usr/lib -F$(PYTHONFRAMEWORKDIR) -L$(PYTHONLIBDIR) -o $(BUILDDIR)/$(TARGET) $(OBJECTS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -50,7 +51,7 @@ $(BINARYDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo 'Invoking: clang C++ Compiler'
 #### use this to compile against homebrew installed python
 #### change version number as necessary (2.7.n)
-	g++ -O1 -Wall -c -I$(PYTHONHEADERDIR) -I$(INCDIR) -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	g++ -std=c++14 -O3 -Wall -c -I$(PYTHONHEADERDIR) -I$(INCDIR) -framework OpenCL -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
