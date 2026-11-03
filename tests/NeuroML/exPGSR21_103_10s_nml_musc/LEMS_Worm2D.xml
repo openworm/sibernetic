@@ -1,0 +1,342 @@
+<Lems>
+
+    <!-- 
+
+        This LEMS file has been automatically generated using PyNeuroML v1.3.22 (libNeuroML v0.6.8)
+
+     -->
+
+    <!-- Specify which component to run -->
+    <Target component="Worm2D" reportFile="report.txt"/>
+
+    <!-- Include core NeuroML2 ComponentType definitions -->
+    <Include file="Cells.xml"/>
+    <Include file="Networks.xml"/>
+    <Include file="Simulation.xml"/>
+
+    <Include file="cell_syn_W2D.xml"/>
+    <Include file="cell_syn_W2D_cells.xml"/>
+    <Include file="musc_W2D.xml"/>
+    <Include file="musc_W2D_cells.xml"/>
+    <Include file="Worm2D.net.nml"/>
+
+    <Simulation id="Worm2D" length="10000.0ms" step="1.0ms" target="Worm2DNet" seed="12345">  <!-- Note seed: ensures same random numbers used every run -->
+        <Display id="display0" title="States" timeScale="1ms" xmin="-1000.0" xmax="11000." ymin="-15" ymax="10">
+            <Line id="AS_0_AS" quantity="PopAS/0/AS/state" scale="1" color="#F0F8FF" timeScale="1ms"/>
+            <Line id="DA_0_DA" quantity="PopDA/0/DA/state" scale="1" color="#FAEBD7" timeScale="1ms"/>
+            <Line id="DB_0_DB" quantity="PopDB/0/DB/state" scale="1" color="#00FFFF" timeScale="1ms"/>
+            <Line id="DD_0_DD" quantity="PopDD/0/DD/state" scale="1" color="#7FFFD4" timeScale="1ms"/>
+            <Line id="VD_0_VD" quantity="PopVD/0/VD/state" scale="1" color="#F0FFFF" timeScale="1ms"/>
+            <Line id="VB_0_VB" quantity="PopVB/0/VB/state" scale="1" color="#F5F5DC" timeScale="1ms"/>
+            <Line id="VA_0_VA" quantity="PopVA/0/VA/state" scale="1" color="#FFE4C4" timeScale="1ms"/>
+            <Line id="AS_1_AS" quantity="PopAS/1/AS/state" scale="1" color="#000000" timeScale="1ms"/>
+            <Line id="DA_1_DA" quantity="PopDA/1/DA/state" scale="1" color="#FFEBCD" timeScale="1ms"/>
+            <Line id="DB_1_DB" quantity="PopDB/1/DB/state" scale="1" color="#0000FF" timeScale="1ms"/>
+            <Line id="DD_1_DD" quantity="PopDD/1/DD/state" scale="1" color="#8A2BE2" timeScale="1ms"/>
+            <Line id="VD_1_VD" quantity="PopVD/1/VD/state" scale="1" color="#A52A2A" timeScale="1ms"/>
+            <Line id="VB_1_VB" quantity="PopVB/1/VB/state" scale="1" color="#DEB887" timeScale="1ms"/>
+            <Line id="VA_1_VA" quantity="PopVA/1/VA/state" scale="1" color="#5F9EA0" timeScale="1ms"/>
+            <Line id="AS_2_AS" quantity="PopAS/2/AS/state" scale="1" color="#7FFF00" timeScale="1ms"/>
+            <Line id="DA_2_DA" quantity="PopDA/2/DA/state" scale="1" color="#D2691E" timeScale="1ms"/>
+            <Line id="DB_2_DB" quantity="PopDB/2/DB/state" scale="1" color="#FF7F50" timeScale="1ms"/>
+            <Line id="DD_2_DD" quantity="PopDD/2/DD/state" scale="1" color="#6495ED" timeScale="1ms"/>
+            <Line id="VD_2_VD" quantity="PopVD/2/VD/state" scale="1" color="#FFF8DC" timeScale="1ms"/>
+            <Line id="VB_2_VB" quantity="PopVB/2/VB/state" scale="1" color="#DC143C" timeScale="1ms"/>
+            <Line id="VA_2_VA" quantity="PopVA/2/VA/state" scale="1" color="#00FFFF" timeScale="1ms"/>
+            <Line id="AS_3_AS" quantity="PopAS/3/AS/state" scale="1" color="#00008B" timeScale="1ms"/>
+            <Line id="DA_3_DA" quantity="PopDA/3/DA/state" scale="1" color="#008B8B" timeScale="1ms"/>
+            <Line id="DB_3_DB" quantity="PopDB/3/DB/state" scale="1" color="#B8860B" timeScale="1ms"/>
+            <Line id="DD_3_DD" quantity="PopDD/3/DD/state" scale="1" color="#A9A9A9" timeScale="1ms"/>
+            <Line id="VD_3_VD" quantity="PopVD/3/VD/state" scale="1" color="#006400" timeScale="1ms"/>
+            <Line id="VB_3_VB" quantity="PopVB/3/VB/state" scale="1" color="#A9A9A9" timeScale="1ms"/>
+            <Line id="VA_3_VA" quantity="PopVA/3/VA/state" scale="1" color="#BDB76B" timeScale="1ms"/>
+            <Line id="AS_4_AS" quantity="PopAS/4/AS/state" scale="1" color="#8B008B" timeScale="1ms"/>
+            <Line id="DA_4_DA" quantity="PopDA/4/DA/state" scale="1" color="#556B2F" timeScale="1ms"/>
+            <Line id="DB_4_DB" quantity="PopDB/4/DB/state" scale="1" color="#FF8C00" timeScale="1ms"/>
+            <Line id="DD_4_DD" quantity="PopDD/4/DD/state" scale="1" color="#9932CC" timeScale="1ms"/>
+            <Line id="VD_4_VD" quantity="PopVD/4/VD/state" scale="1" color="#8B0000" timeScale="1ms"/>
+            <Line id="VB_4_VB" quantity="PopVB/4/VB/state" scale="1" color="#E9967A" timeScale="1ms"/>
+            <Line id="VA_4_VA" quantity="PopVA/4/VA/state" scale="1" color="#8FBC8F" timeScale="1ms"/>
+            <Line id="AS_5_AS" quantity="PopAS/5/AS/state" scale="1" color="#483D8B" timeScale="1ms"/>
+            <Line id="DA_5_DA" quantity="PopDA/5/DA/state" scale="1" color="#2F4F4F" timeScale="1ms"/>
+            <Line id="DB_5_DB" quantity="PopDB/5/DB/state" scale="1" color="#2F4F4F" timeScale="1ms"/>
+            <Line id="DD_5_DD" quantity="PopDD/5/DD/state" scale="1" color="#00CED1" timeScale="1ms"/>
+            <Line id="VD_5_VD" quantity="PopVD/5/VD/state" scale="1" color="#9400D3" timeScale="1ms"/>
+            <Line id="VB_5_VB" quantity="PopVB/5/VB/state" scale="1" color="#FF1493" timeScale="1ms"/>
+            <Line id="VA_5_VA" quantity="PopVA/5/VA/state" scale="1" color="#00BFFF" timeScale="1ms"/>
+            <Line id="AS_6_AS" quantity="PopAS/6/AS/state" scale="1" color="#696969" timeScale="1ms"/>
+            <Line id="DA_6_DA" quantity="PopDA/6/DA/state" scale="1" color="#696969" timeScale="1ms"/>
+            <Line id="DB_6_DB" quantity="PopDB/6/DB/state" scale="1" color="#1E90FF" timeScale="1ms"/>
+            <Line id="DD_6_DD" quantity="PopDD/6/DD/state" scale="1" color="#B22222" timeScale="1ms"/>
+            <Line id="VD_6_VD" quantity="PopVD/6/VD/state" scale="1" color="#FFFAF0" timeScale="1ms"/>
+            <Line id="VB_6_VB" quantity="PopVB/6/VB/state" scale="1" color="#228B22" timeScale="1ms"/>
+            <Line id="VA_6_VA" quantity="PopVA/6/VA/state" scale="1" color="#FF00FF" timeScale="1ms"/>
+        </Display>
+
+        <Display id="display1" title="Outputs" timeScale="1ms" xmin="-1000.0" xmax="11000." ymin="-.1" ymax="1">
+            <Line id="AS_0_AS" quantity="PopAS/0/AS/output" scale="1" color="#F0F8FF" timeScale="1ms"/>
+            <Line id="DA_0_DA" quantity="PopDA/0/DA/output" scale="1" color="#FAEBD7" timeScale="1ms"/>
+            <Line id="DB_0_DB" quantity="PopDB/0/DB/output" scale="1" color="#00FFFF" timeScale="1ms"/>
+            <Line id="DD_0_DD" quantity="PopDD/0/DD/output" scale="1" color="#7FFFD4" timeScale="1ms"/>
+            <Line id="VD_0_VD" quantity="PopVD/0/VD/output" scale="1" color="#F0FFFF" timeScale="1ms"/>
+            <Line id="VB_0_VB" quantity="PopVB/0/VB/output" scale="1" color="#F5F5DC" timeScale="1ms"/>
+            <Line id="VA_0_VA" quantity="PopVA/0/VA/output" scale="1" color="#FFE4C4" timeScale="1ms"/>
+            <Line id="AS_1_AS" quantity="PopAS/1/AS/output" scale="1" color="#000000" timeScale="1ms"/>
+            <Line id="DA_1_DA" quantity="PopDA/1/DA/output" scale="1" color="#FFEBCD" timeScale="1ms"/>
+            <Line id="DB_1_DB" quantity="PopDB/1/DB/output" scale="1" color="#0000FF" timeScale="1ms"/>
+            <Line id="DD_1_DD" quantity="PopDD/1/DD/output" scale="1" color="#8A2BE2" timeScale="1ms"/>
+            <Line id="VD_1_VD" quantity="PopVD/1/VD/output" scale="1" color="#A52A2A" timeScale="1ms"/>
+            <Line id="VB_1_VB" quantity="PopVB/1/VB/output" scale="1" color="#DEB887" timeScale="1ms"/>
+            <Line id="VA_1_VA" quantity="PopVA/1/VA/output" scale="1" color="#5F9EA0" timeScale="1ms"/>
+            <Line id="AS_2_AS" quantity="PopAS/2/AS/output" scale="1" color="#7FFF00" timeScale="1ms"/>
+            <Line id="DA_2_DA" quantity="PopDA/2/DA/output" scale="1" color="#D2691E" timeScale="1ms"/>
+            <Line id="DB_2_DB" quantity="PopDB/2/DB/output" scale="1" color="#FF7F50" timeScale="1ms"/>
+            <Line id="DD_2_DD" quantity="PopDD/2/DD/output" scale="1" color="#6495ED" timeScale="1ms"/>
+            <Line id="VD_2_VD" quantity="PopVD/2/VD/output" scale="1" color="#FFF8DC" timeScale="1ms"/>
+            <Line id="VB_2_VB" quantity="PopVB/2/VB/output" scale="1" color="#DC143C" timeScale="1ms"/>
+            <Line id="VA_2_VA" quantity="PopVA/2/VA/output" scale="1" color="#00FFFF" timeScale="1ms"/>
+            <Line id="AS_3_AS" quantity="PopAS/3/AS/output" scale="1" color="#00008B" timeScale="1ms"/>
+            <Line id="DA_3_DA" quantity="PopDA/3/DA/output" scale="1" color="#008B8B" timeScale="1ms"/>
+            <Line id="DB_3_DB" quantity="PopDB/3/DB/output" scale="1" color="#B8860B" timeScale="1ms"/>
+            <Line id="DD_3_DD" quantity="PopDD/3/DD/output" scale="1" color="#A9A9A9" timeScale="1ms"/>
+            <Line id="VD_3_VD" quantity="PopVD/3/VD/output" scale="1" color="#006400" timeScale="1ms"/>
+            <Line id="VB_3_VB" quantity="PopVB/3/VB/output" scale="1" color="#A9A9A9" timeScale="1ms"/>
+            <Line id="VA_3_VA" quantity="PopVA/3/VA/output" scale="1" color="#BDB76B" timeScale="1ms"/>
+            <Line id="AS_4_AS" quantity="PopAS/4/AS/output" scale="1" color="#8B008B" timeScale="1ms"/>
+            <Line id="DA_4_DA" quantity="PopDA/4/DA/output" scale="1" color="#556B2F" timeScale="1ms"/>
+            <Line id="DB_4_DB" quantity="PopDB/4/DB/output" scale="1" color="#FF8C00" timeScale="1ms"/>
+            <Line id="DD_4_DD" quantity="PopDD/4/DD/output" scale="1" color="#9932CC" timeScale="1ms"/>
+            <Line id="VD_4_VD" quantity="PopVD/4/VD/output" scale="1" color="#8B0000" timeScale="1ms"/>
+            <Line id="VB_4_VB" quantity="PopVB/4/VB/output" scale="1" color="#E9967A" timeScale="1ms"/>
+            <Line id="VA_4_VA" quantity="PopVA/4/VA/output" scale="1" color="#8FBC8F" timeScale="1ms"/>
+            <Line id="AS_5_AS" quantity="PopAS/5/AS/output" scale="1" color="#483D8B" timeScale="1ms"/>
+            <Line id="DA_5_DA" quantity="PopDA/5/DA/output" scale="1" color="#2F4F4F" timeScale="1ms"/>
+            <Line id="DB_5_DB" quantity="PopDB/5/DB/output" scale="1" color="#2F4F4F" timeScale="1ms"/>
+            <Line id="DD_5_DD" quantity="PopDD/5/DD/output" scale="1" color="#00CED1" timeScale="1ms"/>
+            <Line id="VD_5_VD" quantity="PopVD/5/VD/output" scale="1" color="#9400D3" timeScale="1ms"/>
+            <Line id="VB_5_VB" quantity="PopVB/5/VB/output" scale="1" color="#FF1493" timeScale="1ms"/>
+            <Line id="VA_5_VA" quantity="PopVA/5/VA/output" scale="1" color="#00BFFF" timeScale="1ms"/>
+            <Line id="AS_6_AS" quantity="PopAS/6/AS/output" scale="1" color="#696969" timeScale="1ms"/>
+            <Line id="DA_6_DA" quantity="PopDA/6/DA/output" scale="1" color="#696969" timeScale="1ms"/>
+            <Line id="DB_6_DB" quantity="PopDB/6/DB/output" scale="1" color="#1E90FF" timeScale="1ms"/>
+            <Line id="DD_6_DD" quantity="PopDD/6/DD/output" scale="1" color="#B22222" timeScale="1ms"/>
+            <Line id="VD_6_VD" quantity="PopVD/6/VD/output" scale="1" color="#FFFAF0" timeScale="1ms"/>
+            <Line id="VB_6_VB" quantity="PopVB/6/VB/output" scale="1" color="#228B22" timeScale="1ms"/>
+            <Line id="VA_6_VA" quantity="PopVA/6/VA/output" scale="1" color="#FF00FF" timeScale="1ms"/>
+        </Display>
+
+        <Display id="display0_VM" title="States" timeScale="1ms" xmin="-1000.0" xmax="11000." ymin="-15" ymax="10">
+            <Line id="MV1_0_MV1" quantity="PopMV1/0/MV1/state" scale="1" color="#F0F8FF" timeScale="1ms"/>
+            <Line id="MV1_1_MV1" quantity="PopMV1/1/MV1/state" scale="1" color="#FAEBD7" timeScale="1ms"/>
+            <Line id="MV1_2_MV1" quantity="PopMV1/2/MV1/state" scale="1" color="#00FFFF" timeScale="1ms"/>
+            <Line id="MV1_3_MV1" quantity="PopMV1/3/MV1/state" scale="1" color="#7FFFD4" timeScale="1ms"/>
+            <Line id="MV1_4_MV1" quantity="PopMV1/4/MV1/state" scale="1" color="#F0FFFF" timeScale="1ms"/>
+            <Line id="MV1_5_MV1" quantity="PopMV1/5/MV1/state" scale="1" color="#F5F5DC" timeScale="1ms"/>
+            <Line id="MV1_6_MV1" quantity="PopMV1/6/MV1/state" scale="1" color="#FFE4C4" timeScale="1ms"/>
+            <Line id="MV1_7_MV1" quantity="PopMV1/7/MV1/state" scale="1" color="#000000" timeScale="1ms"/>
+            <Line id="MV1_8_MV1" quantity="PopMV1/8/MV1/state" scale="1" color="#FFEBCD" timeScale="1ms"/>
+            <Line id="MV1_9_MV1" quantity="PopMV1/9/MV1/state" scale="1" color="#0000FF" timeScale="1ms"/>
+            <Line id="MV1_10_MV1" quantity="PopMV1/10/MV1/state" scale="1" color="#8A2BE2" timeScale="1ms"/>
+            <Line id="MV1_11_MV1" quantity="PopMV1/11/MV1/state" scale="1" color="#A52A2A" timeScale="1ms"/>
+            <Line id="MV1_12_MV1" quantity="PopMV1/12/MV1/state" scale="1" color="#DEB887" timeScale="1ms"/>
+            <Line id="MV1_13_MV1" quantity="PopMV1/13/MV1/state" scale="1" color="#5F9EA0" timeScale="1ms"/>
+            <Line id="MV1_14_MV1" quantity="PopMV1/14/MV1/state" scale="1" color="#7FFF00" timeScale="1ms"/>
+            <Line id="MV1_15_MV1" quantity="PopMV1/15/MV1/state" scale="1" color="#D2691E" timeScale="1ms"/>
+            <Line id="MV1_16_MV1" quantity="PopMV1/16/MV1/state" scale="1" color="#FF7F50" timeScale="1ms"/>
+            <Line id="MV1_17_MV1" quantity="PopMV1/17/MV1/state" scale="1" color="#6495ED" timeScale="1ms"/>
+            <Line id="MV1_18_MV1" quantity="PopMV1/18/MV1/state" scale="1" color="#FFF8DC" timeScale="1ms"/>
+            <Line id="MV1_19_MV1" quantity="PopMV1/19/MV1/state" scale="1" color="#DC143C" timeScale="1ms"/>
+            <Line id="MV1_20_MV1" quantity="PopMV1/20/MV1/state" scale="1" color="#00FFFF" timeScale="1ms"/>
+            <Line id="MV1_21_MV1" quantity="PopMV1/21/MV1/state" scale="1" color="#00008B" timeScale="1ms"/>
+            <Line id="MV1_22_MV1" quantity="PopMV1/22/MV1/state" scale="1" color="#008B8B" timeScale="1ms"/>
+            <Line id="MV1_23_MV1" quantity="PopMV1/23/MV1/state" scale="1" color="#B8860B" timeScale="1ms"/>
+        </Display>
+
+        <Display id="display0_DM" title="States" timeScale="1ms" xmin="-1000.0" xmax="11000." ymin="-15" ymax="10">
+            <Line id="MD1_0_MD1" quantity="PopMD1/0/MD1/state" scale="1" color="#F0F8FF" timeScale="1ms"/>
+            <Line id="MD1_1_MD1" quantity="PopMD1/1/MD1/state" scale="1" color="#FAEBD7" timeScale="1ms"/>
+            <Line id="MD1_2_MD1" quantity="PopMD1/2/MD1/state" scale="1" color="#00FFFF" timeScale="1ms"/>
+            <Line id="MD1_3_MD1" quantity="PopMD1/3/MD1/state" scale="1" color="#7FFFD4" timeScale="1ms"/>
+            <Line id="MD1_4_MD1" quantity="PopMD1/4/MD1/state" scale="1" color="#F0FFFF" timeScale="1ms"/>
+            <Line id="MD1_5_MD1" quantity="PopMD1/5/MD1/state" scale="1" color="#F5F5DC" timeScale="1ms"/>
+            <Line id="MD1_6_MD1" quantity="PopMD1/6/MD1/state" scale="1" color="#FFE4C4" timeScale="1ms"/>
+            <Line id="MD1_7_MD1" quantity="PopMD1/7/MD1/state" scale="1" color="#000000" timeScale="1ms"/>
+            <Line id="MD1_8_MD1" quantity="PopMD1/8/MD1/state" scale="1" color="#FFEBCD" timeScale="1ms"/>
+            <Line id="MD1_9_MD1" quantity="PopMD1/9/MD1/state" scale="1" color="#0000FF" timeScale="1ms"/>
+            <Line id="MD1_10_MD1" quantity="PopMD1/10/MD1/state" scale="1" color="#8A2BE2" timeScale="1ms"/>
+            <Line id="MD1_11_MD1" quantity="PopMD1/11/MD1/state" scale="1" color="#A52A2A" timeScale="1ms"/>
+            <Line id="MD1_12_MD1" quantity="PopMD1/12/MD1/state" scale="1" color="#DEB887" timeScale="1ms"/>
+            <Line id="MD1_13_MD1" quantity="PopMD1/13/MD1/state" scale="1" color="#5F9EA0" timeScale="1ms"/>
+            <Line id="MD1_14_MD1" quantity="PopMD1/14/MD1/state" scale="1" color="#7FFF00" timeScale="1ms"/>
+            <Line id="MD1_15_MD1" quantity="PopMD1/15/MD1/state" scale="1" color="#D2691E" timeScale="1ms"/>
+            <Line id="MD1_16_MD1" quantity="PopMD1/16/MD1/state" scale="1" color="#FF7F50" timeScale="1ms"/>
+            <Line id="MD1_17_MD1" quantity="PopMD1/17/MD1/state" scale="1" color="#6495ED" timeScale="1ms"/>
+            <Line id="MD1_18_MD1" quantity="PopMD1/18/MD1/state" scale="1" color="#FFF8DC" timeScale="1ms"/>
+            <Line id="MD1_19_MD1" quantity="PopMD1/19/MD1/state" scale="1" color="#DC143C" timeScale="1ms"/>
+            <Line id="MD1_20_MD1" quantity="PopMD1/20/MD1/state" scale="1" color="#00FFFF" timeScale="1ms"/>
+            <Line id="MD1_21_MD1" quantity="PopMD1/21/MD1/state" scale="1" color="#00008B" timeScale="1ms"/>
+            <Line id="MD1_22_MD1" quantity="PopMD1/22/MD1/state" scale="1" color="#008B8B" timeScale="1ms"/>
+            <Line id="MD1_23_MD1" quantity="PopMD1/23/MD1/state" scale="1" color="#B8860B" timeScale="1ms"/>
+        </Display>
+
+        <OutputFile id="states_file_VM" fileName="Worm2D.states_VM.dat">
+            <OutputColumn id="MV1_0_MV1" quantity="PopMV1/0/MV1/state"/>
+            <OutputColumn id="MV1_1_MV1" quantity="PopMV1/1/MV1/state"/>
+            <OutputColumn id="MV1_2_MV1" quantity="PopMV1/2/MV1/state"/>
+            <OutputColumn id="MV1_3_MV1" quantity="PopMV1/3/MV1/state"/>
+            <OutputColumn id="MV1_4_MV1" quantity="PopMV1/4/MV1/state"/>
+            <OutputColumn id="MV1_5_MV1" quantity="PopMV1/5/MV1/state"/>
+            <OutputColumn id="MV1_6_MV1" quantity="PopMV1/6/MV1/state"/>
+            <OutputColumn id="MV1_7_MV1" quantity="PopMV1/7/MV1/state"/>
+            <OutputColumn id="MV1_8_MV1" quantity="PopMV1/8/MV1/state"/>
+            <OutputColumn id="MV1_9_MV1" quantity="PopMV1/9/MV1/state"/>
+            <OutputColumn id="MV1_10_MV1" quantity="PopMV1/10/MV1/state"/>
+            <OutputColumn id="MV1_11_MV1" quantity="PopMV1/11/MV1/state"/>
+            <OutputColumn id="MV1_12_MV1" quantity="PopMV1/12/MV1/state"/>
+            <OutputColumn id="MV1_13_MV1" quantity="PopMV1/13/MV1/state"/>
+            <OutputColumn id="MV1_14_MV1" quantity="PopMV1/14/MV1/state"/>
+            <OutputColumn id="MV1_15_MV1" quantity="PopMV1/15/MV1/state"/>
+            <OutputColumn id="MV1_16_MV1" quantity="PopMV1/16/MV1/state"/>
+            <OutputColumn id="MV1_17_MV1" quantity="PopMV1/17/MV1/state"/>
+            <OutputColumn id="MV1_18_MV1" quantity="PopMV1/18/MV1/state"/>
+            <OutputColumn id="MV1_19_MV1" quantity="PopMV1/19/MV1/state"/>
+            <OutputColumn id="MV1_20_MV1" quantity="PopMV1/20/MV1/state"/>
+            <OutputColumn id="MV1_21_MV1" quantity="PopMV1/21/MV1/state"/>
+            <OutputColumn id="MV1_22_MV1" quantity="PopMV1/22/MV1/state"/>
+            <OutputColumn id="MV1_23_MV1" quantity="PopMV1/23/MV1/state"/>
+        </OutputFile>
+
+        <OutputFile id="states_file_DM" fileName="Worm2D.states_DM.dat">
+            <OutputColumn id="MD1_0_MD1" quantity="PopMD1/0/MD1/state"/>
+            <OutputColumn id="MD1_1_MD1" quantity="PopMD1/1/MD1/state"/>
+            <OutputColumn id="MD1_2_MD1" quantity="PopMD1/2/MD1/state"/>
+            <OutputColumn id="MD1_3_MD1" quantity="PopMD1/3/MD1/state"/>
+            <OutputColumn id="MD1_4_MD1" quantity="PopMD1/4/MD1/state"/>
+            <OutputColumn id="MD1_5_MD1" quantity="PopMD1/5/MD1/state"/>
+            <OutputColumn id="MD1_6_MD1" quantity="PopMD1/6/MD1/state"/>
+            <OutputColumn id="MD1_7_MD1" quantity="PopMD1/7/MD1/state"/>
+            <OutputColumn id="MD1_8_MD1" quantity="PopMD1/8/MD1/state"/>
+            <OutputColumn id="MD1_9_MD1" quantity="PopMD1/9/MD1/state"/>
+            <OutputColumn id="MD1_10_MD1" quantity="PopMD1/10/MD1/state"/>
+            <OutputColumn id="MD1_11_MD1" quantity="PopMD1/11/MD1/state"/>
+            <OutputColumn id="MD1_12_MD1" quantity="PopMD1/12/MD1/state"/>
+            <OutputColumn id="MD1_13_MD1" quantity="PopMD1/13/MD1/state"/>
+            <OutputColumn id="MD1_14_MD1" quantity="PopMD1/14/MD1/state"/>
+            <OutputColumn id="MD1_15_MD1" quantity="PopMD1/15/MD1/state"/>
+            <OutputColumn id="MD1_16_MD1" quantity="PopMD1/16/MD1/state"/>
+            <OutputColumn id="MD1_17_MD1" quantity="PopMD1/17/MD1/state"/>
+            <OutputColumn id="MD1_18_MD1" quantity="PopMD1/18/MD1/state"/>
+            <OutputColumn id="MD1_19_MD1" quantity="PopMD1/19/MD1/state"/>
+            <OutputColumn id="MD1_20_MD1" quantity="PopMD1/20/MD1/state"/>
+            <OutputColumn id="MD1_21_MD1" quantity="PopMD1/21/MD1/state"/>
+            <OutputColumn id="MD1_22_MD1" quantity="PopMD1/22/MD1/state"/>
+            <OutputColumn id="MD1_23_MD1" quantity="PopMD1/23/MD1/state"/>
+        </OutputFile>
+
+        <OutputFile id="states_file" fileName="Worm2D.states.dat">
+            <OutputColumn id="AS_0_AS" quantity="PopAS/0/AS/state"/>
+            <OutputColumn id="DA_0_DA" quantity="PopDA/0/DA/state"/>
+            <OutputColumn id="DB_0_DB" quantity="PopDB/0/DB/state"/>
+            <OutputColumn id="DD_0_DD" quantity="PopDD/0/DD/state"/>
+            <OutputColumn id="VD_0_VD" quantity="PopVD/0/VD/state"/>
+            <OutputColumn id="VB_0_VB" quantity="PopVB/0/VB/state"/>
+            <OutputColumn id="VA_0_VA" quantity="PopVA/0/VA/state"/>
+            <OutputColumn id="AS_1_AS" quantity="PopAS/1/AS/state"/>
+            <OutputColumn id="DA_1_DA" quantity="PopDA/1/DA/state"/>
+            <OutputColumn id="DB_1_DB" quantity="PopDB/1/DB/state"/>
+            <OutputColumn id="DD_1_DD" quantity="PopDD/1/DD/state"/>
+            <OutputColumn id="VD_1_VD" quantity="PopVD/1/VD/state"/>
+            <OutputColumn id="VB_1_VB" quantity="PopVB/1/VB/state"/>
+            <OutputColumn id="VA_1_VA" quantity="PopVA/1/VA/state"/>
+            <OutputColumn id="AS_2_AS" quantity="PopAS/2/AS/state"/>
+            <OutputColumn id="DA_2_DA" quantity="PopDA/2/DA/state"/>
+            <OutputColumn id="DB_2_DB" quantity="PopDB/2/DB/state"/>
+            <OutputColumn id="DD_2_DD" quantity="PopDD/2/DD/state"/>
+            <OutputColumn id="VD_2_VD" quantity="PopVD/2/VD/state"/>
+            <OutputColumn id="VB_2_VB" quantity="PopVB/2/VB/state"/>
+            <OutputColumn id="VA_2_VA" quantity="PopVA/2/VA/state"/>
+            <OutputColumn id="AS_3_AS" quantity="PopAS/3/AS/state"/>
+            <OutputColumn id="DA_3_DA" quantity="PopDA/3/DA/state"/>
+            <OutputColumn id="DB_3_DB" quantity="PopDB/3/DB/state"/>
+            <OutputColumn id="DD_3_DD" quantity="PopDD/3/DD/state"/>
+            <OutputColumn id="VD_3_VD" quantity="PopVD/3/VD/state"/>
+            <OutputColumn id="VB_3_VB" quantity="PopVB/3/VB/state"/>
+            <OutputColumn id="VA_3_VA" quantity="PopVA/3/VA/state"/>
+            <OutputColumn id="AS_4_AS" quantity="PopAS/4/AS/state"/>
+            <OutputColumn id="DA_4_DA" quantity="PopDA/4/DA/state"/>
+            <OutputColumn id="DB_4_DB" quantity="PopDB/4/DB/state"/>
+            <OutputColumn id="DD_4_DD" quantity="PopDD/4/DD/state"/>
+            <OutputColumn id="VD_4_VD" quantity="PopVD/4/VD/state"/>
+            <OutputColumn id="VB_4_VB" quantity="PopVB/4/VB/state"/>
+            <OutputColumn id="VA_4_VA" quantity="PopVA/4/VA/state"/>
+            <OutputColumn id="AS_5_AS" quantity="PopAS/5/AS/state"/>
+            <OutputColumn id="DA_5_DA" quantity="PopDA/5/DA/state"/>
+            <OutputColumn id="DB_5_DB" quantity="PopDB/5/DB/state"/>
+            <OutputColumn id="DD_5_DD" quantity="PopDD/5/DD/state"/>
+            <OutputColumn id="VD_5_VD" quantity="PopVD/5/VD/state"/>
+            <OutputColumn id="VB_5_VB" quantity="PopVB/5/VB/state"/>
+            <OutputColumn id="VA_5_VA" quantity="PopVA/5/VA/state"/>
+            <OutputColumn id="AS_6_AS" quantity="PopAS/6/AS/state"/>
+            <OutputColumn id="DA_6_DA" quantity="PopDA/6/DA/state"/>
+            <OutputColumn id="DB_6_DB" quantity="PopDB/6/DB/state"/>
+            <OutputColumn id="DD_6_DD" quantity="PopDD/6/DD/state"/>
+            <OutputColumn id="VD_6_VD" quantity="PopVD/6/VD/state"/>
+            <OutputColumn id="VB_6_VB" quantity="PopVB/6/VB/state"/>
+            <OutputColumn id="VA_6_VA" quantity="PopVA/6/VA/state"/>
+        </OutputFile>
+
+        <OutputFile id="outputs_file" fileName="Worm2D.outputs.dat">
+            <OutputColumn id="AS_0_AS" quantity="PopAS/0/AS/output"/>
+            <OutputColumn id="DA_0_DA" quantity="PopDA/0/DA/output"/>
+            <OutputColumn id="DB_0_DB" quantity="PopDB/0/DB/output"/>
+            <OutputColumn id="DD_0_DD" quantity="PopDD/0/DD/output"/>
+            <OutputColumn id="VD_0_VD" quantity="PopVD/0/VD/output"/>
+            <OutputColumn id="VB_0_VB" quantity="PopVB/0/VB/output"/>
+            <OutputColumn id="VA_0_VA" quantity="PopVA/0/VA/output"/>
+            <OutputColumn id="AS_1_AS" quantity="PopAS/1/AS/output"/>
+            <OutputColumn id="DA_1_DA" quantity="PopDA/1/DA/output"/>
+            <OutputColumn id="DB_1_DB" quantity="PopDB/1/DB/output"/>
+            <OutputColumn id="DD_1_DD" quantity="PopDD/1/DD/output"/>
+            <OutputColumn id="VD_1_VD" quantity="PopVD/1/VD/output"/>
+            <OutputColumn id="VB_1_VB" quantity="PopVB/1/VB/output"/>
+            <OutputColumn id="VA_1_VA" quantity="PopVA/1/VA/output"/>
+            <OutputColumn id="AS_2_AS" quantity="PopAS/2/AS/output"/>
+            <OutputColumn id="DA_2_DA" quantity="PopDA/2/DA/output"/>
+            <OutputColumn id="DB_2_DB" quantity="PopDB/2/DB/output"/>
+            <OutputColumn id="DD_2_DD" quantity="PopDD/2/DD/output"/>
+            <OutputColumn id="VD_2_VD" quantity="PopVD/2/VD/output"/>
+            <OutputColumn id="VB_2_VB" quantity="PopVB/2/VB/output"/>
+            <OutputColumn id="VA_2_VA" quantity="PopVA/2/VA/output"/>
+            <OutputColumn id="AS_3_AS" quantity="PopAS/3/AS/output"/>
+            <OutputColumn id="DA_3_DA" quantity="PopDA/3/DA/output"/>
+            <OutputColumn id="DB_3_DB" quantity="PopDB/3/DB/output"/>
+            <OutputColumn id="DD_3_DD" quantity="PopDD/3/DD/output"/>
+            <OutputColumn id="VD_3_VD" quantity="PopVD/3/VD/output"/>
+            <OutputColumn id="VB_3_VB" quantity="PopVB/3/VB/output"/>
+            <OutputColumn id="VA_3_VA" quantity="PopVA/3/VA/output"/>
+            <OutputColumn id="AS_4_AS" quantity="PopAS/4/AS/output"/>
+            <OutputColumn id="DA_4_DA" quantity="PopDA/4/DA/output"/>
+            <OutputColumn id="DB_4_DB" quantity="PopDB/4/DB/output"/>
+            <OutputColumn id="DD_4_DD" quantity="PopDD/4/DD/output"/>
+            <OutputColumn id="VD_4_VD" quantity="PopVD/4/VD/output"/>
+            <OutputColumn id="VB_4_VB" quantity="PopVB/4/VB/output"/>
+            <OutputColumn id="VA_4_VA" quantity="PopVA/4/VA/output"/>
+            <OutputColumn id="AS_5_AS" quantity="PopAS/5/AS/output"/>
+            <OutputColumn id="DA_5_DA" quantity="PopDA/5/DA/output"/>
+            <OutputColumn id="DB_5_DB" quantity="PopDB/5/DB/output"/>
+            <OutputColumn id="DD_5_DD" quantity="PopDD/5/DD/output"/>
+            <OutputColumn id="VD_5_VD" quantity="PopVD/5/VD/output"/>
+            <OutputColumn id="VB_5_VB" quantity="PopVB/5/VB/output"/>
+            <OutputColumn id="VA_5_VA" quantity="PopVA/5/VA/output"/>
+            <OutputColumn id="AS_6_AS" quantity="PopAS/6/AS/output"/>
+            <OutputColumn id="DA_6_DA" quantity="PopDA/6/DA/output"/>
+            <OutputColumn id="DB_6_DB" quantity="PopDB/6/DB/output"/>
+            <OutputColumn id="DD_6_DD" quantity="PopDD/6/DD/output"/>
+            <OutputColumn id="VD_6_VD" quantity="PopVD/6/VD/output"/>
+            <OutputColumn id="VB_6_VB" quantity="PopVB/6/VB/output"/>
+            <OutputColumn id="VA_6_VA" quantity="PopVA/6/VA/output"/>
+        </OutputFile>
+
+    </Simulation>
+
+</Lems>

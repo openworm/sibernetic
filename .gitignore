@@ -80,3 +80,5 @@ simulations
 /omv_report
 /AMD-APP-*
 /w2d.sh
+/tests/NeuroML/exPGSR21_103_10s_nml_musc/*.dat
+/tests/NeuroML/exPGSR21_103_10s_nml_musc/report*.txt

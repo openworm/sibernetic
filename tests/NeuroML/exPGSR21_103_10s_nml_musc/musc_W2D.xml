@@ -1,0 +1,70 @@
+<Lems>
+
+<ComponentType name="muscW2D"
+    extends="baseCellMembPotCap"
+    description="Muscle Cell based on Worm2D model">
+    
+
+    <Parameter name="tau" dimension="time"/>
+
+    <Constant name="COND_SCALE" dimension="conductance" value="1nS"/>
+
+    <!--
+    Defined in baseCellMembPotCap:
+    <Parameter name="C" dimension="capacitance"/>
+    -->
+    <DerivedParameter name="C" dimension="capacitance" value="tau*COND_SCALE"/>
+
+    <!-- Initial Conditions -->
+    <Parameter name="state0" dimension="none"/>
+
+    <Attachments name="synapses" type="basePointCurrent"/>
+
+    <Constant name="MVOLT" dimension="voltage" value="1mV"/>
+    <Constant name="PAMP" dimension="current" value="1pA"/>
+
+    <!-- <Exposure name="v" dimension="none"/> --> <!-- Already exposed from baseCellMembPotDL -->
+    <Exposure name="spiking" dimension="none"/>
+    <Exposure name="state" dimension="none"/>
+    <Exposure name="output" dimension="none"/>
+   
+
+    <Exposure name="iSyn" dimension="current" description="Total current due to synaptic inputs"/>
+    <Exposure name="iMemb" dimension="current" description="Total current crossing the cell membrane"/>
+    
+    <Dynamics>
+        
+        <StateVariable name="v" dimension="voltage" exposure="v" description="Membrane potential state variable"/>
+        <StateVariable name="spiking" dimension="none" exposure="spiking"/>
+        <!--<StateVariable name="state" dimension="none" exposure="state"/>-->
+        
+        <DerivedVariable name="iSyn" dimension="current" exposure="iSyn" select="synapses[*]/i" reduce="add" />
+        <DerivedVariable name="state" dimension="none" exposure="state" value="v/MVOLT" />
+        <DerivedVariable name="output" dimension="none" exposure="output" value="state" />
+        
+
+        <DerivedVariable name="iMemb" dimension="current" exposure="iMemb" value="((0-state)*PAMP + iSyn)"/>
+
+        <TimeDerivative variable="v" value="iMemb / C"/>
+        
+        <OnStart>
+            <StateAssignment variable="v" value="state0*MVOLT"/>
+        </OnStart>
+
+        <OnCondition test="v .gt. 0 .and. spiking .lt. 0.5">
+            <StateAssignment variable="spiking" value="1"/>
+            <EventOut port="spike"/>
+        </OnCondition>
+
+        <OnCondition test="v .lt. 0">
+            <StateAssignment variable="spiking" value="0"/>
+        </OnCondition>
+    
+
+    </Dynamics>
+    
+</ComponentType>
+
+
+</Lems>
+    
