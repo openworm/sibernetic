@@ -78,3 +78,5 @@ simulations
 /configuration/multiworm
 /tests/test_one_sprig_test.py
 /omv_report
+/AMD-APP-*
+/w2d.sh

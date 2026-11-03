@@ -247,6 +247,7 @@ def generate_wcon(
     )
 
     wcon.write("""            {"id":"wormTest",
+             "head":"R",
              "t":[ """)
     for t in ts:
         wcon.write("%s" % (t))
@@ -535,7 +536,7 @@ if __name__ == "__main__":
         pos_file_name = sys.argv[1]
     else:
         pos_file_name = (
-            "../simulations/test_opencl_worm_alone_half_resolution/worm_motion_log.txt"
+            "../simulations/test_c302_half_resolution/worm_motion_log.txt"
         )
 
     if len(sys.argv) > 2:
