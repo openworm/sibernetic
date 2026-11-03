@@ -454,7 +454,11 @@ def run(a=None, **kwargs):
         )
     )
 
+    # Start from the current environment: the child is run with env=env, which
+    # replaces the whole environment, and without PATH the OpenCL kernel
+    # linker (ld) cannot be found.
     env = {
+        **os.environ,
         "DISPLAY": os.environ.get("DISPLAY")
         if os.environ.get("DISPLAY") is not None
         else "",
