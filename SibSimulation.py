@@ -83,6 +83,8 @@ class SibSimulation:
         self.downsample = downsample
         self.swap_y_z = swap_y_z
 
+        self.position_file = position_file
+
         self.report_data = None
         self.report_file = report_file
         self.dt = None
@@ -114,20 +116,34 @@ class SibSimulation:
             self._find_vtp_files()
 
         if load_traces and self.has_worm_data():
-            self._load_traces()
+            try:
+                self._load_traces()
+            except Exception as e:
+                print(f"Error loading traces: {e}")
+             
 
     def __repr__(self):
         return f"SibSimulation(sim_dir={self.sim_dir}, duration={self.get_duration_ms()} ms)"
 
     def get_duration_ms(self):
-        return float(self.report_data.get("duration").split()[0])
+        return float(self.duration) if self.duration is not None else 0
 
     def get_run_time_s(self):
-        return round(float(self.report_data.get("run_time").split()[0]), 5)
+        return (
+            round(float(self.report_data.get("run_time").split()[0]), 5)
+            if self.report_data is not None
+            else 0
+        )
 
     def get_timestamp(self):
         # when the simulation was run based on last modified date of s.report_file
-        timestamp = os.path.getmtime(self.report_file)
+        timestamp = (
+            os.path.getmtime(self.report_file)
+            if self.report_file is not None
+            else os.path.getmtime(self.position_file)
+            if self.position_file is not None
+            else "???"
+        )
         return timestamp
 
     def get_metadata(self):
@@ -142,7 +158,14 @@ class SibSimulation:
             }
         return metadata
 
-    def _load_report(self, report_file):
+    def _load_report(self, report_file, fail_if_missing=True):
+
+        if not os.path.isfile(report_file):
+            print(f"Report file not found: {report_file}")
+            if fail_if_missing:
+                raise FileNotFoundError(f"Report file not found: {report_file}")
+            return
+
         self.report_data = json.load(open(report_file))
         print_(f"Loaded report_data:\n{self.report_data}")
         self.dt = float(self.report_data["dt"].split(" ")[0])
@@ -392,6 +415,10 @@ class SibSimulation:
             f"Num of time points loaded: {len(self.all_3D_points)} (total: {time_count})"
         )
         print_(f"Loaded time points: {self.loaded_time_points}")
+        if self.duration is None:
+            self.duration = self.loaded_time_points[-1]
+            print_(f"Duration inferred from loaded time points: {self.duration} ms")
+
         if self.verbose:
             print_(
                 f"Count of point types found: {dict(sorted(count_point_types.items()))}"

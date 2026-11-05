@@ -22,6 +22,18 @@ def load_simulation(sim_dir, full_load=False):
         )
         return ss
 
+    sibernetic_positions = os.path.join(sim_dir, "position_buffer.txt")
+
+    if os.path.isdir(sim_dir) and os.path.isfile(sibernetic_positions):
+        print("--- Adding sim dir: " + sim_dir)
+        ss = SibSimulation(
+            position_file=sibernetic_positions,
+            load_positions=True,
+            load_traces=full_load,
+            downsample=10,
+        )
+        return ss
+
     worm2d_report = os.path.join(sim_dir, "simulation_pars.json")
 
     if os.path.isdir(sim_dir) and os.path.isfile(worm2d_report):
@@ -142,14 +154,25 @@ def main(sims_dir=None):
 
 def load_sim(e):
     sim_name = e.args
-    report_file = os.path.join(sim_name, "report.json")
-    print(f"Loading simulation: {sim_name}, with report file: {report_file}")
+    report_file = (
+        os.path.join(sim_name, "report.json")
+        if os.path.isfile(os.path.join(sim_name, "report.json"))
+        else None
+    )
+    position_file = (
+        os.path.join(sim_name, "position_buffer.txt")
+        if os.path.isfile(os.path.join(sim_name, "position_buffer.txt"))
+        else None
+    )
+    print(
+        f"Loading simulation: {sim_name}, with report file: {report_file}, position file: {position_file}"
+    )
 
     plotter = pv.Plotter()
     swap_y_z = False
     add_sibernetic_model(
         plotter,
-        position_file=None,
+        position_file=position_file,
         report_file=report_file,
     )
 
