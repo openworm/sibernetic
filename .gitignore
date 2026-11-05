@@ -82,3 +82,5 @@ simulations
 /w2d.sh
 /tests/NeuroML/exPGSR21_103_10s_nml_musc/*.dat
 /tests/NeuroML/exPGSR21_103_10s_nml_musc/report*.txt
+/tests/NeuroML/exPGSR21_23_10s_nml_musc/*.dat
+/tests/NeuroML/exPGSR21_23_10s_nml_musc/report*.txt
