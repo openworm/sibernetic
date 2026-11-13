@@ -81,7 +81,12 @@ def main(sims_dir=None):
     )
 
     # create the search box first so it appears above the table
-    search = ui.input("Search")
+    with ui.row().classes("items-center w-full"):
+        search = ui.input("Search")
+        ui.space()
+        downsample_select = ui.select(
+            [1, 5, 10, 50, 100], value=1, label="Downsample 3D"
+        ).style("min-width: 150px;")
 
     table = ui.table(
         columns=[
@@ -143,7 +148,7 @@ def main(sims_dir=None):
         </q-td>
     """,
     )
-    table.on("load", lambda e: load_sim(e))
+    table.on("load", lambda e: load_sim(e, downsample_select.value))
     table.on("load2", lambda e: load_sim_2d(e))
     table.on("info", lambda e: info_sim(e))
 
@@ -152,7 +157,7 @@ def main(sims_dir=None):
     )  # remove native=True to serve it as a web app
 
 
-def load_sim(e):
+def load_sim(e, downsample=10):
     sim_name = e.args
     report_file = (
         os.path.join(sim_name, "report.json")
@@ -174,6 +179,7 @@ def load_sim(e):
         plotter,
         position_file=position_file,
         report_file=report_file,
+        downsample_override=downsample,
     )
 
     plotter.window_size = [1600, 800]

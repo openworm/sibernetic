@@ -334,6 +334,7 @@ def add_sibernetic_model(
     offset3d=(0, 0, 0),
     include_boundary=False,
     show_footprint=True,
+    downsample_override=None,
 ):
     global \
         sim_positions, \
@@ -363,7 +364,7 @@ def add_sibernetic_model(
     sim_positions = SibSimulation(
         position_file=position_file,
         report_file=report_file,
-        downsample=downsample,
+        downsample=downsample if downsample_override is None else downsample_override,
         swap_y_z=swap_y_z,
         load_traces=True,
     )
