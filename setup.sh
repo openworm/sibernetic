@@ -131,7 +131,7 @@ else
     echo "CLINFO:"
     clinfo
 
-    pip install -r requirements.txt
+    pip install -r requirements.txt  --break-system-packages
 
     export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}."
 

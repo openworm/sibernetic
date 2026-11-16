@@ -29,6 +29,7 @@ jobs:
       run: |
 
         sudo ./setup.sh
+        sudo pip uninstall ruff # strange issues with ruff on ubuntu... 
 
     - name: Print Sibernetic help
       run: |
