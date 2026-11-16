@@ -110,7 +110,7 @@ else
     fi
 
     #apt-get install -y python3-dev python3-venv ocl-icd-opencl-dev libglu1-mesa-dev freeglut3-dev libglew-dev clinfo pocl-opencl-icd
-    apt-get install -y ocl-icd-opencl-dev
+    apt-get install -y ocl-icd-opencl-dev clinfo
 
     echo "OpenCL Driver Installation Complete"
 
