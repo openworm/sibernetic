@@ -10,7 +10,7 @@
 # `sibernetic_c302.py`; if you don't need neural-coupled simulations you can
 # ignore the Python plumbing — the binary itself still runs.
 #
-set -euo pipefail
+set -euox pipefail
 
 SUPPORTED_PYTHONS=("python3.13" "python3.12" "python3.11" "python3.10")
 
@@ -25,6 +25,11 @@ find_supported_python() {
 }
 
 if [[ "$(uname)" == "Darwin" ]]; then
+
+    ###########################################################################################################
+    # NOTE: This is not yet tested on most Sibernetic branches, Work in progress, targeted at new backends! 
+    ###########################################################################################################
+
     if ! command -v brew >/dev/null 2>&1; then
         echo "Homebrew not found. Please install it from https://brew.sh/" >&2
         exit 1
@@ -90,10 +95,39 @@ if [[ "$(uname)" == "Darwin" ]]; then
     echo "  ./src/metal_diff/sib_metal --help"
 
 else
-    apt-get update
-    apt-get install -y python3-dev python3-venv ocl-icd-opencl-dev libglu1-mesa-dev freeglut3-dev libglew-dev clinfo pocl-opencl-icd
+    echo "Installing Sibernetic on Linux."
 
-    python3 -m pip install numpy
-    python3 -m pip install ruff pytest pyneuroml || \
-        echo "Warning: optional packages (ruff/pytest/pyneuroml) failed to install."
+    apt-get update
+
+    # check if AMD-APP-SDK-v3.0.130.136-GA-linux64.sh  exists and download and untar if not
+    if [ ! -f AMD-APP-SDK-v3.0.130.136-GA-linux64.sh ]; then
+        apt-get install aria2 -y
+        aria2c -j10 -x 10 https://master.dl.sourceforge.net/project/nicehashsgminerv5viptools/APP%20SDK%20A%20Complete%20Development%20Platform/AMD%20APP%20SDK%203.0%20for%2064-bit%20Linux/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
+
+        tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
+    else
+        echo "AMD-APP-SDK-v3.0.130.136-GA-linux64.sh already exists; skipping download."
+    fi
+
+    #apt-get install -y python3-dev python3-venv ocl-icd-opencl-dev libglu1-mesa-dev freeglut3-dev libglew-dev clinfo pocl-opencl-icd
+    apt-get install -y ocl-icd-opencl-dev
+
+    echo "OpenCL Driver Installation Complete"
+
+    apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
+
+
+    echo "CLINFO:"
+    clinfo
+
+    pip install -r requirements.txt
+
+    export PYTHONPATH=$PYTHONPATH:.
+
+    make clean
+    make -j4
+
+
+    echo "Sibernetic installation complete. You can now run the main binary:"
+    echo "  ./Release/Sibernetic --help"
 fi
