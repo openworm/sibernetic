@@ -97,8 +97,8 @@ if [[ "$(uname)" == "Darwin" ]]; then
 else
     echo "Installing Sibernetic on Linux."
 
-    apt-get update
-    apt install --only-upgrade python3-pip
+    apt update
+    apt install -y --only-upgrade python3-pip
 
     # check if AMD-APP-SDK-v3.0.130.136-GA-linux64.sh  exists and download and untar if not
     if [ ! -f AMD-APP-SDK-v3.0.130.136-GA-linux64.sh ]; then
@@ -109,6 +109,16 @@ else
     else
         echo "AMD-APP-SDK-v3.0.130.136-GA-linux64.sh already exists; skipping download."
     fi
+
+    chmod +x AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
+        
+    printf 'Y\n\n' | ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
+
+
+    apt update
+
+    ln -sf /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libOpenCL.so.1 /usr/lib/libOpenCL.so.1
+    ln -sf /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libamdocl64.so /usr/lib/libamdocl64.so
 
     #apt-get install -y python3-dev python3-venv ocl-icd-opencl-dev libglu1-mesa-dev freeglut3-dev libglew-dev clinfo pocl-opencl-icd
     apt-get install -y ocl-icd-opencl-dev clinfo
