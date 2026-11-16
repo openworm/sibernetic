@@ -10,6 +10,8 @@ try:
     from pyneuroml import pynml
 except ImportError:  # pyneuroml is optional; we can fall back to subprocess
     pynml = None
+
+import shutil
 import argparse
 import re
 import os
@@ -166,7 +168,7 @@ def process_args():
         type=str,
         metavar="<lems>",
         default=DEFAULTS["lems"],
-        help="Points to LEMS file. NOTE: Work in progress!!",
+        help="Points to a LEMS file specifying the network to use. NOTE: Work in progress!!",
     )
 
     parser.add_argument(
@@ -357,7 +359,25 @@ def run(a=None, **kwargs):
 
     if not a.noc302:
         if a.lems is not None:
-            lems_file = a.lems
+            lems_file_orig = a.lems
+            from pyneuroml.utils import get_model_file_list
+
+            file_list = []
+            get_model_file_list(lems_file_orig, file_list)
+            for f in file_list:
+                print_("Copying %s (from %s) to %s..." % (f, lems_file_orig, sim_dir))
+                shutil.copy(f, sim_dir)
+
+                if f == lems_file_orig:
+                    lems_file0 = os.path.abspath(
+                        os.path.join(sim_dir, os.path.basename(f))
+                    )
+
+                    lems_file = os.path.join(sim_dir, "LEMS_c302.xml")
+
+                    print_("Renaming %s -> %s" % (lems_file0, lems_file))
+                    os.rename(lems_file0, lems_file)
+                    print_("LEMS file to use for sibernetic: %s" % lems_file)
 
         else:
             id = "%s_%s" % (a.c302params, a.reference)
@@ -444,7 +464,11 @@ def run(a=None, **kwargs):
         )
     )
 
+    # Start from the current environment: the child is run with env=env, which
+    # replaces the whole environment, and without PATH the OpenCL kernel
+    # linker (ld) cannot be found.
     env = {
+        **os.environ,
         "DISPLAY": os.environ.get("DISPLAY")
         if os.environ.get("DISPLAY") is not None
         else "",
@@ -548,14 +572,10 @@ def run(a=None, **kwargs):
         report_file.write(s)
 
     if not a.noc302 and successful:
-        announce(
-            "Generating images for neuronal activity (via %s in %s)..."
-            % (lems_file, sim_dir)
-        )
+        announce("Generating images for neuronal activity (via %s)..." % (lems_file))
 
         results = pynml.reload_saved_data(
             lems_file,
-            base_dir=sim_dir,
             plot=False,
             show_plot_already=False,
             simulator=None,
