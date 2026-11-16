@@ -98,6 +98,7 @@ else
     echo "Installing Sibernetic on Linux."
 
     apt-get update
+    apt install --only-upgrade python3-pip
 
     # check if AMD-APP-SDK-v3.0.130.136-GA-linux64.sh  exists and download and untar if not
     if [ ! -f AMD-APP-SDK-v3.0.130.136-GA-linux64.sh ]; then
