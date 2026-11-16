@@ -214,7 +214,8 @@ void owHelper::preLoadConfiguration(owConfigProperty *config) {
       }
     }
   } else
-    throw std::runtime_error("Could not open file configuration file");
+    throw std::runtime_error("Could not open file configuration file: " +
+                             file_name);
   configFile.close();
   config->setParticleCount(p_count);
 }
@@ -357,7 +358,7 @@ void owHelper::loadConfiguration(float *position_cpp, float *velocity_cpp,
       }
     }
   } else
-    throw std::runtime_error("Could not open file configuration file");
+    throw std::runtime_error("Could not open file configuration file: " + file_name);
   configFile.close();
   std::cout << "Configuration has been loaded" << std::endl;
 }
