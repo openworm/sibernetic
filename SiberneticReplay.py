@@ -17,6 +17,12 @@ from SibSimulation import SibSimulation
 from enum import Enum
 
 last_meshes = {}
+last_actors = {}
+
+show_liquid = True
+show_elastic = True
+show_boundary_particles = True
+show_footprint_outline = True
 
 replay_speed = 0.02  # seconds between frames
 replaying = False
@@ -31,6 +37,9 @@ show_boundary = False
 max_time = None
 
 verbose = False
+
+musc_chart = None
+curv_chart = None
 
 downsample = 1  # only load every nth time point of 3d positions
 
@@ -195,6 +204,7 @@ def get_color_info_for_type(type_):
 
 
 def add_muscle_activation_chart(sim_dir, pl, duration=None):
+    global musc_chart
 
     muscle_activation_file = os.path.join(sim_dir, "muscles_activity_buffer.txt")
     print_(f"Loading muscle activation file from: {muscle_activation_file}")
@@ -236,6 +246,7 @@ def add_muscle_activation_chart(sim_dir, pl, duration=None):
 
 
 def add_body_curvature_chart(sim_dir, pl, duration=None):
+    global curv_chart
 
     from wcon.generate_wcon import generate_wcon
 
@@ -247,6 +258,7 @@ def add_body_curvature_chart(sim_dir, pl, duration=None):
         wcon_file_name=wcon_output_file,
         rate_to_plot=1,
         plot=False,
+        verbose=False,
     )
 
     if np.sum(x[ts[-1]]) + np.sum(y[ts[-1]]) == 0:
@@ -295,6 +307,7 @@ def add_sibernetic_model(
     swap_y_z=False,
     offset3d=(0, 0, 0),
     include_boundary=False,
+    show_footprint=True,
 ):
     global \
         sim_positions, \
@@ -303,12 +316,23 @@ def add_sibernetic_model(
         offset3d_, \
         slider, \
         show_boundary, \
+        show_boundary_particles, \
         max_time, \
-        replay_controller
+        replay_controller, \
+        show_footprint_outline
+
+    print_(
+        f"Adding Sibernetic model from position file: {position_file}, report file: {report_file}"
+    )
+    print_(
+        f"Swap Y/Z: {swap_y_z}, offset3d: {offset3d}, include_boundary: {include_boundary}  "
+    )
 
     offset3d_ = offset3d
     plotter = pl
     show_boundary = include_boundary
+    show_boundary_particles = include_boundary
+    show_footprint_outline = show_footprint
 
     sim_positions = SibSimulation(
         position_file=position_file,
@@ -432,6 +456,57 @@ def add_sibernetic_model(
         color="black",
     )
 
+    if len(sim_positions.vtp_files) > 0:
+        pl.add_checkbox_button_widget(
+            toggle_vtk_mesh,
+            value=False,
+            position=(1180, button_height),
+            color_on="lightblue",
+            color_off="darkgrey",
+        )
+
+    pl.add_checkbox_button_widget(
+        toggle_boundary_particles,
+        value=show_boundary,
+        position=(1250, button_height),
+        color_on="grey",
+        color_off="darkgrey",
+    )
+
+    pl.add_checkbox_button_widget(
+        toggle_elastic,
+        value=True,
+        position=(1320, button_height),
+        color_on="pink",
+        color_off="darkgrey",
+    )
+
+    pl.add_checkbox_button_widget(
+        toggle_liquid,
+        value=True,
+        position=(1390, button_height),
+        color_on="cyan",
+        color_off="darkgrey",
+    )
+
+    if musc_chart is not None:
+        pl.add_checkbox_button_widget(
+            toggle_musc_chart,
+            value=True,
+            position=(1470, button_height),
+            color_on="green",
+            color_off="darkgrey",
+        )
+
+    if curv_chart is not None:
+        pl.add_checkbox_button_widget(
+            toggle_curv_chart,
+            value=True,
+            position=(1540, button_height),
+            color_on="green",
+            color_off="darkgrey",
+        )
+
 
 def slider_updated(value):
     global replay_controller
@@ -493,7 +568,7 @@ def play_checkbox_pressed(value):
 def ff_checkbox_pressed(value):
     global replay_controller
     print_(f" > FF checkbox pressed, value: {value}")
-    replay_controller.play(value, 3)
+    replay_controller.play(value, 10)
 
 
 def back_checkbox_pressed(value):
@@ -502,8 +577,76 @@ def back_checkbox_pressed(value):
     replay_controller.step_backward()
 
 
+def toggle_musc_chart(value):
+    global musc_chart, plotter
+    print_(f" > Muscle activation chart toggle, value: {value}")
+    if musc_chart is not None:
+        musc_chart.visible = value
+        plotter.render()
+
+
+def toggle_curv_chart(value):
+    global curv_chart, plotter
+    print_(f" > Body curvature chart toggle, value: {value}")
+    if curv_chart is not None:
+        curv_chart.visible = value
+        plotter.render()
+
+
+def toggle_liquid(value):
+    global show_liquid, last_actors, plotter
+    show_liquid = value
+    for type_, actor in last_actors.items():
+        _, info, _ = get_color_info_for_type(type_)
+        if "liquid" in info:
+            actor.visibility = value
+    plotter.render()
+
+
+def toggle_elastic(value):
+    global show_elastic, last_actors, plotter
+    show_elastic = value
+    for type_, actor in last_actors.items():
+        _, info, _ = get_color_info_for_type(type_)
+        if "elastic" in info:
+            actor.visibility = value
+    plotter.render()
+
+
+def toggle_boundary_particles(value):
+    global show_boundary_particles, last_actors, plotter
+    print_(f" > Boundary particles toggle, value: {value}")
+    show_boundary_particles = value
+    for type_, actor in last_actors.items():
+        _, info, _ = get_color_info_for_type(type_)
+        if "boundary" in info:
+            actor.visibility = value
+    plotter.render()
+
+
+def toggle_vtk_mesh(value):
+    global replay_controller, plotter
+    print_(f" > VTK mesh toggle, value: {value}")
+    replay_controller.show_vtk_mesh = value
+    if not value and replay_controller.vtk_actor is not None:
+        plotter.remove_actor(replay_controller.vtk_actor)
+        replay_controller.vtk_actor = None
+        plotter.render()
+    elif value:
+        replay_controller.render_all()
+
+
 def create_mesh(time_index):
-    global sim_positions, last_meshes, plotter, offset3d_, show_boundary
+    global \
+        sim_positions, \
+        last_meshes, \
+        last_actors, \
+        plotter, \
+        offset3d_, \
+        show_boundary, \
+        show_liquid, \
+        show_elastic, \
+        show_boundary_particles
 
     if time_index >= sim_positions.num_time_points():
         print_(
@@ -525,8 +668,8 @@ def create_mesh(time_index):
 
         is_boundary = "boundary" in info
 
-        if show_boundary is False and is_boundary and time_index == 0:
-            # print (curr_points)
+        if is_boundary and time_index == 0 and not show_boundary_particles:
+            # draw bounding box outline as a visual placeholder when boundary particles are hidden
             mx = np.max(curr_points, axis=0)
             mn = np.min(curr_points, axis=0)
             swap = False
@@ -543,15 +686,9 @@ def create_mesh(time_index):
 
             print_(f"        >>>>>>>>>>   Boundary box points: {a}, {b}, {c}, {d}")
             points = np.array([a, b, b, c, c, d, d, a])
-            plotter.add_lines(points, color="grey", width=2)
-            """
-            plotter.add_mesh(pv.Sphere(radius=3, center=a), color="pink")
-            plotter.add_mesh(pv.Sphere(radius=4, center=b), color="blue")
-            plotter.add_mesh(pv.Sphere(radius=5, center=c), color="red")
-            plotter.add_mesh(pv.Sphere(radius=6, center=d), color="purple")"""
-
-            # quit()
-            continue
+            if show_footprint_outline:
+                plotter.add_lines(points, color="grey", width=2)
+                # fall through so boundary particles are still added to last_actors (hidden)
 
         if verbose:
             print_(
@@ -565,13 +702,19 @@ def create_mesh(time_index):
             last_meshes[type_] = pv.PolyData(curr_points)
             last_meshes[type_].translate(offset3d_, inplace=True)
 
-            # last_actor =
-            plotter.add_mesh(
+            actor = plotter.add_mesh(
                 last_meshes[type_],
                 render_points_as_spheres=True,
                 point_size=size,
                 color=color,
             )
+            last_actors[type_] = actor
+            if "liquid" in info and not show_liquid:
+                actor.visibility = False
+            elif "elastic" in info and not show_elastic:
+                actor.visibility = False
+            elif "boundary" in info and not show_boundary_particles:
+                actor.visibility = False
         else:
             if not is_boundary:
                 last_meshes[type_].points = curr_points

@@ -1,11 +1,13 @@
 #!/bin/bash
 set -ex
 
-ruff format *.py wcon/*.py tests/*.py
-ruff check *.py wcon/*.py tests/*.py
+if command -v ruff >/dev/null 2>&1; then
+    ruff format *.py wcon/*.py tests/*.py
+    ruff check *.py wcon/*.py tests/*.py
+fi
 
 make clean
-make
+make -j4
 
 # Run tests using native ./Release/Sibernetic executable with OpenCL
 time ./run_opencl_tests.sh $@
