@@ -1,10 +1,10 @@
 #!/bin/bash
 set -ex
 
-#./setup.sh  # Run this outside test.sh
-
-ruff format *.py wcon/*.py tests/*.py
-ruff check *.py wcon/*.py tests/*.py
+if command -v ruff >/dev/null 2>&1; then
+    ruff format *.py wcon/*.py tests/*.py
+    ruff check *.py wcon/*.py tests/*.py
+fi
 
 make clean
 make -j4
