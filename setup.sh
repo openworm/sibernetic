@@ -97,12 +97,19 @@ if [[ "$(uname)" == "Darwin" ]]; then
 else
     echo "Installing Sibernetic on Linux."
 
-    apt update
-    apt install -y --only-upgrade python3-pip
+    # Use sudo for privileged commands if it's available and we're not already
+    # root; otherwise run them directly as the current user (e.g. in a container).
+    RUN_SUDO=""
+    if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
+        RUN_SUDO="sudo"
+    fi
+
+    $RUN_SUDO apt update
+    $RUN_SUDO apt install -y --only-upgrade python3-pip
 
     # check if AMD-APP-SDK-v3.0.130.136-GA-linux64.sh  exists and download and untar if not
     if [ ! -f AMD-APP-SDK-v3.0.130.136-GA-linux64.sh ]; then
-        apt-get install aria2 -y
+        $RUN_SUDO apt-get install aria2 -y
         aria2c -j10 -x 10 https://master.dl.sourceforge.net/project/nicehashsgminerv5viptools/APP%20SDK%20A%20Complete%20Development%20Platform/AMD%20APP%20SDK%203.0%20for%2064-bit%20Linux/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
 
         tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
@@ -112,26 +119,26 @@ else
 
     chmod +x AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
         
-    printf 'Y\n\n' | ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
+    printf 'Y\n\n' | $RUN_SUDO ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh
 
 
-    apt update
+    $RUN_SUDO apt update
 
-    ln -sf /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libOpenCL.so.1 /usr/lib/libOpenCL.so.1
-    ln -sf /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libamdocl64.so /usr/lib/libamdocl64.so
+    $RUN_SUDO ln -sf /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libOpenCL.so.1 /usr/lib/libOpenCL.so.1
+    $RUN_SUDO ln -sf /opt/AMDAPPSDK-3.0/lib/x86_64/sdk/libamdocl64.so /usr/lib/libamdocl64.so
 
     #apt-get install -y python3-dev python3-venv ocl-icd-opencl-dev libglu1-mesa-dev freeglut3-dev libglew-dev clinfo pocl-opencl-icd
-    apt-get install -y ocl-icd-opencl-dev clinfo
+    $RUN_SUDO apt-get install -y ocl-icd-opencl-dev clinfo
 
     echo "OpenCL Driver Installation Complete"
 
-    apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
+    $RUN_SUDO apt install -y python3-dev freeglut3-dev libglu1-mesa-dev
 
 
     echo "CLINFO:"
     clinfo
 
-    pip install --ignore-installed  -r requirements.txt 
+    $RUN_SUDO pip install --ignore-installed -r requirements.txt
 
     export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}."
 

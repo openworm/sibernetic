@@ -28,7 +28,7 @@ jobs:
     - name: Install dependencies and build Sibernetic
       run: |
 
-        sudo ./setup.sh
+        ./setup.sh
         sudo pip uninstall -y ruff # strange issues with ruff on ubuntu... 
         which nrniv
         pip list
