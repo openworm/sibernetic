@@ -30,6 +30,8 @@ jobs:
 
         sudo ./setup.sh
         sudo pip uninstall -y ruff # strange issues with ruff on ubuntu... 
+        which nrniv
+        pip list
 
     - name: Print Sibernetic help
       run: |
@@ -41,13 +43,6 @@ jobs:
 
         ./Release/Sibernetic -no_g timelimit=0.001
 
-    - name: Install Python dependencies
-      run: |
-        pip install -r requirements.txt
-      
-        which nrniv
-
-        pip list
 
     - name: Run tests
       run: |
