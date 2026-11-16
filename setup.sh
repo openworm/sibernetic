@@ -131,8 +131,7 @@ else
     echo "CLINFO:"
     clinfo
 
-    apt remove python3-typing-extensions
-    pip install -r requirements.txt 
+    pip install --ignore-installed  -r requirements.txt 
 
     export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}."
 
