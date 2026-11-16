@@ -123,7 +123,7 @@ else
 
     pip install -r requirements.txt
 
-    export PYTHONPATH=$PYTHONPATH:.
+    export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}."
 
     make clean
     make -j4
