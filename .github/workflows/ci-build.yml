@@ -28,7 +28,7 @@ jobs:
     - name: Install dependencies and build Sibernetic
       run: |
 
-        ./setup.sh
+        sudo ./setup.sh
 
     - name: Print Sibernetic help
       run: |
