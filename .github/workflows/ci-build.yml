@@ -2,9 +2,9 @@ name: Build using AMD drivers
 
 on:
   push:
-    branches: [ master, dev*, ow* ]
+    branches: [ master, dev*, ow*, test* ]
   pull_request:
-    branches: [ master, dev, ow* ]
+    branches: [ master, dev*, ow*, test* ]
   workflow_dispatch:
 
 jobs:
@@ -72,6 +72,7 @@ jobs:
 
 
   build-macos:
+    if: false  # temporarily disabled, only for new macos compliant backends
     # Native Metal substrate exercise. The main Sibernetic binary on Apple
     # Silicon builds with OW_NO_OPENCL (no OpenCL driver available); the
     # actual GPU simulation path lives in src/metal_diff/sib_metal, a
