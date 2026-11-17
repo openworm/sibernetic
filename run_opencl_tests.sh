@@ -70,15 +70,15 @@ run_test () {
             ./Release/Sibernetic -f ${config} -l_to lpath=${sim_dir} timelimit=${timelimit} timestep=${timestep} logstep=${logstep} device=ALL ${no_gui} -q ${export_vtk}
             
             # check if there is an OMV test
-            if [ -f "tests/.test.${config}.omt" ]; then
+            if [ -f "tests/.test.${config_basename}.omt" ]; then
 
-                if ! omv test -V tests/.test.${config}.omt; then
-                    echo "OMV test failed: tests/.test.${config}.omt" >> omv_report
+                if ! omv test -V tests/.test.${config_basename}.omt; then
+                    echo "OMV test failed: tests/.test.${config_basename}.omt ($(date '+%Y-%m-%d %H:%M:%S'))" >> omv_report
                 else
-                    echo "OMV test passed: tests/.test.${config}.omt" >> omv_report
+                    echo "OMV test passed: tests/.test.${config_basename}.omt ($(date '+%Y-%m-%d %H:%M:%S'))" >> omv_report
                 fi
             else
-                echo "No OMV test found at tests/.test.${config}.omt, skipping that part of the test" >> omv_report
+                echo "No OMV test found at tests/.test.${config_basename}.omt, skipping that part of the test ($(date '+%Y-%m-%d %H:%M:%S'))" >> omv_report
             fi
             
             # Test reloading the simulation files with Python viewer

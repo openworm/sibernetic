@@ -3,7 +3,7 @@ import sys
 import os
 
 
-def test_demo1():
+def test_one_spring_test():
 
     sim_ref = "test_opencl_one_spring_test"
     types_to_plot = {2.1: [0]}
@@ -17,4 +17,4 @@ def test_demo1():
 
 # main
 if __name__ == "__main__":
-    test_demo1()
+    test_one_spring_test()
