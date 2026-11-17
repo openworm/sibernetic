@@ -36,8 +36,6 @@ if $TEST_ALL; then
     # Run a simulation with the FW (forward locomotion) c302 configuration with W2D (simple passive) cells
     ##python sibernetic_c302.py -test -duration 15.0 -dt 0.005 -dtNrn 0.05 -logstep 100 -device=CPU -configuration worm_crawl_half_resolution -reference FW -c302params W2D -datareader UpdatedSpreadsheetDataReader2
 
-    omv all -V
-
 fi
 
 
