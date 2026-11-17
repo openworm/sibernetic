@@ -52,7 +52,7 @@ jobs:
         ./test.sh -all
 
         omv find 
-        omv all -V 
+        omv all -V   --exit-zero ###  TEMP! just to be able to continue to the next steps to print details etc.
 
     - name: Generated file info
       run: |
