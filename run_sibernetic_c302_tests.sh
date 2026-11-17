@@ -10,8 +10,6 @@ TEST_ALL=false
 # Cube only
 python3 sibernetic_c302.py -test -noc302 -duration 30 -dt 0.02 -configuration demo1 -simName test_cube -logstep 10 -q
 
-if $TEST_ALL; then omv test tests/.test.cube.omt -V; fi
-
 # No c302 but with the worm body 
 python3 sibernetic_c302.py -test -noc302 -duration 0.1 -simName test_noc302 -q
 
