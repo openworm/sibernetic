@@ -47,7 +47,8 @@ def restructure_output_for_omv(sim_dir):
     print("Saved restructured muscle activity data to: %s" % dat_file)
 
 
-def plot_and_save_positions(sim_ref, sim_dir, show_plot=False, types_to_plot={}):
+
+def plot_and_save_positions(sim_ref, sim_dir, show_plot=False, types_to_plot={}, index_to_save=0):
 
     print(
         f"Plotting positions for simulation: {sim_ref} from directory: {sim_dir}"
@@ -76,7 +77,7 @@ def plot_and_save_positions(sim_ref, sim_dir, show_plot=False, types_to_plot={})
         )
         for i in types_to_plot[tp]:
             times, positions = sim.get_particle_position(tp, i)
-            if i == 0:
+            if i == index_to_save:
                 # Save to file
                 file_name = os.path.join(
                     sim_dir, f"positions_{sim_ref}_type_{tp}_index_{i}.dat"
