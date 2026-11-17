@@ -16,7 +16,7 @@ import pprint
 
 pp = pprint.PrettyPrinter(indent=4)
 
-script_version = "0.2.1"  # This will change at different rate to C++ code...
+script_version = "0.2.2"  # This will change at different rate to C++ code...
 
 DEFAULTS = {
     "duration": 2.0,
